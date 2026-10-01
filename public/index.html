@@ -3,43 +3,98 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Notaste Games</title>
-  <meta name="description" content="Free satirical browser games in questionable taste. No subscriptions, no paywalls. Coming soon.">
-  <meta name="theme-color" content="#4a412a">
+  <title>Notaste Games: free games in poor taste</title>
+  <meta name="description" content="Quick, dark browser games about the news, the internet and the people who run both. Free. No subscriptions. No taste.">
+  <meta name="theme-color" content="#ffffff">
+
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;700&display=swap">
   <link rel="stylesheet" href="/styles.css">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Notaste Games">
-  <meta property="og:title" content="Notaste Games">
-  <meta property="og:description" content="Free satirical games in questionable taste. Coming soon.">
+  <meta property="og:title" content="Notaste Games: free games in poor taste">
+  <meta property="og:description" content="Quick, dark browser games about the news, the internet and the people who run both. Coming soon.">
   <meta property="og:url" content="https://notastegames.com/">
   <meta property="og:image" content="https://notastegames.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
-  <a class="skip" href="#about">Skip to content</a>
+  <a class="skip" href="#main">Skip to content</a>
 
-  <header class="pack wrap">
-    <button class="warning" id="warning" type="button" aria-live="polite"
-            aria-label="Health warning. Tap for another.">
-      <span class="warning-kicker">Warning</span>
-      <span class="warning-text" id="warning-text">These games are in poor taste.</span>
-      <span class="warning-hint">Tap for another warning</span>
-    </button>
-
-    <div class="brand">
-      <h1 class="wordmark">Notaste Games</h1>
-      <p class="tagline">Free games about the state of things.</p>
+  <header class="top">
+    <div class="top-inner wrap">
+      <a class="top-logo" href="/" aria-label="Notaste Games home">
+        <img src="/brand/logo.svg" alt="No Taste" width="557" height="166">
+      </a>
+      <nav class="top-nav" aria-label="Main">
+        <a href="#games">Games</a>
+        <a href="#about">About</a>
+        <a href="#follow">Follow</a>
+      </nav>
     </div>
   </header>
 
-  <main id="about">
-    <section class="panel wrap" aria-labelledby="what-heading">
-      <div class="split">
-        <h2 id="what-heading">What this is</h2>
-        <div>
-          <p>Small, quick, carefully made games that laugh at the news, the internet and the people who run both. Some are about this week. Some will still be true in ten years.</p>
+  <main id="main">
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <h1>Free games in poor taste.</h1>
+        <p class="hero-lede">Quick, dark little browser games about the news, the internet and the people who run both. No subscriptions. No paywalls. No taste.</p>
+        <div class="actions">
+          <a class="btn" href="#games">See what's coming</a>
+          <a class="text-link" href="#follow">Follow for launches</a>
+        </div>
+      </div>
+      <div class="hero-stamp" aria-hidden="true">
+        <img src="/brand/stamp.svg" alt="" width="565" height="174">
+      </div>
+    </section>
+
+    <section class="section wrap" id="games" aria-labelledby="games-heading">
+      <div class="section-head">
+        <h2 id="games-heading">Coming soon</h2>
+        <p class="section-note">The first games are being made now. Details are classified until they're finished, or until we lose our nerve.</p>
+      </div>
+      <ul class="games">
+        <li>
+          <div class="game-cover"><span class="stamp-label">Pending review</span></div>
+          <div class="game-body">
+            <h3 class="game-title">Title withheld</h3>
+            <p class="game-teaser">An endless cannon, an endless feed, and nobody checking either.</p>
+            <p class="game-status">In development</p>
+          </div>
+        </li>
+        <li>
+          <div class="game-cover"><span class="stamp-label">Not approved</span></div>
+          <div class="game-body">
+            <h3 class="game-title">Title withheld</h3>
+            <p class="game-teaser">Small cars. Large drivers. Physics that has given up.</p>
+            <p class="game-status">In development</p>
+          </div>
+        </li>
+        <li>
+          <div class="game-cover"><span class="stamp-label">Classified</span></div>
+          <div class="game-body">
+            <h3 class="game-title">Title withheld</h3>
+            <p class="game-teaser">Tiny creatures who think you're their god. You are not a good one.</p>
+            <p class="game-status">In development</p>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="section wrap" id="about" aria-labelledby="about-heading">
+      <div class="about">
+        <div class="about-copy">
+          <h2 id="about-heading">What this is</h2>
+          <p>Notaste makes small, carefully made games that laugh at the state of things. Some are about this week's news. Some will still be true in ten years.</p>
           <p>They're a little darker than they should be. That's the point.</p>
           <ul class="facts" aria-label="Product information">
             <li><span>Price</span><span>Free</span></li>
@@ -48,60 +103,36 @@
             <li><span>Taste</span><span>Not detected</span></li>
           </ul>
         </div>
+        <button class="warning" id="warning" type="button" aria-label="Warning label. Tap for another warning.">
+          <span class="warning-kicker">Warning</span>
+          <span class="warning-text" id="warning-text" aria-live="polite">These games are in poor taste.</span>
+          <span class="warning-hint">Tap for another warning</span>
+        </button>
       </div>
     </section>
 
-    <section class="panel wrap" aria-labelledby="games-heading">
-      <div class="split">
-        <h2 id="games-heading">Games</h2>
-        <div>
-          <p>Nothing on the shelf yet. The first ones are being made now.</p>
-          <ul class="slots">
-            <li class="slot">
-              <p class="slot-warning">Warning: this game does not exist yet.</p>
-              <div class="slot-body">
-                <h3 class="slot-name">Game one</h3>
-                <p class="slot-status">In development</p>
-              </div>
-            </li>
-            <li class="slot">
-              <p class="slot-warning">Warning: may contain traces of current events.</p>
-              <div class="slot-body">
-                <h3 class="slot-name">Game two</h3>
-                <p class="slot-status">In development</p>
-              </div>
-            </li>
-            <li class="slot">
-              <p class="slot-warning">Warning: we haven't thought of this one.</p>
-              <div class="slot-body">
-                <h3 class="slot-name">Game three</h3>
-                <p class="slot-status">Not started</p>
-              </div>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel wrap" aria-labelledby="follow-heading">
-      <div class="split">
+    <section class="section wrap" id="follow" aria-labelledby="follow-heading">
+      <div class="section-head">
         <h2 id="follow-heading">Follow</h2>
-        <div>
-          <p>New games get announced on socials first.</p>
-          <ul class="socials">
-            <li><span>TikTok</span><span class="pending">Coming soon</span></li>
-            <li><span>Instagram</span><span class="pending">Coming soon</span></li>
-            <li><span>X</span><span class="pending">Coming soon</span></li>
-            <li><span>YouTube</span><span class="pending">Coming soon</span></li>
-          </ul>
-        </div>
+        <p class="section-note">New games get announced on socials first.</p>
       </div>
+      <ul class="socials">
+        <li><span>TikTok</span><span class="pending">Coming soon</span></li>
+        <li><span>Instagram</span><span class="pending">Coming soon</span></li>
+        <li><span>X</span><span class="pending">Coming soon</span></li>
+        <li><span>YouTube</span><span class="pending">Coming soon</span></li>
+      </ul>
     </section>
   </main>
 
-  <footer class="foot wrap">
-    <p>Notaste Games makes satire. Real people, brands and events that appear in our games are being made fun of, not described.</p>
-    <p>&copy; <span id="year">2026</span> Notaste Games</p>
+  <footer class="foot">
+    <div class="foot-inner wrap">
+      <img class="foot-mark" src="/brand/mark.svg" alt="" width="183" height="166">
+      <div>
+        <p>Notaste Games makes satire. Real people, brands and events that appear in our games are being made fun of, not described.</p>
+        <p>&copy; <span id="year">2026</span> Notaste Games</p>
+      </div>
+    </div>
   </footer>
 
   <script src="/main.js" defer></script>

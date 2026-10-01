@@ -15,14 +15,15 @@ The site for [notastegames.com](https://notastegames.com): free satirical browse
 | `public/index.html` | Homepage |
 | `public/404.html` | Page shown for links that don't exist |
 | `public/styles.css` | All styling, colours and type |
-| `public/main.js` | Rotating health warnings on the homepage |
-| `public/favicon.svg` | Browser tab icon (placeholder until the logo is final) |
+| `public/main.js` | Rotating warnings, and hides the header logo while the big stamp is on screen |
+| `public/favicon.svg` | Browser tab icon (plus PNG sizes and apple-touch-icon) |
+| `public/brand/` | Logo, stamp badge and square mark (SVG) |
 | `public/og-image.png` | Preview image shown when the link is shared on socials |
 | `public/_headers` | Basic security headers |
 
 ## Design
 
-Placeholder identity built on plain cigarette packaging: Pantone 448 C ("the ugliest colour"), plain Helvetica, and a white health-warning box as the one loud element. Will be revisited once the logo is final.
+"Stamped": clean white page, heavy condensed headlines (Anton) with Archivo body text, and stamp red (#D7141A) used only for stamps and the main button. The logo stamp lands on the page once when it loads. Logo files live in `public/brand/` (source pack generated separately, not a font).
 
 ## Adding a game later
 
