@@ -26,7 +26,7 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
-<body>
+<body class="home">
   <a class="skip" href="#main">Skip to content</a>
 
   <header class="top">
@@ -43,13 +43,15 @@
   </header>
 
   <main id="main">
-    <section class="hero wrap">
+    <section class="hero wrap" aria-labelledby="hero-heading">
       <div class="hero-copy">
-        <h1>Free games in poor taste.</h1>
-        <p class="hero-lede">Quick, dark little browser games about the news, the internet and the people who run both. No subscriptions. No paywalls. No taste.</p>
-        <div class="actions">
-          <a class="btn" href="#games">See what's coming</a>
-          <a class="text-link" href="#follow">Follow for launches</a>
+        <h1 id="hero-heading"><span>Free games</span> <span>in poor</span> <span>taste.</span></h1>
+        <div class="hero-foot">
+          <p class="hero-lede">Quick, dark little browser games about the news, the internet and the people who run both. No subscriptions. No paywalls. No taste.</p>
+          <div class="actions">
+            <a class="btn" href="#games">See what's coming</a>
+            <a class="text-link" href="#follow">Follow for launches</a>
+          </div>
         </div>
       </div>
       <div class="hero-stamp" aria-hidden="true">
@@ -57,64 +59,93 @@
       </div>
     </section>
 
-    <section class="section wrap" id="games" aria-labelledby="games-heading">
-      <div class="section-head">
-        <h2 id="games-heading">Coming soon</h2>
-        <p class="section-note">The first games are being made now. Details are classified until they're finished, or until we lose our nerve.</p>
+    <section class="games-section" id="games" aria-labelledby="games-heading">
+      <div class="section wrap games-top">
+        <div class="section-head">
+          <h2 id="games-heading">Coming soon</h2>
+          <p class="section-note">Three games are being made now. None of them have been approved. We didn't ask.</p>
+        </div>
       </div>
-      <ul class="games">
-        <li>
-          <div class="game-cover"><span class="stamp-label">Pending review</span></div>
-          <div class="game-body">
-            <h3 class="game-title">Title withheld</h3>
-            <p class="game-teaser">An endless cannon, an endless feed, and nobody checking either.</p>
-            <p class="game-status">In development</p>
+
+      <article class="feature" aria-labelledby="slop-cannon-title">
+        <div class="feature-inner wrap">
+          <a class="feature-cover" href="/games/slop-cannon/" tabindex="-1" aria-hidden="true">
+            <img src="/art/slop-cannon.svg" width="800" height="600" alt="">
+            <span class="stamp-label">Pending review</span>
+          </a>
+          <div class="feature-body">
+            <h3 class="feature-title" id="slop-cannon-title">Slop Cannon</h3>
+            <p class="feature-line">An endless cannon, an endless feed, and nobody checking either.</p>
+            <p class="feature-pitch">Fire machine-made content into a feed as fast as it will go. The numbers go up. The feed gets worse. Nobody stops you, because nobody is there.</p>
+            <p class="game-status"><span class="status-dot" aria-hidden="true"></span>In development. First out of the door.</p>
+            <div class="actions">
+              <a class="btn" href="/games/slop-cannon/">See Slop Cannon</a>
+            </div>
           </div>
-        </li>
-        <li>
-          <div class="game-cover"><span class="stamp-label">Not approved</span></div>
-          <div class="game-body">
-            <h3 class="game-title">Title withheld</h3>
-            <p class="game-teaser">Small cars. Large drivers. Physics that has given up.</p>
-            <p class="game-status">In development</p>
-          </div>
-        </li>
-        <li>
-          <div class="game-cover"><span class="stamp-label">Classified</span></div>
-          <div class="game-body">
-            <h3 class="game-title">Title withheld</h3>
-            <p class="game-teaser">Tiny creatures who think you're their god. You are not a good one.</p>
-            <p class="game-status">In development</p>
-          </div>
-        </li>
-      </ul>
+        </div>
+      </article>
+
+      <div class="wrap">
+        <ul class="slates">
+          <li class="slate slate--traffic">
+            <div class="slate-cover">
+              <img src="/art/heavy-traffic.svg" width="800" height="600" alt="">
+              <span class="stamp-label">Not approved</span>
+            </div>
+            <div class="slate-body">
+              <h3 class="slate-title"><a class="slate-link" href="/games/heavy-traffic/">Heavy Traffic</a></h3>
+              <p class="slate-line">Kart racing. Large drivers, tiny cars. Physics has given up.</p>
+              <p class="game-status"><span class="status-dot" aria-hidden="true"></span>In development</p>
+              <span class="slate-cue" aria-hidden="true">See the game</span>
+            </div>
+          </li>
+          <li class="slate slate--thonglets">
+            <div class="slate-cover">
+              <img src="/art/thonglets.svg" width="800" height="600" alt="">
+              <span class="stamp-label">Classified</span>
+            </div>
+            <div class="slate-body">
+              <h3 class="slate-title"><a class="slate-link" href="/games/thonglets/">Thonglets</a></h3>
+              <p class="slate-line">Tiny creatures who think you're their god. You are not a good one.</p>
+              <p class="game-status"><span class="status-dot" aria-hidden="true"></span>In development</p>
+              <span class="slate-cue" aria-hidden="true">See the game</span>
+            </div>
+          </li>
+        </ul>
+      </div>
     </section>
 
     <section class="section wrap" id="about" aria-labelledby="about-heading">
       <div class="about">
         <div class="about-copy">
           <h2 id="about-heading">What this is</h2>
-          <p>Notaste makes small, carefully made games that laugh at the state of things. Some are about this week's news. Some will still be true in ten years.</p>
+          <p class="about-lede">Small, carefully made games that laugh at the state of things.</p>
+          <p>Some are about this week's news. Some will still be true in ten years. They all play in a browser, on whatever you're reading this on.</p>
           <p>They're a little darker than they should be. That's the point.</p>
-          <ul class="facts" aria-label="Product information">
-            <li><span>Price</span><span>Free</span></li>
-            <li><span>Subscription</span><span>None</span></li>
-            <li><span>Plays in</span><span>Your browser</span></li>
-            <li><span>Taste</span><span>Not detected</span></li>
-          </ul>
         </div>
-        <button class="warning" id="warning" type="button" aria-label="Warning label. Tap for another warning.">
-          <span class="warning-kicker">Warning</span>
-          <span class="warning-text" id="warning-text" aria-live="polite">These games are in poor taste.</span>
-          <span class="warning-hint">Tap for another warning</span>
-        </button>
+        <div class="about-pack">
+          <button class="warning" id="warning" type="button" aria-label="Warning label. Tap for another warning.">
+            <span class="warning-kicker">Warning</span>
+            <span class="warning-text" id="warning-text" aria-live="polite">These games are in poor taste.</span>
+            <span class="warning-hint">Tap for another warning</span>
+          </button>
+          <div class="facts-panel">
+            <p class="facts-title" id="facts-title">Contents per game</p>
+            <ul class="facts" aria-labelledby="facts-title">
+              <li><span>Price</span><span>Free</span></li>
+              <li><span>Subscription</span><span>None</span></li>
+              <li><span>Plays in</span><span>Your browser</span></li>
+              <li><span>Taste</span><span>Not detected</span></li>
+            </ul>
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="section wrap" id="follow" aria-labelledby="follow-heading">
       <div class="section-head">
         <h2 id="follow-heading">Follow</h2>
-        <p class="section-note">New games get announced on socials first.</p>
+        <p class="section-note">New games get announced on socials first. The accounts aren't open yet. We're still deciding which ones we can stand.</p>
       </div>
       <ul class="socials">
         <li><span>TikTok</span><span class="pending">Coming soon</span></li>
