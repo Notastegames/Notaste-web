@@ -1,0 +1,457 @@
+/*
+  Notaste Games — game pages.
+  Loads after /styles.css and reuses its tokens, header, footer, buttons and stamps.
+  The one loud thing on the page is the cabinet: a black bezel around a screen.
+  Everything else stays quiet.
+*/
+
+/* ---------- Page layout ---------- */
+
+.game-page {
+  display: grid;
+  grid-template-areas:
+    "head"
+    "screen"
+    "info";
+  gap: 1.5rem;
+  padding-block: 1.5rem 3.5rem;
+}
+
+.game-head { grid-area: head; }
+.cabinet   { grid-area: screen; }
+.game-info { grid-area: info; }
+
+@media (min-width: 60rem) {
+  .game-page {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "screen head"
+      "screen info";
+    column-gap: 3rem;
+    row-gap: 2.25rem;
+    align-items: start;
+    padding-block: 2.5rem 4.5rem;
+  }
+}
+
+/* ---------- Title block ---------- */
+
+.game-head h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(2.6rem, 4vw + 1.4rem, 4.25rem);
+  line-height: 0.95;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 60rem) {
+  .game-head h1 { font-size: clamp(2.6rem, 2vw + 1.6rem, 3.6rem); }
+}
+
+.game-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-top: 1rem;
+}
+
+.game-head .stamp-label {
+  font-size: clamp(1.15rem, 1.5vw + 0.8rem, 1.45rem);
+  transform: rotate(var(--tilt, -4deg));
+}
+
+.game-state {
+  margin: 0;
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--grey);
+}
+
+.game-pitch {
+  margin: 1rem 0 0;
+  max-width: 30rem;
+  font-size: var(--step-1);
+  line-height: 1.45;
+  color: #222;
+}
+
+/* ---------- The cabinet ---------- */
+
+.cabinet {
+  background: var(--ink);
+  border-radius: 10px;
+  padding: 8px 8px 0;
+}
+
+@media (min-width: 40rem) {
+  .cabinet { padding: 12px 12px 0; }
+}
+
+.screen {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: var(--night);
+  color: var(--paper);
+  border-radius: 4px;
+}
+
+@media (min-width: 40rem) {
+  .screen { aspect-ratio: 4 / 3; }
+}
+
+/* Cover art sits behind everything, dimmed, like an attract screen */
+.screen-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.32;
+}
+
+/* Scanlines and a darkened edge, so it reads as a screen rather than a box */
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 3px);
+  box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.75);
+}
+
+.cabinet-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.55rem 0.3rem 0.65rem;
+  color: #a8a8a8;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* ---------- Game root and placeholder states ---------- */
+
+#game-root {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.ph {
+  position: absolute;
+  inset: 0;
+  display: none;
+  padding: 1.25rem;
+}
+
+#game-root:not([data-state]) .ph-idle,
+#game-root[data-state="idle"] .ph-idle,
+#game-root[data-state="boot"] .ph-boot,
+#game-root[data-state="done"] .ph-done { display: grid; }
+
+/* Idle: title and the start button */
+.ph-idle {
+  align-content: center;
+  justify-items: center;
+  gap: 1.25rem;
+  text-align: center;
+}
+
+.ph-title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(2.4rem, 6vw + 1rem, 4.5rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+.ph-start {
+  border: 0;
+  cursor: pointer;
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.85rem 1.6rem 0.8rem;
+}
+
+.ph-note {
+  margin: 0;
+  font-size: var(--step--1);
+  color: #dedede;
+  text-shadow: 0 1px 2px #000, 0 0 8px #000;
+}
+
+/* Boot: a short log of things the game is pretending to do */
+.ph-boot,
+.ph-done { background: rgba(17, 17, 17, 0.86); }
+
+.ph-boot { align-content: end; }
+.ph-boot:focus { outline: none; }
+
+.boot-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: clamp(0.8rem, 0.6vw + 0.65rem, 0.95rem);
+  line-height: 1.7;
+  color: #d6d6d6;
+}
+
+.boot-log li { overflow-wrap: anywhere; }
+.boot-res { color: var(--paper); font-weight: 700; }
+
+.boot-log li:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 0.35em;
+  vertical-align: -0.15em;
+  background: #d6d6d6;
+}
+
+/* Done: the stamp, the bad news, the way out */
+.ph-done {
+  align-content: center;
+  justify-items: center;
+  gap: 0.9rem;
+  text-align: center;
+}
+
+.ph-done .stamp-label {
+  font-size: clamp(1.6rem, 3vw + 1rem, 2.4rem);
+  background: var(--paper);
+  outline-offset: -8px;
+  padding: 0.45em 0.75em 0.4em;
+  transform: rotate(var(--tilt, -4deg));
+}
+
+.ph-heading {
+  margin: 0.4rem 0 0;
+  font-size: clamp(1.2rem, 1.2vw + 1rem, 1.6rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.ph-heading:focus { outline: none; }
+
+.ph-line {
+  margin: 0;
+  max-width: 26rem;
+  color: #d0d0d0;
+  font-size: var(--step--1);
+  line-height: 1.5;
+}
+
+@media (min-width: 40rem) {
+  .ph-line { font-size: var(--step-0); }
+}
+
+.ph-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem 1.25rem;
+  margin-top: 0.3rem;
+}
+
+.ph-actions .btn { padding: 0.7rem 1.1rem; }
+.ph-actions .text-link { color: var(--paper); }
+
+.ph-restart {
+  margin-top: 0.2rem;
+  padding: 0.45rem 0.9rem;
+  background: transparent;
+  color: var(--paper);
+  border: 2px solid #8a8a8a;
+  border-radius: 3px;
+  font: inherit;
+  font-size: var(--step--1);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ph-restart:hover { border-color: var(--paper); }
+
+.screen :focus-visible { outline-color: var(--paper); }
+.screen .btn:focus-visible { outline-color: var(--paper); }
+
+/* Motion, only after the player presses something */
+@media (prefers-reduced-motion: no-preference) {
+  .boot-log li { animation: line-in 120ms ease-out both; }
+  #game-root[data-state="done"] .ph-done .stamp-label {
+    animation: stamp-in 520ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+  .ph-start:active, .ph-restart:active { transform: translateY(2px); }
+}
+
+@keyframes line-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes stamp-in {
+  0%   { opacity: 0; transform: rotate(calc(var(--tilt, -4deg) - 4deg)) scale(1.7); }
+  55%  { opacity: 1; transform: rotate(var(--tilt, -4deg)) scale(0.95); }
+  75%  { transform: rotate(var(--tilt, -4deg)) scale(1.02); }
+  100% { opacity: 1; transform: rotate(var(--tilt, -4deg)) scale(1); }
+}
+
+/* Short screens on phones: tighten the end state so it fits the square */
+@media (max-width: 39.99rem) {
+  .ph { padding: 1rem; }
+  .ph-done { gap: 0.7rem; }
+}
+
+/* ---------- How to play and share ---------- */
+
+.game-info h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 1.6rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.how {
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 2px solid var(--ink);
+}
+
+.how li {
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-top: 1.75rem;
+}
+
+.btn-line {
+  display: inline-block;
+  padding: 0.75rem 1.2rem;
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-line:hover { background: var(--ink); color: var(--paper); }
+.btn-line:active { transform: translateY(1px); }
+
+.share-status {
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--grey);
+  overflow-wrap: anywhere;
+}
+
+.game-info .text-link {
+  display: inline-block;
+  margin-top: 1.25rem;
+}
+
+/* ---------- More games ---------- */
+
+.more-list {
+  display: grid;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 44rem) {
+  .more-list { grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 1.75rem; }
+}
+
+.more-item {
+  display: grid;
+  grid-template-columns: 9.5rem 1fr;
+  gap: 1rem;
+  align-items: start;
+  text-decoration: none;
+}
+
+@media (min-width: 44rem) {
+  .more-item { grid-template-columns: 1fr; gap: 0.9rem; }
+}
+
+.more-cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--night);
+  border-radius: 4px;
+}
+
+/* Shown until the cover art exists */
+.more-cover-name {
+  padding: 0.5rem;
+  color: var(--paper);
+  font-family: var(--display);
+  font-size: clamp(1.1rem, 2vw + 0.6rem, 1.9rem);
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.more-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.more-title {
+  display: block;
+  font-size: var(--step-1);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.more-item:hover .more-title { text-decoration: underline; text-decoration-thickness: 2px; }
+
+.more-pitch {
+  display: block;
+  margin-top: 0.3rem;
+  color: #333;
+  line-height: 1.45;
+}
+
+@media (max-width: 26rem) {
+  .more-item { grid-template-columns: 8rem 1fr; gap: 0.85rem; }
+  .more-pitch { font-size: var(--step--1); }
+}

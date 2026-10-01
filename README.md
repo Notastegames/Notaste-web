@@ -25,6 +25,10 @@ The site for [notastegames.com](https://notastegames.com): free satirical browse
 
 "Stamped": clean white page, heavy condensed headlines (Anton) with Archivo body text, and stamp red (#D7141A) used only for stamps and the main button. The logo stamp lands on the page once when it loads. Logo files live in `public/brand/` (source pack generated separately, not a font).
 
-## Adding a game later
+## Games
 
-Each game can live in its own folder, e.g. `public/game-name/index.html`, which appears at `notastegames.com/game-name`. Bigger games can have their own repo in the Notastegames org instead.
+Each game has a page at `public/games/<slug>/index.html`, sharing `public/games/game.css` and `public/games/game.js`. Cover art lives at `public/art/<slug>.svg` (800x600).
+
+Until a game is ready, its page shows a placeholder "Press start" screen. The real game mounts in `<div id="game-root" data-placeholder>`: remove `data-placeholder` and replace the div's contents with the game.
+
+To add a game: copy a game folder, edit the lines marked `<!-- EDIT -->`, add one line to the `GAMES` list at the top of `game.js`, add its cover to `public/art/`, and add a card on the homepage. Bigger games can have their own repo in the Notastegames org on a subdomain instead.
