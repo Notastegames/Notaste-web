@@ -1,0 +1,323 @@
+/*
+  Notaste Games — placeholder identity
+  Concept: plain packaging. The page is dressed in Pantone 448 C
+  ("opaque couché"), the drab brown-green picked for cigarette packs
+  because people find it the least appealing colour there is.
+  Typeface: plain Helvetica, the face plain packs are required to use.
+  The one loud thing on the page is the health warning.
+*/
+
+:root {
+  --couche: #4a412a;        /* Pantone 448 C, the "ugliest colour" */
+  --couche-deep: #3a3220;   /* darker drab for panels */
+  --couche-line: #6b6046;   /* rules on drab */
+  --bone: #d8d0bb;          /* body text on drab */
+  --bone-dim: #a89e85;      /* secondary text on drab */
+  --warning-paper: #ffffff;
+  --warning-ink: #000000;
+
+  --font: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", "Nimbus Sans", FreeSans, sans-serif;
+
+  /* Type scale (perfect fourth, 1.333) */
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.333rem;
+  --step-2: 1.777rem;
+  --step-3: 2.369rem;
+  --step-4: clamp(2.6rem, 6vw + 1rem, 5.6rem);
+
+  --gutter: 16px;
+  --measure: 34rem;
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--couche);
+  color: var(--bone);
+  font-family: var(--font);
+  font-size: var(--step-0);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--warning-paper); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+
+:focus-visible {
+  outline: 3px solid var(--warning-paper);
+  outline-offset: 3px;
+}
+
+.skip {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--warning-paper);
+  color: var(--warning-ink);
+  padding: 0.5rem 0.75rem;
+}
+.skip:focus { left: var(--gutter); top: var(--gutter); }
+
+.wrap {
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* ---------- The pack (hero) ---------- */
+
+.pack {
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  padding-top: var(--gutter);
+  padding-bottom: 2rem;
+}
+
+.warning {
+  /* UK plain packs give the top 65% of the front to the warning */
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0;
+  padding: clamp(1.25rem, 5vw, 3rem);
+  background: var(--warning-paper);
+  color: var(--warning-ink);
+  border: 6px solid var(--warning-ink);
+  outline: 6px solid var(--warning-paper);
+  outline-offset: -14px;
+  min-height: 50svh;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.warning:focus-visible {
+  outline: 6px solid var(--warning-paper);
+  outline-offset: -14px;
+  box-shadow: 0 0 0 4px var(--couche), 0 0 0 8px var(--warning-paper);
+}
+
+.warning-kicker {
+  display: block;
+  font-size: var(--step-1);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin-bottom: 0.4em;
+}
+
+.warning-text {
+  display: block;
+  font-size: var(--step-4);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  max-width: 15ch;
+  text-wrap: balance;
+}
+
+.warning-hint {
+  display: block;
+  margin-top: 1.5rem;
+  font-size: var(--step--1);
+  color: #555;
+}
+
+.warning.is-swapping .warning-text {
+  animation: swap 220ms ease-out;
+}
+
+@keyframes swap {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.brand {
+  padding-top: 1.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+
+.wordmark {
+  margin: 0;
+  font-size: var(--step-1);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--bone);
+}
+
+.tagline {
+  margin: 0;
+  color: var(--bone-dim);
+  font-size: var(--step-0);
+}
+
+/* ---------- Side panel sections ---------- */
+
+.panel {
+  border-top: 1px solid var(--couche-line);
+  padding-block: 3.5rem;
+}
+
+.panel h2 {
+  margin: 0 0 1rem;
+  font-size: var(--step-2);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--warning-paper);
+}
+
+.panel p {
+  margin: 0 0 1rem;
+  max-width: var(--measure);
+}
+
+.panel p:last-child { margin-bottom: 0; }
+
+.split {
+  display: grid;
+  gap: 2rem;
+}
+
+@media (min-width: 48rem) {
+  .split { grid-template-columns: 1fr 1.6fr; gap: 3rem; }
+}
+
+/* Facts list: what a pack's side panel would carry */
+.facts {
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: var(--measure);
+  border-top: 2px solid var(--bone);
+}
+
+.facts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--couche-line);
+}
+
+.facts li span:last-child { color: var(--warning-paper); text-align: right; }
+
+/* ---------- Game slots ---------- */
+
+.slots {
+  display: grid;
+  gap: 1rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 48rem) {
+  .slots { grid-template-columns: repeat(3, 1fr); }
+  .slot { aspect-ratio: 3 / 4; }
+}
+
+.slot {
+  background: var(--couche-deep);
+  border: 1px solid var(--couche-line);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 10rem;
+}
+
+.slot-warning {
+  margin: 0.75rem;
+  padding: 0.75rem;
+  background: var(--warning-paper);
+  color: var(--warning-ink);
+  border: 3px solid var(--warning-ink);
+  font-weight: 700;
+  font-size: var(--step-0);
+  line-height: 1.2;
+}
+
+.slot-body {
+  align-self: end;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.slot-name {
+  margin: 0;
+  font-size: var(--step-0);
+  font-weight: 400;
+  color: var(--bone);
+}
+
+.slot-status {
+  margin: 0.15rem 0 0;
+  font-size: var(--step--1);
+  color: var(--bone-dim);
+}
+
+/* ---------- Socials ---------- */
+
+.socials {
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: var(--measure);
+  border-top: 2px solid var(--bone);
+}
+
+.socials li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--couche-line);
+}
+
+.socials .pending { color: var(--bone-dim); }
+
+/* ---------- Footer ---------- */
+
+.foot {
+  border-top: 1px solid var(--couche-line);
+  padding-block: 2rem 3rem;
+  font-size: var(--step--1);
+  color: var(--bone-dim);
+}
+
+.foot p { margin: 0 0 0.4rem; max-width: var(--measure); }
+
+/* ---------- 404 ---------- */
+
+.lost {
+  min-height: 100svh;
+  display: grid;
+  align-content: center;
+  gap: 1.5rem;
+  padding: var(--gutter);
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.lost .warning { min-height: 0; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .warning.is-swapping .warning-text { animation: none; }
+}
