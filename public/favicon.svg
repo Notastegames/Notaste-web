@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="10" fill="#4a412a"/>
-  <rect x="9" y="9" width="46" height="30" fill="#fff" stroke="#000" stroke-width="3"/>
-  <text x="32" y="32" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="20" fill="#000">N</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 145 128"><title>Notaste Games</title><defs><mask id="tile-nobox" maskUnits="userSpaceOnUse" x="0" y="0" width="145" height="128"><rect x="0" y="0" width="145" height="128" fill="#fff"/><g fill="#000"><path transform="translate(14.00 14.00) scale(1)" d="M0 0H20V100H0Z M38 0H58V100H38Z M0 0L23 0L58 100L35 100Z"/><path transform="translate(79.00 14.00) scale(1)" d="M14 0H38A14 14 0 0 1 52 14V86A14 14 0 0 1 38 100H14A14 14 0 0 1 0 86V14A14 14 0 0 1 14 0Z M26 20A6 6 0 0 0 20 26V74A6 6 0 0 0 26 80H26A6 6 0 0 0 32 74V26A6 6 0 0 0 26 20Z"/></g></mask></defs><rect x="0" y="0" width="145" height="128" rx="2" fill="#D7141A" mask="url(#tile-nobox)"/></svg>
