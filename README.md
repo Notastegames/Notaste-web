@@ -16,6 +16,7 @@ The site for [notastegames.com](https://notastegames.com): free satirical browse
 | --- | --- |
 | `DESIGN.md` | The design and voice rules every page and game follows |
 | `CLAUDE.md` | Instructions for Claude sessions working on this repo |
+| `ROADMAP.md` | The plan: games in order, site work, socials and merch |
 | `public/index.html` | Homepage, including the "reject the internet" mini-game |
 | `public/main.js` | The reject game (fake posts, NO button, swipe, N key) and the warning label |
 | `public/styles.css` | Shared styles and colour tokens for every page |
