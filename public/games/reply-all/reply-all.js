@@ -104,8 +104,8 @@
       bursts: [[9, 3], [19, 3], [27, 4]],
       quick: 3, stubborn: 0, ooo: 0, boss: false, mute: true,
       clear: "The department has gone to lunch. They're discussing the thread in the queue." },
-    { name: "The whole company", desks: 16, time: 36, spawn: [1.3, 0.92], dur: [3.3, 2.8], busy: 6,
-      bursts: [[9, 3], [19, 3], [29, 4]],
+    { name: "The whole company", desks: 16, time: 36, spawn: [1.4, 1.0], dur: [3.4, 2.9], busy: 6,
+      bursts: [[9, 3], [20, 3], [30, 3]],
       quick: 3, stubborn: 3, ooo: 2, boss: false, mute: true,
       clear: "Everyone has had their say. IT have sent an email asking people to stop. To everyone." },
     { name: "The CEO's assistant", desks: 16, time: 40, spawn: [1.2, 0.85], dur: [3.2, 2.7], busy: 7,
@@ -238,7 +238,10 @@
       bursts: st.bursts.slice(), forwards: 0
     };
     run.mods.muteEmpty = false;
-    // who's at which desk this stage, and what sort of replier they are
+    // who's at which desk this stage, and what sort of replier they are: from
+    // a stream of its own, so today's run is the same office for everyone
+    // however the stages before it went
+    var rnd = N.seeded(shell.seed + 1000 * (run.stage + 1));
     var n = st.desks;
     var kinds = [];
     for (var i = 0; i < n; i++) kinds.push("normal");
@@ -247,7 +250,7 @@
     for (var f = 0; f < n; f++) free.push(f);
     function take(kind, count, spot) {
       for (var c = 0; c < count && free.length; c++) {
-        var at = spot != null ? free.indexOf(spot) : Math.floor(shell.random() * free.length);
+        var at = spot != null ? free.indexOf(spot) : Math.floor(rnd() * free.length);
         if (at < 0) at = 0;
         kinds[free[at]] = kind;
         free.splice(at, 1);
@@ -714,9 +717,10 @@
 
   // Three of IT's suggestions you haven't taken, from the run's seed
   function offer() {
+    var rnd = N.seeded(shell.seed + 7000 + 1000 * run.stage);
     var pool = OFFERS.filter(function (o) { return run.taken.indexOf(o.id) < 0; });
     var out = [];
-    while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(shell.random() * pool.length), 1)[0]);
+    while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
     return out;
   }
 
