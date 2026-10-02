@@ -1158,7 +1158,8 @@
     if (!ctx || !G || !run) return;
     var st = shell.state();
     if (!hudEls) { buildHud(); paintHud(); }
-    if ((st === "countdown" || st === "playing") && ++layoutAge > 20) { layoutAge = 0; layout(false); }
+    // the HUD settles during the countdown; after that it only changes on a resize
+    if (st === "countdown" && ++layoutAge > 10) { layoutAge = 0; layout(false); }
     if (st !== "playing" && root.style.cursor) root.style.cursor = "";
     if (!G.briefed && (st === "countdown" || st === "playing")) { G.briefed = true; notice(); }
     if (!bg) bg = buildBg();
@@ -1198,9 +1199,27 @@
     tickHum();
   }
 
+  // A desk at rest looks the same every frame, so it's drawn once and kept
+  // as one bitmap; only the ones doing something are drawn live
+  var REST_BOX = [-4, -18, 108, 96];
+  function restful(d) {
+    return (G.phase === "play" || G.phase === "clear") && d.state === "idle" && !d.gaze && !(d.flash > 0);
+  }
+
   function drawDesk(c, d, sx, sy) {
     var o = origin(d), k = L.k;
     c.setTransform(DPR * k, 0, 0, DPR * k, (o.x + sx) * DPR, (o.y + sy) * DPR);
+    if (restful(d)) {
+      A.blit(c, A.cached("rest-" + d.kind + "-" + d.look.id + "-" + (d.kind === "boss" ? 0 : d.decor), REST_BOX,
+                         function (cc) { paintFigure(cc, d); }));
+    } else {
+      paintFigure(c, d);
+    }
+    drawDeskLive(c, d, sx, sy);
+  }
+
+  // The worker, their chair and their desk, in the desk's own units
+  function paintFigure(c, d) {
     var look = d.look;
     var shakeX = 0;
     if (d.flash > 0 && !shell.reduceMotion) shakeX = Math.sin(d.flash * 60) * 1.2;
@@ -1224,6 +1243,11 @@
       A.fill(c, T.ink, 1, T.paper);
     }
     if (d.kind === "stubborn" && !(d.state === "typing" && d.hits < 2)) drawFlag(c, 92, 23, 1);
+  }
+
+  // What goes over the desk: mail, the bar, the out of office sign, the lights going off
+  function drawDeskLive(c, d, sx, sy) {
+    var o = origin(d), k = L.k;
     // you've got mail
     if (d.mail > 0) {
       var up = shell.reduceMotion ? 0 : Math.sin((1 - d.mail) * Math.PI) * 3;

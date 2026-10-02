@@ -1204,6 +1204,7 @@
     body: body,
     desk: desk,
     chair: chair,
+    cached: sprite,          // cached(key, [x, y, w, h], draw): any drawing, kept as a bitmap at this scale
     drawBody: drawBody,      // uncached, for the cover art
     drawDesk: drawDesk,
     drawChair: drawChair,
