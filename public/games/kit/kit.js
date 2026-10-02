@@ -904,7 +904,7 @@
     // One line and the link: the device's share menu where there is one,
     // otherwise copied, ready to paste.
     function shareResult() {
-      var url = SITE + "/games/" + game.slug + "/";
+      var url = [SITE, "games", game.slug, ""].join("/");   // built in pieces, so tools/preview_artifact.py leaves it alone
       function said(word) {
         shareBtn.textContent = word;
         announce(word === "Copied" ? "Result copied." : word);
