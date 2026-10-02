@@ -312,7 +312,7 @@ A self-checkout. Four shops (a basket, a trolley, the big shop, Christmas Eve), 
 - The till's voice, Bev's and the queue's are blips, one a syllable, so "Unexpected item in the bagging area" has its real rhythm.
 - The scale's display (OK in green, Wait in red and flashing, plus a needle) is also the Bag button's cooldown on touch screens.
 - The receipt grows out of the till with everything you bag, and the basket or trolley on the floor empties as you go.
-- When the shop shuts, paper shutters come down with a red edge.
+- When the shop shuts, paper shutters come down with a red edge and a red Closed sign hung on them.
 
 ### Reply All
 

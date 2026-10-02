@@ -550,7 +550,7 @@
         drops.splice(i, 1);
         bag.items.push(d.item.id);
         if (bag.items.length > 6) bag.items.shift();
-        fx.push({ kind: "puff", x: L.bagX + (Math.random() - 0.5) * 6, y: L.belt - L.bagH + 1, t: 0, life: 0.45 });
+        if (!shell.reduceMotion) fx.push({ kind: "puff", x: L.bagX + (Math.random() - 0.5) * 6, y: L.belt - L.bagH + 1, t: 0, life: 0.45 });
       }
     }
     for (var j = falls.length - 1; j >= 0; j--) {
@@ -580,7 +580,7 @@
     flashT += dt;
     blinkT -= dt;
     if (blinkT < -0.14) blinkT = 2 + Math.random() * 3;
-    if (phase === "over") shutter = Math.min(1, shutter + dt * 1.4);
+    if (phase === "over") shutter = shell.reduceMotion ? 1 : Math.min(1, shutter + dt * 1.4);
   }
 
   // The belt: everything moves along, things drop down the chute at the end,
@@ -692,7 +692,7 @@
     else { sfx.beep(); sus -= SUS_GOOD; }
     sus = Math.max(0, sus);
     float(L.sx, L.belt + 11, (perfect ? "Perfect " : "") + "+" + pts, perfect ? "perfect" : "good");
-    fx.push({ kind: "flash", t: 0, life: 0.25 });
+    if (!shell.reduceMotion) fx.push({ kind: "flash", t: 0, life: 0.25 });
     if (it.age) {
       approvals++;
       approvalNames.push(it.name);
@@ -739,6 +739,7 @@
     if (AUTOPILOT) auto.bagsHere++;
     if (it.heavy) {
       sfx.thud();
+      if (!shell.reduceMotion) shake = 0.5;
       if (it.id === "turkey" && !st.turkeySaid) { st.turkeySaid = true; dennis(SAY.turkey, true); }
       else if (!st.heavySaid) { st.heavySaid = true; dennis(pick(SAY.heavy), true); }
       if (!run.heavyCalled) { run.heavyCalled = true; shell.callout("Heavy item", { sound: false, ms: 1100 }); }
@@ -1693,7 +1694,7 @@
     dial.arc(dx, dy, 3, Math.PI, 0);
     dial.closePath();
     S.solid(c, dial, T.paper, 0.4);
-    var wob = waiting ? Math.sin(clock * 24) * 0.9 * (scale.t / scale.total) : 0;
+    var wob = waiting && !shell.reduceMotion ? Math.sin(clock * 24) * 0.9 * (scale.t / scale.total) : 0;
     var a = -Math.PI / 2 + wob;
     S.line(c, [[dx, dy], [dx + Math.cos(a) * 2.6, dy + Math.sin(a) * 2.6]], 0.5, waiting ? T.red : T.ink);
   }
@@ -1725,7 +1726,7 @@
   function bevPose() {
     var swiping = bev.state === "swipe";
     return {
-      phase: bev.phase, walking: bev.walking, reach: bev.reach,
+      phase: bev.phase, walking: bev.walking && !shell.reduceMotion, reach: bev.reach,
       look: swiping ? -1 : bev.state === "out" ? -1 : 1,
       shut: swiping && bev.reach > 0.5,
       shout: bubbles.some(function (b) { return b.who === "bev" && b.t < 1.2; }),
@@ -2085,6 +2086,19 @@
     c.fillRect(0, h - 2.4, WW, 2.4);
     S.ink(c, 0.6);
     c.strokeRect(-1, h - 2.4, WW + 2, 2.4);
+    // a sign, hung on the shutter
+    var sy = h - WH * 0.3, sx = WW / 2;
+    if (sy > -10) {
+      S.line(c, [[sx - 7, sy - 9], [sx, sy - 14], [sx + 7, sy - 9]], 0.6);
+      c.save();
+      c.translate(sx, sy);
+      c.rotate(-0.05);
+      S.solid(c, S.rr(-14, -9, 28, 12, 1), T.red, 0.8);
+      S.ink(c, 0.5, T.paper);
+      c.strokeRect(-12.6, -7.6, 25.2, 9.2);
+      S.text(c, "Closed", 0, -2.8, 6.4, { colour: T.paper });
+      c.restore();
+    }
   }
 
   function render() {
@@ -2199,6 +2213,7 @@
       accuse: function () { accuse("bag"); },
       setSus: function (v) { sus = v; },
       tiles: function () { return tiles; },
+      shut: function () { timeLeft = 0.01; },
       // everything a test needs to play by the rules, in one snapshot
       peek: function () {
         return {
