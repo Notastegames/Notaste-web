@@ -68,6 +68,7 @@
   var FIRST = DEBUG ? Math.max(0, Math.min(3, (parseInt(params.get("stage"), 10) || 1) - 1)) : 0;
   var SLOPPY = DEBUG ? parseFloat(params.get("sloppy")) || 0 : 0;   // a clumsier autopilot, for tuning
   var PACE = DEBUG ? parseFloat(params.get("pace")) || 0 : 0;       // ...and a slower one: seconds between shots
+  var RECKLESS = DEBUG && params.has("reckless");                    // ...and one that ignores the net and goes for fact checks
 
   // ---------------------------------------------------------------------------
   // Tuning. World units: 100 across the screen's shorter side. Speeds scale
@@ -240,7 +241,7 @@
     L.pivot = { x: clamp(WW * 0.2, 20, 30), y: L.floor - 7 };
     L.gaffer = { x: L.pivot.x - 11.5, y: L.floor };
     L.vat = { x: -1, y: L.floor - 50, w: 15, h: 50 };
-    L.sign = { x: (L.pivot.x + 8 + L.phoneX - 6) / 2, y: Math.max(30, WH * 0.3) };
+    L.sign = { x: 14, y: Math.max(33, L.vat.y - 9) };   // on the wall above the vat, under the HUD
     // the Moderator's cradle straddles the phone's left edge
     L.modX = L.phoneX - 3.4;
     L.modTop = 30 - A.NET.y;
@@ -383,10 +384,10 @@
   // Shots. A ball's position is worked out from when and where it left, so
   // the dotted arc and the real thing always agree.
   // ---------------------------------------------------------------------------
-  function path(x0, y0, vx, vy) {
+  function path(x0, y0, vx, vy, land) {
     var g = GRAV * K;
     var tc = vx > 0 ? (L.phoneX - x0) / vx : Infinity;
-    var yf = L.floor - BALL_R * 0.6;
+    var yf = land != null ? land : L.floor - BALL_R * 0.6;
     var tf = (vy + Math.sqrt(Math.max(0, vy * vy + 2 * g * (yf - y0)))) / g;
     var tl = vx < 0 ? (-14 - x0) / vx : Infinity;
     var end = Math.min(tc, tf, tl);
@@ -466,7 +467,7 @@
       }
     } else if (b.what === "floor") {
       puddles.push({ x: p.x, y: L.floor + 0.6, r: rand(2.6, 3.6), t: 0 });
-      splash(p.x, L.floor, 5);
+      splash(p.x, p.y, 5);
       sfx.floor();
       if (b.bounced) {
         if (Math.abs(p.x - L.pivot.x) < 9 && phase === "play") {
@@ -604,10 +605,15 @@
     gafferSay(GAFFER.viral, true);
   }
 
+  // A fact check sends it straight back: at the cannon, mostly, and now and
+  // then at the Gaffer
   function bounce(b, p, fact) {
     var g = GRAV * K;
-    var vyNow = b.vy - g * b.end;    // still going up if positive
-    var nb = path(L.phoneX - BALL_R, p.y, -Math.abs(b.vx) * 0.6, Math.max(26 * K, vyNow * 0.25 + 30 * K));
+    var atCannon = Math.random() < 0.75;
+    var x0 = L.phoneX - BALL_R, tx = atCannon ? L.pivot.x + rand(-1, 4) : L.gaffer.x + rand(-1, 1);
+    var yf = atCannon ? L.pivot.y - 3 : L.gaffer.y - 34;     // on the barrel, or on his head
+    var T = clamp((x0 - tx) / (60 * K), 0.6, 1.2);
+    var nb = path(x0, p.y, (tx - x0) / T, (p.y - yf + 0.5 * g * T * T) / T, yf);
     nb.t = 0;
     nb.kind = b.kind;
     nb.wob = b.wob;
@@ -1080,15 +1086,15 @@
     // a chain to protect, counting real posts with a shot already on the way
     var chainy = run.chain > 0 || balls.some(function (b) { return b.target && b.target.type === "real" && !b.target.slopped; });
     feed.forEach(function (q) {
-      if (q.type === "fact") return;
-      var value = q.type === "slop" ? 10 : q.slopped || q.incoming ? 3 : q.trending ? 300 : 100;
+      if (q.type === "fact" && !RECKLESS) return;
+      var value = q.type === "fact" ? 500 : q.type === "slop" ? 10 : q.slopped || q.incoming ? 3 : q.trending ? 300 : 100;
       // slop would break the chain: wait for a real one, and only bother with
       // slop at all when there's been nothing real for a while
       if (value < 50 && (chainy || balls.length ? auto.idle < 8 : auto.idle < 2.5)) return;
       angles.forEach(function (ang) {
         var s = solve(q, ang);
         if (!s || s.y < L.head + 2 || s.y > L.sy1 - 3) return;
-        if (!auto.careless) {
+        if (!auto.careless && !RECKLESS) {
           // keep off fact checks (the post's neighbours might be one) and away from the net
           var blocked = feed.some(function (f) { return f.type === "fact" && Math.abs(f.y - q.y) < L.cardH * 0.75; });
           if (blocked) return;
@@ -1712,8 +1718,8 @@
     var pv = drawPreview(c);
     drawCannon(c);
     drawFeed(c);
-    if (pv) drawTarget(c, pv);
     drawModerator(c);
+    if (pv) drawTarget(c, pv);
     drawBalls(c);
     drawFx(c);
 
