@@ -5,15 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Notaste Games: free games in poor taste</title>
   <meta name="description" content="Quick, dark browser games about the news, the internet and the people who run both. Free. No subscriptions. No taste.">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#000000">
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;700&display=swap">
+  <link rel="preload" href="/fonts/notaste-display.woff" as="font" type="font/woff" crossorigin>
+  <link rel="preload" href="/brand/mark-stamped.svg" as="image">
   <link rel="stylesheet" href="/styles.css">
 
   <meta property="og:type" content="website">
@@ -32,7 +31,7 @@
   <header class="top">
     <div class="top-inner wrap">
       <a class="top-logo" href="/" aria-label="Notaste Games home">
-        <img src="/brand/logo.svg" alt="No Taste" width="557" height="166">
+        <img src="/brand/logo-on-dark.svg" alt="No Taste" width="557" height="166">
       </a>
       <nav class="top-nav" aria-label="Main">
         <a href="#games">Games</a>
@@ -43,98 +42,128 @@
   </header>
 
   <main id="main">
-    <section class="hero wrap" aria-labelledby="hero-heading">
-      <div class="hero-copy">
-        <h1 id="hero-heading"><span>Free games</span> <span>in poor</span> <span>taste.</span></h1>
-        <div class="hero-foot">
-          <p class="hero-lede">Quick, dark little browser games about the news, the internet and the people who run both. No subscriptions. No paywalls. No taste.</p>
-          <div class="actions">
-            <a class="btn" href="#games">See what's coming</a>
-            <a class="text-link" href="#follow">Follow for launches</a>
+
+    <!-- Hero: the headline, and a feed you can only say no to -->
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="hero-inner wrap">
+        <h1 id="hero-heading" class="hero-title">
+          <span>Free games</span>
+          <span>in poor</span>
+          <span>taste.</span>
+        </h1>
+
+        <div class="reject" id="reject" aria-label="Reject the internet, a tiny game">
+          <p class="reject-intro">Warm-up. Reject the internet. <span class="hint-touch">Tap NO or swipe left.</span><span class="hint-keys">Hit NO or press N.</span></p>
+          <div class="deck" id="deck" aria-live="polite">
+            <!-- Cards are added by main.js. This one shows if scripts are off. -->
+            <article class="post">
+              <div class="post-head">
+                <span class="post-avatar" style="--av:#4f9e9a" aria-hidden="true">G</span>
+                <span class="post-who"><span class="post-name">Growth Mindset Dad</span><span class="post-handle">@growth.mindset.dad</span></span>
+              </div>
+              <p class="post-text">I wake up at 3:45am to journal about waking up at 3:45am.</p>
+              <p class="post-stats"><span>2.1M likes</span><span>48K reposts</span></p>
+            </article>
+          </div>
+          <div class="reject-controls">
+            <button class="no-btn" id="no-btn" type="button" aria-describedby="reject-caption">
+              <span class="no-btn-face">No</span>
+            </button>
+            <div class="reject-status">
+              <p class="reject-count"><span id="reject-count">0</span> <span id="reject-noun">things</span> rejected</p>
+              <p class="reject-caption" id="reject-caption">There is no yes button.</p>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="hero-stamp" aria-hidden="true">
-        <img src="/brand/stamp.svg" alt="" width="565" height="174">
+
+        <div class="hero-more">
+          <p class="hero-lede">Quick, dark little browser games about the news, the internet and the people who run both. No subscriptions. No paywalls. No taste.</p>
+          <p class="hero-links">
+            <a class="text-link" href="#games">See the games</a>
+            <a class="text-link" href="#follow">Follow for launches</a>
+          </p>
+        </div>
       </div>
     </section>
 
-    <section class="games-section" id="games" aria-labelledby="games-heading">
-      <div class="section wrap games-top">
-        <div class="section-head">
-          <h2 id="games-heading">Coming soon</h2>
-          <p class="section-note">Three games are being made now. None of them have been approved. We didn't ask.</p>
-        </div>
+    <div class="tape-wrap" aria-hidden="true"><div class="tape">
+      <div class="tape-track">
+        <span>Not approved</span><span>In poor taste</span><span>Free to play</span><span>No subscription</span><span>Pending review</span><span>Contains satire</span><span>Not approved</span><span>In poor taste</span><span>Free to play</span><span>No subscription</span><span>Pending review</span><span>Contains satire</span>
       </div>
+    </div></div>
 
-      <article class="feature" aria-labelledby="slop-cannon-title">
-        <div class="feature-inner wrap">
-          <a class="feature-cover" href="/games/slop-cannon/" tabindex="-1" aria-hidden="true">
+    <!-- Games -->
+    <section class="games" id="games" aria-labelledby="games-heading">
+      <div class="wrap">
+        <div class="games-head">
+          <h2 id="games-heading">Coming soon</h2>
+          <p class="section-note">Three games are being made. None of them have been approved. We didn't ask.</p>
+        </div>
+
+        <article class="poster poster--feature" style="--accent:#b3bf2a; --sx:30%; --sy:18%; --sr:-8deg" aria-labelledby="t-slop">
+          <a class="poster-art" href="/games/slop-cannon/" tabindex="-1" aria-hidden="true">
             <img src="/art/slop-cannon.svg" width="800" height="600" alt="">
             <span class="stamp-label">Pending review</span>
           </a>
-          <div class="feature-body">
-            <h3 class="feature-title" id="slop-cannon-title">Slop Cannon</h3>
-            <p class="feature-line">An endless cannon, an endless feed, and nobody checking either.</p>
-            <p class="feature-pitch">Fire machine-made content into a feed as fast as it will go. The numbers go up. The feed gets worse. Nobody stops you, because nobody is there.</p>
-            <p class="game-status"><span class="status-dot" aria-hidden="true"></span>In development. First out of the door.</p>
-            <div class="actions">
-              <a class="btn" href="/games/slop-cannon/">See Slop Cannon</a>
-            </div>
+          <div class="poster-body">
+            <h3 class="poster-title" id="t-slop"><a href="/games/slop-cannon/">Slop Cannon</a></h3>
+            <p class="poster-line">Fire endless AI slop into a feed. Nobody is checking. Nobody was ever going to check.</p>
+            <p class="poster-status"><span class="dot" aria-hidden="true"></span>In development. First out of the door.</p>
+            <a class="btn btn--light" href="/games/slop-cannon/">Open Slop Cannon</a>
           </div>
-        </div>
-      </article>
+        </article>
 
-      <div class="wrap">
-        <ul class="slates">
-          <li class="slate slate--traffic">
-            <div class="slate-cover">
-              <img src="/art/heavy-traffic.svg" width="800" height="600" alt="">
+        <div class="poster-pair">
+          <article class="poster" style="--accent:#4f9e9a; --sx:62%; --sy:52%; --sr:5deg" aria-labelledby="t-traffic">
+            <a class="poster-art" href="/games/heavy-traffic/" tabindex="-1" aria-hidden="true">
+              <img src="/art/heavy-traffic.svg" width="800" height="600" alt="" loading="lazy">
               <span class="stamp-label">Not approved</span>
+            </a>
+            <div class="poster-body">
+              <h3 class="poster-title" id="t-traffic"><a href="/games/heavy-traffic/">Heavy Traffic</a></h3>
+              <p class="poster-line">Kart racing. Large drivers, tiny cars. Physics has given up.</p>
+              <p class="poster-status"><span class="dot" aria-hidden="true"></span>In development</p>
             </div>
-            <div class="slate-body">
-              <h3 class="slate-title"><a class="slate-link" href="/games/heavy-traffic/">Heavy Traffic</a></h3>
-              <p class="slate-line">Kart racing. Large drivers, tiny cars. Physics has given up.</p>
-              <p class="game-status"><span class="status-dot" aria-hidden="true"></span>In development</p>
-              <span class="slate-cue" aria-hidden="true">See the game</span>
-            </div>
-          </li>
-          <li class="slate slate--thonglets">
-            <div class="slate-cover">
-              <img src="/art/thonglets.svg" width="800" height="600" alt="">
+          </article>
+          <article class="poster" style="--accent:#9a7bc4; --sx:30%; --sy:24%; --sr:-5deg" aria-labelledby="t-thong">
+            <a class="poster-art" href="/games/thonglets/" tabindex="-1" aria-hidden="true">
+              <img src="/art/thonglets.svg" width="800" height="600" alt="" loading="lazy">
               <span class="stamp-label">Classified</span>
+            </a>
+            <div class="poster-body">
+              <h3 class="poster-title" id="t-thong"><a href="/games/thonglets/">Thonglets</a></h3>
+              <p class="poster-line">Tiny creatures who think you're their god. You are not a good one.</p>
+              <p class="poster-status"><span class="dot" aria-hidden="true"></span>In development</p>
             </div>
-            <div class="slate-body">
-              <h3 class="slate-title"><a class="slate-link" href="/games/thonglets/">Thonglets</a></h3>
-              <p class="slate-line">Tiny creatures who think you're their god. You are not a good one.</p>
-              <p class="game-status"><span class="status-dot" aria-hidden="true"></span>In development</p>
-              <span class="slate-cue" aria-hidden="true">See the game</span>
-            </div>
-          </li>
-        </ul>
+          </article>
+        </div>
       </div>
     </section>
 
-    <section class="section wrap" id="about" aria-labelledby="about-heading">
-      <div class="about">
-        <div class="about-copy">
-          <h2 id="about-heading">What this is</h2>
-          <p class="about-lede">Small, carefully made games that laugh at the state of things.</p>
-          <p>Some are about this week's news. Some will still be true in ten years. They all play in a browser, on whatever you're reading this on.</p>
-          <p>They're a little darker than they should be. That's the point.</p>
-        </div>
-        <div class="about-pack">
+    <!-- About: the paper section -->
+    <section class="about" id="about" aria-labelledby="about-heading">
+      <div class="wrap">
+        <h2 id="about-heading" class="about-title">Small games about a large mess.</h2>
+        <div class="about-grid">
+          <div class="about-copy">
+            <p>Notaste makes quick, carefully built games that laugh at the state of things. Some are about this week's news. Some will still be true in ten years.</p>
+            <p>Everything plays in a browser, on whatever you're reading this on. Nothing to download, nothing to sign up for.</p>
+            <p>They're a little darker than they should be. That's the point.</p>
+          </div>
+
           <button class="warning" id="warning" type="button" aria-label="Warning label. Tap for another warning.">
             <span class="warning-kicker">Warning</span>
             <span class="warning-text" id="warning-text" aria-live="polite">These games are in poor taste.</span>
             <span class="warning-hint">Tap for another warning</span>
           </button>
+
           <div class="facts-panel">
-            <p class="facts-title" id="facts-title">Contents per game</p>
-            <ul class="facts" aria-labelledby="facts-title">
+            <h3 class="facts-title">Contents per game</h3>
+            <ul class="facts">
               <li><span>Price</span><span>Free</span></li>
-              <li><span>Subscription</span><span>None</span></li>
+              <li><span>Subscription</span><span>Never</span></li>
               <li><span>Plays in</span><span>Your browser</span></li>
+              <li><span>Adverts</span><span>None, yet</span></li>
               <li><span>Taste</span><span>Not detected</span></li>
             </ul>
           </div>
@@ -142,23 +171,26 @@
       </div>
     </section>
 
-    <section class="section wrap" id="follow" aria-labelledby="follow-heading">
-      <div class="section-head">
-        <h2 id="follow-heading">Follow</h2>
-        <p class="section-note">New games get announced on socials first. The accounts aren't open yet. We're still deciding which ones we can stand.</p>
+    <!-- Follow -->
+    <section class="follow" id="follow" aria-labelledby="follow-heading">
+      <div class="wrap follow-inner">
+        <div>
+          <h2 id="follow-heading">Follow for launches.</h2>
+          <p class="section-note">New games get announced on socials first. The accounts aren't open yet. We're still deciding which ones we can stand.</p>
+        </div>
+        <ul class="socials">
+          <li><span>TikTok</span><span class="pending">Soon</span></li>
+          <li><span>Instagram</span><span class="pending">Soon</span></li>
+          <li><span>YouTube</span><span class="pending">Soon</span></li>
+          <li><span>X</span><span class="pending">Soon</span></li>
+        </ul>
       </div>
-      <ul class="socials">
-        <li><span>TikTok</span><span class="pending">Coming soon</span></li>
-        <li><span>Instagram</span><span class="pending">Coming soon</span></li>
-        <li><span>X</span><span class="pending">Coming soon</span></li>
-        <li><span>YouTube</span><span class="pending">Coming soon</span></li>
-      </ul>
     </section>
   </main>
 
   <footer class="foot">
     <div class="foot-inner wrap">
-      <img class="foot-mark" src="/brand/mark.svg" alt="" width="183" height="166">
+      <img class="foot-mark" src="/brand/mark-on-dark.svg" alt="" width="183" height="166">
       <div>
         <p>Notaste Games makes satire. Real people, brands and events that appear in our games are being made fun of, not described.</p>
         <p>&copy; <span id="year">2026</span> Notaste Games</p>

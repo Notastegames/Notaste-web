@@ -8,10 +8,11 @@
   // The catalogue. One line per game. "More games" on every page is built from
   // this list, so a new game only needs adding here once.
   // ---------------------------------------------------------------------------
+  // accent is the game's colour; stamp is the word stamped across its cover.
   var GAMES = [
-    { slug: "slop-cannon",   title: "Slop Cannon",   pitch: "Fire endless AI slop into a feed. Nobody is checking." },
-    { slug: "heavy-traffic", title: "Heavy Traffic", pitch: "Big drivers. Tiny karts. Physics has given up." },
-    { slug: "thonglets",     title: "Thonglets",     pitch: "Tiny creatures think you're their god. You are not a good one." }
+    { slug: "slop-cannon",   title: "Slop Cannon",   accent: "#b3bf2a", stamp: "Pending review", pitch: "Fire endless AI slop into a feed. Nobody is checking." },
+    { slug: "heavy-traffic", title: "Heavy Traffic", accent: "#4f9e9a", stamp: "Not approved",   pitch: "Kart racing. Large drivers, tiny cars. Physics has given up." },
+    { slug: "thonglets",     title: "Thonglets",     accent: "#9a7bc4", stamp: "Classified",     pitch: "Tiny creatures who think you're their god. You are not a good one." }
   ];
 
   var current = document.body.getAttribute("data-game");
@@ -29,21 +30,28 @@
   Array.prototype.forEach.call(document.querySelectorAll(".screen-art"), hideIfMissing);
 
   // ---------- More games ----------
+  // Small posters, like the homepage: cover art, a stamp, the title on a tag
+  // that bites into the art. The whole card is one link.
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
   var moreList = document.getElementById("more-list");
   if (moreList) {
     GAMES.forEach(function (game) {
       if (game.slug === current) return;
       var li = document.createElement("li");
-      var a = document.createElement("a");
-      a.className = "more-item";
+      var a = el("a", "more-card");
       a.href = "/games/" + game.slug + "/";
+      if (game.accent) a.style.setProperty("--accent", game.accent);
 
-      var cover = document.createElement("span");
-      cover.className = "more-cover";
-      var name = document.createElement("span");
-      name.className = "more-cover-name";
+      var cover = el("span", "more-cover");
+      // shown until the cover art exists
+      var name = el("span", "more-cover-name", game.title);
       name.setAttribute("aria-hidden", "true");
-      name.textContent = game.title;
       cover.appendChild(name);
       var img = document.createElement("img");
       img.src = "/art/" + game.slug + ".svg";
@@ -53,19 +61,24 @@
       img.loading = "lazy";
       hideIfMissing(img);
       cover.appendChild(img);
+      if (game.stamp) {
+        var stamp = el("span", "stamp-label", game.stamp);
+        stamp.setAttribute("aria-hidden", "true");
+        cover.appendChild(stamp);
+      }
 
-      var text = document.createElement("span");
-      var title = document.createElement("span");
-      title.className = "more-title";
-      title.textContent = game.title;
-      var pitch = document.createElement("span");
-      pitch.className = "more-pitch";
-      pitch.textContent = game.pitch;
-      text.appendChild(title);
-      text.appendChild(pitch);
+      var body = el("span", "more-body");
+      body.appendChild(el("span", "more-title", game.title));
+      body.appendChild(el("span", "more-pitch", game.pitch));
+      var status = el("span", "more-status");
+      var dot = el("span", "dot");
+      dot.setAttribute("aria-hidden", "true");
+      status.appendChild(dot);
+      status.appendChild(document.createTextNode("In development"));
+      body.appendChild(status);
 
       a.appendChild(cover);
-      a.appendChild(text);
+      a.appendChild(body);
       li.appendChild(a);
       moreList.appendChild(li);
     });
@@ -190,9 +203,12 @@
     later(finish, t + 400);
   }
 
-  // Skip the boot with Escape, in case anyone is in a hurry to be disappointed
+  // Skip the boot with Escape or a tap, in case anyone is in a hurry to be disappointed
   root.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && root.getAttribute("data-state") === "boot") finish();
+  });
+  bootPane.addEventListener("click", function () {
+    if (root.getAttribute("data-state") === "boot") finish();
   });
 
   startBtn.addEventListener("click", boot);
