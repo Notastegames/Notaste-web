@@ -61,6 +61,12 @@
 //
 // Built on the shared kit (/games/kit/kit.js): intro, screens, controls,
 // sound and saving. office.js draws the people, desks and the server.
+//
+// TESTING
+// ?autopilot plays it (&speed=4 for four times as fast), ?clip films it.
+// ?debug exposes window.__replyAll, and with it &stage=3 starts at stage 3,
+// &skill=0.6 slows the autopilot down, and &with=intern,bigger starts the
+// day with those of IT's suggestions already taken.
 (function () {
   "use strict";
 
@@ -657,7 +663,7 @@
     G.internWait -= dt;
     G.internOops -= dt;
     if (G.internOops <= 0) {
-      G.internOops = 18 + Math.random() * 6;
+      G.internOops = 18 + shell.random() * 6;
       launch({ from: "intern", to: "server", load: LOAD.intern, spread: 1, kind: "intern", intern: { x: it.x, y: it.y } });
       sfx.send();
       say("Intern: replied all", 1);
