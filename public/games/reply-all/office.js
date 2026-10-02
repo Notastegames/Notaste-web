@@ -18,16 +18,16 @@
   var T = null;         // colour tokens
   var S = 1;            // device pixels per local unit
   var cache = {};
-  var dotTile = null, pxTile = null;
+  var dotTile = null, pxTile = null, lightTile = null;
   var HX = 40, HY = 29, HR = 13.5;     // the head
   var TAU = Math.PI * 2;
 
   function init(tokens, scale) {
     T = tokens;
-    if (Math.abs(scale - S) > 0.001) { cache = {}; dotTile = null; }
+    if (Math.abs(scale - S) > 0.001) { cache = {}; dotTile = null; lightTile = null; }
     S = scale;
   }
-  function flush() { cache = {}; dotTile = null; pxTile = null; }
+  function flush() { cache = {}; dotTile = null; pxTile = null; lightTile = null; }
 
   function ink(name) { return T[name] || name; }
   function edgeFor(fill) { return fill === T.ink ? T.paper : T.ink; }
@@ -78,6 +78,23 @@
     if (pat.setTransform && window.DOMMatrix) pat.setTransform(new DOMMatrix().scale(1 / S));
     return pat;
   }
+  // Sparser dots, for furniture: textured, not grey
+  function shadeLight(c) {
+    if (!lightTile) {
+      var n = Math.max(4, Math.round(3.6 * S));
+      lightTile = document.createElement("canvas");
+      lightTile.width = lightTile.height = n;
+      var x = lightTile.getContext("2d");
+      x.fillStyle = T.ink;
+      x.beginPath();
+      x.arc(n / 2, n / 2, n * 0.19, 0, TAU);
+      x.fill();
+    }
+    var pat = c.createPattern(lightTile, "repeat");
+    if (pat.setTransform && window.DOMMatrix) pat.setTransform(new DOMMatrix().scale(1 / S));
+    return pat;
+  }
+
   // The same, for drawing in screen pixels (dpr: device pixels per CSS pixel)
   function shadePx(c, dpr) {
     if (!pxTile) {
@@ -503,8 +520,13 @@
     // the monitor, from behind
     rr(c, 66, 23, 29, 27, 3);
     fill(c, T.paper);
+    c.save();
+    c.clip();
     c.fillStyle = shade(c);
-    c.fill();
+    c.fillRect(86, 20, 12, 34);
+    c.fillStyle = shadeLight(c);
+    c.fillRect(60, 20, 26, 34);
+    c.restore();
     rr(c, 66, 23, 29, 27, 3);
     stroke(c, 1.6);
     c.beginPath();
@@ -516,7 +538,7 @@
     c.beginPath();
     c.rect(2.5, 62, 95, 14);
     fill(c, T.paper);
-    c.fillStyle = shade(c);
+    c.fillStyle = shadeLight(c);
     c.fill();
     c.beginPath();
     c.rect(2.5, 62, 95, 14);
@@ -863,7 +885,10 @@
     // the tail leaves from whichever side faces the speaker
     var below = tail.y > y + h, above = tail.y < y, left = !below && !above && tail.x < x;
     var tx = Math.max(x + 10, Math.min(x + w - 10, tail.x)), ty = Math.max(y + 8, Math.min(y + h - 8, tail.y));
-    var tw = Math.min(6, w / 5), reach = size * 0.75;
+    var tw = Math.min(6, w / 5);
+    var gapY = below ? tail.y - (y + h) : above ? y - tail.y : 0;
+    var gapX = left ? x - tail.x : tail.x - (x + w);
+    var reach = Math.max(size * 0.6, Math.min(40, (below || above ? gapY : gapX) - 2));
     c.moveTo(x + r, y);
     if (above) { c.lineTo(tx - tw, y); c.lineTo(tx + (tail.x - tx) * 0.3, y - reach); c.lineTo(tx + tw, y); }
     c.arcTo(x + w, y, x + w, y + h, r);
@@ -892,7 +917,7 @@
   // A bobbing arrow pointing at something, with a word over it. dir "down"
   // (the default) points down at x, y; "left" points left at it, for a desk
   // with no room above it.
-  function arrow(c, x, y, word, size, dir) {
+  function arrow(c, x, y, word, size, dir, maxRight) {
     var s = size / 22;
     c.save();
     c.translate(x, y);
@@ -911,6 +936,11 @@
     c.lineWidth = 3.4;
     c.strokeStyle = T.ink;
     var tx = dir === "left" ? 4 : 0, ty = dir === "left" ? -13 : -25;
+    if (dir === "left" && maxRight) {
+      // keep the word on the screen
+      var over = x + (tx + c.measureText(word.toUpperCase()).width) * s - maxRight;
+      if (over > 0) tx -= over / s;
+    }
     c.strokeText(word.toUpperCase(), tx, ty);
     c.fillStyle = T.paper;
     c.fillText(word.toUpperCase(), tx, ty);
@@ -972,8 +1002,8 @@
   // every reply that gets out. s: { load (0..1), clock, melt (0..1), gulp (0..1) }
   // ---------------------------------------------------------------------------
   function serverFace(x, y, w, h) {
-    var er = Math.max(4, Math.min(10, h * 0.12));
-    return { x: x + w * 0.24, y: y + h * 0.6, er: er, mouth: { x: x + w * 0.24, y: y + h * 0.6 + er * 1.6 } };
+    var er = Math.max(5, Math.min(13, h * 0.16));
+    return { x: x + w * 0.235, y: y + h * 0.5, er: er, mouth: { x: x + w * 0.235, y: y + h * 0.5 + er * 1.6 } };
   }
   function server(c, x, y, w, h, s) {
     var load = Math.max(0, Math.min(1, s.load)), melt = s.melt || 0, gulp = s.gulp || 0;
@@ -985,16 +1015,6 @@
     var bx = -w / 2, by = -h;
     rr(c, bx, by, w, h, 6);
     fill(c, T.ink, 2.4, T.paper);
-    // the name plate
-    var size = Math.max(9, Math.min(15, h * 0.19));
-    c.font = size + "px " + T.display;
-    var lw = c.measureText("SERVER").width;
-    rr(c, bx + 6, by + 6, lw + size * 0.9, size * 1.35, 2);
-    fill(c, T.paper);
-    c.fillStyle = T.ink;
-    c.textAlign = "left";
-    c.textBaseline = "middle";
-    c.fillText("SERVER", bx + 6 + size * 0.45, by + 6 + size * 0.72);
     // the thermometer
     var tw = Math.max(8, w * 0.055), tx = bx + w - tw - 7, ty = by + 6, th = h - 12;
     rr(c, tx, ty, tw, th, tw / 2);
@@ -1003,10 +1023,19 @@
     c.fillStyle = hot && (s.clock * 6 % 1 < 0.5 || load >= 1) ? T.red : T.accent;
     var fh = (th - 4) * load;
     if (fh > 1) { rr(c, tx + 2, ty + th - 2 - fh, tw - 4, fh, (tw - 4) / 2); c.fill(); }
-    // the rack, blinking faster as it fills up
-    var rx0 = bx + w * 0.47, rx1 = tx - 6, units = 3, uh = (h - 12) / units;
+    // the name plate, then the rack, blinking faster as it fills up
+    var rx0 = bx + w * 0.47, rx1 = tx - 6;
+    var size = Math.max(9, Math.min(15, h * 0.2));
+    c.font = size + "px " + T.display;
+    rr(c, rx0, by + 6, rx1 - rx0, size * 1.35, 2);
+    fill(c, T.paper);
+    c.fillStyle = T.ink;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("SERVER", (rx0 + rx1) / 2, by + 6 + size * 0.72);
+    var rackTop = by + 6 + size * 1.35 + 4, units = 2, uh = (by + h - 5 - rackTop) / units;
     for (var i = 0; i < units; i++) {
-      var uy = by + 6 + i * uh;
+      var uy = rackTop + i * uh;
       rr(c, rx0, uy, rx1 - rx0, uh - 3, 2);
       stroke(c, 1.3, T.paper);
       var n = Math.max(2, Math.floor((rx1 - rx0 - 8) / 8));
@@ -1175,6 +1204,9 @@
     body: body,
     desk: desk,
     chair: chair,
+    drawBody: drawBody,      // uncached, for the cover art
+    drawDesk: drawDesk,
+    drawChair: drawChair,
     blit: blit,
     face: drawFace,
     arms: drawArms,

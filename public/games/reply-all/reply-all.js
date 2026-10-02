@@ -376,7 +376,10 @@
     d.stateT = 0;
     d.dur = base * k * (0.9 + shell.random() * 0.2);
     d.hits = d.kind === "stubborn" ? 2 : 1;
-    d.line = pick(LINES[d.kind]);
+    // something nobody else is typing right now
+    var taken = G.desks.map(function (o) { return o.state === "typing" ? o.line : ""; });
+    var fresh = LINES[d.kind].filter(function (l) { return taken.indexOf(l) < 0; });
+    d.line = pick(fresh.length ? fresh : LINES[d.kind]);
     d.gaze = null;
     sfx.itch();
   }
@@ -612,7 +615,7 @@
     var it = G.intern;
     if (!it || G.phase !== "play") return;
     var home = { x: W * 0.5, y: H - L.strip * 0.5 };
-    var aim = it.target ? handSpot(it.target) : home;
+    var aim = it.target ? at(it.target, 24, 30) : home;    // the left of their head; yours goes on the right
     it.x += (aim.x - it.x) * Math.min(1, dt * 7);
     it.y += (aim.y - it.y) * Math.min(1, dt * 7);
     if (it.target) {
@@ -738,12 +741,11 @@
     var stamp = ["Approved", "Pending review", "Not approved", "Rejected"][rank - 1];
     var score = Math.round(run.score);
     var rec = shell.record(score);
+    // short, so it all fits a phone's square screen
     var stats = [
       { label: "Score", value: fmt(score) },
-      { label: "Reached", value: home ? "17:00" : run.meltAt + ", stage " + (run.stage + 1) + " of 4" },
-      { label: "Stopped", value: String(run.stopped) },
+      home ? { label: "Stopped", value: String(run.stopped) } : { label: "Melted at", value: run.meltAt },
       { label: "Got out", value: String(run.out) },
-      { label: "Best streak", value: String(run.bestStreak) },
       { label: rec.isNew ? (shell.daily ? "New best today" : "New best") : (shell.daily ? "Best today" : "Best"),
         value: fmt(rec.best || 0), highlight: rec.isNew }
     ];
@@ -752,7 +754,7 @@
       place: rank,
       total: 4,
       stamp: stamp,
-      heading: home ? "You made it to 17:00." : "The server melted at " + run.meltAt + ".",
+      heading: home ? "Home at 17:00." : "Server melted.",
       line: RESULT_LINES[rank - 1],
       stats: stats,
       share: fmt(score) + " points, " + (home ? "home by 17:00" : "server melted at " + run.meltAt),
@@ -1007,7 +1009,6 @@
         return;
       }
     }
-    if (info().boss && !run.learned.boss && G.boss && G.boss.state === "typing") { G.hint = { desk: G.boss, word: "Can't stop this" }; return; }
     if (info().stubborn && !run.learned.stubborn) {
       var long = typing.filter(function (d) { return d.kind === "stubborn" && d.hits > 1; })[0];
       if (long) { G.hint = { desk: long, word: "Twice" }; return; }
@@ -1020,10 +1021,6 @@
         else G.hint = { mute: true, word: "Press E" };
         return;
       }
-    }
-    if (info().ooo && (run.learned.oooSeen || 0) > 0 && (run.learned.oooSeen || 0) < 3) {
-      var o = G.desks.filter(function (d) { return d.kind === "ooo"; })[0];
-      if (o) G.hint = { desk: o, word: "Can't stop this" };
     }
   }
 
@@ -1468,7 +1465,7 @@
     hand.y += (ty - hand.y) * glide;
     c.save();
     c.translate(hand.x, hand.y);
-    c.rotate(-0.55);
+    c.rotate(0.55);    // pointing down and left, the hand up and to the right, clear of the bar
     A.hand(c, 0, 0, size, shell.reduceMotion ? 0 : hand.press);
     c.restore();
     c.globalAlpha = 1;
@@ -1480,7 +1477,7 @@
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     c.save();
     c.translate(it.x, it.y);
-    c.rotate(0.5);
+    c.rotate(-0.5);     // the intern comes from the other side
     A.hand(c, 0, 0, clamp(L.k * 26, 24, 44), 0, "Intern");
     c.restore();
   }
@@ -1490,8 +1487,8 @@
     var h = G.hint;
     if (!h) return null;
     var x, y, dir = "down";
-    if (h.desk && h.desk.row === 0) { var q = at(h.desk, 56, 22); x = q.x; y = q.y; dir = "left"; }
-    else if (h.desk) { var p = at(h.desk, 40, -3); x = p.x; y = p.y; }
+    // at a desk: from the side, over their monitor, so it never covers anyone
+    if (h.desk) { var q = at(h.desk, 56, 25); x = q.x; y = q.y; dir = "left"; }
     else if (h.mute) { x = L.mute.x; y = L.mute.y - L.mute.r - 4; }
     else if (h.pad) {
       var pad = root.querySelector('.kit-pad[data-key="mute"]');
@@ -1504,7 +1501,7 @@
     if (dir === "left") {
       if (measureOnly) return { x: x, y: y - size * 1.1, w: size * 3.4, h: size * 1.6 };
       c.setTransform(DPR, 0, 0, DPR, 0, 0);
-      A.arrow(c, x + bob, y, h.word, size, "left");
+      A.arrow(c, x + bob, y, h.word, size, "left", W - 4);
       return null;
     }
     if (measureOnly) return { x: x - size * 2, y: y - size * 1.9, w: size * 4, h: size * 1.9 };
