@@ -53,7 +53,7 @@
 // shuts before you've paid, the run is over.
 //
 // THE LADDER (DESIGN.md, section 6). Approved: every shop paid for and at
-// least 14,000 points. Pending review: you reached Christmas Eve. Not
+// least 15,500 points. Pending review: you reached Christmas Eve. Not
 // approved: you got as far as the trolley or the big shop. Rejected: the
 // basket beat you.
 //
@@ -90,7 +90,7 @@
   var SUS_PERFECT = 10, SUS_GOOD = 3, SUS_AFTER = 35;
   var TIME_BONUS = 20, CLEAN_BONUS = 500;
   var K = 1.25;               // the shopping is drawn this much bigger than sprites.js draws it
-  var APPROVED = 14000;
+  var APPROVED = 15500;
 
   // What goes in which trolley. No real brands anywhere.
   var POOLS = {
@@ -254,7 +254,7 @@
   // ---------------------------------------------------------------------------
   function layout() {
     var extra = Math.max(0, WH - 100);
-    var oy = extra * 0.45;
+    var oy = extra * 0.7;
     var phone = window.matchMedia && window.matchMedia("(max-width: 39.99rem)").matches;
     var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
     var barPx = N.flags.clip ? 0 : phone ? 40 : 46;   // the pause, sound and fullscreen buttons
@@ -274,7 +274,7 @@
     L.bagH = 15;
     L.handY = L.belt - 16.5;             // the bottom of whatever's in your hand
     L.scrB = L.belt - 21;
-    L.scrT = Math.max(L.top + 7, L.scrB - 26);
+    L.scrT = Math.max(L.top + 7, L.scrB - 26 - extra * 0.4);   // a taller screen when there is room (the clip frame)
     L.kTop = L.scrT - 2.4;
     L.kW = 36;
     L.reader = { x: L.kx - L.kW / 2 + 2.2, y: L.belt - 15 };
@@ -1007,7 +1007,7 @@
     shell.interlude({
       stamp: stamp,
       tilt: stage % 2 ? 4 : -4,
-      heading: ["The basket is paid for.", "The trolley is paid for.", "The big shop is paid for."][stage],
+      heading: ["Basket: paid for.", "Trolley: paid for.", "Big shop: paid for."][stage],
       line: info().clear,
       stats: stats,
       ask: "Stage " + (next + 1) + ": " + STAGES[next].name + ". How are you shopping.",
@@ -1047,12 +1047,11 @@
     var rec = shell.record(score);
     var all = why === "paid";
     var rank = all && score >= APPROVED ? 1 : (all || stage >= 3) ? 2 : stage >= 1 ? 3 : 4;
-    var heading = all ? (rank === 1 ? "Everything scanned. Everything bagged." : "Paid for. All of it. Eventually.")
-      : stage === 3 ? "The shop shut on Christmas Eve." : "The shop shut. You were mid-" + ["basket", "trolley", "big shop"][stage] + ".";
+    var heading = all ? (rank === 1 ? "Everything paid for." : "Paid for. Eventually.")
+      : stage === 3 ? "Shut on Christmas Eve." : "The shop shut mid-" + ["basket", "trolley", "big shop"][stage] + ".";
     var stats = [
       { label: "Score", value: fmt(score) },
-      { label: "Shops paid for", value: run.shops + " of 4" },
-      { label: "Scanned", value: String(run.scanned) },
+      { label: "Paid for", value: run.shops + " of 4 shops" },
       { label: "Perfect", value: String(run.perfect) },
       { label: "Accused", value: times(run.accused) },
       { label: rec.isNew ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
@@ -1908,7 +1907,7 @@
     if (b.who === "bev" && bev.state === "off") return;
     if (look && b.who === "dennis") return;
     var a = anchor(b.who);
-    var size = clamp(U * 3.3, 11, 16);
+    var size = clamp(U * 3.3, 11, 20);
     c.font = size + "px " + T.display;
     var maxW = a.side === "right" ? Math.min(W - a.x - 14, size * 15) : Math.min(size * 13, W * 0.46);
     maxW = Math.max(maxW, size * 6);
@@ -2200,7 +2199,18 @@
       belt: function () { return belt; },
       score: function () { return { stage: stage + 1, score: Math.round(run.score), accused: run.accused, scanned: run.scanned, perfect: run.perfect, left: Math.round(timeLeft) }; },
       accuse: function () { accuse("bag"); },
-      setSus: function (v) { sus = v; }
+      setSus: function (v) { sus = v; },
+      // everything a test needs to play by the rules, in one snapshot
+      peek: function () {
+        return {
+          state: shell.state(), phase: phase, stage: stage, sx: L.sx, speed: info().belt * mods.belt, beltWait: beltWait,
+          bars: belt.filter(function (b) { return b.bar; }).map(function (b) { return { c: barCentre(b), half: b.bar.half }; }),
+          hand: !!hand, handReady: !!hand && hand.t >= 1, settling: scale.t, frozen: frozen ? frozen.step : null,
+          look: look ? { answer: look.answer, t: look.t, limit: look.limit, result: !!look.result } : null,
+          score: Math.round(run.score), accused: run.accused, perfect: run.perfect, scanned: run.scanned,
+          timeLeft: timeLeft, approvals: approvals, sus: sus, bev: bev.state, U: U
+        };
+      }
     };
   }
 })();
