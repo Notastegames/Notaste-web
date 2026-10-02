@@ -263,6 +263,7 @@
     // the buttons take the bottom corners
     L.belt = (coarse && !N.flags.clip ? 62 : 66) + oy;
     L.floor = WH - 3;
+    L.compact = coarse && !N.flags.clip;
     L.sx = WW / 2 + 3;                   // the red line
     L.kx = L.sx - 14;                    // the till
     L.beltEnd = L.sx + 6;
@@ -685,7 +686,7 @@
     run.scanned++;
     learned.scan++;
     var pts = 100 + (perfect ? 100 * mods.perfect : 0) + 10 * Math.min(streak - 1, 20);
-    pts = Math.round(pts * mods.points);
+    pts = Math.round(pts * mods.points / 10) * 10;
     addScore(pts);
     if (perfect) { run.perfect++; st.perfect++; sfx.perfect(); sus -= SUS_PERFECT; }
     else { sfx.beep(); sus -= SUS_GOOD; }
@@ -734,7 +735,7 @@
     bagGrace = 0.22;
     st.done++;
     learned.bag++;
-    addScore(Math.round(10 * mods.points));
+    addScore(10);
     if (AUTOPILOT) auto.bagsHere++;
     if (it.heavy) {
       sfx.thud();
@@ -852,7 +853,7 @@
     look.result = { i: i, ok: right, guessed: guessed, t: 0 };
     if (right) {
       var quick = Math.max(0, 1 - look.t / look.limit);
-      var pts = Math.round((150 + 100 * quick) * mods.points);
+      var pts = Math.round((150 + 100 * quick) * mods.points / 10) * 10;
       addScore(pts);
       run.fruitRight++;
       streak++;
@@ -1050,7 +1051,7 @@
       : stage === 3 ? "The shop shut on Christmas Eve." : "The shop shut. You were mid-" + ["basket", "trolley", "big shop"][stage] + ".";
     var stats = [
       { label: "Score", value: fmt(score) },
-      { label: "Reached", value: all ? "Paid for everything" : "Stage " + (stage + 1) + " of 4" },
+      { label: "Shops paid for", value: run.shops + " of 4" },
       { label: "Scanned", value: String(run.scanned) },
       { label: "Perfect", value: String(run.perfect) },
       { label: "Accused", value: times(run.accused) },
@@ -1323,6 +1324,7 @@
 
   // The basket (or trolley) on the floor: whatever's not on the belt yet
   function drawBasket(c) {
+    if (L.compact) return;
     var s = info();
     var trolley = stage > 0;
     var w = trolley ? 26 : 20, h = trolley ? 11 : 9;
@@ -1764,15 +1766,16 @@
     return top;
   }
 
-  // The look-up screen: four pictures, one of them right, and a clock
+  // The look-up screen: what's on the scale, four pictures (one of them
+  // right) and a clock. A row of four on wide screens, two by two on phones.
   function drawLookup(c) {
     if (!look) { tiles = []; return; }
-    var pad = 8;
-    var left = pad, right = W - pad;
+    var narrow = W < 520;
+    var left = 8, right = W - 8, w = right - left;
     var top = hudBottom(left, right);
-    var bottom = (L.belt - 14) * U;
-    if (bottom - top < 90) bottom = top + 90;
-    var w = right - left, h = bottom - top;
+    var bottom = narrow ? Math.min((L.belt + 13) * U, H - 88) : (L.belt - 14) * U;
+    if (bottom - top < 120) bottom = Math.min(H - 8, top + 120);
+    var h = bottom - top;
     var pop = shell.reduceMotion ? 1 : ease(look.t * 7);
     c.save();
     c.translate(W / 2, top + h / 2);
@@ -1788,54 +1791,86 @@
     c.strokeRect(left, top, w, h);
     // the question and the clock
     var qs = clamp(U * 3.6, 12, 22);
-    c.font = qs + "px " + T.display;
+    var left2 = Math.max(0, look.limit - look.t);
+    var q = look.set.q.toUpperCase();
+    var qSize = qs;
+    c.font = qSize + "px " + T.display;
+    while (c.measureText(q).width > w - 16 - qs * 1.6 && qSize > 9) { qSize -= 0.5; c.font = qSize + "px " + T.display; }
     c.fillStyle = T.ink;
     c.textAlign = "left";
     c.textBaseline = "top";
-    var q = look.set.q.toUpperCase();
-    var maxQ = w - 16 - qs * 3.2;
-    var qSize = qs;
-    while (c.measureText(q).width > maxQ && qSize > 9) { qSize -= 0.5; c.font = qSize + "px " + T.display; }
-    c.fillText(q, left + 8, top + 10);
-    var left2 = Math.max(0, look.limit - look.t);
+    c.fillText(q, left + 8, top + 11);
     c.font = qs + "px " + T.display;
     c.textAlign = "right";
     c.fillStyle = left2 < 1.5 ? T.red : T.ink;
-    c.fillText(look.result ? "" : String(Math.ceil(left2)), right - 8, top + 10);
-    var barY = top + 14 + qs;
+    if (!look.result) c.fillText(String(Math.ceil(left2)), right - 8, top + 11);
+    var barY = top + 15 + qs;
     c.fillStyle = T.ink;
     c.fillRect(left + 8, barY, w - 16, 5);
     c.fillStyle = left2 < 1.5 ? T.red : T.accent;
     c.fillRect(left + 9, barY + 1, (w - 18) * (look.result ? 0 : left2 / look.limit), 3);
-    // the four pictures
-    var ty = barY + 11, th = bottom - ty - 8, gap = 6;
-    var tw = (w - 16 - gap * 3) / 4;
+
+    var by = barY + 11, bh = bottom - by - 8, gap = 6;
     var ls = clamp(U * 2.7, 10, 16);
+    // what's on the scale, in a dashed frame
+    var hw = Math.round(w * (narrow ? 0.27 : 0.19));
+    var hx = left + 8;
+    c.save();
+    c.setLineDash([5, 4]);
+    S.ink(c, 1.6);
+    c.strokeRect(hx, by, hw, bh);
+    c.restore();
+    c.font = Math.max(9, ls * 0.85) + "px " + T.display;
+    c.fillStyle = T.ink;
+    c.textAlign = "center";
+    c.textBaseline = "top";
+    c.fillText("ON THE SCALE", hx + hw / 2, by + 5);
+    var hs = Math.min(hw - 12, bh - ls - 18);
+    S.drawFruit(c, look.item.answer, hx + hw / 2, by + ls + 10 + hs * 0.95 + (bh - ls - 18 - hs) / 2, hs, DPR);
+
+    // the four options
+    var ox = hx + hw + 8, ow = right - 8 - ox;
+    var cols = narrow ? 2 : 4, rows = narrow ? 2 : 1;
+    var tw = (ow - gap * (cols - 1)) / cols, th = (bh - gap * (rows - 1)) / rows;
+    var side = tw > th * 1.45;
     tiles = [];
     for (var i = 0; i < 4; i++) {
-      var tx = left + 8 + i * (tw + gap);
+      var tx = ox + (i % cols) * (tw + gap), ty = by + Math.floor(i / cols) * (th + gap);
       var sel = i === look.sel;
       var res = look.result;
       var isAns = res && i === look.answer, isPick = res && i === res.i;
       c.fillStyle = isAns ? T.accent : T.paper;
       c.fillRect(tx, ty, tw, th);
-      S.ink(c, sel || isPick ? 3.4 : 1.6, isPick && !res.ok ? T.red : sel && !res ? T.accent : T.ink);
-      if (sel && !res) { c.strokeStyle = T.ink; c.lineWidth = 1.6; c.strokeRect(tx, ty, tw, th); c.strokeStyle = T.accent; c.lineWidth = 3.4; c.strokeRect(tx + 2.4, ty + 2.4, tw - 4.8, th - 4.8); }
-      else c.strokeRect(tx, ty, tw, th);
-      // the name, at the bottom, on up to two lines
+      if (sel && !res) {
+        S.ink(c, 1.6); c.strokeRect(tx, ty, tw, th);
+        S.ink(c, 3.4, T.accent); c.strokeRect(tx + 2.4, ty + 2.4, tw - 4.8, th - 4.8);
+      } else {
+        S.ink(c, isPick ? 3.4 : 1.6, isPick && !res.ok ? T.red : T.ink);
+        c.strokeRect(tx, ty, tw, th);
+      }
       var name = S.FRUIT[look.opts[i]].name.toUpperCase();
       c.font = ls + "px " + T.display;
-      var lines = wrap(c, name, tw - 8);
-      var labelH = lines.length * ls * 0.95 + 4;
       c.fillStyle = T.ink;
-      c.textAlign = "center";
-      c.textBaseline = "bottom";
-      lines.forEach(function (ln, k) { c.fillText(ln, tx + tw / 2, ty + th - 4 - (lines.length - 1 - k) * ls * 0.95); });
-      // the picture
-      var ps = Math.min(tw - 10, th - labelH - 12);
-      S.drawFruit(c, look.opts[i], tx + tw / 2, ty + 8 + ps * 0.96, ps, DPR);
+      var lines, ps;
+      if (side) {
+        // picture on the left, name on the right
+        ps = Math.min(th - 10, tw * 0.46);
+        S.drawFruit(c, look.opts[i], tx + 6 + ps / 2, ty + th / 2 + ps * 0.46, ps, DPR);
+        lines = wrap(c, name, tw - ps - 16);
+        c.textAlign = "left";
+        c.textBaseline = "middle";
+        lines.forEach(function (ln, k) { c.fillText(ln, tx + ps + 10, ty + th / 2 + (k - (lines.length - 1) / 2) * ls * 0.98 + 1); });
+      } else {
+        lines = wrap(c, name, tw - 8);
+        var labelH = lines.length * ls * 0.95 + 4;
+        c.textAlign = "center";
+        c.textBaseline = "bottom";
+        lines.forEach(function (ln, k) { c.fillText(ln, tx + tw / 2, ty + th - 4 - (lines.length - 1 - k) * ls * 0.95); });
+        ps = Math.min(tw - 10, th - labelH - 12);
+        S.drawFruit(c, look.opts[i], tx + tw / 2, ty + 8 + ps * 0.96, ps, DPR);
+      }
       // the number to press
-      var nr = clamp(ls * 0.7, 8, 12);
+      var nr = clamp(ls * 0.66, 7, 11);
       c.fillStyle = T.ink;
       c.beginPath(); c.arc(tx + nr + 3, ty + nr + 3, nr, 0, Math.PI * 2); c.fill();
       c.fillStyle = T.paper;
@@ -1953,10 +1988,12 @@
   }
 
   // A bobbing arrow pointing down at the one thing to deal with right now
-  function drawArrow(c, x, y, word) {
+  function drawArrow(c, x, y, word, dir) {
     var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(clock * 4)) * -1.4;
     c.save();
-    c.translate(x, y + bob);
+    if (dir === "right") c.translate(x + bob, y); else c.translate(x, y + bob);
+    c.save();
+    if (dir === "right") c.rotate(-Math.PI / 2);
     c.beginPath();
     c.moveTo(-1.4, -4.4); c.lineTo(1.4, -4.4); c.lineTo(1.4, -1.8); c.lineTo(3, -1.8); c.lineTo(0, 1.4); c.lineTo(-3, -1.8); c.lineTo(-1.4, -1.8);
     c.closePath();
@@ -1964,25 +2001,29 @@
     c.fill();
     S.ink(c, 0.55);
     c.stroke();
+    c.restore();
     var size = Math.max(3, 12 / U);
-    S.text(c, word, 0, -5.2, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
+    if (dir === "right") S.text(c, word, -3, -3.6, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
+    else S.text(c, word, 0, -5.2, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
     c.restore();
   }
 
-  // The one hint worth showing right now, until you've shown you know
+  // The one hint worth showing right now, until you've shown you know.
+  // Bag hints come in from the side, so they stay clear of the till's voice.
   function hint() {
     if (phase !== "play" || look) return null;
     var t = touching();
+    var bx = L.bagX - L.bagW / 2 - 0.8, by = L.belt - 0.8 - ease(bag.up) * 8 - L.bagH * 0.45;
     if (frozen && !learned.ritual) {
-      if (settling()) return { x: L.bagX, y: L.handY - 8, word: "Wait" };
-      if (frozen.step === "lift") return { x: L.bagX, y: L.handY - 8, word: t ? "Lift: tap Bag" : "Lift it: press B" };
-      if (frozen.step === "back") return { x: L.bagX, y: L.handY - 14, word: t ? "Put back: tap Bag" : "Put it back: B" };
+      if (settling()) return { x: bx, y: by, word: "Wait", dir: "right" };
+      if (frozen.step === "lift") return { x: bx, y: by, word: t ? "Lift: tap Bag" : "Lift it: B", dir: "right" };
+      if (frozen.step === "back") return { x: bx, y: by, word: t ? "Put back: tap Bag" : "Put back: B", dir: "right" };
       return null;
     }
     if (frozen) return null;
     if (hand && hand.t >= 1 && learned.bag < 2) {
-      if (settling()) return { x: L.bagX, y: L.handY - hand.item.h - 2, word: "Wait" };
-      return { x: L.bagX, y: L.handY - hand.item.h - 2, word: t ? "Tap Bag" : "Bag: press B" };
+      if (settling()) return { x: bx, y: by, word: "Wait", dir: "right" };
+      return { x: bx, y: by, word: t ? "Tap Bag" : "Bag: press B", dir: "right" };
     }
     if (!hand && learned.scan < 3 && beltWait <= 0) {
       var soon = belt.some(function (it) { return it.bar && barCentre(it) > L.sx - 12 && barCentre(it) < L.sx + 2; });
@@ -2089,11 +2130,11 @@
     drawLookup(c);
     var placed = [];
     var h = hint();
-    if (h) placed.push({ x: (h.x - 9) * U, y: (h.y - 9) * U, w: 18 * U, h: 11 * U });
+    if (h) placed.push(h.dir === "right" ? { x: (h.x - 16) * U, y: (h.y - 9) * U, w: 22 * U, h: 12 * U } : { x: (h.x - 9) * U, y: (h.y - 9) * U, w: 18 * U, h: 11 * U });
     bubbles.forEach(function (b) { drawBubble(c, b, placed); });
     if (h) {
       c.setTransform(DPR * U, 0, 0, DPR * U, 0, 0);
-      drawArrow(c, h.x, h.y, h.word);
+      drawArrow(c, h.x, h.y, h.word, h.dir);
     }
   }
 

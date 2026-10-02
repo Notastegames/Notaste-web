@@ -290,7 +290,29 @@ To be written when the game is built.
 
 ### Unexpected Item
 
-To be written when the game is built.
+A self-checkout. Four shops (a basket, a trolley, the big shop, Christmas Eve), each with its own closing time. The machine is the comedian: it accuses, apologises and accuses again. The shopper is never the joke; you only ever see their hand.
+
+**Characters**
+- **Till 4** (Bev calls it Dennis). A checkout-green kiosk with a thick ink outline and halftone down its right side, a paper screen in a black bezel, a lamp on top and a speaker grille on the right, where its speech bubbles come from. Its face is drawn on the screen in ink: oval eyes with small pupils that follow the next barcode, furious eyebrows, a frown. No chin and no body: it's a machine. The face is its suspicion meter: calm, watching (one brow up, one eye narrowed), angry (both eyes narrowed), alarm (the screen flashes red, eyes wide, mouth open), sorry (brows up, small mouth), puzzled (for fruit). A strip along the bottom of the screen always says what it wants right now ("Scan your item", "Please wait", "Remove the item"), and a five-light gauge under the screen spells out the suspicion. It wears a Santa hat on Christmas Eve.
+- **Bev**, the one assistant for every till. A house cut-out cartoon, seen from the waist up behind the counter: a green polo, a red lanyard with a paper card, a name badge, a headset with a little green microphone, scraped-back hair and a bun with a pencil through it (the bun is how you know her from behind). Heavy lids, weary-furious brows, a mug of tea with steam. She walks over slowly, swipes her card with her eyes shut and her head turned away ("without looking"), and leaves quickly. She turns back if you fix it yourself. Her conviction: the machines are her colleagues, and Dennis is the worst of them ("Dennis thinks everyone's a thief. Even me."). She talks about the machine, never about you.
+- **The queue**, Christmas Eve only: two cut-out shoppers behind you, one in a Santa hat and a red coat, one in a green bobble hat with a moustache. They look at you and tut in the house register ("Scan it, you lemon.", "It's a sprout, not a bomb."), or at Dennis.
+- **You**: a paper mitten in a red sleeve, coming in from the right. Nothing else.
+
+**The shopping** is drawn in the four inks with a paper barcode patch on each item, cached as bitmaps (`sprites.js`). Loose fruit has no barcode and comes in sets of four lookalikes, some of them jokes: a sad lime, an apple with a bite out of it, a stone, a nervous sprout. Invented, never branded.
+
+**One rule for each action.** Scan works only while a barcode is on the red line; red brackets (as in Thonglets) mark a barcode while it can be scanned. Bag works only while the scale says OK; touching the bag while it says Wait is always an unexpected item. The exceptions are said out loud: loose fruit stops at the line and the till asks, and age checks need Bev.
+
+**The ritual.** Every accusation is fixed the same way: lift the bag, put it back, each time the scale says OK. Rush it and the machine accuses you again. Or wait for Bev.
+
+**Stamp words and callouts**: Unexpected item, Item: expected, Approval needed, Approved. Didn't look, Sorted. Didn't look, Guessed: lemon (whatever it guessed), Charged as lemon, Lime: confirmed, Round again, Heavy item, Five in a row, Twelve in a row. Suspicious, Paid, Paid. Reluctantly, Shop: shut. The game's stamp is Approval needed.
+
+**Only this game**
+- Callouts land just under the till's screen, not across it (`unexpected-item.css`), because the face is the joke.
+- The look-up screen is a paper card with the game's colour along the top: the question ("Lime, lemon, lime or lime."), a clock, what's on the scale in a dashed frame, and four numbered pictures (a row of four, or two by two on phones). The machine's guesses are always wrong.
+- The till's voice, Bev's and the queue's are blips, one a syllable, so "Unexpected item in the bagging area" has its real rhythm.
+- The scale's display (OK in green, Wait in red and flashing, plus a needle) is also the Bag button's cooldown on touch screens.
+- The receipt grows out of the till with everything you bag, and the basket or trolley on the floor empties as you go.
+- When the shop shuts, paper shutters come down with a red edge.
 
 ### Reply All
 

@@ -502,11 +502,16 @@
       solid(c, ell(3.6, -h * 0.5, 1.4, 1.1), T.red, 0.35);
       solid(c, ell(2.6, -h * 0.5, 0.6, 0.6), T.paper, 0.3);
     } },
-    tape: { name: "Sticky tape", w: 5.6, h: 5.6, bar: { x: 0.5, y: 1.2, w: 2.8 }, draw: function (c, w, h) {
-      solid(c, ell(0, -h / 2, w / 2, h / 2), T.paper);
-      shade(c, ell(0, -h / 2, w / 2, h / 2), ell(1.6, -h / 2 + 1, 2, 2));
-      ink(c, LW); c.stroke(ell(0, -h / 2, w / 2, h / 2));
-      solid(c, ell(0, -h / 2, 1.4, 1.4), T.ink, 0.3);
+    tape: { name: "Sticky tape", w: 7, h: 9, bar: { x: 0.5, y: 2, w: 3 }, draw: function (c, w, h) {
+      // a roll on a card, small and easy to miss
+      var card = rr(-w / 2, -h, w, h, 0.5);
+      solid(c, card, T.red);
+      solid(c, ell(0, -h + 1, 0.8, 0.45), T.ink, 0.2);
+      var roll = ell(0, -h + 4.6, 2.6, 2.6);
+      solid(c, roll, T.paper, 0.45);
+      shade(c, roll, ell(1.2, -h + 5.6, 1.6, 1.6));
+      ink(c, 0.45); c.stroke(roll);
+      solid(c, ell(0, -h + 4.6, 1.1, 1.1), T.red, 0.35);
     } },
     baguette: { name: "Baguette", w: 20, h: 4.6, bar: { x: 0.82, y: 2.2, w: 3.4 }, draw: function (c, w, h) {
       var body = rr(-w / 2, -h, w, h, h / 2);
@@ -636,9 +641,16 @@
     banana: { name: "Banana", draw: function (c) { bananaBody(c, T.paper, 0, false); } },
     greenBanana: { name: "Banana, green", draw: function (c) { bananaBody(c, T.accent, 0, false); } },
     bananas: { name: "Bananas", draw: function (c) {
-      bananaBody(c, T.paper, -2.6, false);
-      bananaBody(c, T.paper, 0, false);
-      bananaBody(c, T.paper, 2.6, false);
+      // a bunch: three fanned out from one stalk
+      [-0.42, 0, 0.42].forEach(function (a) {
+        c.save();
+        c.translate(-5.6, -8.4);
+        c.rotate(a);
+        c.scale(0.82, 0.82);
+        c.translate(6.4, 8.8);
+        bananaBody(c, T.paper, 0, false);
+        c.restore();
+      });
     } },
     plantain: { name: "Plantain", draw: function (c) { bananaBody(c, T.paper, 0, true); } },
     sprout: { name: "Sprout", draw: function (c) { sproutBody(c, 0, 0, 1); } },
@@ -713,40 +725,49 @@
     p.bezierCurveTo(-2, 0.2, -4.4, -0.6, -5, -3.8);
     p.bezierCurveTo(-5.8, -7.6, -2.6, -9.6, 0, -7.6);
     p.closePath();
+    // a bite out of the right-hand side, if someone's had a go at it
+    var bites = bitten ? [[5.6, -6.2, 2.1], [4.9, -3.6, 2.2], [5.4, -1.1, 1.9]] : [];
+    c.save();
+    bites.forEach(function (b) {
+      var keep = new Path2D();
+      keep.rect(-20, -20, 40, 40);
+      keep.arc(b[0], b[1], b[2], 0, Math.PI * 2);
+      c.clip(keep, "evenodd");
+    });
     solid(c, p, fill, 0.6);
     shade(c, p, ell(3, -1.6, 3.4, 2.4));
     ink(c, 0.6); c.stroke(p);
+    c.restore();
+    if (bitten) {
+      // the flesh shows, scalloped by teeth
+      c.save();
+      c.clip(p);
+      c.fillStyle = T.paper;
+      bites.forEach(function (b) { c.beginPath(); c.arc(b[0], b[1], b[2], 0, Math.PI * 2); c.fill(); });
+      ink(c, 0.55);
+      bites.forEach(function (b) { c.beginPath(); c.arc(b[0], b[1], b[2], 0, Math.PI * 2); c.stroke(); });
+      c.restore();
+      c.fillStyle = T.ink;
+      c.beginPath(); c.ellipse(2.1, -4.6, 0.32, 0.55, 0.3, 0, 7); c.fill();
+      c.beginPath(); c.ellipse(2.4, -2.6, 0.3, 0.5, 0.3, 0, 7); c.fill();
+    } else {
+      solid(c, ell(-2.6, -5.8, 0.9, 0.6, -0.6), T.paper, 0.01);
+    }
     line(c, [[0, -7.4], [0.6, -9.8]], 0.6);
     var leaf = new Path2D();
     leaf.moveTo(0.7, -9); leaf.quadraticCurveTo(2.6, -11, 4, -9.6); leaf.quadraticCurveTo(2.4, -8.4, 0.7, -9); leaf.closePath();
     solid(c, leaf, T.accent, 0.4);
-    if (bitten) {
-      // a bite out of the right-hand side: the flesh shows, scalloped
-      var bite = new Path2D();
-      bite.moveTo(5.6, -7.2);
-      bite.arc(5.8, -6.1, 1.3, -Math.PI / 2, Math.PI * 1.15, true);
-      bite.arc(5.2, -4, 1.4, -Math.PI * 0.6, Math.PI * 1.1, true);
-      bite.arc(5.6, -2, 1.3, -Math.PI * 0.7, Math.PI * 0.6, true);
-      bite.lineTo(7, -0.6); bite.lineTo(7, -7.6); bite.closePath();
-      c.save(); c.clip(p);
-      c.fillStyle = T.paper; c.fill(bite);
-      ink(c, 0.5); c.stroke(bite);
-      c.restore();
-      c.fillStyle = T.ink;
-      c.beginPath(); c.ellipse(3, -4.4, 0.3, 0.5, 0.3, 0, 7); c.fill();
-    } else {
-      solid(c, ell(-2.6, -5.8, 0.9, 0.6, -0.6), T.paper, 0.01);
-    }
   }
+  // a banana: a fat crescent, stalk at the top left
   function bananaBody(c, fill, dx, spotty) {
     c.save();
     c.translate(dx, 0);
     var p = new Path2D();
-    p.moveTo(-5.6, -7.4);
-    p.quadraticCurveTo(-4.6, -1.2, 1.4, -1);
-    p.quadraticCurveTo(4.8, -1.2, 6, -3.4);
-    p.quadraticCurveTo(5, 0.6, 0.6, 0.4);
-    p.quadraticCurveTo(-6.4, 0, -6.8, -7);
+    p.moveTo(-5.2, -8.2);
+    p.quadraticCurveTo(-3.4, -3.6, 1.6, -3.7);
+    p.quadraticCurveTo(4.6, -3.9, 6.4, -5.8);
+    p.quadraticCurveTo(6, -0.4, 0.8, 0);
+    p.quadraticCurveTo(-6.6, 0.2, -7.6, -7.6);
     p.closePath();
     solid(c, p, fill, 0.6);
     if (spotty) {
@@ -755,12 +776,14 @@
       c.fill(p);
       c.restore();
       c.fillStyle = T.ink;
-      [[-3.4, -2.6], [0, -0.6], [2.6, -1]].forEach(function (d) { c.beginPath(); c.arc(d[0], d[1], 0.5, 0, 7); c.fill(); });
+      [[-4.2, -3.8], [-0.6, -1.6], [2.8, -2.2]].forEach(function (d) { c.beginPath(); c.arc(d[0], d[1], 0.6, 0, 7); c.fill(); });
     } else {
-      shade(c, p, ell(0, 1, 6, 1.4));
+      shade(c, p, ell(0, 0.6, 6.4, 1.8));
+      c.beginPath(); c.moveTo(-5.6, -6.4); c.quadraticCurveTo(-3.6, -1.8, 1.8, -1.8); ink(c, 0.35); c.stroke();
     }
     ink(c, 0.6); c.stroke(p);
-    solid(c, rr(-7, -8.4, 1.5, 1.6, 0.3), T.ink, 0.3);
+    solid(c, rr(-7.9, -9.6, 2.2, 2, 0.4), T.ink, 0.35);
+    solid(c, ell(6.5, -5.7, 0.5, 0.5), T.ink, 0.2);
     c.restore();
   }
   function sproutBody(c, x, y, k, plain) {
@@ -810,15 +833,22 @@
     var c = cv.getContext("2d");
     c.scale(SCALE, SCALE);
     c.translate(w / 2 + PAD, h + PAD);
-    if (fruit) {
-      c.scale(0.8, 0.8);
-      fruit.draw(c);
-    } else {
-      def.draw(c, def.w, def.h);
-      if (def.bar) barcode(c, -def.w / 2 + def.bar.x * def.w, -def.bar.y, def.bar.w, 3, seedOf(id));
-    }
+    paint(c, id);
     SCALE = keep;
     return (cache[key] = { img: cv, w: w + PAD * 2, h: h + PAD * 2, ox: w / 2 + PAD, oy: h + PAD });
+  }
+
+  // an item, drawn straight onto a context with its bottom centre at 0,0
+  // (the bitmaps above, and the cover art, are made with this)
+  function paint(c, id) {
+    if (id.indexOf("fruit:") === 0) {
+      c.scale(0.8, 0.8);
+      FRUIT[id.slice(6)].draw(c);
+      return;
+    }
+    var def = ITEMS[id];
+    def.draw(c, def.w, def.h);
+    if (def.bar) barcode(c, -def.w / 2 + def.bar.x * def.w, -def.bar.y, def.bar.w, 3, seedOf(id));
   }
 
   // draw an item with its bottom centre at x, y (world units), at size k
@@ -1093,6 +1123,7 @@
     shade: shade,
     line: line,
     sprite: sprite,
+    paint: paint,
     drawItem: drawItem,
     drawFruit: drawFruit,
     face: face,
