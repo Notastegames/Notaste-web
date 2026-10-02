@@ -266,7 +266,9 @@
   function reset(sh) {
     shell = sh;
     T = sh.tokens;
-    rng = sh.random;
+    lastKind = null;
+    sinceFact = 9;
+    rng = N.seeded((sh.seed + 1) | 0);   // the posts already on screen
     run = {
       score: 0, stageScore: 0, chain: 0, bestChain: 0, shots: 0, hits: 0, realSlopped: 0, trends: 0,
       caught: 0, bounced: 0, virals: 0, seen: 0, slopSeen: 0, mods: newMods(), taken: [],
@@ -287,8 +289,14 @@
     paintHud(0);
   }
 
+  // Each stage's feed (and each choice of upgrades) has its own random from
+  // the round's seed, so today's run scrolls the same posts past everyone
+  // however their frames happen to fall.
+  function stageRandom(i) { return N.seeded((shell.seed + (i + 1) * 104729) | 0); }
+
   function startStage() {
     var st = stageInfo();
+    rng = stageRandom(stage);
     phase = "play";
     clock = 0;
     timeLeft = st.time;
@@ -815,8 +823,11 @@
 
     if (phase === "finale") {
       flood = Math.min(1, flood + dt / 1.6);
+      wrapT += dt;
+      if (wrapT >= 1.3) { phase = "over"; end(run.finalMet ? "approved" : "done"); }
       return;
     }
+    if (phase === "over") return;
     if (phase === "between") {
       scrollFeed(dt * 0.5);
       updateBalls(dt);
@@ -951,10 +962,11 @@
     var target = targetFor(stage);
     var met = run.stageScore >= target;
     if (st.final) {
+      // the slop floods the phone, and then the results (timed in update, so pausing holds it)
       phase = "finale";
       run.finalMet = met;
+      wrapT = 0;
       shell.callout(met ? "Nobody can tell" : "Close enough", { ms: 1600 });
-      window.setTimeout(function () { end(met ? "approved" : "done"); }, 1300);
       return;
     }
     if (!met) {
@@ -967,6 +979,7 @@
     phase = "between";
     shell.callout("Target: met", { ms: 1100 });
     gafferSay(GAFFER.met, true);
+    rng = N.seeded((shell.seed + 7 + stage * 7919) | 0);
     offers = offer();
     var next = stage + 1;
     var stats = [
