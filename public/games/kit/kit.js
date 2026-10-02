@@ -9,6 +9,43 @@
   "use strict";
 
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var SITE = "https://notastegames.com";
+
+  // ---------------------------------------------------------------------------
+  // Flags in the address, for testing and for filming:
+  //   ?autopilot   the game plays itself (each game supplies its own driver)
+  //   ?clip        a tall 9:16 frame for social clips, with the autopilot on
+  //   ?speed=4     with autopilot or debug: run the game four times as fast
+  // ---------------------------------------------------------------------------
+  var params = new URLSearchParams(window.location.search);
+  var flags = {
+    clip: params.has("clip"),
+    autopilot: params.has("autopilot") || params.has("clip"),
+    speed: 1
+  };
+  if (params.has("autopilot") || params.has("debug")) {
+    flags.speed = Math.max(1, Math.min(8, parseInt(params.get("speed"), 10) || 1));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Today's run: a seeded random, so a run started from the same seed plays
+  // out the same for everyone. The seed for today is the date, as 20261002.
+  // ---------------------------------------------------------------------------
+  function seeded(a) {
+    return function () {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function today() {
+    var d = new Date();
+    return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  }
+  function todayLabel() {
+    return new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+  }
 
   // ---------------------------------------------------------------------------
   // Tokens. Canvas drawing reads colours from the same CSS variables as the
@@ -349,7 +386,10 @@
   //     clickAction: true,       with aim, a mouse click also presses "action"
   //     keys: { up: [...], ..., bless: ["KeyB"] },  extra names become extra inputs
   //     pad: { action: [0, 2], bless: [1, 3] },     gamepad buttons per input, if not the defaults
-  //     modes: [{ key: "daily", label: "Today's run" }],  other ways to start, under Press start
+  //     daily: true,             "Today's run" under Press start: the same seed for everyone
+  //                              today (or { label: "Today's race" } to name it)
+  //     modes: [{ key, label }], other ways to start, under Press start
+  //     pitch: "...",            one line about the game, for the clip frame (?clip)
   //     smallCallouts: true,     smaller in-game stamps, for a busy field
   //     reset(shell),            a fresh round: put everything on the start line
   //     update(dt, input, shell), every frame while playing (and after the finish)
@@ -368,7 +408,14 @@
   // Between stages, shell.interlude({ stamp, heading, line, stats, choices })
   // shows a screen with a choice on it and resolves with the one picked; then
   // shell.next() counts the next stage in. shell.mode is how the round began
-  // ("normal", or a key from modes).
+  // ("normal", "daily", or a key from modes).
+  //
+  // Every round gets shell.seed and shell.random(), a random seeded from it.
+  // In today's run (shell.daily) the seed is today's date, so draw anything
+  // that should be the same for everyone from shell.random, not Math.random.
+  // shell.record(value, { lower, key }) keeps the best (today's best, in
+  // today's run) and returns { best, isNew }. shell.finish also takes share:
+  // the result in a few words ("4,210 points"), for the Share result button.
   // ---------------------------------------------------------------------------
   function createGame(game) {
     var root = game.root;
@@ -397,6 +444,7 @@
     var finishTimer = 0;
     var calloutTimer = 0;
     var started = false;
+    var shareText = "";
 
     // ---------- Build the shell ----------
     root.textContent = "";
@@ -469,7 +517,9 @@
     var startBtn = el("button", "btn kit-start", "Press start");
     startBtn.type = "button";
     titlePanel.appendChild(startBtn);
-    var modeBtns = (game.modes || []).map(function (m) {
+    var daily = game.daily ? { label: game.daily.label || "Today's run" } : null;
+    var modes = (daily ? [{ key: "daily", label: daily.label }] : []).concat(game.modes || []);
+    var modeBtns = modes.map(function (m) {
       var b = el("button", "kit-quiet kit-mode", m.label);
       b.type = "button";
       b.addEventListener("click", function () { begin(m.key); });
@@ -514,9 +564,12 @@
     var resultActions = el("div", "kit-actions");
     var againBtn = el("button", "btn", game.againLabel || "Play again");
     againBtn.type = "button";
+    var shareBtn = el("button", "kit-quiet kit-share", "Share result");
+    shareBtn.type = "button";
     var allLink = el("a", "text-link", "All games");
     allLink.href = "/#games";
     resultActions.appendChild(againBtn);
+    resultActions.appendChild(shareBtn);
     resultActions.appendChild(allLink);
     resultsPanel.appendChild(resultStamp);
     resultsPanel.appendChild(resultHeading);
@@ -554,6 +607,12 @@
       reduceMotion: reduceMotion,
       state: function () { return state; },
       mode: "normal",
+      daily: false,
+      seed: 0,
+      random: Math.random,
+      today: todayLabel(),
+      flags: flags,
+      record: record,
       callout: callout,
       finish: finish,
       interlude: interlude,
@@ -573,6 +632,27 @@
       announce((opts.title ? opts.title + ". " : "") + (opts.text || ""));
       window.clearTimeout(briefTimer);
       briefTimer = window.setTimeout(function () { briefBox.classList.remove("is-on"); }, opts.ms || 6500);
+    }
+
+    // Keep the best result. Higher is better unless lower is set (times).
+    // Nothing (0) never counts. Today's run keeps today's best, separately.
+    function record(value, opts) {
+      opts = opts || {};
+      var name = opts.key || "best";
+      var valid = value > 0;
+      function beats(a, b) { return !b || (opts.lower ? a < b : a > b); }
+      if (shell.daily) {
+        var dayKey = name === "best" ? "daily" : "daily-" + name;
+        var saved = shell.store.get(dayKey, null);
+        var todays = saved && saved.day === shell.seed ? saved.best : 0;
+        var dayNew = valid && beats(value, todays);
+        if (dayNew) shell.store.set(dayKey, { day: shell.seed, best: value });
+        return { best: dayNew ? value : todays || null, isNew: dayNew };
+      }
+      var prev = shell.store.get(name, 0);
+      var isNew = valid && beats(value, prev);
+      if (isNew) shell.store.set(name, value);
+      return { best: isNew ? value : prev || null, isNew: isNew };
     }
 
     var pads = {};
@@ -622,7 +702,9 @@
       last = now;
       pollPads();
       combineInput();
-      if (state === "playing" || state === "ending" || state === "results") game.update(dt, input, shell);
+      if (state === "playing" || state === "ending" || state === "results") {
+        for (var i = 0; i < flags.speed; i++) game.update(dt, input, shell);
+      }
       game.render(dt, shell);
     }
     function startLoop() {
@@ -636,10 +718,19 @@
     }
 
     // ---------- Flow ----------
+    // Every round: a fresh seed, or today's in today's run
+    function newRound() {
+      shell.daily = shell.mode === "daily";
+      shell.today = todayLabel();
+      shell.seed = shell.daily ? today() : Math.floor(Math.random() * 1e9);
+      shell.random = seeded(shell.seed);
+    }
+
     function begin(mode) {
       shell.mode = typeof mode === "string" ? mode : "normal";
       sound.unlock();
       started = true;
+      newRound();
       game.reset(shell);
       resize();
       setState("intro");
@@ -651,6 +742,7 @@
       clearTimers();
       interPick = null;
       callouts.textContent = "";
+      newRound();
       game.reset(shell);
       sound.resume();
       startLoop();
@@ -783,7 +875,13 @@
       if (state !== "playing") return;
       setState("ending");
       finishTimer = window.setTimeout(function () {
-        resultStamp.textContent = result.stamp || ladder(result.place, result.total);
+        var stampWord = result.stamp || ladder(result.place, result.total);
+        var first = (result.stats || [])[0];
+        shareText = game.title +
+          (shell.daily ? ", " + daily.label.charAt(0).toLowerCase() + daily.label.slice(1) + " (" + shell.today + ")" : "") +
+          ": " + (result.share || (first ? first.label + " " + first.value : result.heading)) + ". " + stampWord + ".";
+        shareBtn.textContent = "Share result";
+        resultStamp.textContent = stampWord;
         resultStamp.style.setProperty("--tilt", (result.place % 2 ? -5 : 4) + "deg");
         resultHeading.textContent = result.heading;
         resultLine.textContent = result.line || "";
@@ -800,6 +898,46 @@
     resumeBtn.addEventListener("click", resume);
     restartBtn.addEventListener("click", restart);
     quitBtn.addEventListener("click", quit);
+    shareBtn.addEventListener("click", shareResult);
+
+    // ---------- Share result ----------
+    // One line and the link: the device's share menu where there is one,
+    // otherwise copied, ready to paste.
+    function shareResult() {
+      var url = SITE + "/games/" + game.slug + "/";
+      function said(word) {
+        shareBtn.textContent = word;
+        announce(word === "Copied" ? "Result copied." : word);
+      }
+      function fallback() {
+        var field = el("textarea");
+        field.value = shareText + " " + url;
+        field.setAttribute("readonly", "");
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+        var ok = false;
+        try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+        document.body.removeChild(field);
+        if (ok) said("Copied");
+        else resultLine.textContent = shareText + " " + url;
+      }
+      function copy() {
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(shareText + " " + url).then(function () { said("Copied"); }, fallback);
+        } else {
+          fallback();
+        }
+      }
+      if (navigator.share) {
+        navigator.share({ title: game.title, text: shareText, url: url }).catch(function (err) {
+          if (!err || err.name !== "AbortError") copy();   // AbortError: they changed their mind
+        });
+      } else {
+        copy();
+      }
+    }
     pauseBtn.addEventListener("click", function () { if (state === "paused") resume(); else pause(); });
 
     // ---------- Sound button ----------
@@ -892,7 +1030,8 @@
 
     // Let go of everything when focus leaves, and pause the game
     function releaseAll() { keyHeld = {}; touchHeld = {}; aimPointer = null; input.aim.on = false; }
-    window.addEventListener("blur", function () { releaseAll(); pause(); });
+    // (not while filming a clip: the screen recorder takes the focus)
+    window.addEventListener("blur", function () { releaseAll(); if (!flags.clip) pause(); });
     document.addEventListener("visibilitychange", function () {
       if (document.hidden) { releaseAll(); pause(); }
     });
@@ -1028,6 +1167,31 @@
       if (!input.steer) input.steer = (input.right ? 1 : 0) - (input.left ? 1 : 0);
     }
 
+    // ---------- Clip mode (?clip) ----------
+    // A tall 9:16 frame for filming social clips: the logo, the screen, then
+    // the title, the pitch and the address. The autopilot plays; Enter starts.
+    if (flags.clip) {
+      var clipBox = el("div", "kit-clip");
+      var top = el("div", "kit-clip-top");
+      var logo = el("img");
+      logo.src = "/brand/logo-on-dark.svg";
+      logo.alt = "No Taste";
+      top.appendChild(logo);
+      var hold = el("div", "kit-clip-screen");
+      var foot = el("div", "kit-clip-foot");
+      foot.appendChild(el("p", "kit-clip-title", game.title));
+      var pitch = game.pitch || (document.querySelector(".game-pitch") || {}).textContent;
+      if (pitch) foot.appendChild(el("p", "kit-clip-pitch", pitch));
+      foot.appendChild(el("p", "kit-clip-url", "Free at notastegames.com"));
+      clipBox.appendChild(top);
+      clipBox.appendChild(hold);
+      clipBox.appendChild(foot);
+      document.body.appendChild(clipBox);
+      hold.appendChild(screen);
+      document.documentElement.classList.add("kit-clip-on");
+      startBtn.focus({ preventScroll: true });
+    }
+
     root.tabIndex = -1;
     return shell;
   }
@@ -1038,6 +1202,8 @@
     sound: sound,
     intro: intro,
     createGame: createGame,
+    flags: flags,
+    seeded: seeded,
     fmtTime: fmtTime,
     ordinal: ordinal,
     ladder: ladder

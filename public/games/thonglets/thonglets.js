@@ -25,9 +25,8 @@
   if (!N || !S || !R || !root) return;
 
   var params = new URLSearchParams(window.location.search);
-  var AUTOPILOT = params.has("autopilot"); // for testing: the computer plays god
+  var AUTOPILOT = N.flags.autopilot;  // ?autopilot or ?clip: the computer plays god (the kit's ?speed=4 runs it faster)
   var DEBUG = params.has("debug");
-  var SPEED = DEBUG ? Math.max(1, Math.min(8, parseInt(params.get("speed"), 10) || 1)) : 1;
   var FIRST = DEBUG ? Math.max(0, Math.min(7, (parseInt(params.get("stage"), 10) || 1) - 1)) : 0;
 
   // ---------------------------------------------------------------------------
@@ -154,7 +153,7 @@
   };
   var bubbles = [], fx = [];
   var bg = null, statueImg = null, hudEls = null;
-  var rng = Math.random, seed = 0, offers = [];
+  var rng = Math.random, offers = [];
   var clock = 0, timeLeft = 0, phase = "play";
   var bricks = 0, delivered = 0, stageLost = 0;
   var run = null;                      // the whole run's tallies
@@ -172,23 +171,6 @@
   function alive(f) { return f.state !== "gone" && f.state !== "fall" && f.state !== "aboard"; }
   function stageInfo() { return STAGES[G.stage]; }
   function judgement() { return G.stage > LAST; }
-
-  // A seeded random, so today's run is the same for everyone
-  function mulberry(a) {
-    return function () {
-      a |= 0; a = (a + 0x6d2b79f5) | 0;
-      var t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-  function today() {
-    var d = new Date();
-    return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  }
-  function todayLabel() {
-    return new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-  }
 
   // ---------------------------------------------------------------------------
   // Helpers the rivals use
@@ -329,9 +311,8 @@
     shell = sh;
     G.T = sh.tokens;
     HELP.sfx = sfx;
-    var daily = shell.mode === "daily";
-    seed = daily ? today() : Math.floor(Math.random() * 1e9);
-    rng = mulberry(seed);
+    var daily = shell.daily;
+    rng = shell.random;   // the kit's seeded random: today's date in today's run
     G.mods = { walk: 1, trip: 0, load: 1, smiteCd: 1, smiteR: 1, blessCd: 1, feeEvery: FEE_EVERY, time: 0,
                converts: 1, lure: 1, reach: 1, pitSave: 0, noPriest: false };
     G.devotion = 1;
@@ -1112,11 +1093,8 @@
     phase = "over";
     var faithful = G.folk.filter(alive).length;
     var score = Math.round(run.score);
-    var key = run.daily ? "daily" : "best";
-    var saved = shell.store.get(key, run.daily ? { day: 0, best: 0 } : 0);
-    var best = run.daily ? (saved && saved.day === seed ? saved.best : 0) : saved;
-    var newBest = score > best;
-    if (newBest) shell.store.set(key, run.daily ? { day: seed, best: score } : score);
+    var rec = shell.record(score);   // today's best in today's run
+    var newBest = rec.isNew, best = rec.best || 0;
 
     var stagesDone = run.statues;
     var stamp, heading, line, rank;
@@ -1150,8 +1128,9 @@
       { label: newBest ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
         value: fmt(newBest ? score : best), highlight: newBest }
     ];
-    if (run.daily) stats.unshift({ label: "Run", value: todayLabel() });
-    shell.finish({ place: rank, total: 4, stamp: stamp, heading: heading, line: line, stats: stats });
+    if (run.daily) stats.unshift({ label: "Run", value: shell.today });
+    shell.finish({ place: rank, total: 4, stamp: stamp, heading: heading, line: line, stats: stats,
+                   share: fmt(score) + " points, " + (judgement() ? "Judgement Day" : "stage " + (G.stage + 1) + " of 7") });
   }
 
   // ---------------------------------------------------------------------------
@@ -1930,14 +1909,15 @@
       action: ["Space"], bless: ["KeyB", "KeyE", "ShiftLeft", "ShiftRight"]
     },
     pad: { action: [0, 2, 7], bless: [1, 3, 6] },
-    modes: [{ key: "daily", label: "Today's run" }],
+    daily: true,
+    pitch: "Tiny creatures in thongs who think you're their god. You are not a good one.",
     smallCallouts: true,
     touch: [
       { key: "bless", label: "Bless", icon: "Bless", side: "left" },
       { key: "action", label: "Smite", icon: "Smite", side: "right" }
     ],
     reset: reset,
-    update: function (dt, input) { for (var i = 0; i < SPEED; i++) update(dt, input); },
+    update: function (dt, input) { update(dt, input); },
     render: function () { render(); },
     resize: resize
   });
