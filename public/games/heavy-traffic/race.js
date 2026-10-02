@@ -43,23 +43,43 @@
   var R = 15;                        // collision radius: mostly driver
   var STEP = 1 / 120;
   var VIEW = 400;                    // top-down: world units across the screen's short side
-  var CAM_D = 100;                   // chase camera: distance behind your kart
-  var CAM_H = 40;                    // ...and height above the road
+  var CAM_D = 112;                   // chase camera: distance behind your kart
+  var CAM_H = 54;                    // ...and high enough to see over your own head
   var GAS_FILL = 7;                  // seconds for the gas to build back up
   var GAS_TIME = 1.4;                // how long a blast lasts
 
   var DRIVERS = [
     // the other three, all invented. power and corner are their skill.
-    // kart/suit/stripe colour the top-down view; look colours the chase view.
+    // kart/suit/stripe colour the top-down view; look dresses them in the chase view.
+    // Each one owns the road, and is at one with their kart. lines are theirs alone.
     { name: "Gaz", kart: "accent", suit: "red", stripe: "paper", power: 0.965, corner: 0.93,
-      look: { car: "accent", shirt: "red", pants: "ink" } },
+      look: { car: "accent", shirt: "red", pants: "ink", hat: "band", hatColour: "accent" },
+      lines: ["I pay road tax. This is my road.", "Me and the kart are one. We've been through things.",
+              "Lads. Lads. Lads.", "This is a private lane, mate.", "I was born in this kart."] },
     { name: "Lorraine", kart: "paper", suit: "accent", stripe: "red", power: 0.975, corner: 0.9,
-      look: { car: "paper", shirt: "accent", pants: "red" } },
+      look: { car: "paper", shirt: "accent", pants: "red", hat: "perm", hatColour: "red" },
+      lines: ["I was here first.", "I'll be speaking to your manager.", "This lane is for residents.",
+              "Thirty years. Never once looked.", "She's called Pamela. Show her some respect."] },
     { name: "Derek", kart: "ink", suit: "paper", stripe: "accent", power: 0.95, corner: 0.97,
-      look: { car: "ink", shirt: "paper", pants: "accent" } },
+      look: { car: "ink", shirt: "paper", pants: "accent", hat: "flatcap", hatColour: "ink", tache: true },
+      lines: ["I've got all this on dashcam.", "Forty years. Not one indicator.", "The kart and I are married. Not legally.",
+              "Mirror, signal, manoeuvre. Look it up.", "In my day this was all fields."] },
     { name: "You", kart: "red", suit: "paper", stripe: "red", power: 1, corner: 1, player: true,
-      look: { car: "red", shirt: "paper", shirtDots: true, pants: "ink" } }
+      look: { car: "red", shirt: "paper", shirtDots: true, pants: "ink", hat: "cap", hatColour: "red" } }
   ];
+
+  // What they shout at you. Your driving, never your body.
+  var INSULTS = ["Move, you lemon.", "Numpty.", "Get off my road.", "Learn to drive.", "Absolute weapon.",
+                 "Oi. Oi. Oi.", "Do you know who I am.", "Pillock.", "Indicate, you melon.",
+                 "You drive like my nan. My nan's dead.", "Seen better driving at a funeral.",
+                 "Is that a kart or a cry for help.", "Plonker."];
+  var BUMPED = ["Oi. That's assault.", "You've scratched her.", "I'm calling my solicitor.",
+                "Whiplash. Definitely whiplash.", "Mind the paintwork, you pillock."];
+  var PASSED = ["Cheat.", "That's illegal, that.", "I let you have that.", "Undertaking. Disgusting."];
+  var GLOAT = ["See you, numpty.", "Smell my exhaust.", "Bye, lemon.", "That's how it's done."];
+  var GASSED = ["Was that you.", "Windows. Down. Now.", "I can taste that.", "That's a crime in some countries."];
+  var SELF = ["My kart. My beautiful kart.", "She's never done that before.", "Nobody saw that.", "The kart did that, not me."];
+  var GRID = ["This is my road.", "Stay out of my lane.", "Me and the kart are one.", "Don't even look at me."];
 
   // The circuit: control points for a smooth closed curve, in driving order.
   // The start line is the first point, heading east along the bottom straight.
@@ -236,10 +256,11 @@
       lapStart: 0, bestLap: 0, wrong: 0, gravel: 0, scrapeWait: 0,
       power: d.power, skidL: null, skidR: null,
       roll: 0, gas: 0.5 + Math.random() * 0.4, boost: 0, gasHeld: false, sweatWait: 0,
+      headTurn: 0, shoutSide: 1, anim: 0, speech: { text: "", t: 0, wait: 3 + Math.random() * 4 },
       jig: { uy: 0, vuy: 0, uz: 0, vuz: 0, ly: 0, vly: 0, lz: 0, vlz: 0 },
       ai: { lane: Math.random() * 6, wander: 0.3 + Math.random() * 0.3, bias: (Math.random() - 0.5) * 14,
             delay: 0.1 + Math.random() * 0.35, stuck: 0, reverse: 0,
-            oops: 8 + Math.random() * 14, armed: false, overcook: 0 }
+            oops: 8 + Math.random() * 14, armed: false, overcook: 0, hog: false, mood: 2 + Math.random() * 6 }
     };
     locate(k, true);
     k.progress = k.s - track.length;
@@ -348,6 +369,8 @@
     effects(k, dt, vf, vr, speed);
     walls(k);
     laps(k, prevS);
+    k.anim += dt;
+    if (!k.player) chatter(k, dt);
 
     // going the wrong way
     if (k.player && !k.done) {
@@ -367,6 +390,7 @@
     for (var i = 0; i < 4; i++) puff(k.x, k.y, 0.8);
     sweat(k, 6);
     if (k.player) { say("Spun out", 2); shake(0.4); }
+    else talk(k, pick(SELF), true);
     if (near(k)) N.sound.noise(0.5, { type: "bandpass", freq: 1400, q: 2, vol: 0.12 });
   }
 
@@ -426,6 +450,12 @@
       say(flags.gas ? GAS_LINES[Math.floor(Math.random() * GAS_LINES.length)] : "Gas deployed", 2);
       flags.gas = true;
       shake(0.2);
+      var nearest = null, best = 220;
+      karts.forEach(function (o) {
+        var d = Math.hypot(o.x - k.x, o.y - k.y);
+        if (!o.player && d < best) { best = d; nearest = o; }
+      });
+      if (nearest) talk(nearest, pick(GASSED), true);
     }
   }
 
@@ -449,6 +479,43 @@
                    vx: k.vx * 0.85 - sin * side * fling, vy: k.vy * 0.85 + cos * side * fling,
                    vz: 50 + Math.random() * 60, life: 1.2, max: 1.2 });
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // The other drivers talk. Get close and they turn round, shake a fist and
+  // tell you what they think of your driving, in a speech bubble.
+  // ---------------------------------------------------------------------------
+  function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
+
+  function talk(k, text, force) {
+    var sp = k.speech;
+    if (sp.t > 0 && !force) return;
+    if (sp.t > 0.8 && force && sp.text) return;     // let them finish the sentence they're on
+    sp.text = text;
+    sp.t = 2.6;
+    sp.wait = 5 + Math.random() * 5;
+    if (near(k) && Math.random() < 0.5 && shell && shell.state() === "playing") honk();
+  }
+
+  function chatter(k, dt) {
+    var sp = k.speech;
+    if (sp.t > 0) sp.t -= dt;
+    sp.wait -= dt;
+    var dx = player.x - k.x, dy = player.y - k.y, dist = Math.hypot(dx, dy);
+    var right = -Math.sin(k.a) * dx + Math.cos(k.a) * dy;
+    k.shoutSide = right >= 0 ? 1 : -1;
+    // while they're talking they look at you, round over their shoulder if need be
+    var want = sp.t > 0 && dist < 400 ? clamp(wrapAngle(Math.atan2(dy, dx) - k.a), -2.7, 2.7) : 0;
+    k.headTurn += (want - k.headTurn) * Math.min(1, dt * 7);
+    if (sp.t <= 0 && sp.wait <= 0 && dist < 140 && !k.done && k.spin <= 0) {
+      talk(k, Math.random() < 0.45 ? pick(k.d.lines) : pick(INSULTS));
+    }
+  }
+
+  // parp parp
+  function honk() {
+    N.sound.tone(392, 0.11, { type: "square", vol: 0.09 });
+    N.sound.tone(330, 0.16, { type: "square", vol: 0.09, delay: 0.14 });
   }
 
   function walls(k) {
@@ -513,9 +580,10 @@
           var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
           impact(a, -rv * 0.8, mx, my, -nx, -ny);
           impact(b, -rv * 0.8, mx, my, nx, ny);
-          if ((a.player || b.player) && -rv > 90) {
+          if ((a.player || b.player) && -rv > 50) {
             var other = a.player ? b : a;
-            say(["Sorry, " + other.name, "Mind the paintwork", "Contact. Approved"][Math.floor(Math.random() * 3)], 0);
+            talk(other, pick(BUMPED), true);
+            if (-rv > 90) say(["Sorry, " + other.name, "Contact. Approved", "Insurance: pending review"][Math.floor(Math.random() * 3)], 0);
           }
         }
       }
@@ -585,6 +653,15 @@
       if (gap > 0 && gap < 80 && Math.abs(other.lat - k.lat) < 32) {
         lane = other.lat + (other.lat > 0 ? -36 : 36);
       }
+    }
+    // they own the road: some of the time, if you're right behind, they move over to block you
+    ai.mood -= dt;
+    if (ai.mood <= 0) { ai.hog = !ai.hog && Math.random() < 0.6; ai.mood = 3 + Math.random() * 6; }
+    if (ai.hog && player && !k.player && !k.done) {
+      var behind = k.s - player.s;
+      if (behind < -track.length / 2) behind += track.length;
+      if (behind > track.length / 2) behind -= track.length;
+      if (behind > 15 && behind < 120) lane = player.lat;
     }
     lane = clamp(lane, -HW * 0.75, HW * 0.75);
 
@@ -821,9 +898,13 @@
     cam.zoom = Math.min(W, H) / VIEW;
     cam.shake = 0;
     camA = player.a;
+    var grid = GRID.slice().sort(function () { return Math.random() - 0.5; });
+    karts.filter(function (k) { return !k.player; }).sort(function () { return Math.random() - 0.5; }).slice(0, 2)
+      .forEach(function (k, i) { k.speech = { text: grid[i], t: 3.6 + i * 0.4, wait: 6 }; k.headTurn = Math.PI * 0.9 * (i ? 1 : -1); });
     if (!Object.keys(looks).length) {
       DRIVERS.forEach(function (d) {
-        looks[d.name] = { car: T[d.look.car], shirt: T[d.look.shirt], shirtDots: !!d.look.shirtDots, pants: T[d.look.pants] };
+        looks[d.name] = { car: T[d.look.car], shirt: T[d.look.shirt], shirtDots: !!d.look.shirtDots, pants: T[d.look.pants],
+                          hat: d.look.hat, hatColour: T[d.look.hatColour], tache: !!d.look.tache };
       });
     }
     if (!scenery.length) buildScenery();
@@ -877,7 +958,17 @@
       if (b.done) return 1;
       return b.progress - a.progress;
     });
+    var before = {};
+    karts.forEach(function (k) { before[k.name] = k.place; });
     order.forEach(function (k, i) { k.place = i + 1; });
+    if (raceTime > 4 && !player.done) {
+      karts.forEach(function (k) {
+        if (k.player || k.done) return;
+        var close = Math.hypot(k.x - player.x, k.y - player.y) < 200;
+        if (before[k.name] < before.You && k.place > player.place && close) talk(k, pick(PASSED), true);
+        else if (before[k.name] > before.You && k.place < player.place && close) talk(k, pick(GLOAT), true);
+      });
+    }
     if (player.place < lastPlace && raceTime > 4 && !player.done) say("Overtake approved", 0);
     lastPlace = player.place;
   }
@@ -1447,8 +1538,52 @@
 
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     c.globalAlpha = 1;
+    karts.forEach(function (k) { if (!k.player && k.speech.t > 0 && k.speech.text) drawBubble(c, k); });
     if (player.boost > 0 && !shell.reduceMotion) speedLines(c);
     drawMini(c);
+  }
+
+  // A speech bubble over a driver's head: paper, ink outline, a tail, capitals
+  function drawBubble(c, k) {
+    var HTL = window.HeavyTraffic;
+    var at = HTL.placeOnScreen(view, k.x, k.y, 50 + k.z);
+    if (!at || at.depth < 45 || at.depth > 900 || at.x < -80 || at.x > W + 80) return;
+    var size = clamp(at.s * 3.6, 11, 17);
+    c.font = size + "px " + T.display;
+    var words = k.speech.text.toUpperCase().split(" "), lines = [""];
+    words.forEach(function (w) {
+      var tryLine = lines[lines.length - 1] ? lines[lines.length - 1] + " " + w : w;
+      if (tryLine.length > 17 && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = tryLine;
+    });
+    var tw = 0;
+    lines.forEach(function (l) { tw = Math.max(tw, c.measureText(l).width); });
+    var pad = size * 0.55, lh = size * 1.02;
+    var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.4;
+    var bx = clamp(at.x - bw / 2, 6, W - bw - 6), by = Math.max(6, at.y - bh - size * 0.9);
+    var tailX = clamp(at.x, bx + 12, bx + bw - 12);
+    c.globalAlpha = clamp(k.speech.t * 4, 0, 1);    // pops in like a stamp, fades out
+    c.beginPath();
+    var r = Math.min(10, bh / 2);
+    c.moveTo(bx + r, by);
+    c.arcTo(bx + bw, by, bx + bw, by + bh, r);
+    c.arcTo(bx + bw, by + bh, bx, by + bh, r);
+    c.lineTo(tailX + 7, by + bh);
+    c.lineTo(tailX - 2, by + bh + size * 0.8);
+    c.lineTo(tailX - 6, by + bh);
+    c.arcTo(bx, by + bh, bx, by, r);
+    c.arcTo(bx, by, bx + bw, by, r);
+    c.closePath();
+    c.fillStyle = T.paper;
+    c.fill();
+    c.lineWidth = 2.5;
+    c.lineJoin = "round";
+    c.strokeStyle = T.ink;
+    c.stroke();
+    c.fillStyle = T.ink;
+    c.textAlign = "center";
+    c.textBaseline = "top";
+    lines.forEach(function (l, i) { c.fillText(l, bx + bw / 2, by + pad * 0.8 + i * lh); });
+    c.globalAlpha = 1;
   }
 
   // things fade into the dark with distance, like the road does
@@ -1759,7 +1894,7 @@
     title: "Heavy Traffic",
     stamp: "Not approved",
     tilt: 4,
-    note: "Three laps. Four drivers. One very small car each.",
+    note: "Three laps. Four drivers. Each of them owns the road.",
     hints: {
       keys: "Arrow keys or WASD to drive. Space for gas. P to pause.",
       touch: "It accelerates by itself. Steer on the left. Gas and brake on the right."
