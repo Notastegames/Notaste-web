@@ -79,8 +79,20 @@ Each game owns exactly one accent colour. It's set as `--accent` on the game pag
 | Slop Cannon | `#B3BF2A` (slime) |
 | Heavy Traffic | `#4F9E9A` (teal) |
 | Thonglets | `#9A7BC4` (lilac) |
+| Unexpected Item | `#4E9A55` (checkout green) |
+| Reply All | `#4FA3E0` (sky) |
+| Terms and Conditions | `#F2B48C` (peach) |
+| Just the Recipe | `#C2643A` (rust) |
+| Hold Music | `#C452B5` (magenta) |
+| On Mute | `#7A5CD6` (violet) |
+| Scrubbed | `#E8892B` (orange) |
+| Bonus Season | `#B8862E` (ochre) |
+| Surge | `#E07AB0` (pink) |
+| Rage Bait | `#E2BC3B` (gold) |
+| Be Your Own Boss | `#E8919B` (rose) |
+| Verify | `#8DD14A` (lime) |
 
-A new game picks a new accent that is clearly different from these and from red, and gets added to this table. The starter game (In Tray, section 12) borrows `--smoke` because it isn't a real game; a game copied from it replaces that. Accents must stay readable as small dots on black (at least 3:1 against `#000`).
+The games on the roadmap have their accents picked already, all at once, so the later ones don't get the leftovers: every one is at least 4:1 against black and clearly different from the others and from red. A game that isn't in this table picks a new accent that is clearly different from all of these, and gets added to it. The starter game (In Tray, section 12) borrows `--smoke` because it isn't a real game; a game copied from it replaces that. Accents must stay readable as small dots on black (at least 3:1 against `#000`).
 
 ### Exceptions
 
@@ -256,7 +268,7 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 
 ## 12. Adding a new game: checklist
 
-1. Pick a name, a slug, a one-line pitch and an accent colour. Add the accent to section 3.
+1. Pick a name, a slug, a one-line pitch and an accent colour. Add the accent to section 3 (games on the roadmap already have one).
 2. Copy `public/games/starter/` to `public/games/<slug>/`, rename `starter.js` and rewrite it as the new game. In Tray is a whole small game on the kit (HUD, keys, aim, a touch button, callouts, a notice, today's run, bests, share, autopilot), so keep what fits and replace the rest. Delete the page's `robots` line.
 3. Fill in the page: title, description, share tags, `data-game`, `--accent`, stamp word, how-to-play lines.
 4. Add the game to `GAMES` in `public/games/game.js` and add a poster on the homepage.
@@ -264,3 +276,42 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 6. Use the kit for intro, screens, controls, sound and saving. Draw with `Notaste.tokens()` colours. Give it today's run, a `share` line in the results and an autopilot.
 7. Write the copy in the house voice (section 2) and check the punch-down rule.
 8. Test at phone and desktop sizes, with keyboard, touch and reduced motion. Run `node tools/playtest.mjs <slug>`, which must pass. Publish the preview artifact for approval, then merge the pull request.
+9. Write the game's own rules in its part of section 13: its characters and how they're drawn, its stamp words and callouts, and anything only it does.
+
+---
+
+## 13. The games
+
+Each game's own rules: its characters, its stamp words and callouts, and anything only it does. Everything above still applies. Heavy Traffic's and Thonglets' notes are in sections 6, 7 and 10, where they were first written.
+
+### Slop Cannon
+
+To be written when the game is built.
+
+### Unexpected Item
+
+To be written when the game is built.
+
+### Reply All
+
+To be written when the game is built.
+
+### Terms and Conditions
+
+To be written when the game is built.
+
+### Just the Recipe
+
+To be written when the game is built.
+
+### Hold Music
+
+To be written when the game is built.
+
+### On Mute
+
+To be written when the game is built.
+
+### Scrubbed
+
+To be written when the game is built.

@@ -58,22 +58,60 @@ Do this before game 3, so every game after it gets these for free.
 
 ## Phase 3: games 3 to 10
 
-Small games: one mechanic, short rounds and a daily run. They're suggestions, so swap them freely. Record clips of each game as it ships (phase 2's clip mode), so phase 5 starts with a stockpile.
+Eight new games and a polish pass on Heavy Traffic, so the site has ten. The briefs are below; swap any of them freely.
 
-| # | Game | Type | Pitch |
-| --- | --- | --- | --- |
-| 1 | Thonglets | Done | Tiny creatures in thongs who think you're their god. You are not a good one. |
-| 2 | Heavy Traffic | Needs polish | Kart racing. Large drivers, tiny cars. Physics has given up. |
-| 3 | Slop Cannon | Arcade shooter | Fire endless AI slop into a feed. Nobody is checking. |
-| 4 | Unexpected Item | Timing | Scan your shopping before the self-checkout decides you're a criminal. |
-| 5 | Reply All | Whack-a-mole | Someone pressed reply all. Stop it before it reaches the whole company. |
-| 6 | Terms and Conditions | Spot it | Read the small print at speed. Find the clause where you agreed to everything. |
-| 7 | Just the Recipe | Side-scrolling dodger | Get to the recipe. Past the cookie banners, the newsletter and the life story. |
-| 8 | Hold Music | Rhythm and memory | You are number 412 in the queue. Your call is important to us. |
-| 9 | On Mute | Multitasking | Look engaged in a meeting while doing your actual job. |
-| 10 | Scrubbed | Moon-lander physics | Land a billionaire's reusable rocket. It has been reused a lot. |
+| # | Game | Type | Accent | Status |
+| --- | --- | --- | --- | --- |
+| 1 | Thonglets | God game | lilac | Done |
+| 2 | Heavy Traffic | Kart racing | teal | Polish pass in batch 3 |
+| 3 | Slop Cannon | Arcade artillery | slime | Batch 1 |
+| 4 | Unexpected Item | Timing | checkout green | Batch 1 |
+| 5 | Reply All | Whack-a-mole | sky | Batch 1 |
+| 6 | Terms and Conditions | Spot it | peach | Batch 2 |
+| 7 | Just the Recipe | Vertical dodger | rust | Batch 2 |
+| 8 | Hold Music | Rhythm and memory | magenta | Batch 2 |
+| 9 | On Mute | Multitasking | violet | Batch 3 |
+| 10 | Scrubbed | Lander physics | orange | Batch 3 |
 
-**Colours:** every game owns one colour (its accent), and fifteen of them that stay readable on black and distinct from each other is tight. Pick all fifteen up front and add them to `DESIGN.md` section 3, so later games don't get the leftovers.
+All fifteen accents (these and the edgier five) are in `DESIGN.md` section 3.
+
+### How it runs
+
+- **One branch and one pull request per game:** `claude/game-<slug>`, pushed as it goes, so nothing is lost if a session stops.
+- **Batches of three.** Each game gets a builder, which designs and builds it from its brief, then a reviewer, which plays it cold against `DESIGN.md` and the standard Thonglets and Heavy Traffic set. The builder fixes what the reviewer finds, then a final check, a playable preview and a pull request.
+- **Nothing merges until the owner has played it and said yes.** Expect a round or two of notes per game; that's where "as good as the first two" comes from.
+- **If a session stops** (a usage limit, a restart), a check-in every couple of hours picks the work back up from the branches, the open pull requests and this list.
+- **The homepage** gets a poster for each game as it merges; the pair of posters under the featured one wraps into a grid. Phase 4 redesigns it properly.
+
+### Every Phase 3 game
+
+- Built from the starter (`public/games/starter/`) on the kit, and passes `node tools/playtest.mjs <slug>`.
+- A round of one to three minutes that builds: at least three stages or waves, each new thing announced with a notice (`shell.brief`), and a choice between stages where it suits (`shell.interlude`).
+- Today's run, a `share` line on the results, an autopilot good enough to reach the results screen, and it reads well in the clip frame (a 4:5 screen) as well as square and 4:3.
+- Characters are the house cut-out cartoons (`DESIGN.md` section 7) with speech bubbles and the house insults. Stamp callouts, lo-fi sounds through the kit, small shakes on impacts (none with reduced motion).
+- A cover (800×600 SVG) and a share image (1200×630 PNG) in the four inks, a pitch, three how-to-play lines, a results joke for every rung of the ladder, a `GAMES` entry, a homepage poster and a sitemap line.
+- Its own part of `DESIGN.md` section 13: characters, stamp words, anything only it does.
+- Satire aims at the system in the brief, never at the people stuck in it.
+
+### Briefs
+
+**Slop Cannon** (slime, arcade artillery). A giant phone stands on the right, its feed scrolling up. You run a content farm's cannon in the bottom left: aim with the mouse, a finger or the up and down keys, hold to charge, let go to fire a ball of AI slop (green goo carrying a hand with too many fingers, a melting dog, a soldier carved from bread) in an arc. Hit a post and it's slopped, and reactions pour in. Chain hits for "Gone viral". Real posts (someone's actual dinner, a blurry cat) are worth more to slop, which is the joke. Each stage the feed speeds up and something new arrives: a Fact Check card that bounces slop back ("Context added", which nobody reads), a Trending post worth triple, and a lone Moderator with a tiny net who catches one shot in five, then goes on lunch. Between stages pick an upgrade, each with a cost: More fingers (a bigger splash), Bot farm (auto-likes for ten seconds), Engagement bait (posts linger longer). Three stages and a Final Push. Score: engagement. Aimed at the platforms that reward slop, not the people scrolling past it.
+
+**Unexpected Item** (checkout green, timing). Your shopping rides down the belt. Press Scan (Space or tap) as each barcode crosses the red line; early or late and it beeps and goes round again. Loose fruit has no barcode: pick it from four lookalikes before the machine guesses ("Lime, lemon, lime or lime?"). Bag as you go, but bag too fast and "Unexpected item in the bagging area" freezes the till until the one assistant walks over, slowly, and swipes a card without looking. Age-checked items (cooking wine, scissors, a large candle) need approval too. Stages: a basket, a trolley, the big shop, then the Christmas Eve rush. Score: items scanned, time, and how often you were treated as a criminal. The machine is the comedian: it accuses, apologises, accuses again. Aimed at shops that replaced staff with machines that think you're stealing.
+
+**Reply All** (sky, whack-a-mole). An open-plan office: a grid of desks with cut-out office workers. Someone has replied all to the whole company. Workers get the itch: a wind-up bar over their head and a speech bubble ("Please remove me from this list", "Same", "Who is this", "Stop replying all", "+1", "Per my last email"). Click or tap them, or move a cursor with the arrows and press Space, before they hit Send. Every reply that lands sets off two more desks, so it spreads, and fills the server meter; full, and the server melts. Stages: your team, the department, the whole company, then the CEO's assistant, who can't be stopped and replies to everyone with a sad face. A recharging Mute thread button clears a row. Score: replies stopped and server saved. Aimed at company email and our own habit of replying all to complain about replying all.
+
+**Terms and Conditions** (peach, spot it). You're installing an app. Its terms scroll up the phone: real-sounding boilerplate with a few clauses that aren't ("Your fridge may vote on your behalf", "We may sell your face", "Your firstborn's Wi-Fi password now belongs to us"). Tap a bad clause to strike it out before it scrolls away; tap a normal one and you've wasted a lawyer's afternoon. At the end you press Accept anyway, because there is no other button. Each app is a stage: a torch app, a smart kettle, a dating app for dogs, then a bank. Faster scroll, smaller print, clauses that turn bad in the last three words, and a pop-up asking if you're still reading. Needs a deep pool (at least 80 normal clauses and 50 bad ones) so runs don't repeat. Aimed at companies that hide everything in terms nobody can read.
+
+**Just the Recipe** (rust, vertical dodger, portrait). You're a hand scrolling down a recipe site to reach the recipe at the bottom. Steer left and right while the page scrolls itself. In the way: cookie banners stretched across the page (find the tiny Reject all), newsletter pop-ups that fly in, an autoplay video that chases you, adverts that load late and shove the page about, and the life story, which you wade through slowly. A "Jump to recipe" button helps, sometimes. Three courses: starter, main and pudding, each a longer page. Score: time to the recipe and how much of the life story you skipped. Aimed at the advert-stuffed web, never at the cooks.
+
+**Hold Music** (magenta, rhythm and memory). You're phoning a company. The menu reads out options ("Press 1 for billing, 2 for faults") and your problem is on a sticky note: press the number that matches before the menu loops. Then you're on hold. An original lo-fi loop plays (square waves and a crackle) and you tap on the beat to stay on the line; miss too many and you're cut off. Your place in the queue counts down while you keep time. Each call adds menu levels, longer holds, a tempo change and a cheerful voice saying your call is important. The last call transfers you back to the start. Needs a small step sequencer on the kit's sound. Keys 1 to 9 and Space; touch gets a keypad. Aimed at customer service built to make you give up.
+
+**On Mute** (violet, multitasking). At the top, a video call grid with your face in one tile. At the bottom, your actual job (something simple to play: filling a spreadsheet, pasting the same thing into twelve boxes). Keep working and keep up appearances: nod when someone says your name, unmute and say "Yep" when you're asked something (then mute again, or they hear the dishwasher), and turn the camera off when the cat arrives. Miss one and your reputation drops; ignore the work and the inbox piles up. Stages: a stand-up, a team meeting, an all-hands, then a meeting that could have been an email. M is the kit's mute key, so use others. Aimed at meeting culture.
+
+**Scrubbed** (orange, lander physics). Space Billionaire's reusable rocket comes down tail first onto a barge at sea. Thrust (Up, Space or a Thrust button), tilt left and right, and watch the fuel. Land gently and upright; too hard and it's a large fire that the billionaire's speech bubble calls a success ("Good data", "That counts", "Delete that"). Wind, waves under the barge, a smaller barge each time, a landing on the lawn of his own launch party, then Mars in low gravity, where nobody is watching. Score: landings, fuel left, and how close to the cross. The billionaire is the invented Space Billionaire from Thonglets, never a real person. Aimed at billionaire space races and the PR that comes with them.
+
+**Heavy Traffic polish** (teal). A pass against "What polished means": today's race, the share line and the clip frame are in already. Look at the results jokes for every place, the touch controls on a small phone, the first thirty seconds for a new player, and anything the owner has noticed. Then drop the "Early prototype" label.
 
 ## Phase 4: the site at ten games
 
