@@ -919,7 +919,7 @@
     var blobs = [];
     var n = 3 + Math.floor(Math.random() * 3);
     for (var i = 0; i < n; i++) blobs.push([(Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 0.8, 0.5 + Math.random() * 0.5]);
-    G.fx.push({ kind: "puff", x: s.x + s.w * (0.2 + Math.random() * 0.6), y: s.y + s.h * 0.2,
+    G.fx.push({ kind: "puff", x: s.x + s.w * (0.5 + Math.random() * 0.4), y: s.y - 2,      // off the top, clear of its face
                 r: (big ? 16 : 9) * Math.max(0.8, s.h / 60), blobs: blobs, t: 0, life: big ? 1.6 : 1.1 });
   }
 
@@ -1646,13 +1646,20 @@
         { x: o.x + 20 * L.k - bw, y: o.y + 22 * L.k - bh / 2 },                      // to the left
         { x: head.x - bw / 2, y: o.y + 66 * L.k }                                    // below
       ];
-      var box = null;
-      for (var i = 0; i < tries.length && !box; i++) {
-        var t = { x: clamp(tries[i].x, 4, W - bw - 4), y: clamp(tries[i].y, 4, H - bh - 4), w: bw, h: bh };
-        if (!placed.some(function (p) { return overlaps(t, p, 3); }) &&
-            !bars.some(function (p) { return p.desk !== d && overlaps(t, p, 1); })) box = t;
+      // the first spot that's clear of everything; failing that, clear of other
+      // bubbles; failing that, at least clear of the HUD
+      var box = null, hud = hudBoxes();
+      var h0 = at(d, 25, 15), h1 = at(d, 55, 43), own = { x: h0.x, y: h0.y, w: h1.x - h0.x, h: h1.y - h0.y };
+      for (var pass = 0; pass < 3 && !box; pass++) {
+        for (var i = 0; i < tries.length && !box; i++) {
+          var t = { x: clamp(tries[i].x, 4, W - bw - 4), y: clamp(tries[i].y, 4, H - bh - 4), w: bw, h: bh };
+          if (hud.some(function (p) { return overlaps(t, p, 3); }) || overlaps(t, own, 0)) continue;
+          if (pass < 2 && placed.some(function (p) { return overlaps(t, p, 3); })) continue;
+          if (pass < 1 && bars.some(function (p) { return p.desk !== d && overlaps(t, p, 1); })) continue;
+          box = t;
+        }
       }
-      if (!box) box = { x: clamp(tries[0].x, 4, W - bw - 4), y: clamp(tries[0].y, 4, H - bh - 4), w: bw, h: bh };
+      if (!box) box = { x: clamp(tries[3].x, 4, W - bw - 4), y: clamp(tries[3].y, 4, H - bh - 4), w: bw, h: bh };
       placed.push(box);
       var pop = shell.reduceMotion ? 1 : clamp(b.t * 8, 0, 1);
       var fade = b.typing ? 1 : clamp((b.life - b.t) * 3, 0, 1);
@@ -1798,7 +1805,7 @@
     note: "Someone has replied all to the whole company. Stop the replies before the server melts. Home at 17:00.",
     pitch: "Someone has replied all to the whole company. Now everyone is replying all to say stop replying all.",
     hints: {
-      keys: "Click anyone about to reply, or move with the arrow keys and press Space. E or Shift mutes a row. P to pause.",
+      keys: "Click anyone about to reply, or jump to them with the arrow keys and press Space. E or Shift mutes a row. P to pause.",
       touch: "Tap anyone about to reply. Mute thread on the right."
     },
     againLabel: "Start another day",
