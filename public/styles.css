@@ -766,6 +766,19 @@ h1, h2, h3 {
 .lost h1 { margin: 0; font-size: clamp(2.6rem, 10vw, 4.5rem); }
 .lost p { margin: 0; color: #d0d0d0; max-width: 30rem; }
 
+/* ---------- Text pages (privacy) ---------- */
+
+.doc { padding-block: 3.5rem 5rem; }
+.doc .stamp-label { font-size: clamp(1.5rem, 6vw, 2.2rem); transform: rotate(-5deg); margin: 0 0 1.75rem 0.25rem; }
+.doc h1 { margin: 0 0 1rem; font-size: clamp(2.6rem, 10vw, 4.5rem); }
+.doc h2 { margin: 2.75rem 0 0.75rem; font-size: clamp(1.8rem, 5vw, 2.4rem); line-height: 0.95; }
+.doc p, .doc li { max-width: var(--measure); }
+.doc p { margin: 0 0 1rem; }
+.doc ul { margin: 0 0 1rem; padding-left: 1.2rem; }
+.doc li { margin-bottom: 0.25rem; }
+.doc-lede { font-size: var(--step-1); line-height: 1.4; }
+.doc .doc-small { margin-top: 2.75rem; color: var(--smoke); font-size: var(--step--1); }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: 0ms !important; }
