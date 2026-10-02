@@ -46,6 +46,12 @@
 // machine accuses your bag), a loyalty card (more points, it knows who you
 // are), eye contact with Bev (she comes faster, then has a chat), and so on.
 //
+// TODAY'S RUN. Everyone gets the same shopping in the same order, the same
+// fruit pictures in the same places and the same ways of shopping offered
+// (planRun). Each shop deals from its own seeded streams, so nothing a player
+// does, like letting an item go round again, changes what the next shop
+// deals. What the machine and Bev say is left to chance.
+//
 // SCORING. Each item scanned: 100, plus 100 for a perfect scan, plus a streak
 // bonus (10 a scan in a row, up to 200). Bagging: 10. Fruit picked right:
 // 150, plus up to 100 for being quick. Each shop paid for: 20 a second left on
@@ -100,12 +106,14 @@
     xmas: ["pies", "wrap", "choc", "tape", "baguette", "milk", "cheese", "biscuits", "crisps", "pies", "choc"]
   };
 
-  // Loose fruit, in sets of four lookalikes, and how the till asks
+  // Loose fruit, in sets of four lookalikes, and how the till asks. The joke
+  // pictures (the bitten apple, the stone) are only ever wrong answers: what
+  // you put on the scale is always something a shop would sell you.
   var SETS = {
     lime: { q: "Lime, lemon, lime or lime.", opts: ["lime", "lemon", "limeLeaf", "limeSad"] },
     onion: { q: "Onion, onion, shallot or onion.", opts: ["onion", "redOnion", "shallot", "garlic"] },
-    apple: { q: "Apple, apple, apple or tomato.", opts: ["apple", "greenApple", "bittenApple", "tomato"] },
-    potato: { q: "Potato, potato, potato or stone.", opts: ["potato", "sweetPotato", "newPotatoes", "stone"] },
+    apple: { q: "Apple, apple, apple or tomato.", opts: ["apple", "greenApple", "bittenApple", "tomato"], joke: "bittenApple" },
+    potato: { q: "Potato, potato, potato or stone.", opts: ["potato", "sweetPotato", "newPotatoes", "stone"], joke: "stone" },
     banana: { q: "Banana, banana, banana or banana.", opts: ["banana", "greenBanana", "bananas", "plantain"] },
     sprout: { q: "Sprout, sprout, sprout or small cabbage.", opts: ["sprout", "cabbage", "sproutNervous", "sprouts"] }
   };
@@ -221,7 +229,20 @@
   var shell = null, T = null, ctx = null;
   var W = 1, H = 1, DPR = 1, U = 1, WW = 100, WH = 100;
   var L = {};                                    // the layout, in world units
-  var rng = Math.random;
+  // Today's run gives everyone the same shopping. The run's seeded random
+  // (shell.random) is drawn from once, at the start, to give each shop four
+  // streams of its own: its shopping list, the gaps between things on the
+  // belt, the order of the fruit pictures, and the ways of shopping offered
+  // after it. Nothing a player does draws from them out of turn, so an item
+  // going round again, a slow look-up or a different choice can't change
+  // what comes down the belt in the next shop.
+  var plan = [], streams = null;
+  function planRun(random) {
+    function seed() { return Math.floor(random() * 4294967296) | 0; }
+    plan = STAGES.map(function () {
+      return { list: N.seeded(seed()), gap: N.seeded(seed()), look: N.seeded(seed()), offer: N.seeded(seed()) };
+    });
+  }
   var run = null;                                // the whole run's tallies
   var mods = null;                               // the ways of shopping picked so far
   var stage = 0, phase = "play", clock = 0, timeLeft = 0, beltWait = 0, beltPos = 0;
@@ -235,14 +256,15 @@
   var shake = 0, sorryT = 0, blinkT = 3, flashT = 0, endT = 0, clearT = 0, shutter = 0;
   var hudEls = null, back = null, front = null, noticed = false;
   var boxes = null, boxAge = 0;
+  var dlog = [];                                 // ?debug: what each shop dealt out, to check today's run
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function fmt(n) { return Math.round(n).toLocaleString("en-GB"); }
   function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
-  function rpick(list) { return list[Math.floor(rng() * list.length)]; }
-  function shuffle(list) {
+  function rpick(list, r) { return list[Math.floor(r() * list.length)]; }
+  function shuffle(list, r) {
     for (var i = list.length - 1; i > 0; i--) {
-      var j = Math.floor(rng() * (i + 1)), t = list[i];
+      var j = Math.floor(r() * (i + 1)), t = list[i];
       list[i] = list[j]; list[j] = t;
     }
     return list;
@@ -298,7 +320,8 @@
   function reset(sh) {
     shell = sh;
     T = sh.tokens;
-    rng = sh.random;
+    planRun(sh.random);
+    dlog = [];
     run = { score: 0, scanned: 0, perfect: 0, accused: 0, round: 0, fruitRight: 0, fruit: 0, approved: 0,
             shops: 0, taken: [], daily: sh.daily, roundCalled: false, heavyCalled: false };
     mods = freshMods();
@@ -317,7 +340,9 @@
     timeLeft = s.time + mods.time;
     beltWait = BELT_WAIT;
     belt = []; falls = []; drops = []; hand = null; frozen = null; look = null;
+    streams = plan[stage];
     pending = shoppingList(stage);
+    if (DEBUG) dlog.push("stage " + (stage + 1) + ": " + pending.map(function (p) { return p.fruit ? p.answer : p.id; }).join(" "));
     bag = { items: [], up: 0, lift: 0 };
     scale = { t: 0, total: 1 };
     bev = { state: "off", x: L.bevOff, phase: 0, t: 0, reach: 0, say: false };
@@ -330,7 +355,7 @@
     shutter = 0; clearT = 0; endT = 0; sorryT = 0;
     noticed = false;
     auto.impatient = AUTOPILOT && stage !== 1 && stage < 3;
-    auto.impatientAt = 2 + Math.floor(rng() * 2);
+    auto.impatientAt = 2 + Math.floor(Math.random() * 2);
     auto.bagsHere = 0;
     // the first couple of things are already on the belt, waiting
     var x = L.sx - 24;
@@ -347,38 +372,38 @@
 
   function gapNext() {
     var g = info().gap;
-    return g[0] + rng() * (g[1] - g[0]);
+    return g[0] + streams.gap() * (g[1] - g[0]);
   }
 
-  // Everything for this shop, in the order it comes down the belt. Today's
-  // run draws all of it from the day's seed.
+  // Everything for this shop, in the order it comes down the belt, drawn
+  // from the shop's own stream (in today's run, the same for everyone).
   function shoppingList(si) {
-    var s = STAGES[si];
+    var s = STAGES[si], r = streams.list;
     var list = [];
     s.age.forEach(function (id) { list.push({ id: id }); });
     s.heavy.forEach(function (id) { list.push({ id: id }); });
-    shuffle(s.sets.slice()).slice(0, s.fruit).forEach(function (set) {
-      list.push({ fruit: set, answer: rpick(SETS[set].opts) });
+    shuffle(s.sets.slice(), r).slice(0, s.fruit).forEach(function (set) {
+      var real = SETS[set].opts.filter(function (o) { return o !== SETS[set].joke; });
+      list.push({ fruit: set, answer: rpick(real, r) });
     });
-    var pool = shuffle(POOLS[s.pool].slice());
+    var pool = shuffle(POOLS[s.pool].slice(), r);
     for (var i = 0; list.length < s.count; i++) list.push({ id: pool[i % pool.length] });
-    shuffle(list);
-    // age checks come early (Bev needs a head start), and the first fruit of
-    // the trolley turns up while the notice is still fresh
+    shuffle(list, r);
+    // age checks come early (Bev needs a head start)
     var n = list.length;
+    function special(spec) { return !!spec.fruit || !!(spec.id && S.ITEMS[spec.id].age); }
+    function swap(a, b) { var t = list[a]; list[a] = list[b]; list[b] = t; }
     list.forEach(function (spec, k) {
-      var d = spec.id && S.ITEMS[spec.id];
-      if (d && d.age && k > n * 0.55) {
-        var j = 1 + Math.floor(rng() * Math.floor(n * 0.45));
-        var t = list[j]; list[j] = spec; list[k] = t;
-      }
+      if (spec.id && S.ITEMS[spec.id].age && k > n * 0.55) swap(k, 1 + Math.floor(r() * Math.floor(n * 0.45)));
     });
-    if (si === 1) {
-      var f = -1;
-      for (var q = 0; q < n; q++) if (list[q].fruit) { f = q; break; }
-      if (f > 2) { var tmp = list[2]; list[2] = list[f]; list[f] = tmp; }
+    // the first thing is always plain, so the first scan is just a scan
+    if (special(list[0])) {
+      for (var q = 1; q < n; q++) if (!special(list[q])) { swap(0, q); break; }
     }
-    if (list[0].fruit || (list[0].id && S.ITEMS[list[0].id].age)) { var a = list[0]; list[0] = list[n - 1]; list[n - 1] = a; }
+    // the trolley's first fruit turns up third, while the notice is still fresh
+    if (si === 1) {
+      for (var f = 0; f < n; f++) if (list[f].fruit) { if (f > 2) swap(2, f); break; }
+    }
     return list;
   }
 
@@ -826,13 +851,14 @@
   // ---------------------------------------------------------------------------
   function openLook(it) {
     var set = SETS[it.fruit];
-    var opts = shuffle(set.opts.slice());
+    var opts = shuffle(set.opts.slice(), streams.look);
+    if (DEBUG) dlog.push("look: " + opts.join(" "));
     look = { item: it, set: set, opts: opts, answer: opts.indexOf(it.answer), t: 0,
              limit: (stage === 3 ? 4 : stage === 2 ? 4.5 : 5) * mods.lookup, sel: 0, result: null };
     sfx.nag();
     voice("dennis", set.q);
     run.fruit++;
-    if (AUTOPILOT) auto.think = 0.7 + rng() * 0.5;
+    if (AUTOPILOT) auto.think = 0.7 + Math.random() * 0.5;
   }
 
   function tickLook(dt, p) {
@@ -1008,6 +1034,7 @@
     if (stage >= STAGES.length - 1) { end("paid"); return; }
     var next = stage + 1;
     var offers = offer();
+    if (DEBUG) dlog.push("offers: " + offers.map(function (c) { return c.id; }).join(" "));
     var stamp = st.accused === 0 ? "Approved" : st.accused === 1 ? "Pending review" : "Not approved";
     var stats = [
       { label: "Items", value: String(info().count) },
@@ -1038,7 +1065,7 @@
   function offer() {
     var pool = CHOICES.filter(function (c) { return run.taken.indexOf(c.id) < 0; });
     var out = [];
-    while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+    while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(streams.offer() * pool.length), 1)[0]);
     return out;
   }
 
@@ -2226,6 +2253,8 @@
       setSus: function (v) { sus = v; },
       tiles: function () { return tiles; },
       shut: function () { timeLeft = 0.01; },
+      dealt: function () { return dlog.slice(); },
+      idle: function (secs) { if (auto) auto.cool = secs; },
       // everything a test needs to play by the rules, in one snapshot
       peek: function () {
         return {
