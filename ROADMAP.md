@@ -9,7 +9,7 @@ Last updated: 2 October 2026.
 ## Where we are
 
 - **Playable:** Thonglets (seven stages, Judgement Day, a daily run) and Heavy Traffic (still labelled an early prototype).
-- **Placeholder:** Slop Cannon, which the homepage features biggest and calls "first out of the door".
+- **Placeholder:** Slop Cannon, next out of the door.
 - **Built:** the shared game kit, `DESIGN.md`, per-game share images, and the preview-then-approve process.
 - **Not yet:** socials, a shop link, a way to share a score, and a homepage that works with more than three games.
 
@@ -40,9 +40,10 @@ Heavy Traffic needs one polish pass against this list before it drops the protot
 
 ## Phase 1: tidy what's live
 
-- [ ] Homepage: replace "Coming soon" and "Three games are being made" with copy that says two games are playable. Fix the homepage share text, which also says "Coming soon".
-- [ ] Put a playable game (Thonglets) in the big featured slot until Slop Cannon is ready.
-- [ ] A short privacy note ("We save your best scores in your browser. That's it.") and a contact address.
+- [x] Homepage: replace "Coming soon" and "Three games are being made" with copy that says two games are playable. Fix the homepage share text, which also says "Coming soon".
+- [x] Put a playable game (Thonglets) in the big featured slot until Slop Cannon is ready. "More games" lists playable games first too.
+- [x] A short privacy note at `/privacy/` ("We save your best scores in your browser. That's it."), linked from every footer.
+- [ ] A contact address. Left off for now; add it to the privacy page and footer once there is one.
 - [ ] **Owner:** reserve `@notastegames` on TikTok, YouTube, Instagram, X and Bluesky now, so nobody else takes it. Don't post or link them yet; the Follow section stays as it is until phase 5.
 
 ## Phase 2: make games cheaper and easier to share
@@ -133,6 +134,7 @@ The realistic big break is one game or one clip catching on. Daily runs, shareab
 ## Owner's decisions
 
 - [ ] Reserve the social handles (phase 1).
+- [ ] A contact address for the site (phase 1).
 - [ ] OK the automatic play-through tool (phase 2).
 - [ ] Pick or swap the game ideas, and their order.
 - [ ] The shop URL for the Shop link (phase 4).

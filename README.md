@@ -27,6 +27,7 @@ The site for [notastegames.com](https://notastegames.com): free satirical browse
 | `public/brand/` | Logo, square mark and the worn stamp |
 | `public/fonts/notaste-display.woff` | Headline font, built from the logo's letterforms |
 | `public/404.html` | Page shown for links that don't exist |
+| `public/privacy/` | The privacy note: what the site keeps (best scores, in your browser) and what it doesn't |
 | `public/og-image.png` | Preview image when the homepage is shared |
 | `public/site.webmanifest` | Name and icons for "Add to home screen" |
 | `public/robots.txt`, `sitemap.xml` | For search engines |
