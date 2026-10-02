@@ -12,8 +12,11 @@
 // The server drains slowly; fill it and it melts, and the run is over.
 //
 // A round is one working day, 09:00 to 17:00, in four stages of two office
-// hours each (about 28 to 40 seconds of play apiece, a bit over two minutes
-// in all). Each stage adds something, said in a notice (shell.brief) before Go:
+// hours each (28 to 40 seconds of play apiece, two and a quarter minutes in
+// all). New repliers start at a rate that rises through each stage, and a
+// few times a stage someone forwards the thread, which sets off three or four
+// desks at once, so it comes in waves. Each stage adds something, said in a
+// notice (shell.brief) before Go:
 //   1. Your team (09:00): nine desks. Just the itch, the bar and the click.
 //   2. The department (11:00): twelve desks. The +1 crowd, who reply from
 //      their phones twice as fast. And Mute thread (E or Shift, or the Mute
@@ -32,11 +35,17 @@
 // hiding the reply all button, inbox rules, or an intern.
 //
 // SCORING
-// Stopping someone scores 100, times a streak multiplier (x2 after 6 in a row
-// without a reply getting out, up to x5), plus 50 for a long email and 50 for
-// a close call (the bar nearly full). Each stage ends with a bonus for how
+// Stopping someone scores 100, times a streak multiplier (x2 after 8 in a row
+// without a reply getting out, x3 after 16, x4 after 24), plus 50 for a long
+// email and 50 for a close call (the bar nearly full). Each stage ends with a bonus for how
 // much server is left (500 x the stage number, scaled by what's left), 1,000
 // more if nothing got out that stage, and 2,500 for making it to 17:00.
+//
+// DIFFICULTY
+// Tuned with the autopilot at three reaction speeds (?debug&skill=): a casual
+// player lands anywhere from Rejected to Pending review, an engaged one
+// usually gets home, and a sharp one gets Approved. The autopilot itself
+// plays like the sharp one; in ?clip it's a bit slower, so the server sweats.
 //
 // THE LADDER (results stamp)
 //   Approved        home at 17:00 with 3 or fewer replies got out all day
@@ -74,7 +83,7 @@
   var PX = 100, PY = 64, CH = 76;
   var CAP = 100;                     // the server's capacity
   var DRAIN = 2.6;                   // load it clears each second
-  var LOAD = { normal: 10, quick: 7, stubborn: 15, ooo: 3, boss: 8, intern: 8 };
+  var LOAD = { normal: 10, quick: 7, stubborn: 15, ooo: 2, boss: 6, intern: 8 };   // what each reply adds to the server
   var MUTE_CD = 12;                  // seconds for Mute thread to recharge
   var STREAK_STEP = 8;               // stops in a row for each step of the multiplier
   var MULT_MAX = 4;
@@ -129,7 +138,6 @@
   var GLARES = ["What.", "I'm not typing.", "Can I help you."];
   var STOPS = ["Unsent", "Deleted", "Not sent", "Binned"];
   var FORWARDS = ["Thread: forwarded", "Forwarded again", "Now copying in finance", "Thread: escalated", "Forwarded to the whole floor"];
-  var INTERN = ["Sorry. Wrong button.", "Is this the right email.", "Oops is not a word. Sorry."];
 
   // Between stages: IT's suggestions. Each one helps and each one costs.
   var OFFERS = [
@@ -161,7 +169,7 @@
   var W = 1, H = 1, DPR = 1;
   var run = null;        // the whole day
   var G = null;          // this stage
-  var L = { k: 1, cols: 3, rows: 3, ox: 0, oy: 0, top: 50 };
+  var L = { k: 1, cols: 3, rows: 3, ox: 0, oy: 0, px: 100, py: 64, top: 50 };
   var offers = [];
   var hudEls = null;
   var mutePad = null;
@@ -298,8 +306,13 @@
     });
     L.k = Math.min(best.k, 2.4);
     L.cols = best.cols; L.rows = best.rows;
-    L.ox = (W - L.cols * PX * L.k) / 2;
-    L.oy = top + (gridH - ((L.rows - 1) * PY + CH) * L.k) / 2;
+    // spare room goes into the aisles, a little, rather than round the edges
+    var k = L.k;
+    var spareX = (W - 12) - L.cols * PX * k, spareY = gridH - ((L.rows - 1) * PY + CH) * k;
+    L.px = PX * k + (L.cols > 1 ? clamp(spareX / (L.cols - 1), 0, PX * k * 0.22) : 0);
+    L.py = PY * k + (L.rows > 1 ? clamp(spareY / (L.rows - 1), 0, PY * k * 0.5) : 0);
+    L.ox = (W - ((L.cols - 1) * L.px + PX * k)) / 2;
+    L.oy = top + (gridH - ((L.rows - 1) * L.py + CH * k)) / 2;
     G.desks.forEach(function (d, i) { d.col = i % L.cols; d.row = Math.floor(i / L.cols); });
     // the strip
     var sh = strip - 12;
@@ -313,7 +326,7 @@
     bg = null;
   }
 
-  function origin(d) { return { x: L.ox + d.col * PX * L.k, y: L.oy + d.row * PY * L.k }; }
+  function origin(d) { return { x: L.ox + d.col * L.px, y: L.oy + d.row * L.py }; }
   function at(d, lx, ly) { var o = origin(d); return { x: o.x + lx * L.k, y: o.y + ly * L.k }; }
   function handSpot(d) { return at(d, 57, 30); }
   function serverMouth() { return A.serverFace(L.server.x, L.server.y, L.server.w, L.server.h).mouth; }
@@ -322,7 +335,7 @@
     var best = null, bd = 1e9;
     G.desks.forEach(function (d) {
       var c = at(d, 46, 33);
-      var dx = (px - c.x) / (PX * L.k * 0.5), dy = (py - c.y) / (PY * L.k * 0.5);
+      var dx = (px - c.x) / (L.px * 0.5), dy = (py - c.y) / (L.py * 0.5);
       var dist = dx * dx + dy * dy;
       if (dist < bd) { bd = dist; best = d; }
     });
@@ -441,7 +454,7 @@
       d.t = Math.max(0, d.t - 0.4);
       d.flinch = 0.55;
       sfx.flinch();
-      addStamp(d, "Still typing", 0.8);
+      addStamp(d, "Not yet", 0.8);
       say1(d, pick(FLINCH), true);
       return;
     }
@@ -688,7 +701,7 @@
       heading: "Stage " + (run.stage + 1) + " complete.",
       line: info().clear,
       stats: stats,
-      ask: "Stage " + (next + 1) + ": " + STAGES[next].name.toLowerCase() + ". IT have three suggestions.",
+      ask: "Stage " + (next + 1) + ": " + STAGES[next].name + ". IT have three suggestions.",
       choices: offers.map(function (o) { return { label: o.label, detail: o.detail }; })
     }).then(function (i) {
       var o = offers[i] || offers[0];
@@ -957,12 +970,24 @@
     prev.mute = input.mute;
   }
 
+  // An arrow goes to someone typing that way (the nearest, unless someone a
+  // bit further is about to send), or one desk if nobody is, so the keyboard
+  // keeps up with a mouse
   function move(dx, dy) {
     if (AUTOPILOT) return;
     pointerMode = "keys";
     var d = G.desks[cursor];
     if (!d) return;
-    var to = deskAtCell(clamp(d.col + dx, 0, L.cols - 1), clamp(d.row + dy, 0, L.rows - 1));
+    var best = null, bestCost = 1e9;
+    G.desks.forEach(function (o) {
+      if (o === d || o.state !== "typing" || !stoppable(o)) return;
+      var along = (o.col - d.col) * dx + (o.row - d.row) * dy;
+      var across = Math.abs((o.col - d.col) * dy) + Math.abs((o.row - d.row) * dx);
+      if (along <= 0 || across > along) return;        // not that way
+      var cost = along + across * 1.5 + (1 - o.t) * o.dur * 1.2;
+      if (cost < bestCost) { bestCost = cost; best = o; }
+    });
+    var to = best || deskAtCell(clamp(d.col + dx, 0, L.cols - 1), clamp(d.row + dy, 0, L.rows - 1));
     if (to && to !== d) { cursor = to.i; sfx.move(); }
   }
 
@@ -1745,6 +1770,17 @@
       run: function () { return run; },
       stage: function () { return G; },
       layout: function () { return L; },
+      cursor: function () { return cursor; },
+      // where a desk's worker is on the page, for tests that click and tap
+      desks: function () {
+        var r = root.getBoundingClientRect();
+        return G.desks.map(function (d) {
+          var p = at(d, 40, 32);
+          return { i: d.i, col: d.col, row: d.row, kind: d.kind, state: d.state, t: d.t, hits: d.hits,
+                   left: (1 - d.t) * d.dur, x: r.left + p.x, y: r.top + p.y };
+        });
+      },
+      mute: function () { return { ready: G.muteWait <= 0 && info().mute, row: muteRow(), x: L.mute.x, y: L.mute.y }; },
       state: function () { return shell.state(); },
       score: function () {
         return { stage: run.stage + 1, clock: clockText(), score: Math.round(run.score), stopped: run.stopped, out: run.out,
