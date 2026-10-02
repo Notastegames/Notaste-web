@@ -200,7 +200,7 @@
   var noticed = false, hintNow = null, modSeen = 0;
   var shake = 0, signDays = 1214, signT = 0;
   var bg = null, hudEls = null, poses = {}, hudBox = null, hudAge = 0;
-  var shown = 0, offers = [], auto = { target: null, ang: 0.8, charge: false, think: 0, slop: 0, careless: false, rest: 0, idle: 0, hold: 0 };
+  var shown = 0, offers = [], auto = { target: null, ang: 0.8, think: 0, slop: 0, careless: false, rest: 0, idle: 0, hold: 0 };
   var stage = 0;
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -324,12 +324,11 @@
     if (botPad) botPad.style.display = run.mods.bots ? "" : "none";
     if (hudEls) hudEls.bots.style.display = run.mods.bots ? "" : "none";
     auto.target = null;
-    auto.charge = false;
     auto.think = 0.4;
   }
 
   // ---------------------------------------------------------------------------
-  // The feed. Everything in it comes from shell.random, so today's run
+  // The feed. Everything in it comes from the round's seed, so today's run
   // scrolls the same posts past everyone.
   // ---------------------------------------------------------------------------
   var lastKind = null, sinceFact = 9;
