@@ -778,7 +778,7 @@
     // short, so it all fits a phone's square screen
     var stats = [
       { label: "Score", value: fmt(score) },
-      home ? { label: "Stopped", value: String(run.stopped) } : { label: "Melted at", value: run.meltAt },
+      home ? { label: "Stopped", value: String(run.stopped) } : { label: "Melted", value: run.meltAt },
       { label: "Got out", value: String(run.out) },
       { label: rec.isNew ? (shell.daily ? "New best today" : "New best") : (shell.daily ? "Best today" : "Best"),
         value: fmt(rec.best || 0), highlight: rec.isNew }
