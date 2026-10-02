@@ -345,8 +345,6 @@
   //     root, slug, title, stamp, note, againLabel,
   //     hints: { keys: "...", touch: "..." },
   //     touch: [{ key: "left", label: "Steer left", icon: "◀", side: "left" }, ...],
-  //     aim: true,               follow a mouse or finger over the screen (input.aim)
-  //     clickAction: true,       with aim, a mouse click also presses "action"
   //     reset(shell),            a fresh round: put everything on the start line
   //     update(dt, input, shell), every frame while playing (and after the finish)
   //     render(dt, shell),        every frame while the game is on screen
@@ -363,13 +361,7 @@
     var state = "title";
     var raf = 0;
     var last = 0;
-    var input = { up: false, down: false, left: false, right: false, action: false, steer: 0, mode: "keys",
-                  // stick: a gamepad's left stick, -1 to 1 on each axis
-                  stick: { x: 0, y: 0 },
-                  // aim (games with aim: true): where a mouse or finger is over the screen,
-                  // in CSS pixels from the screen's top left. on: a finger is down, or the
-                  // mouse has moved over the screen since the player last used keys or a pad.
-                  aim: { x: 0, y: 0, on: false } };
+    var input = { up: false, down: false, left: false, right: false, action: false, steer: 0, mode: "keys" };
     var touchHeld = {};
     var padHeld = {};
     var keyHeld = {};
@@ -750,7 +742,6 @@
       keyHeld[keyToAction[code]] = true;
       tapped[keyToAction[code]] = true;
       input.mode = "keys";
-      input.aim.on = false;
       root.classList.remove("kit-touching");
     });
     document.addEventListener("keyup", function (e) {
@@ -759,7 +750,7 @@
     });
 
     // Let go of everything when focus leaves, and pause the game
-    function releaseAll() { keyHeld = {}; touchHeld = {}; aimPointer = null; input.aim.on = false; }
+    function releaseAll() { keyHeld = {}; touchHeld = {}; }
     window.addEventListener("blur", function () { releaseAll(); pause(); });
     document.addEventListener("visibilitychange", function () {
       if (document.hidden) { releaseAll(); pause(); }
@@ -776,20 +767,6 @@
     var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
     if (coarse) root.classList.add("kit-touching");
     var pointers = {};
-    var aimPointer = null;
-
-    function aimAt(e) {
-      var box = root.getBoundingClientRect();
-      input.aim.x = e.clientX - box.left;
-      input.aim.y = e.clientY - box.top;
-      input.aim.on = true;
-    }
-    // Only the open screen aims: not the panels, the buttons or the touch pads
-    function aimable(e) {
-      if (!game.aim || !(state === "playing" || state === "countdown")) return false;
-      var t = e.target;
-      return !(t && t.closest && t.closest(".kit-panel, .kit-bar, .kit-pad, button, a"));
-    }
 
     function padAt(x, y) {
       var hit = document.elementFromPoint(x, y);
@@ -807,19 +784,7 @@
       });
     }
     root.addEventListener("pointerdown", function (e) {
-      if (e.pointerType === "mouse") {
-        if (aimable(e)) {
-          aimAt(e);
-          input.mode = "mouse";
-          if (game.clickAction && e.button === 0) tapped.action = true;
-        }
-        return;
-      }
-      if (aimable(e) && !padAt(e.clientX, e.clientY)) {
-        e.preventDefault();
-        aimPointer = e.pointerId;
-        aimAt(e);
-      }
+      if (e.pointerType === "mouse") return;
       root.classList.add("kit-touching");
       input.mode = "touch";
       var pad = padAt(e.clientX, e.clientY);
@@ -831,17 +796,12 @@
       }
     });
     root.addEventListener("pointermove", function (e) {
-      if (e.pointerId === aimPointer || (e.pointerType === "mouse" && aimable(e))) {
-        aimAt(e);
-        if (e.pointerType === "mouse") input.mode = "mouse";
-      }
       if (!(e.pointerId in pointers)) return;
       // slide a thumb from one button to its neighbour without lifting
       pointers[e.pointerId] = padAt(e.clientX, e.clientY);
       syncPads();
     });
     function lift(e) {
-      if (e.pointerId === aimPointer) { aimPointer = null; input.aim.on = false; }
       if (!(e.pointerId in pointers)) return;
       delete pointers[e.pointerId];
       syncPads();
@@ -856,7 +816,6 @@
     function pollPads() {
       padHeld = {};
       input.steer = 0;
-      input.stick.x = input.stick.y = 0;
       if (!navigator.getGamepads) return;
       var pads = navigator.getGamepads();
       for (var i = 0; i < pads.length; i++) {
@@ -865,8 +824,6 @@
         var b = p.buttons;
         var down = function (n) { return b[n] && (b[n].pressed || b[n].value > 0.4); };
         var x = p.axes[0] || 0;
-        var y = p.axes[1] || 0;
-        if (Math.hypot(x, y) > 0.18) { input.stick.x = x; input.stick.y = y; input.aim.on = false; }
         if (Math.abs(x) > 0.18) { input.steer = x; padHeld[x < 0 ? "left" : "right"] = true; }
         if (down(14)) { padHeld.left = true; input.steer = -1; }
         if (down(15)) { padHeld.right = true; input.steer = 1; }
