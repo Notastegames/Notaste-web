@@ -137,14 +137,14 @@
   var CHOICES = [
     { id: "bags", label: "Bring your own bags", detail: "The scale settles twice as fast. The machine accuses your bag at the start of every shop.",
       apply: function (m) { m.settle *= 0.5; m.byob = true; } },
-    { id: "card", label: "Use a loyalty card", detail: "Every item scores half as much again. It knows who you are now: suspicion builds a third faster.",
-      apply: function (m) { m.points *= 1.5; m.sus *= 1.33; } },
+    { id: "card", label: "Use a loyalty card", detail: "Every item scores a quarter more. It knows who you are now, and it is even more suspicious.",
+      apply: function (m) { m.points *= 1.25; m.sus *= 1.5; } },
     { id: "bev", label: "Make eye contact with Bev", detail: "Bev comes over twice as fast. Then she has a chat.",
       apply: function (m) { m.walk *= 0.45; m.chat += 1.6; } },
     { id: "glasses", label: "Wear your reading glasses", detail: "Twice as long to look up fruit. The belt runs a bit faster.",
       apply: function (m) { m.lookup *= 2; m.belt *= 1.1; } },
-    { id: "mean", label: "Scan like you mean it", detail: "Perfect scans score double. Mistimed ones look twice as suspicious.",
-      apply: function (m) { m.perfect *= 2; m.missSus *= 2; } },
+    { id: "mean", label: "Scan like you mean it", detail: "Perfect scans score half as much again. Mistimed ones look twice as suspicious.",
+      apply: function (m) { m.perfect *= 1.5; m.missSus *= 2; } },
     { id: "quiet", label: "Come back when it's quieter", detail: "Twenty more seconds before the shop shuts. Bev's on her break, so she takes longer.",
       apply: function (m) { m.time += 20; m.walk *= 1.4; } },
     { id: "wave", label: "Wave at the camera", detail: "Suspicion drains twice as fast. Every item scores a fifth less.",
@@ -1047,12 +1047,10 @@
     var rec = shell.record(score);
     var all = why === "paid";
     var rank = all && score >= APPROVED ? 1 : (all || stage >= 3) ? 2 : stage >= 1 ? 3 : 4;
-    var heading = all ? (rank === 1 ? "Everything paid for." : "Paid for. Eventually.")
-      : stage === 3 ? "Shut on Christmas Eve." : "The shop shut mid-" + ["basket", "trolley", "big shop"][stage] + ".";
+    var heading = all ? (rank === 1 ? "All paid for." : "Paid. Slowly.") : "Shutters down.";
     var stats = [
       { label: "Score", value: fmt(score) },
-      { label: "Paid for", value: run.shops + " of 4 shops" },
-      { label: "Perfect", value: String(run.perfect) },
+      { label: "Paid for", value: run.shops + " of 4" },
       { label: "Accused", value: times(run.accused) },
       { label: rec.isNew ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
         value: fmt(rec.isNew ? score : rec.best || 0), highlight: rec.isNew }
@@ -1062,7 +1060,7 @@
     shell.finish({
       place: rank, total: 4,
       heading: heading,
-      line: RANKS[rank - 1].line,
+      line: rank === 2 && !all ? "Christmas Eve got you. The machine has kept your picture, for training purposes." : RANKS[rank - 1].line,
       stats: stats,
       delay: all ? 1000 : 1800,
       share: fmt(score) + " points, " + (all ? "paid for everything" : "stage " + (stage + 1) + " of 4") + ", " + accused
@@ -2200,6 +2198,7 @@
       score: function () { return { stage: stage + 1, score: Math.round(run.score), accused: run.accused, scanned: run.scanned, perfect: run.perfect, left: Math.round(timeLeft) }; },
       accuse: function () { accuse("bag"); },
       setSus: function (v) { sus = v; },
+      tiles: function () { return tiles; },
       // everything a test needs to play by the rules, in one snapshot
       peek: function () {
         return {
