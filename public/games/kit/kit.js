@@ -357,6 +357,9 @@
   //     resize(width, height, dpr)
   //   })
   //
+  // A HUD line marked data-minor hides on small screens.
+  // shell.brief({ title, text }) shows a notice card for a few seconds: what's
+  // new this stage and what to do about it.
   // shell.padFill(key, share) shows a cooldown on a touch button, filling up
   // from 0 to 1; a meter with data-pad in the HUD is hidden while touch
   // buttons are showing, since the button says the same thing.
@@ -445,6 +448,15 @@
     var callouts = el("div", "kit-callouts");
     callouts.setAttribute("aria-hidden", "true");
     root.appendChild(callouts);
+
+    // A notice: what's new and what to do about it (shell.brief)
+    var briefBox = el("div", "kit-brief");
+    briefBox.setAttribute("aria-hidden", "true");
+    var briefTitle = el("p", "kit-brief-title"), briefText = el("p", "kit-brief-text");
+    briefBox.appendChild(briefTitle);
+    briefBox.appendChild(briefText);
+    root.appendChild(briefBox);
+    var briefTimer = 0;
 
     var count = el("div", "kit-count");
     count.setAttribute("aria-hidden", "true");
@@ -547,8 +559,21 @@
       interlude: interlude,
       next: function () { countdown(); },
       announce: announce,
-      padFill: padFill
+      padFill: padFill,
+      brief: brief
     };
+
+    // Show a notice card for a few seconds: { title, text, ms }. Screen
+    // readers hear it too, since it says what to do.
+    function brief(opts) {
+      opts = opts || {};
+      briefTitle.textContent = opts.title || "";
+      briefText.textContent = opts.text || "";
+      briefBox.classList.add("is-on");
+      announce((opts.title ? opts.title + ". " : "") + (opts.text || ""));
+      window.clearTimeout(briefTimer);
+      briefTimer = window.setTimeout(function () { briefBox.classList.remove("is-on"); }, opts.ms || 6500);
+    }
 
     var pads = {};
     function padFill(key, share) {

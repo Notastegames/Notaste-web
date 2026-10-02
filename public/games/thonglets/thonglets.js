@@ -129,6 +129,20 @@
   var TRAILING = ["Following the trail.", "God went this way.", "Wait for us.", "Is god lost or are we."];
   var CHEERS = ["Our god.", "It's beautiful.", "It's got a bum.", "Look at it.", "Worth it."];
 
+  // What each rival does and what to do about it, shown as a notice when it
+  // first turns up. Smite stops the gods with faces; the Sea and the Planning
+  // Office can't be smitten and have to be worked round.
+  var BRIEFS = {
+    feed: "A phone they can't stop staring at. Put your light on it and smite {how} to switch it off, or walk past to snap them out of it.",
+    landlord: "Takes a brick off anyone carrying one. Smite him {how} and he drops the lot and leaves for a bit.",
+    rocket: "Boards anyone near it, eight at a time, and takes them to space. Smite it {how} while it's boarding to scrub the launch.",
+    loudspeaker: "Shouts, and everyone in earshot marches over. Smite it {how} to take the microphone away. Two pits this time.",
+    sea: "Rises from the bottom all stage. They wade slowly, and too long in deep water takes them. You can't smite the sea: keep them up the field.",
+    office: "No bricks go on the statue without a permit. Lead them into the queue until it's stamped. You can't smite paperwork.",
+    all: "All of them at once, except the Office. Smite the ones with faces. Mind the water.",
+    judgement: "No statue to finish. Every tier of bricks buys more time. Build until you're judged."
+  };
+
   // ---------------------------------------------------------------------------
   // State. G is shared with the rivals (rivals.js).
   // ---------------------------------------------------------------------------
@@ -148,6 +162,7 @@
   var timers = {}, stepT = 0, announced = false, firstFall = true;
   var judgeTier = 0, judgeFrom = 0, judgeNext = 30;   // Judgement Day: which tier, and the bricks it starts and ends at
   var feeCalled = false, guide = null, lostSight = 0;
+  var hintNow = null, hintSeen = 0, noticed = false;    // the arrow showing this frame, and how long the sea's has shown
 
   function rand(a, b) { return a + Math.random() * (b - a); }
   function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
@@ -235,9 +250,9 @@
       var s;
       if (k === "feed") s = find(0.28, 0.72, 0.3, 0.38, 0.36, 0.26, 0.28);
       else if (k === "landlord") s = find(0.3, 0.7, 0.26, 0.75, 0.2, 0.22, 0.2);
-      else if (k === "rocket") s = find(0.3, 0.7, 0.26, wet ? 0.52 : 0.82, 0.32, 0.3, 0.28);
+      else if (k === "rocket") s = find(0.3, 0.7, 0.44, wet ? 0.56 : 0.82, 0.32, 0.3, 0.28);   // tall: low enough for its labels
       else if (k === "loudspeaker") s = wet ? find(0.3, 0.7, 0.24, 0.34, 0.28, 0.26, 0.28) : find(0.3, 0.7, 0.76, 0.88, 0.28, 0.26, 0.28);
-      else if (k === "office") s = find(left ? 0.54 : 0.3, left ? 0.7 : 0.46, 0.22, 0.8, 0.16, 0.34, 0.26);
+      else if (k === "office") s = find(left ? 0.54 : 0.3, left ? 0.7 : 0.46, 0.42, 0.8, 0.16, 0.34, 0.26);
       else s = { x: 0.5, y: 0.5 };
       plan.spots[k] = s;
       rivals.push(s);
@@ -320,7 +335,8 @@
     G.mods = { walk: 1, trip: 0, load: 1, smiteCd: 1, smiteR: 1, blessCd: 1, feeEvery: FEE_EVERY, time: 0,
                converts: 1, lure: 1, reach: 1, pitSave: 0, noPriest: false };
     G.devotion = 1;
-    run = { score: 0, statues: 0, lost: 0, fees: 0, smitten: 0, taken: [], daily: daily, reached: 0, extended: false };
+    run = { score: 0, statues: 0, lost: 0, fees: 0, smitten: 0, taken: [], daily: daily, reached: 0, extended: false,
+            learned: {} };    // rivals you've already smitten: their arrows stop showing
     G.folk = [];
     G.priest = null;
     G.stage = FIRST;
@@ -331,6 +347,7 @@
   function startStage(fresh) {
     var info = stageInfo();
     G.plan = planStage();
+    G.permitSize = isFinite(info.target) ? Math.max(40, Math.round(info.target / 3)) : 80;
     G.rivals = G.plan.kinds.map(function (k) { return R[k](G, HELP, G.plan.spots[k]); });
     G.piles = [];
     layout();
@@ -373,6 +390,9 @@
     feeCalled = false;
     guide = G.stage === 0 ? "bricks" : null;
     lostSight = 0;
+    hintNow = null;
+    hintSeen = 0;
+    noticed = false;
     bg = null;
     statueImg = null;
     if (hudEls) paintHud();
@@ -658,7 +678,11 @@
     if (!shell.reduceMotion) shake = 0.3;
     sfx.zap();
     var said = null;
-    G.rivals.forEach(function (rv) { if (!said) said = rv.smite(x, y, r); });
+    G.rivals.forEach(function (rv) {
+      if (said) return;
+      said = rv.smite(x, y, r);
+      if (said) run.learned[rv.kind] = true;
+    });
     G.folk.concat(G.priest ? [G.priest] : []).forEach(function (f) {
       if (!alive(f)) return;
       if (dist(f, G.light) > r) return;
@@ -684,6 +708,7 @@
 
   function bless() {
     blessWait = BLESS_CD * G.mods.blessCd;
+    run.learned.bless = true;
     sfx.bless();
     var n = 0;
     G.folk.forEach(function (f) {
@@ -899,6 +924,50 @@
     say(neighbour || f, pick(PUFFED), true);
   }
 
+  // The one thing worth pointing at right now: the Office's queue whenever
+  // it's needed, otherwise a rival causing trouble that you haven't yet
+  // smitten this run. Stage one points at the bricks and the statue.
+  function pickHint(dt) {
+    hintNow = null;
+    var office = officeRival();
+    if (office) hintNow = office.hint();
+    for (var i = 0; i < G.rivals.length && !hintNow; i++) {
+      var rv = G.rivals[i];
+      if (rv === office || !rv.hint || run.learned[rv.kind]) continue;
+      hintNow = rv.hint();
+      if (hintNow && rv.kind === "sea") {
+        hintSeen += dt;
+        if (hintSeen > 6) run.learned.sea = true;
+      }
+    }
+    // until you've blessed once: when rivals have hold of a few near you, say so
+    if (!hintNow && !run.learned.bless && blessWait <= 0) {
+      var held = 0, reach = FOLLOW_R * G.mods.reach;
+      G.folk.forEach(function (f) {
+        if ((f.state === "stare" || f.state === "march" || f.state === "board") && dist(f, G.light) < reach) held++;
+      });
+      if (held >= 4) hintNow = { x: G.light.x, y: G.light.y - 88, word: root.classList.contains("kit-touching") ? "Tap Bless" : "Bless: press B" };
+    }
+  }
+  function officeRival() {
+    for (var i = 0; i < G.rivals.length; i++) if (G.rivals[i].kind === "office") return G.rivals[i];
+    return null;
+  }
+
+  // The stage's notice: who's turned up and what to do about them
+  function notice() {
+    var info = stageInfo();
+    var title = judgement() ? "Judgement Day" : "Stage " + (G.stage + 1) + ": " + stageName(G.stage);
+    var text = (BRIEFS[info.rival] || "").replace("{how}", smiteHow());
+    var back = G.plan.kinds.filter(function (k) { return k !== info.rival; });
+    if (info.old && back.length) text += " " + R.names[back[0]] + " is back.";
+    if (G.stage === 0) text = "Lead them to the bricks, then to the statue. " + text;
+    shell.brief({ title: title, text: text, ms: G.stage === 0 ? 9000 : 7000 });
+  }
+  function smiteHow() {
+    return root.classList.contains("kit-touching") ? "(tap Smite)" : "(click, or Space)";
+  }
+
   // The statue's finished: everyone jumps up and down about it
   function cheer() {
     bubbles = [];
@@ -916,8 +985,6 @@
     if (phase !== "play") { clock += dt; tickFx(dt); tickBubbles(dt); return; }
     if (!announced) {
       announced = true;
-      var title = judgement() ? "Judgement Day" : "Stage " + (G.stage + 1) + ": " + stageName(G.stage);
-      shell.callout(title, { ms: 1800 });
       var fresh = G.rivals.filter(function (r) { return r.kind === stageInfo().rival; })[0] || G.rivals[0];
       if (fresh && fresh.intro) say(fresh.who, fresh.intro, true);
     }
@@ -937,6 +1004,7 @@
     if (smiteWait > 0 && smiteWait - dt <= 0) sfx.ready();
 
     G.rivals.forEach(function (r) { r.update(dt); });
+    pickHint(dt);
 
     var live = G.folk.filter(alive);
     var crowdR = 10 + 3.6 * Math.sqrt(live.length);
@@ -1103,7 +1171,7 @@
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big"><span data-score>0</span></p>' +
         '<p class="kit-stat"><small>Faithful</small><span data-faithful>0</span></p>' +
-        '<p class="kit-stat"><small>Devotion</small><span data-devotion>x1.00</span></p>' +
+        '<p class="kit-stat" data-minor><small>Devotion</small><span data-devotion>x1.00</span></p>' +
       '</div>';
     hudEls = {};
     ["stage", "stage-label", "time", "statue-bar", "smite", "smite-bar", "bless", "bless-bar", "score", "faithful", "devotion"].forEach(function (k) {
@@ -1373,6 +1441,8 @@
     c.clip();
     c.drawImage(statueImg, st.x - STATUE.ox, st.y - STATUE.oy, STATUE.w, STATUE.h);
     c.restore();
+    var office = officeRival();
+    if (office && office.blocks() && phase === "play") drawTape(c, st.x, st.y - 30, "No permit");
     if (share < 1) {
       // scaffolding round the top of what's built so far
       c.lineWidth = 3.4;
@@ -1535,14 +1605,56 @@
     c.restore();
   }
 
-  // Stage one only: an arrow over the bricks, then over the statue
-  function drawGuide(c) {
-    var T = G.T, P = G.place, at, word;
-    if (guide === "bricks") { at = { x: P.quarry.x, y: P.quarry.y - 52 }; word = "Bricks"; }
-    else { at = { x: P.site.x, y: P.site.y - 50 }; word = "Statue"; }
+  // A rival a smite would stop: red brackets round it, so you know it'll
+  // land before you strike
+  function drawTarget(c, m) {
+    var T = G.T, k = shell.reduceMotion ? 0 : (Math.sin(clock * 9) + 1) * 1.5;
+    var x0 = m.x - m.w / 2 - k, x1 = m.x + m.w / 2 + k, y0 = m.y - m.h - k, y1 = m.y + k, a = 8;
+    var path = new Path2D();
+    [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]].forEach(function (q) {
+      path.moveTo(q[0], q[1] + q[3] * a); path.lineTo(q[0], q[1]); path.lineTo(q[0] + q[2] * a, q[1]);
+    });
+    c.save();
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.lineWidth = 5;
+    c.strokeStyle = T.ink;
+    c.stroke(path);
+    c.lineWidth = 2.6;
+    c.strokeStyle = T.red;
+    c.stroke(path);
+    c.restore();
+  }
+
+  // Hazard tape across the statue while there's no permit
+  function drawTape(c, x, y, word) {
+    var T = G.T;
+    c.save();
+    c.translate(x, y);
+    c.rotate(-0.05);
+    c.font = "9px " + T.display;
+    var text = word.toUpperCase(), w = c.measureText(text).width + 34;
+    c.fillStyle = T.red;
+    c.fillRect(-w / 2, -6.5, w, 13);
+    c.lineWidth = 1.2;
+    c.strokeStyle = T.ink;
+    c.strokeRect(-w / 2, -6.5, w, 13);
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillStyle = T.paper;
+    c.fillText(text, 0, 0.5);
+    c.fillStyle = T.ink;
+    c.fillText("*", -w / 2 + 8, 1.5);
+    c.fillText("*", w / 2 - 8, 1.5);
+    c.restore();
+  }
+
+  // A bobbing arrow pointing down at something, with a word over it
+  function drawArrow(c, x, y, word) {
+    var T = G.T;
     var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(clock * 4)) * -5;
     c.save();
-    c.translate(at.x, at.y + bob);
+    c.translate(x, y + bob);
     c.lineJoin = "round";
     c.beginPath();
     c.moveTo(-5, -16); c.lineTo(5, -16); c.lineTo(5, -6); c.lineTo(11, -6); c.lineTo(0, 6); c.lineTo(-11, -6); c.lineTo(-5, -6);
@@ -1739,6 +1851,8 @@
 
   function render() {
     if (!ctx || !G.light || !run) return;
+    // the stage's notice goes up with the countdown, so it's read before Go
+    if (!noticed && (shell.state() === "countdown" || shell.state() === "playing")) { noticed = true; notice(); }
     if (!hudEls) { buildHud(); paintHud(); }
     if (!bg) bg = buildGround();
     var c = ctx;
@@ -1764,14 +1878,34 @@
     things.sort(function (a, b) { return a.y - b.y; });
     things.forEach(function (t) { if (t.draw) t.draw(c); else drawPerson(c, t.f); });
 
-    if (guide && phase === "play") drawGuide(c);
+    if (phase === "play" && smiteWait <= 0) {
+      var reach = SMITE_R * G.mods.smiteR;
+      for (var t = 0; t < G.rivals.length; t++) {
+        if (G.rivals[t].aim(G.light.x, G.light.y, reach)) { drawTarget(c, G.rivals[t].mark()); break; }
+      }
+    }
     drawHand(c);
     drawFx(c, fx.filter(function (e) { return e.kind !== "scorch"; }));
 
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     if (++boxAge > 60) { boxes = null; boxAge = 0; }
     var placed = [];
+    var arrow = null;
+    if (phase === "play") {
+      if (hintNow) arrow = { x: hintNow.x, y: hintNow.y, word: hintNow.word };
+      else if (guide === "bricks") arrow = { x: G.place.quarry.x, y: G.place.quarry.y - 52, word: "Bricks" };
+      else if (guide) arrow = { x: G.place.site.x, y: G.place.site.y - 50, word: "Statue" };
+    }
+    if (arrow) {
+      arrow.x = clamp(arrow.x, 44, G.WW - 44);
+      arrow.y = Math.max(48, arrow.y);
+      placed.push({ x: (arrow.x - 40) * SC, y: (arrow.y - 34) * SC, w: 80 * SC, h: 42 * SC });
+    }
     bubbles.forEach(function (b) { drawBubble(c, b, placed); });
+    if (arrow) {
+      c.setTransform(DPR * SC, 0, 0, DPR * SC, 0, 0);
+      drawArrow(c, arrow.x, arrow.y, arrow.word);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1785,8 +1919,8 @@
     tilt: -3,
     note: "They think you're god. Seven stages, seven statues, a lot of rivals. Mind the pit.",
     hints: {
-      keys: "Mouse, arrows or WASD to lead them. Click or Space to smite. B to bless. P to pause.",
-      touch: "Drag to lead them. Bless on the left, smite on the right."
+      keys: "Mouse, arrows or WASD to lead them. Click or Space to smite a rival god. B to bless. P to pause.",
+      touch: "Drag to lead them. Smite rival gods on the right. Bless on the left."
     },
     againLabel: "Play again",
     aim: true,

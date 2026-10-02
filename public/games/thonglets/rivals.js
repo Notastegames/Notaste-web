@@ -9,6 +9,9 @@
 //   update(dt)
 //   capture(f, dt, dl) take over a Thonglet this frame (true if it did)
 //   smite(x, y, r)     the player struck here: return a callout, or null
+//   aim(x, y, r)       true if a smite here would stop it (the gods with faces)
+//   mark()             the box round it to mark when a smite would land: { x, y, w, h } (y is its feet)
+//   hint()             when it needs dealing with: { x, y, word } for an arrow, or null
 //   blocks()           true while bricks can't be delivered (the Office)
 //   ground(c)          draw on the ground, under everyone
 //   stand()            things standing on the field: [{ y, draw(c) }]
@@ -91,8 +94,14 @@
         }
         return false;
       },
+      aim: function (x, y, r) { return me.live() && Math.hypot(me.x - x, me.y - y) <= r + 30; },
+      mark: function () { return { x: me.x, y: me.y + 4, w: 40, h: 62 }; },
+      hint: function () {
+        if (!me.live() || G.folk.filter(function (f) { return f.state === "stare"; }).length < 3) return null;
+        return { x: me.x, y: me.y - 66, word: "Smite it" };
+      },
       smite: function (x, y, r) {
-        if (!me.live() || Math.hypot(me.x - x, me.y - y) > r + 30) return null;
+        if (!me.aim(x, y, r)) return null;
         me.off = 10;
         var dazed = null;
         G.folk.forEach(function (f) { if (f.state === "stare") { f.state = "follow"; dazed = f; } });
@@ -196,8 +205,14 @@
         }
       },
       capture: function () { return false; },
+      aim: function (x, y, r) { return me.away <= 0 && Math.hypot(me.x - x, me.y - y) <= r + 8; },
+      mark: function () { return { x: me.x, y: me.y + 3, w: 30, h: 40 }; },
+      hint: function () {
+        if (me.away > 0 || me.rent < 3) return null;
+        return { x: me.x, y: me.y - (me.rent ? 54 : 44), word: "Smite: rent back" };
+      },
       smite: function (x, y, r) {
-        if (me.away > 0 || Math.hypot(me.x - x, me.y - y) > r + 8) return null;
+        if (!me.aim(x, y, r)) return null;
         if (me.rent) H.dropPile(me.x, me.y, me.rent);
         var got = me.rent;
         me.rent = 0;
@@ -332,8 +347,14 @@
         }
         return false;
       },
+      aim: function (x, y, r) { return me.phase === "boarding" && Math.hypot(me.x - x, me.y - 30 - y) <= r + 40; },
+      mark: function () { return { x: me.x, y: me.y + 4, w: 44, h: 88 }; },
+      hint: function () {
+        if (me.phase !== "boarding" || me.claimed < 1) return null;
+        return { x: me.x, y: me.y - 118, word: "Smite to scrub" };
+      },
       smite: function (x, y, r) {
-        if (me.phase !== "boarding" || Math.hypot(me.x - x, me.y - 30 - y) > r + 40) return null;
+        if (!me.aim(x, y, r)) return null;
         me.phase = "idle"; me.t = 10;
         me.aboard.forEach(function (f) { f.state = "stun"; f.t = 1; f.x = me.x + H.rand(-20, 20); f.y = me.y + H.rand(6, 20); f.vx = H.rand(-60, 60); f.vy = 60; });
         G.folk.forEach(function (f) { if (f.state === "board") f.state = "follow"; });
@@ -399,7 +420,7 @@
       if (me.phase === "boarding") {
         label(c, T, me.x, me.y - 92, "Boarding " + Math.ceil(me.t), 9, T.paper);
         var free = SEATS - me.claimed;
-        label(c, T, me.x, me.y - 106, free > 0 ? free + (free === 1 ? " seat left" : " seats left") : "Fully booked", 7, null, T.paper);
+        label(c, T, me.x, me.y - 105, free > 0 ? free + (free === 1 ? " seat left" : " seats left") : "Fully booked", 8, null, T.paper);
       }
     }
     return me;
@@ -447,8 +468,14 @@
         if (f.t <= 0) f.state = "follow";
         return true;
       },
+      aim: function (x, y, r) { return me.quiet <= 0 && Math.hypot(me.x - x, me.y - y) <= r + 24; },
+      mark: function () { return { x: me.x, y: me.y + 4, w: 44, h: 56 }; },
+      hint: function () {
+        if (me.quiet > 0 || G.folk.filter(function (f) { return f.state === "march"; }).length < 3) return null;
+        return { x: me.x, y: me.y - 60, word: "Smite: mic off" };
+      },
       smite: function (x, y, r) {
-        if (me.quiet > 0 || Math.hypot(me.x - x, me.y - y) > r + 24) return null;
+        if (!me.aim(x, y, r)) return null;
         me.quiet = 12;
         G.folk.forEach(function (f) { if (f.state === "march") f.state = "follow"; });
         H.say(me.who, "This is censorship. Very quiet censorship.", true);
@@ -530,6 +557,12 @@
         if (f.wet > 2.4) { H.lose([f], "sea"); return true; }
         return false;
       },
+      aim: function () { return false; },
+      hint: function () {
+        var deep = null;
+        G.folk.forEach(function (f) { if (!deep && f.wet > 0.7 && f.state !== "fall" && f.state !== "gone") deep = f; });
+        return deep ? { x: deep.x, y: deep.y - 40, word: "Out of the water" } : null;
+      },
       smite: function (x, y) {
         if (y < me.y() - 10) return null;
         return "You can't smite the sea";
@@ -569,10 +602,11 @@
   // many bricks. Smiting it makes it worse.
   // ---------------------------------------------------------------------------
   function office(G, H, spot) {
-    var QUEUE = 52, COVER = 30;
+    var QUEUE = 52;
+    var COVER = G.permitSize || 60;    // bricks a permit covers
     var me = {
       kind: "office", name: "The Planning Office", spot: spot,
-      x: 0, y: 0, permit: 0, left: 0, queued: 0, nag: 0,
+      x: 0, y: 0, permit: 0, left: 0, queued: 0, nag: 0, told: false,
       who: { x: 0, y: 0, lift: 52, state: "rival" },
       intro: "Statue. Have you got a permit for that.",
       lines: ["Take a number.", "Form B7 is in the other building.", "Closed for lunch. Lunch is all day.",
@@ -592,24 +626,32 @@
           if ((f.state === "follow" || f.state === "pray") && Math.hypot(f.x - me.x, (f.y - me.y - 22) * 1.4) < QUEUE) n++;
         });
         me.queued = n;
-        me.permit = Math.min(1, me.permit + dt * Math.min(1, n / 6) * 0.22);
+        me.permit = Math.min(1, me.permit + dt * Math.min(1, n / 6) * 0.45);
         if (me.permit >= 1) {
           me.left = COVER;
+          me.told = false;
           H.callout("Permit: approved");
           H.sfx.stamp();
           H.say(me.who, "Approved. Don't get used to it.", true);
         }
       },
       waiting: function (f) {
+        if (!me.told) { me.told = true; H.callout("Permit needed"); }
         if (me.nag <= 0) { me.nag = 6; H.say(f, H.pick(["Waiting for a permit.", "Is it a brick if it's not approved.", "We're in a queue. Holy queue."])); }
       },
       capture: function () { return false; },
+      aim: function () { return false; },
+      hint: function () {
+        if (me.left > 0 || me.queued >= 4) return null;
+        var carrying = 0;
+        G.folk.forEach(function (f) { if (f.carry) carrying++; });
+        return carrying ? { x: me.x, y: me.y + 36, word: "Get a permit" } : null;
+      },
+      // you can't smite paperwork, and it costs you nothing to find out
       smite: function (x, y, r) {
         if (Math.hypot(me.x - x, me.y - y) > r + 24) return null;
-        me.permit = Math.max(0, me.permit - 0.5);
-        if (me.left > 0) { me.left = 0; me.permit = 0; }
-        H.say(me.who, "Assaulting an office. That's another form.", true);
-        return "Permit: denied";
+        H.say(me.who, "Noted. In triplicate.", true);
+        return "You can't smite paperwork";
       },
       speak: function () { return H.pick(me.lines); },
       ground: function (c) {
