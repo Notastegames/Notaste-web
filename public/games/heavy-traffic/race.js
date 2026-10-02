@@ -25,7 +25,7 @@
   // Tuning. World units are roughly pixels at normal zoom.
   // ---------------------------------------------------------------------------
   var LAPS = 3;
-  var HW = 46;                       // half the road's width
+  var HW = 54;                       // half the road's width: room for three, if they'd share
   var KERB = 8;                      // kerb beyond the road edge
   var RUNOFF = 64;                   // gravel between the kerb and the wall
   var WALL = HW + KERB + RUNOFF;     // centre line to wall
@@ -34,11 +34,13 @@
   var BRAKE = 520;
   var REVERSE = 90;
   var TURN = 2.75;                   // radians per second at full lock
-  var STEER_LAG = 5.5;               // how fast the car agrees to steer
+  var STEER_LAG = 10;                // how fast the car agrees to steer
   var GRIP = 9;                      // how fast sideways sliding dies away
   var LEAN_DIV = 430;                // sideways force that lifts two wheels
   var LEAN_RATE = 4.5;
-  var SPIN_LEAN = 1.22;              // lean that tips into a spin if held (full lock above ~270)
+  var SPIN_LEAN = 1.3;               // lean that tips into a spin if held (full lock, flat out, with gas)
+  var TIP_TIME = 0.45;               // ...for this long: long enough to hear it coming
+  var GRAVEL_TOP = 0.72;             // top speed on the gravel, as a share of the usual
   var KART = 1.4;                    // drawing scale for karts and drivers
   var R = 15;                        // collision radius: mostly driver
   var STEP = 1 / 120;
@@ -49,18 +51,19 @@
   var GAS_TIME = 1.4;                // how long a blast lasts
 
   var DRIVERS = [
-    // the other three, all invented. power and corner are their skill.
+    // the other three, all invented. power and corner are their skill; pace
+    // spreads them out round the circuit so you meet them one at a time.
     // kart/suit/stripe colour the top-down view; look dresses them in the chase view.
     // Each one owns the road, and is at one with their kart. lines are theirs alone.
-    { name: "Gaz", kart: "accent", suit: "red", stripe: "paper", power: 0.965, corner: 0.93,
+    { name: "Gaz", kart: "accent", suit: "red", stripe: "paper", power: 0.85, corner: 0.84, pace: 0,
       look: { car: "accent", shirt: "red", pants: "ink", hat: "band", hatColour: "accent" },
       lines: ["I pay road tax. This is my road.", "Me and the kart are one. We've been through things.",
               "Lads. Lads. Lads.", "This is a private lane, mate.", "I was born in this kart."] },
-    { name: "Lorraine", kart: "paper", suit: "accent", stripe: "red", power: 0.975, corner: 0.9,
+    { name: "Lorraine", kart: "paper", suit: "accent", stripe: "red", power: 0.86, corner: 0.83, pace: 320,
       look: { car: "paper", shirt: "accent", pants: "red", hat: "perm", hatColour: "red" },
       lines: ["I was here first.", "I'll be speaking to your manager.", "This lane is for residents.",
               "Thirty years. Never once looked.", "She's called Pamela. Show her some respect."] },
-    { name: "Derek", kart: "ink", suit: "paper", stripe: "accent", power: 0.95, corner: 0.97,
+    { name: "Derek", kart: "ink", suit: "paper", stripe: "accent", power: 0.84, corner: 0.86, pace: -320,
       look: { car: "ink", shirt: "paper", pants: "accent", hat: "flatcap", hatColour: "ink", tache: true },
       lines: ["I've got all this on dashcam.", "Forty years. Not one indicator.", "The kart and I are married. Not legally.",
               "Mirror, signal, manoeuvre. Look it up.", "In my day this was all fields."] },
@@ -171,7 +174,9 @@
     }
   }
 
-  function turnFactor(speed) { return Math.min(1, speed / 70) * (1 - 0.32 * Math.min(1, speed / MAX)); }
+  // full steering from walking pace up, and a little even when stopped, so a kart
+  // that ends up nose to the wall can be pointed back down the road
+  function turnFactor(speed) { return Math.min(1, 0.25 + speed / 50) * (1 - 0.32 * Math.min(1, speed / MAX)); }
 
   function safeSpeed(curve) {
     if (curve < 1e-5) return MAX;
@@ -235,7 +240,8 @@
   var glCanvas = null;
   var view = null;         // the chase camera this frame
   var camA = 0;
-  var scenery = [];        // signs and tyre stacks round the outside
+  var scenery = [];        // signs, corner boards and tyre stacks round the outside
+  var barriers = [];       // the low wall along both sides, in short lengths
   var sky = null;
   var looks = {};
   var MAP = DEBUG && params.get("debug") === "map";
@@ -251,7 +257,7 @@
       a: Math.atan2(track.dy[i], track.dx[i]),
       vx: 0, vy: 0, yaw: 0, steer: 0, lean: 0, kick: 0, tip: 0,
       spin: 0, spinRate: 0, z: 0, vz: 0, hopWait: 0,
-      wheelOff: 0, wheelSide: 1, offroad: false, kerb: false, twoWheel: false,
+      wheelOff: 0, wheelSide: 1, offroad: false, kerb: false, twoWheel: false, walled: 0, draft: 0, stuck: 0,
       idx: i, s: 0, lat: 0, lap: 0, progress: 0, done: false, time: 0, place: slot + 1,
       lapStart: 0, bestLap: 0, wrong: 0, gravel: 0, scrapeWait: 0,
       power: d.power, skidL: null, skidR: null,
@@ -279,14 +285,14 @@
 
     // the car considers your steering before it does any
     k.steer += (ctl.steer - k.steer) * Math.min(1, dt * STEER_LAG);
-    var steer = clamp(k.steer + (k.wheelOff > 0 ? k.wheelSide * 0.2 : 0), -1, 1);
+    var steer = clamp(k.steer + (k.wheelOff > 0 ? k.wheelSide * 0.12 : 0), -1, 1);
 
     var cos = Math.cos(k.a), sin = Math.sin(k.a);
     var vf = k.vx * cos + k.vy * sin;
     var speed = Math.abs(vf);
 
     var yaw = 0;
-    if (k.spin > 0) { yaw = k.spinRate; k.spinRate *= Math.exp(-1.6 * dt); }
+    if (k.spin > 0) yaw = k.spinRate;
     else if (!air) yaw = TURN * steer * turnFactor(speed) * (vf < -5 ? -1 : 1);
     k.a += yaw * dt;
     k.yaw = yaw;
@@ -297,16 +303,16 @@
 
     if (!air) {
       var boosting = k.boost > 0;
-      var top = MAX * k.power * (boosting ? 1.3 : 1) * (k.offroad ? 0.5 : 1) * (k.wheelOff > 0 ? 0.86 : 1);
+      var top = MAX * k.power * (boosting ? 1.3 : 1) * (k.offroad ? GRAVEL_TOP : 1) * (k.wheelOff > 0 ? 0.9 : 1) * (k.draft > 0.3 ? 1.07 : 1);
       var a = 0;
       if (ctl.throttle > 0) a += ACCEL * ctl.throttle * (boosting ? 1.8 : 1);
       if (boosting) a += ACCEL * 0.6;
       if (ctl.brake > 0) a -= (vf > 8 ? BRAKE : ACCEL * 0.6) * ctl.brake;
       a -= vf * (ACCEL / top);                    // drag, which sets the top speed
-      if (k.offroad && speed > 5) a -= (vf > 0 ? 1 : -1) * 70;   // gravel
+      if (k.offroad && speed > 5) a -= (vf > 0 ? 1 : -1) * 35;   // gravel
       vf += a * dt;
       if (vf < -REVERSE) vf = -REVERSE;
-      var grip = k.spin > 0 ? 1.3 : (k.offroad ? 3.4 : GRIP) * (k.twoWheel ? 0.55 : 1);
+      var grip = k.spin > 0 ? 1.6 : (k.offroad ? 5.5 : GRIP) * (k.twoWheel ? 0.7 : 1);
       vr *= Math.exp(-grip * dt);
     }
     k.vx = vf * cos - vr * sin;
@@ -341,8 +347,8 @@
     var wasTwo = k.twoWheel;
     k.twoWheel = Math.abs(k.lean) > 1 && !air;
     if (k.twoWheel && !wasTwo && k.player && !flags.two) { flags.two = true; say("Two wheels. Plenty", 1); }
-    if (Math.abs(k.lean) > SPIN_LEAN) k.tip += dt; else k.tip = Math.max(0, k.tip - dt * 1.5);
-    if (k.tip > 0.3 && k.spin <= 0) spinOut(k);
+    if (Math.abs(k.lean) > SPIN_LEAN) k.tip += dt; else k.tip = Math.max(0, k.tip - dt * 2);
+    if (k.tip > TIP_TIME && k.spin <= 0) spinOut(k);
     k.roll = k.twoWheel ? clamp((Math.abs(k.lean) - 1) * 0.6 + 0.1, 0, 0.34) * (k.lean > 0 ? 1 : -1) : clamp(k.lean, -1, 1) * 0.05;
 
     wobble(k, dt, speed);
@@ -372,19 +378,43 @@
     k.anim += dt;
     if (!k.player) chatter(k, dt);
 
-    // going the wrong way
+    // going the wrong way, sitting in the gravel, or stuck against a barrier
     if (k.player && !k.done) {
       var along = k.vx * track.dx[k.idx] + k.vy * track.dy[k.idx];
       k.wrong = along < -40 ? k.wrong + dt : 0;
       if (k.wrong > 1.2) { k.wrong = -2; say("Wrong way", 2); }
       k.gravel = k.offroad ? k.gravel + dt : 0;
-      if (k.gravel > 1.6) { k.gravel = -4; say("That's gravel", 0); }
+      if (k.gravel > 1.6) { k.gravel = -6; say("That's gravel", 0); }
+      k.stuck = speed < 25 && k.spin <= 0 && (k.walled || k.offroad || k.wrong > 0) ? k.stuck + dt : 0;
+      if (k.stuck > 2.5) tow(k);
     }
   }
 
+  // Stuck for long enough and someone comes and puts you back on the road,
+  // facing the right way. There will be paperwork.
+  var TOW_LINES = ["Towed. Invoice to follow", "Recovered. Reluctantly", "Put back. Like a trolley"];
+  function tow(k) {
+    var i = k.idx;
+    k.x = track.x[i] + track.nx[i] * clamp(k.lat, -HW * 0.5, HW * 0.5);
+    k.y = track.y[i] + track.ny[i] * clamp(k.lat, -HW * 0.5, HW * 0.5);
+    k.a = Math.atan2(track.dy[i], track.dx[i]);
+    k.vx = k.vy = 0;
+    k.lean = k.tip = k.steer = 0;
+    k.stuck = k.wrong = 0;
+    k.offroad = false;
+    k.walled = 0;
+    locate(k, false);
+    bump(k, 1.5);
+    puff(k.x, k.y, 0.8);
+    say(pick(TOW_LINES), 2);
+  }
+
+  // Round once, and then a bit more, so the kart ends up facing down the road
+  // again. The dignity doesn't come back.
   function spinOut(k) {
-    k.spin = 1.1;
-    k.spinRate = (k.lean > 0 ? 1 : -1) * (7 + Math.random() * 3);
+    k.spin = 0.9;
+    var road = Math.atan2(track.dy[k.idx], track.dx[k.idx]);
+    k.spinRate = ((k.lean > 0 ? 1 : -1) * Math.PI * 2 + wrapAngle(road - k.a)) / k.spin;
     k.tip = 0;
     k.lean *= 0.3;
     for (var i = 0; i < 4; i++) puff(k.x, k.y, 0.8);
@@ -518,37 +548,51 @@
     N.sound.tone(330, 0.16, { type: "square", vol: 0.09, delay: 0.14 });
   }
 
+  // The barriers are forgiving. Hit one and you slide along it: the speed
+  // going into the wall goes, most of the rest stays, and the nose is turned
+  // back down the road. Only a proper head-on hit costs more than that.
+  var WALL_LINES = ["Barrier: consulted", "The wall has been informed", "Contact with the scenery"];
   function walls(k) {
-    var over = Math.abs(k.lat) - (WALL - R * 0.7);
-    if (over <= 0) return;
+    var limit = WALL - R * 0.7;
+    var over = Math.abs(k.lat) - limit;
+    if (over <= 0) { k.walled = 0; return; }
     var dir = k.lat > 0 ? 1 : -1;
     var nx = track.nx[k.idx] * dir, ny = track.ny[k.idx] * dir;   // pointing into the wall
     k.x -= nx * over;
     k.y -= ny * over;
+    k.lat = dir * limit;
+    k.walled = dir;
     var vn = k.vx * nx + k.vy * ny;
-    if (vn > 0) {
-      k.vx -= nx * vn * 1.35;
-      k.vy -= ny * vn * 1.35;
-      k.vx *= 0.84;
-      k.vy *= 0.84;
-      impact(k, vn, k.x + nx * R, k.y + ny * R, -nx, -ny);
+    if (vn <= 0) return;
+    var tx = k.vx - nx * vn, ty = k.vy - ny * vn;      // what's left, along the wall
+    var keep = 1 - Math.min(0.3, vn / 900);
+    k.vx = tx * keep - nx * vn * 0.12;
+    k.vy = ty * keep - ny * vn * 0.12;
+    var along = Math.hypot(tx, ty);
+    if (along > 25) {
+      var turn = wrapAngle(Math.atan2(ty, tx) - k.a);
+      if (Math.abs(turn) < Math.PI / 2) k.a += turn * Math.min(0.7, 0.15 + vn / 200);
     }
-    k.lat = dir * (WALL - R * 0.7);
+    if (vn > 70) {
+      impact(k, vn * 0.75, k.x + nx * R, k.y + ny * R, -nx, -ny, true);
+      if (k.player && vn > 110) say(pick(WALL_LINES), 0);
+    }
   }
 
-  // A knock: sparks, a lean, and past a point, a wheel leaves
-  function impact(k, strength, cx, cy, px, py) {
+  // A knock: sparks, a lean, and past a point, a wheel leaves. Walls (soft)
+  // knock you about less than other drivers do.
+  function impact(k, strength, cx, cy, px, py, soft) {
     if (strength < 40) return;
     sparks(cx, cy, Math.min(14, strength / 18), px, py);
     var right = { x: -Math.sin(k.a), y: Math.cos(k.a) };
     var sideways = px * right.x + py * right.y;
-    k.kick += sideways * strength / 300;
+    k.kick += sideways * strength / (soft ? 900 : 360);
     bump(k, strength / 110);
     k.jig.vuy -= sideways * strength / 25;
     if (near(k)) thud(strength);
-    if (k.player) shake(Math.min(0.9, strength / 260));
-    if (strength > 165 && k.wheelOff <= 0 && Math.random() < 0.6) {
-      k.wheelOff = 3.5;
+    if (k.player) shake(Math.min(soft ? 0.5 : 0.9, strength / 260));
+    if (strength > (soft ? 200 : 175) && k.wheelOff <= 0 && Math.random() < 0.5) {
+      k.wheelOff = 3;
       k.wheelSide = Math.random() < 0.5 ? -1 : 1;
       var wx = k.x + (Math.cos(k.a) * 8 - Math.sin(k.a) * 8 * k.wheelSide) * KART;
       var wy = k.y + (Math.sin(k.a) * 8 + Math.cos(k.a) * 8 * k.wheelSide) * KART;
@@ -656,12 +700,13 @@
     }
     // they own the road: some of the time, if you're right behind, they move over to block you
     ai.mood -= dt;
-    if (ai.mood <= 0) { ai.hog = !ai.hog && Math.random() < 0.6; ai.mood = 3 + Math.random() * 6; }
+    if (ai.mood <= 0) { ai.hog = !ai.hog && Math.random() < 0.4; ai.mood = 3 + Math.random() * 6; }
     if (ai.hog && player && !k.player && !k.done) {
       var behind = k.s - player.s;
       if (behind < -track.length / 2) behind += track.length;
       if (behind > track.length / 2) behind -= track.length;
-      if (behind > 15 && behind < 120) lane = player.lat;
+      // ...but not into you once you're alongside: that's a different conversation
+      if (behind > 30 && behind < 120) lane += (player.lat - lane) * 0.7;
     }
     lane = clamp(lane, -HW * 0.75, HW * 0.75);
 
@@ -669,14 +714,16 @@
     var diff = wrapAngle(Math.atan2(ty - k.y, tx - k.x) - k.a);
     var steer = clamp(diff * 2.3, -1, 1);
 
-    // slow down in time for the corners ahead
+    // slow down in time for the corners ahead (a little more when they're
+    // well ahead of you, see rubberBand)
     var target = MAX * k.power;
     var reach = speed * 1.2 + 120;
     var sharpest = MAX;
+    var care = k.d.corner * Math.max(0.86, Math.min(1.04, k.power / k.d.power));
     for (var u = 10; u < reach; u += 20) {
       var m = ahead(k.idx, u);
       sharpest = Math.min(sharpest, track.safe[m]);
-      var safe = track.safe[m] * k.d.corner;
+      var safe = track.safe[m] * care;
       var allowed = Math.sqrt(safe * safe + 2 * BRAKE * 0.6 * u);
       if (allowed < target) target = allowed;
     }
@@ -700,11 +747,13 @@
     return { steer: steer, throttle: throttle, brake: brake, gas: gas };
   }
 
-  // Keep the race close: the leaders ease off a touch, the stragglers find a bit
+  // Keep the race close: anyone well ahead of you eases off (out of sight, so
+  // nobody sees them dawdle), anyone behind finds a bit. Each settles at their
+  // own distance from you (pace), so the three of them don't travel as a wall.
   function rubberBand(k) {
     if (k.player || !player) return;
-    var gap = player.progress - k.progress;
-    k.power = k.d.power * (1 + clamp(gap / 2600, -0.07, 0.06));
+    var gap = player.progress - k.progress + k.d.pace;
+    k.power = k.d.power * (1 + clamp(gap / 1500, -0.2, 0.08));
   }
 
   // ---------------------------------------------------------------------------
@@ -845,7 +894,41 @@
     gain.connect(N.sound.out());
     o1.start();
     o2.start();
-    engine = { o1: o1, o2: o2, filter: filter, gain: gain, ac: ac };
+
+    // The tyres: a warbling square that squeals when you're sliding or up on
+    // two wheels (the warning before a spin), and a loop of noise for the
+    // scrape along a barrier and the rattle of gravel. Silent until needed.
+    var sq = ac.createOscillator(), wob = ac.createOscillator(), wobGain = ac.createGain();
+    var sqFilter = ac.createBiquadFilter(), sqGain = ac.createGain();
+    sq.type = "square";
+    sq.frequency.value = 980;
+    wob.frequency.value = 23;
+    wobGain.gain.value = 45;
+    wob.connect(wobGain);
+    wobGain.connect(sq.frequency);
+    sqFilter.type = "bandpass";
+    sqFilter.frequency.value = 1300;
+    sqFilter.Q.value = 3;
+    sqGain.gain.value = 0;
+    sq.connect(sqFilter);
+    sqFilter.connect(sqGain);
+    sqGain.connect(N.sound.out());
+    sq.start();
+    wob.start();
+    var buf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), data = buf.getChannelData(0);
+    for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    var hiss = ac.createBufferSource(), rough = ac.createBiquadFilter(), roughGain = ac.createGain();
+    hiss.buffer = buf;
+    hiss.loop = true;
+    rough.type = "bandpass";
+    rough.Q.value = 0.9;
+    rough.frequency.value = 500;
+    roughGain.gain.value = 0;
+    hiss.connect(rough);
+    rough.connect(roughGain);
+    roughGain.connect(N.sound.out());
+    hiss.start();
+    engine = { o1: o1, o2: o2, filter: filter, gain: gain, ac: ac, squeal: sqGain, sq: sq, rough: rough, roughGain: roughGain };
   }
 
   function engineNote(speed, throttle, on) {
@@ -856,6 +939,20 @@
     engine.o2.frequency.setTargetAtTime(f * 0.5, t, 0.05);
     engine.filter.frequency.setTargetAtTime(320 + speed * 2.2, t, 0.08);
     engine.gain.gain.setTargetAtTime(on ? 0.035 + throttle * 0.03 : 0, t, 0.12);
+
+    // tyres: louder and higher the nearer the spin
+    var k = player, squeal = 0, rough = 0, at = 500;
+    if (on && k && k.z <= 0 && k.spin <= 0 && speed > 60) {
+      var cos = Math.cos(k.a), sin = Math.sin(k.a);
+      var slide = Math.abs(-k.vx * sin + k.vy * cos);
+      squeal = Math.max(clamp((slide - 40) / 90, 0, 1) * 0.5, k.twoWheel ? 0.55 : 0, k.tip > 0 ? 0.75 + k.tip / TIP_TIME * 0.25 : 0);
+      if (k.walled) { rough = 0.09; at = 1500; }
+      else if (k.offroad) { rough = 0.07 * Math.min(1, speed / 150); at = 380; }
+    }
+    engine.sq.frequency.setTargetAtTime(900 + squeal * 300, t, 0.05);
+    engine.squeal.gain.setTargetAtTime(squeal * 0.032, t, squeal ? 0.03 : 0.08);
+    engine.rough.frequency.setTargetAtTime(at, t, 0.02);
+    engine.roughGain.gain.setTargetAtTime(rough, t, rough ? 0.02 : 0.06);
   }
 
   // ---------------------------------------------------------------------------
@@ -947,8 +1044,28 @@
       stepKart(k, dt, ctl);
     }
     collide();
+    slipstream(dt);
     stepParts(dt);
     rank();
+  }
+
+  // Tuck in right behind someone and the air's easier. Not nicer: easier.
+  function slipstream(dt) {
+    for (var i = 0; i < karts.length; i++) {
+      var k = karts[i], tucked = false;
+      var speed = Math.hypot(k.vx, k.vy);
+      if (speed > 150 && k.spin <= 0 && !k.offroad) {
+        for (var j = 0; j < karts.length; j++) {
+          var o = karts[j];
+          if (o === k) continue;
+          var gap = o.s - k.s;
+          if (gap < -track.length / 2) gap += track.length;
+          if (gap > 28 && gap < 120 && Math.abs(o.lat - k.lat) < 22) { tucked = true; break; }
+        }
+      }
+      k.draft = tucked ? Math.min(1, k.draft + dt * 1.5) : Math.max(0, k.draft - dt * 2.5);
+      if (k.player && k.draft > 0.9 && !flags.draft) { flags.draft = true; say("Slipstream: unpleasant", 1); }
+    }
   }
 
   function rank() {
@@ -1487,11 +1604,54 @@
       scenery.push({ t: "sign", text: SIGNS[n % SIGNS.length], tilt: (rand() - 0.5) * 0.08,
                      x: track.x[i] + track.nx[i] * side * (WALL + 30), y: track.y[i] + track.ny[i] * side * (WALL + 30) });
     }
+    // Arrow boards on the outside of every corner you need to brake for,
+    // starting a little before it, pointing the way it goes
+    var boards = {};
+    for (var c = 0; c < track.n; c++) {
+      var prev = (c - 1 + track.n) % track.n;
+      if (track.safe[c] < MAX * 0.8 && track.safe[prev] >= MAX * 0.8) {
+        var turn = track.k[ahead(c, 60)] > 0 ? 1 : -1;
+        for (var b = -4; b <= 8; b += 6) {
+          var bi = ahead(c, b * 10);
+          boards[bi] = true;
+          var o = -turn * (WALL + 16);
+          scenery.push({ t: "arrows", turn: turn, x: track.x[bi] + track.nx[bi] * o, y: track.y[bi] + track.ny[bi] * o });
+        }
+      }
+    }
     for (var j = 0; j < track.n; j += 9) {
       if (Math.abs(track.k[j]) < 0.0035) continue;
+      var near = false;
+      for (var q = -5; q <= 5; q++) if (boards[(j + q + track.n) % track.n]) near = true;
+      if (near) continue;
       var out = track.k[j] > 0 ? -1 : 1;
       scenery.push({ t: "tyres", x: track.x[j] + track.nx[j] * out * (WALL + 10), y: track.y[j] + track.ny[j] * out * (WALL + 10) });
     }
+    buildBarriers();
+  }
+
+  // The low wall along both sides of the circuit, in 20-unit lengths, wherever
+  // the white line on the ground is: not where the gravel of two parts of the
+  // circuit runs together, and not on the inside of corners too tight for it.
+  var BAR_H = 6;
+  function buildBarriers() {
+    barriers = [];
+    var off = WALL + 2;
+    [-1, 1].forEach(function (side) {
+      var last = null;
+      for (var i = 0; i <= track.n; i += 2) {
+        var j = i % track.n;
+        var x = track.x[j] + track.nx[j] * side * off, y = track.y[j] + track.ny[j] * side * off;
+        var clear = true;
+        for (var m = 0; m < track.n && clear; m++) {
+          var dx = x - track.x[m], dy = y - track.y[m];
+          if (dx * dx + dy * dy < (off - 6) * (off - 6)) clear = false;
+        }
+        var pt = clear ? { x: x, y: y } : null;
+        if (pt && last) barriers.push({ ax: last.x, ay: last.y, bx: pt.x, by: pt.y, x: (last.x + pt.x) / 2, y: (last.y + pt.y) / 2, red: (i / 2) % 5 === 0 });
+        last = pt;
+      }
+    });
   }
 
   function render3D(dt) {
@@ -1531,15 +1691,21 @@
       items.push({ depth: depth, draw: draw });
     }
     scenery.forEach(function (o) { add(o.x, o.y, function (d) { fogged(d, function () { drawScenery(c, o); }); }); });
+    for (var b = 0; b < barriers.length; b++) {
+      var bar = barriers[b];
+      var bd = (bar.x - view.x) * fx + (bar.y - view.y) * fy;
+      if (bd < 20 || bd > view.fogFar) continue;
+      items.push({ depth: bd, bar: bar, draw: drawBarrierAt });
+    }
     karts.forEach(function (k) { add(k.x, k.y, function (d) { fogged(d, function () { HTL.drawKart(c, k, view, looks[k.name], T, DPR); }); }); });
     parts.forEach(function (p) { add(p.x, p.y, function (d) { fogged(d, function () { drawPart3D(c, p); }); }); });
     items.sort(function (a, b) { return b.depth - a.depth; });
-    items.forEach(function (it) { it.draw(it.depth); });
+    items.forEach(function (it) { it.draw(it.depth, it.bar); });
 
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     c.globalAlpha = 1;
     karts.forEach(function (k) { if (!k.player && k.speech.t > 0 && k.speech.text) drawBubble(c, k); });
-    if (player.boost > 0 && !shell.reduceMotion) speedLines(c);
+    if (!shell.reduceMotion && (player.boost > 0 || player.draft > 0.5)) speedLines(c, player.boost > 0 ? 9 : 4);
     drawMini(c);
   }
 
@@ -1674,7 +1840,67 @@
     var at = window.HeavyTraffic.placeOnScreen(view, o.x, o.y, 0);
     if (!at || at.x < -300 || at.x > W + 300) return;
     if (o.t === "sign") drawSign(c, o, at);
+    else if (o.t === "arrows") drawArrows(c, o, at);
     else drawTyres(c, at);
+  }
+
+  // One length of the low wall: white, an ink edge along the top, and every
+  // so often a red one so you can tell it's going past
+  function drawBarrierAt(depth, bar) {
+    fogged(depth, function () { drawBarrier(ctx, bar); });
+  }
+  function drawBarrier(c, bar) {
+    var place = window.HeavyTraffic.placeOnScreen;
+    var a0 = place(view, bar.ax, bar.ay, 0), b0 = place(view, bar.bx, bar.by, 0);
+    if (!a0 || !b0) return;
+    if ((a0.x < -40 && b0.x < -40) || (a0.x > W + 40 && b0.x > W + 40)) return;
+    var a1y = a0.y - BAR_H * a0.s, b1y = b0.y - BAR_H * b0.s;
+    c.beginPath();
+    c.moveTo(a0.x, a0.y);
+    c.lineTo(b0.x, b0.y);
+    c.lineTo(b0.x, b1y);
+    c.lineTo(a0.x, a1y);
+    c.closePath();
+    c.fillStyle = bar.red ? T.red : T.paper;
+    c.fill();
+    c.lineJoin = "round";
+    c.lineWidth = Math.max(1, (a0.s + b0.s) * 0.18);
+    c.strokeStyle = T.ink;
+    c.stroke();
+    c.beginPath();
+    c.moveTo(a0.x, a1y);
+    c.lineTo(b0.x, b1y);
+    c.lineWidth = Math.max(1.5, (a0.s + b0.s) * 0.45);
+    c.stroke();
+  }
+
+  // A board of arrows on the outside of a corner: this way, and slower
+  function drawArrows(c, o, at) {
+    var s = at.s;
+    var bw = 30 * s, bh = 14 * s, post = 9 * s;
+    if (bw < 3) return;
+    c.fillStyle = T.ink;
+    c.fillRect(at.x - s * 1.2, at.y - post - 1, s * 2.4, post + 1);
+    var top = at.y - post - bh;
+    c.fillStyle = T.paper;
+    c.strokeStyle = T.ink;
+    c.lineWidth = Math.max(1, s * 0.7);
+    c.lineJoin = "round";
+    c.fillRect(at.x - bw / 2, top, bw, bh);
+    c.strokeRect(at.x - bw / 2, top, bw, bh);
+    c.fillStyle = T.red;
+    for (var i = -1; i <= 1; i++) {
+      var cx = at.x + i * bw * 0.28, d = o.turn;
+      c.beginPath();
+      c.moveTo(cx - d * bw * 0.12, top + bh * 0.16);
+      c.lineTo(cx + d * bw * 0.04, top + bh * 0.16);
+      c.lineTo(cx + d * bw * 0.16, top + bh * 0.5);
+      c.lineTo(cx + d * bw * 0.04, top + bh * 0.84);
+      c.lineTo(cx - d * bw * 0.12, top + bh * 0.84);
+      c.lineTo(cx, top + bh * 0.5);
+      c.closePath();
+      c.fill();
+    }
   }
 
   function drawSign(c, o, at) {
@@ -1821,12 +2047,12 @@
     return t;
   }
 
-  // white motion lines while the gas is on
-  function speedLines(c) {
+  // white motion lines while the gas is on, and a few in someone's slipstream
+  function speedLines(c, n) {
     var cx = W / 2, cy = view.horizon + (H - view.horizon) * 0.35, big = Math.max(W, H);
     c.strokeStyle = T.paper;
     c.lineCap = "round";
-    for (var i = 0; i < 9; i++) {
+    for (var i = 0; i < n; i++) {
       var ang = Math.random() * Math.PI * 2;
       var r0 = big * (0.42 + Math.random() * 0.1), r1 = r0 + big * (0.12 + Math.random() * 0.15);
       c.globalAlpha = 0.3 + Math.random() * 0.3;
