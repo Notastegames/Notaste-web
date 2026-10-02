@@ -26,12 +26,16 @@ Free satirical browser games at notastegames.com. Plain static site in `public/`
 | `public/index.html`, `public/main.js`, `public/styles.css` | Homepage and shared site styles |
 | `public/games/game.css`, `public/games/game.js` | Shared game page layout, cabinet, "More games", share button, placeholder boot |
 | `public/games/kit/` | Shared game kit used by every playable game |
+| `public/games/starter/` | In Tray, the starter game: copy it to start a new game |
 | `public/games/<slug>/` | One folder per game |
 | `public/art/` | Game covers (800×600 SVG) and share images (1200×630 PNG) |
 | `public/brand/` | Logo files |
 | `tools/build_font.py` | Rebuilds the Notaste Display font |
+| `tools/playtest.mjs` | The automatic play-through: every page, every game played to the end |
 | `wrangler.jsonc` | Cloudflare config (keep the `previews` block, preview builds need it) |
 
 ## Checking work
 
-Serve `public/` locally (`python3 -m http.server -d public 8787`) and check pages in a browser at phone width (375px) and desktop width, with no console errors and no sideways scrolling. Games: play a full round with keyboard, and check touch controls and reduced motion.
+Run `node tools/playtest.mjs` (Playwright is needed once: `npm install -g playwright`). It checks every page at phone width (375px) and desktop width for console errors, failed or third-party requests and sideways scrolling, and plays every kit game to the end with its autopilot. It must pass before a pull request.
+
+Then serve `public/` locally (`python3 -m http.server -d public 8787`) and look at what changed in a browser at both widths. Games: play a full round with keyboard, and check touch controls and reduced motion.

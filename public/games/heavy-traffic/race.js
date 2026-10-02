@@ -18,7 +18,7 @@
   if (!N || !root) return;
 
   var params = new URLSearchParams(window.location.search);
-  var AUTOPILOT = params.has("autopilot"); // for testing: the computer drives your kart as well
+  var AUTOPILOT = N.flags.autopilot;  // ?autopilot or ?clip: the computer drives your kart as well
   var DEBUG = params.has("debug");
 
   // ---------------------------------------------------------------------------
@@ -247,6 +247,7 @@
   var MAP = DEBUG && params.get("debug") === "map";
 
   function makeKart(d, slot) {
+    var r = shell.random;   // seeded: in today's race everyone meets the same moods
     var row = Math.floor(slot / 2), side = slot % 2 ? 1 : -1;
     var s0 = track.length - 40 - row * 46;
     var i = Math.floor(s0 / 10) % track.n;
@@ -261,12 +262,12 @@
       idx: i, s: 0, lat: 0, lap: 0, progress: 0, done: false, time: 0, place: slot + 1,
       lapStart: 0, bestLap: 0, wrong: 0, gravel: 0, scrapeWait: 0,
       power: d.power, skidL: null, skidR: null,
-      roll: 0, gas: 0.5 + Math.random() * 0.4, boost: 0, gasHeld: false, sweatWait: 0,
-      headTurn: 0, shoutSide: 1, anim: 0, speech: { text: "", t: 0, wait: 3 + Math.random() * 4 },
+      roll: 0, gas: 0.5 + r() * 0.4, boost: 0, gasHeld: false, sweatWait: 0,
+      headTurn: 0, shoutSide: 1, anim: 0, speech: { text: "", t: 0, wait: 3 + r() * 4 },
       jig: { uy: 0, vuy: 0, uz: 0, vuz: 0, ly: 0, vly: 0, lz: 0, vlz: 0 },
-      ai: { lane: Math.random() * 6, wander: 0.3 + Math.random() * 0.3, bias: (Math.random() - 0.5) * 14,
-            delay: 0.1 + Math.random() * 0.35, stuck: 0, reverse: 0,
-            oops: 8 + Math.random() * 14, armed: false, overcook: 0, hog: false, mood: 2 + Math.random() * 6 }
+      ai: { lane: r() * 6, wander: 0.3 + r() * 0.3, bias: (r() - 0.5) * 14,
+            delay: 0.1 + r() * 0.35, stuck: 0, reverse: 0,
+            oops: 8 + r() * 14, armed: false, overcook: 0, hog: false, mood: 2 + r() * 6 }
     };
     locate(k, true);
     k.progress = k.s - track.length;
@@ -995,8 +996,8 @@
     cam.zoom = Math.min(W, H) / VIEW;
     cam.shake = 0;
     camA = player.a;
-    var grid = GRID.slice().sort(function () { return Math.random() - 0.5; });
-    karts.filter(function (k) { return !k.player; }).sort(function () { return Math.random() - 0.5; }).slice(0, 2)
+    var grid = GRID.slice().sort(function () { return shell.random() - 0.5; });
+    karts.filter(function (k) { return !k.player; }).sort(function () { return shell.random() - 0.5; }).slice(0, 2)
       .forEach(function (k, i) { k.speech = { text: grid[i], t: 3.6 + i * 0.4, wait: 6 }; k.headTurn = Math.PI * 0.9 * (i ? 1 : -1); });
     if (!Object.keys(looks).length) {
       DRIVERS.forEach(function (d) {
@@ -1098,18 +1099,18 @@
   ];
 
   function playerFinished() {
-    var best = shell.store.get("best", 0);
-    var bestLap = shell.store.get("bestLap", 0);
-    var newBest = !best || player.time < best;
-    var newLap = player.bestLap && (!bestLap || player.bestLap < bestLap);
-    if (newBest) shell.store.set("best", player.time);
-    if (newLap) shell.store.set("bestLap", player.bestLap);
+    // bests are times, so lower wins; today's race keeps today's separately
+    var rec = shell.record(player.time, { lower: true });
+    var lap = shell.record(player.bestLap, { lower: true, key: "bestLap" });
     var stats = [
       { label: "Time", value: N.fmtTime(player.time * 1000) },
-      { label: "Best lap", value: player.bestLap ? N.fmtTime(player.bestLap * 1000) : "-", highlight: newLap },
-      { label: newBest ? "New best" : "Best", value: N.fmtTime((newBest ? player.time : best) * 1000), highlight: newBest }
+      { label: "Best lap", value: player.bestLap ? N.fmtTime(player.bestLap * 1000) : "-", highlight: lap.isNew },
+      { label: rec.isNew ? (shell.daily ? "New best today" : "New best") : (shell.daily ? "Best today" : "Best"),
+        value: N.fmtTime(rec.best * 1000), highlight: rec.isNew }
     ];
+    if (shell.daily) stats.unshift({ label: "Race", value: shell.today });
     shell.finish({
+      share: N.fmtTime(player.time * 1000) + ", " + N.ordinal(player.place) + " of " + karts.length,
       place: player.place,
       total: karts.length,
       heading: player.place === 1 ? "You won." : "You finished " + N.ordinal(player.place) + ".",
@@ -2126,6 +2127,8 @@
       touch: "It accelerates by itself. Steer on the left. Gas and brake on the right."
     },
     againLabel: "Race again",
+    daily: { label: "Today's race" },
+    pitch: "Kart racing. Large drivers, tiny cars. Physics has given up.",
     touch: [
       { key: "left", label: "Steer left", icon: "left", side: "left" },
       { key: "right", label: "Steer right", icon: "right", side: "left" },

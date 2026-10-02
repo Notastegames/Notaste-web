@@ -2,17 +2,18 @@
 <html lang="en-GB">
 <head>
   <!--
-    Game page for a playable game. To add a game: copy this folder to
-    /games/<new-slug>/, replace race.js with the new game (built with the kit
-    in /games/kit/), change everything marked EDIT on this page, then add one
-    line to GAMES in /games/game.js. Cover art lives at /art/<slug>.svg
-    (800x600). Design rules: DESIGN.md.
+    The starter game page. To add a game: copy this folder to /games/<slug>/,
+    rename starter.js and rewrite it as the new game, change everything marked
+    EDIT on this page and in the script, then add one line to GAMES in
+    /games/game.js, a poster on the homepage and a line in the sitemap.
+    The full checklist is at the end of DESIGN.md.
   -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- EDIT: title, description and the og: tags -->
-  <title>Heavy Traffic: Notaste Games</title>
-  <meta name="description" content="Kart racing with big drivers in tiny cars, on tracks where physics has given up. A free browser game in poor taste from Notaste Games. Early prototype, playable now.">
+  <!-- EDIT: title, description and the og: tags. Delete the robots line: it keeps the starter out of search. -->
+  <title>In Tray: Notaste Games</title>
+  <meta name="description" content="Catch the paperwork. File it before the coffee gets it. The example game Notaste Games builds new games from.">
+  <meta name="robots" content="noindex">
   <meta name="theme-color" content="#000000">
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -27,10 +28,11 @@
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Notaste Games">
-  <meta property="og:title" content="Heavy Traffic">
-  <meta property="og:description" content="Big drivers. Tiny karts. Physics has given up. Free in your browser.">
-  <meta property="og:url" content="https://notastegames.com/games/heavy-traffic/">
-  <meta property="og:image" content="https://notastegames.com/art/og-heavy-traffic.png">
+  <meta property="og:title" content="In Tray">
+  <meta property="og:description" content="Catch the paperwork. File it before the coffee gets it.">
+  <meta property="og:url" content="https://notastegames.com/games/starter/">
+  <!-- EDIT: /art/og-<slug>.png, 1200x630 -->
+  <meta property="og:image" content="https://notastegames.com/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
@@ -38,8 +40,9 @@
 <!--
   EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
   --accent is the game's colour (same as its GAMES entry and its homepage poster).
+  The starter borrows smoke; a real game picks its own and adds it to DESIGN.md.
 -->
-<body class="game" data-game="heavy-traffic" style="--accent: #4f9e9a">
+<body class="game" data-game="starter" style="--accent: #a6a6a6">
   <a class="skip" href="#main">Skip to content</a>
 
   <header class="top">
@@ -58,24 +61,24 @@
   <main id="main">
     <div class="game-page wrap">
 
-      <!-- EDIT: title, stamp (and its tilt), pitch -->
+      <!-- EDIT: title, stamp (and its tilt), state, pitch -->
       <div class="game-head">
-        <h1>Heavy Traffic</h1>
+        <h1>In Tray</h1>
         <div class="game-meta">
-          <span class="stamp-label" style="--tilt: 4deg">Not approved</span>
-          <p class="game-state"><span class="dot" aria-hidden="true"></span>Early prototype</p>
+          <span class="stamp-label" style="--tilt: -4deg">Pending review</span>
+          <p class="game-state"><span class="dot" aria-hidden="true"></span>Example game</p>
         </div>
-        <p class="game-pitch">Kart racing for drivers who were promised more legroom. The cars are small. The physics has given up.</p>
+        <p class="game-pitch">Catch the paperwork. File it before the coffee gets it. None of it will be read. This is the example new Notaste games are built from.</p>
       </div>
 
       <section class="cabinet" aria-label="Game screen">
         <div class="screen">
-          <!-- EDIT: cover art path -->
-          <img class="screen-art" src="/art/heavy-traffic.svg" alt="" width="800" height="600">
+          <!-- EDIT: the cover art, once it's drawn:
+          <img class="screen-art" src="/art/<slug>.svg" alt="" width="800" height="600"> -->
 
-          <!-- The race. /games/kit/kit.js builds the screens in here, race.js is the game. -->
+          <!-- The game. /games/kit/kit.js builds the screens in here, starter.js is the game. -->
           <div id="game-root">
-            <noscript><p class="kit-noscript">Heavy Traffic needs JavaScript switched on. The car needs a lot of things.</p></noscript>
+            <noscript><p class="kit-noscript">In Tray needs JavaScript switched on. The paperwork can wait. It always does.</p></noscript>
           </div>
         </div>
         <p class="cabinet-strip"><span>Notaste Games</span><span>Free play</span></p>
@@ -85,10 +88,9 @@
         <h2>How to play</h2>
         <!-- EDIT: two or three short lines -->
         <ul class="how">
-          <li>Arrow keys or WASD. On a phone it accelerates by itself. Steer early: the car will consider it.</li>
-          <li>Arrow boards mean a corner. Too fast and you're on two wheels, and the tyres will say so. Faster still and you're facing the wrong way.</li>
-          <li>Space (or the Gas button) when the meter's full. Everyone behind you will know. Sit right behind someone and their slipstream does some of the work.</li>
-          <li>Three laps. First across the line wins. Getting out of the car is a separate game. Today's race lines up the same rivals, in the same moods, for everyone.</li>
+          <li>Move the tray with the arrow keys, the mouse or a finger, and catch the forms as they fall.</li>
+          <li>File the stack with Space, a click or the File button. Bigger stacks score more. Twelve and it falls over.</li>
+          <li>Coffee soaks anything you haven't filed. Today's run drops the same paperwork for everyone.</li>
         </ul>
         <div class="share">
           <button class="btn-line" id="share" type="button">Share</button>
@@ -119,8 +121,7 @@
 
   <script src="/games/game.js" defer></script>
   <script src="/games/kit/kit.js" defer></script>
-  <script src="/games/heavy-traffic/ground.js" defer></script>
-  <script src="/games/heavy-traffic/driver.js" defer></script>
-  <script src="/games/heavy-traffic/race.js" defer></script>
+  <!-- EDIT: the game's own scripts -->
+  <script src="/games/starter/starter.js" defer></script>
 </body>
 </html>

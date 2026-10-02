@@ -723,3 +723,66 @@ html.kit-lock body { overflow: hidden; overscroll-behavior: none; }
   font-size: var(--step--1);
   text-align: center;
 }
+
+/* ---------- Clip mode (?clip): a 9:16 frame for filming ---------- */
+
+/* everything else on the page steps aside; the frame fills the window's height */
+html.kit-clip-on,
+html.kit-clip-on body { height: 100%; overflow: hidden; }
+html.kit-clip-on body > :not(.kit-clip) { display: none !important; }
+
+.kit-clip {
+  position: fixed;
+  inset: 0;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4cqw;
+  width: min(100vw, 56.25vh);
+  height: min(100vh, 177.78vw);
+  margin: auto;
+  padding: 7cqw 5cqw 8cqw;
+  background: var(--ink) var(--grain);
+  cursor: none;
+}
+
+.kit-clip-top img { width: 40cqw; height: auto; }
+
+.kit-clip .screen {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 3cqw;
+}
+.kit-clip .kit-bar,
+.kit-clip .kit-touch { display: none !important; }
+
+.kit-clip-foot { display: grid; justify-items: start; gap: 2.6cqw; }
+.kit-clip-foot p { margin: 0; }
+.kit-clip-title {
+  padding-top: 2cqw;
+  border-top: 1.4cqw solid var(--accent, var(--paper));
+  font-family: var(--display);
+  font-size: 13cqw;
+  line-height: 0.88;
+  text-transform: uppercase;
+}
+.kit-clip-pitch { max-width: 34ch; font-size: 4.4cqw; line-height: 1.35; }
+.kit-clip-url {
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  color: var(--smoke);
+  font-family: var(--display);
+  font-size: 5cqw;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.kit-clip-url::before {
+  content: "";
+  width: 2.2cqw;
+  height: 2.2cqw;
+  border-radius: 50%;
+  background: var(--accent, var(--smoke));
+}

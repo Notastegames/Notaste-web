@@ -10,8 +10,8 @@ Last updated: 2 October 2026.
 
 - **Playable:** Thonglets (seven stages, Judgement Day, a daily run) and Heavy Traffic (still labelled an early prototype).
 - **Placeholder:** Slop Cannon, next out of the door.
-- **Built:** the shared game kit, `DESIGN.md`, per-game share images, and the preview-then-approve process.
-- **Not yet:** socials, a shop link, a way to share a score, and a homepage that works with more than three games.
+- **Built:** the shared game kit (with today's run, Share result and a clip mode for filming), the starter game, the automatic play-through, `DESIGN.md`, per-game share images, a privacy note, and the preview-then-approve process.
+- **Not yet:** the socials (accounts partly set up, not linked yet), a shop link, and a homepage that works with more than three games.
 
 ## The goals
 
@@ -44,17 +44,17 @@ Heavy Traffic needs one polish pass against this list before it drops the protot
 - [x] Put a playable game (Thonglets) in the big featured slot until Slop Cannon is ready. "More games" lists playable games first too.
 - [x] A short privacy note at `/privacy/` ("We save your best scores in your browser. That's it."), linked from every footer.
 - [ ] A contact address. Left off for now; add it to the privacy page and footer once there is one.
-- [ ] **Owner:** reserve `@notastegames` on TikTok, YouTube, Instagram, X and Bluesky now, so nobody else takes it. Don't post or link them yet; the Follow section stays as it is until phase 5.
+- [ ] **Owner:** reserve `@notastegames` on TikTok, YouTube, Instagram, X and Bluesky now, so nobody else takes it. Partly done. Don't post or link them yet; the Follow section stays as it is until phase 5.
 
 ## Phase 2: make games cheaper and easier to share
 
 Do this before game 3, so every game after it gets these for free.
 
-- [ ] **A starter game in the kit.** A small example of about 300 lines to copy instead of Heavy Traffic (about 2,700 lines across three files). Update the checklist in `DESIGN.md` section 12 to point at it.
-- [ ] **A daily run for every game.** Move Thonglets' seeded "Today's run" into the kit.
-- [ ] **Share your result.** A button on the results screen that shares or copies one line and a link: "Thonglets, today's run: 4,210. Not approved. notastegames.com/games/thonglets". Text only, Wordle-style.
-- [ ] **A clip mode.** `?clip` shows the game in a tall 9:16 frame, with no cabinet and the autopilot playing, ready for screen recording. This is where the social clips come from.
-- [ ] **An automatic play-through.** A script in `tools/` loads every game in a headless browser with `?autopilot` and plays a round at 375px and desktop width. It fails on console errors or sideways scrolling. It's for checking only and never ships, but it's a new dependency, so it needs the owner's OK first.
+- [x] **A starter game in the kit.** In Tray (`public/games/starter/`), a whole small game of about 300 lines, to copy instead of Heavy Traffic (about 2,700 lines across three files). The checklist in `DESIGN.md` section 12 points at it.
+- [x] **A daily run for every game.** Today's run is in the kit (`daily: true`). Thonglets uses it, and Heavy Traffic has a "Today's race".
+- [x] **Share your result.** A button on the results screen that shares or copies one line and a link: "Thonglets, today's run: 4,210. Not approved. notastegames.com/games/thonglets". Text only, Wordle-style.
+- [x] **A clip mode.** `?clip` shows the game in a tall 9:16 frame, with no cabinet and the autopilot playing, ready for screen recording. This is where the social clips come from.
+- [x] **An automatic play-through.** `node tools/playtest.mjs` checks every page at 375px and desktop width and plays every kit game to its results screen with the autopilot. It fails on console errors, failed or third-party requests, or sideways scrolling. It's for checking only and never ships.
 
 ## Phase 3: games 3 to 10
 
@@ -135,7 +135,7 @@ The realistic big break is one game or one clip catching on. Daily runs, shareab
 
 - [ ] Reserve the social handles (phase 1).
 - [ ] A contact address for the site (phase 1).
-- [ ] OK the automatic play-through tool (phase 2).
+- [x] OK the automatic play-through tool (phase 2).
 - [ ] Pick or swap the game ideas, and their order.
 - [ ] The shop URL for the Shop link (phase 4).
 - [ ] Whether and when to apply to the advert portals.
