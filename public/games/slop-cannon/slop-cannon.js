@@ -820,6 +820,7 @@
     });
     tickFx(dt);
     tickBubbles(dt);
+    paintHud(dt);
 
     if (phase === "finale") {
       flood = Math.min(1, flood + dt / 1.6);
@@ -924,7 +925,6 @@
     if (clock > 0.6 && clock - dt <= 0.6) gafferSay(stage === 0 ? GAFFER.start : GAFFER.start.slice(0, 3), true);
 
     if (timeLeft <= 0) { phase = "wrap"; wrapT = 0; charging = false; }
-    paintHud(dt);
   }
 
   // The arc as it stands, and the post it'll land on by the time it gets
@@ -1029,33 +1029,32 @@
     var score = Math.round(run.score);
     var rec = shell.record(score);
     var rank, heading, line;
+    // short enough to fit a phone's square screen: a one-line heading, two lines of joke
     if (why === "approved") {
       rank = 1;
-      heading = "The feed is " + pct + "% slop.";
-      line = "Nobody can tell what's real any more. Engagement has never been higher. The board has approved a bigger cannon.";
+      heading = "Feed: " + pct + "% slop.";
+      line = "Nobody can tell what's real any more. The board has approved a bigger cannon.";
     } else if (why === "done") {
       rank = 2;
-      heading = "The feed is " + pct + "% slop.";
+      heading = "Feed: " + pct + "% slop.";
       line = "Short of the final target. The board will review it, which means nobody will.";
     } else if (run.reached >= 1) {
       rank = 3;
-      heading = "Funding pulled at stage " + (run.reached + 1) + ".";
-      line = "There are still real people in the feed, posting their tea. The board has bought a bigger cannon from someone else.";
+      heading = "Funding pulled.";
+      line = "Real people are still in the feed, posting their tea. The board has found a bigger cannon.";
     } else {
       rank = 4;
-      heading = "Funding pulled at stage 1.";
+      heading = "Funding pulled.";
       line = "The feed is still mostly people's dinners. The board has seen enough dinners.";
     }
-    var stats = [
-      { label: "Engagement", value: fmt(score) },
-      { label: "Reached", value: run.reached === LAST ? "Final push" : "Stage " + (run.reached + 1) + " of 3" },
-      { label: "Feed", value: pct + "% slop" },
-      { label: "Real posts slopped", value: String(run.realSlopped) },
-      { label: "Best chain", value: String(run.bestChain) },
-      { label: "Moderated", value: String(run.caught) },
-      { label: rec.isNew ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
-        value: fmt(rec.isNew ? score : rec.best || 0), highlight: rec.isNew }
-    ];
+    // two rows at most: how far you got only matters if you didn't finish
+    var stats = [{ label: "Engagement", value: fmt(score) }];
+    if (rank > 2) stats.push({ label: "Reached", value: "Stage " + (run.reached + 1) });
+    stats.push({ label: "Feed", value: pct + "% slop" });
+    if (rank <= 2) stats.push({ label: "Slopped", value: run.realSlopped + " posts" });
+    if (rank <= 2 && !run.daily) stats.push({ label: "Best chain", value: String(run.bestChain) });
+    stats.push({ label: rec.isNew ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
+                 value: fmt(rec.isNew ? score : rec.best || 0), highlight: rec.isNew });
     if (run.daily) stats.unshift({ label: "Run", value: shell.today });
     shell.finish({
       place: rank, total: 4, heading: heading, line: line, stats: stats, delay: why === "pulled" ? 1600 : 900,
