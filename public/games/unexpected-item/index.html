@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <!--
+    Game page for a playable game. To add a game: copy /games/starter/ to
+    /games/<slug>/, rewrite the script as the new game (built with the kit in
+    /games/kit/), change everything marked EDIT on this page, then add one
+    line to GAMES in /games/game.js, a poster on the homepage and a line in
+    the sitemap. The full checklist is at the end of DESIGN.md.
+  -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- EDIT: title, description and the og: tags -->
+  <title>Unexpected Item: Notaste Games</title>
+  <meta name="description" content="Scan your own shopping at a self-checkout that thinks you're stealing it. Four shops, one assistant, no staffed till. A free browser game in poor taste from Notaste Games.">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <link rel="preload" href="/fonts/notaste-display.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/games/game.css">
+  <link rel="stylesheet" href="/games/kit/kit.css">
+  <link rel="stylesheet" href="/games/unexpected-item/unexpected-item.css">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Notaste Games">
+  <meta property="og:title" content="Unexpected Item">
+  <meta property="og:description" content="Scan your own shopping. The machine thinks you're stealing it. Free in your browser.">
+  <meta property="og:url" content="https://notastegames.com/games/unexpected-item/">
+  <meta property="og:image" content="https://notastegames.com/art/og-unexpected-item.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<!--
+  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
+  --accent is the game's colour (same as its GAMES entry and its homepage poster).
+-->
+<body class="game" data-game="unexpected-item" style="--accent: #4e9a55">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="top-inner wrap">
+      <a class="top-logo" href="/" aria-label="Notaste Games home">
+        <img src="/brand/logo-on-dark.svg" alt="No Taste" width="557" height="166">
+      </a>
+      <nav class="top-nav" aria-label="Main">
+        <a href="/#games">Games</a>
+        <a href="/#about">About</a>
+        <a href="/#follow">Follow</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="game-page wrap">
+
+      <!-- EDIT: title, stamp (and its tilt), state, pitch -->
+      <div class="game-head">
+        <h1>Unexpected Item</h1>
+        <div class="game-meta">
+          <span class="stamp-label" style="--tilt: -4deg">Approval needed</span>
+          <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now</p>
+        </div>
+        <p class="game-pitch">Scan your own shopping. The machine thinks you're stealing it. There is one assistant for every till in the shop, and she's on her way. Slowly.</p>
+      </div>
+
+      <section class="cabinet" aria-label="Game screen">
+        <div class="screen">
+          <!-- EDIT: cover art path -->
+          <img class="screen-art" src="/art/unexpected-item.svg" alt="" width="800" height="600">
+
+          <!-- The game. /games/kit/kit.js builds the screens in here, unexpected-item.js is the game. -->
+          <div id="game-root">
+            <noscript><p class="kit-noscript">Unexpected Item needs JavaScript switched on. Please wait for assistance.</p></noscript>
+          </div>
+        </div>
+        <p class="cabinet-strip"><span>Notaste Games</span><span>Free play</span></p>
+      </section>
+
+      <div class="game-info">
+        <h2>How to play</h2>
+        <!-- EDIT: two or three short lines -->
+        <ul class="how">
+          <li>Scan each item (Space, a click, or the Scan button) as its barcode crosses the red line. Dead centre is a perfect scan. Miss it and it goes round again.</li>
+          <li>Bag it (B, a click on the bag, or the Bag button), but only when the scale says OK. Touch the bag while it says Wait and there's an unexpected item in the bagging area: lift the bag and put it back, or wait for Bev.</li>
+          <li>Loose fruit has no barcode, so pick the right picture (1 to 4, or tap it) before the machine guesses. Scissors, candles and cooking wine need Bev's approval. Today's run puts the same shopping on the belt for everyone.</li>
+        </ul>
+        <div class="share">
+          <button class="btn-line" id="share" type="button">Share</button>
+          <span class="share-status" id="share-status" role="status"></span>
+        </div>
+      </div>
+    </div>
+
+    <section class="more wrap" aria-labelledby="more-heading">
+      <div class="section-head">
+        <h2 id="more-heading">More games</h2>
+        <p class="section-note">Also unfinished. Also in poor taste.</p>
+      </div>
+      <!-- Filled from GAMES in /games/game.js -->
+      <ul class="more-list" id="more-list"></ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-inner wrap">
+      <img class="foot-mark" src="/brand/mark-on-dark.svg" alt="" width="183" height="166">
+      <div>
+        <p>Notaste Games makes satire. Real people, brands and events that appear in our games are being made fun of, not described.</p>
+        <p>&copy; <span id="year">2026</span> Notaste Games. <a href="/privacy/">Privacy</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/games/game.js" defer></script>
+  <script src="/games/kit/kit.js" defer></script>
+  <script src="/games/unexpected-item/sprites.js" defer></script>
+  <script src="/games/unexpected-item/unexpected-item.js" defer></script>
+</body>
+</html>

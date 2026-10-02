@@ -1,0 +1,7 @@
+/*
+  Unexpected Item: the one thing this game does differently on the page.
+  The till's face is the comedian, and it lives in the top third of the
+  screen, so in-game stamps land lower down, under its screen, instead of
+  across its eyes. Everything else is the kit's (games/kit/kit.css).
+*/
+body[data-game="unexpected-item"] .kit-callouts { inset: 41% 0 auto; }
