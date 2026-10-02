@@ -8,10 +8,11 @@
   // The catalogue. One line per game. "More games" on every page is built from
   // this list, so a new game only needs adding here once.
   // ---------------------------------------------------------------------------
-  // accent is the game's colour; stamp is the word stamped across its cover.
+  // accent is the game's colour; stamp is the word stamped across its cover;
+  // status is shown under the pitch ("In development" if left out).
   var GAMES = [
     { slug: "slop-cannon",   title: "Slop Cannon",   accent: "#b3bf2a", stamp: "Pending review", pitch: "Fire endless AI slop into a feed. Nobody is checking." },
-    { slug: "heavy-traffic", title: "Heavy Traffic", accent: "#4f9e9a", stamp: "Not approved",   pitch: "Kart racing. Large drivers, tiny cars. Physics has given up." },
+    { slug: "heavy-traffic", title: "Heavy Traffic", accent: "#4f9e9a", stamp: "Not approved",   pitch: "Kart racing. Large drivers, tiny cars. Physics has given up.", status: "Early prototype. Playable now." },
     { slug: "thonglets",     title: "Thonglets",     accent: "#9a7bc4", stamp: "Classified",     pitch: "Tiny creatures who think you're their god. You are not a good one." }
   ];
 
@@ -74,7 +75,7 @@
       var dot = el("span", "dot");
       dot.setAttribute("aria-hidden", "true");
       status.appendChild(dot);
-      status.appendChild(document.createTextNode("In development"));
+      status.appendChild(document.createTextNode(game.status || "In development"));
       body.appendChild(status);
 
       a.appendChild(cover);
