@@ -286,7 +286,31 @@ Each game's own rules: its characters, its stamp words and callouts, and anythin
 
 ### Slop Cannon
 
-To be written when the game is built.
+A content farm's cannon fires AI slop at a giant phone's feed. Real people's posts pay ten times what slop does, which is the joke: the platform pays you to ruin someone's tea. The people posting are never the joke; the slop and the system that rewards it are.
+
+**The room.** Black, with ash halftone on the back wall and grey server racks humming behind (ash outlines, a few slime and red lights). The cannon stands bottom left: a black barrel with a paper edge, a red band and a paper halftone shine, on a carriage with one big paper-rimmed wheel and a red hub. A hose runs to it from the vat behind, a black drum marked "Slop" in red on a paper label, slime spilling over the top; a lump of slime runs down the hose while it reloads. On the wall above the vat, a paper sign: "Days since a fact check", over a big number that counts up a day a second and goes back to a red 0 whenever a fact check bounces a shot.
+
+**The phone** stands on the floor on the right, its top somewhere above the screen: black, a thick paper edge, side buttons, a home bar. The app's header runs across the top under the score, and the posts slide beneath it.
+
+**The posts** are paper cards: an avatar and a name, a picture, a caption, likes top right (a heart and a number that counts up). Real posts have a cut-out head for an avatar (section 7, calm until slopped, then furious and looking at the cannon, one thing each: a perm, three hairs, a cap, a bun, specs, a beanie, a fringe, a tache) and an ordinary picture drawn in ink: tea, a blurry cat, a shed, a 90th birthday cake, a carrot, a car park sunset, a dog, a found glove on the railings, a deckchair. Slop pages have a slime avatar with a melting smiley, a sickly slime-halftone picture with the slop in the middle, and a slime border. A slopped post gets a solid slime splat with drips, the slop thing stuck in it, the slime border, a rewritten caption ("Tea tonight." becomes "Type yes if you'd eat this.") and thousands of likes. The feed turns green as you go. Trending posts carry a red "Trending" tag. A fact check is a paper card with a magnifying glass, a red double-bordered "Context added" stamp, grey halftone lines of context and "Read by 0 people".
+
+**The slop** is a wobbling slime blob with an ink edge and a paper shine, carrying one of four things drawn in ink and paper: a hand with eight fingers, a melting dog, a soldier carved from bread (a loaf in a helmet, saluting) and a melting smiley. It leaves drips, splashes in slime droplets, and leaves slime puddles on the floor.
+
+**Characters.**
+- **The Gaffer** runs the farm and stands behind the cannon: the section 7 cut-out in a paper shirt, trousers pulled up high, a red tie and a clipboard, with a slime-green eyeshade (a band and a brim). He watches the feed and turns to the player to shout, a fist in the air. He insults your aim, never you: "That's the floor, you plonker", "That's already slop, you lemon", "Fire, you absolute weapon". If a bounce lands on him he wears it for a while ("Nobody saw that").
+- **The Moderator** hangs off the phone's left edge in a window cleaner's cradle (a paper board marked "Mod", ropes up out of sight), the cut-out with tired, furious eyes, a red lanyard and pass, holding a very small net on a long pole. He's sympathetic and understaffed: "There's just me", "There were forty of us in March", "Back in forty minutes". After three catches he goes up and away, and an "On lunch" sign hangs where he was.
+- **The people posting** speak from their avatars when slopped, about their post, in the house register: "That was my tea", "Tigger has four legs", "That was my holiday, you pillock", "I'm telling my nan".
+
+**Stamps and callouts:** Gone viral, Context added, Trend: hijacked, Slop on slop, Moderated, Moderated. Again, Moderator: on lunch, Cannon: slopped, Bots: deployed, Nobody saw it, Target: met, Target: missed, Nobody can tell, Close enough. Routine ones (Slop on slop, Nobody saw it) land once a stage.
+
+**What only it does.**
+- **Hold to charge.** The power swings up and back while held; a dotted arc shows the shot, red brackets mark the post it will land on by the time it arrives (the feed keeps moving), and a tag says what it's worth: "+150", or in red "Bounces" for a fact check and "Breaks chain" for slop when there's a chain to lose. Before it's charging, four dots show where the barrel points.
+- **One rule per action.** Firing is the only action. Real posts slopped in a row make the chain (x1.25 a post, up to x3) and every fifth goes viral, spreading slop to the posts either side with a slime zigzag. Only a shot aimed at slop breaks it; if your own splash gets to a real post first, the shot that was aimed at it costs nothing. A miss, a bounce or a catch breaks it too. A splash near the line between two posts gets both.
+- **Fact checks always bounce,** straight back onto the barrel (jammed for a second and a half) or onto the Gaffer.
+- **The Moderator** drifts towards where you're aiming, slowly, and only the hoop of his net catches.
+- **Reactions pour in:** red hearts and paper comment chips ("So real", "Wow", "Great work") float off slopped posts; bots are slime chips marked "Bot".
+- **The finale:** when the final push ends, slime floods the phone's screen from the bottom.
+- **Results** report the share of the feed that ended up slop ("The feed is 92% slop.").
 
 ### Unexpected Item
 
