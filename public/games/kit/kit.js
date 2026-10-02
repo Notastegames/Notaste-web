@@ -365,6 +365,7 @@
     var touchHeld = {};
     var padHeld = {};
     var keyHeld = {};
+    var tapped = {};      // pressed since the last frame, so a quick tap is never missed
     var pausedFrom = null;
     var countTimers = [];
     var finishTimer = 0;
@@ -739,6 +740,7 @@
       if (!code) return;
       if (active[state]) e.preventDefault();
       keyHeld[keyToAction[code]] = true;
+      tapped[keyToAction[code]] = true;
       input.mode = "keys";
       root.classList.remove("kit-touching");
     });
@@ -788,6 +790,7 @@
       var pad = padAt(e.clientX, e.clientY);
       if (pad) {
         e.preventDefault();
+        tapped[pad.getAttribute("data-key")] = true;
         pointers[e.pointerId] = pad;
         syncPads();
       }
@@ -836,8 +839,9 @@
 
     function combineInput() {
       ["up", "down", "left", "right", "action"].forEach(function (k) {
-        input[k] = !!(keyHeld[k] || touchHeld[k] || padHeld[k]);
+        input[k] = !!(keyHeld[k] || touchHeld[k] || padHeld[k] || tapped[k]);
       });
+      tapped = {};
       if (!input.steer) input.steer = (input.right ? 1 : 0) - (input.left ? 1 : 0);
     }
 
