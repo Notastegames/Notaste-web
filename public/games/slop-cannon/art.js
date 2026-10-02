@@ -356,7 +356,7 @@
   // is the floor of the cradle. The net's hoop is at NET (from the origin).
   // o: { swing (0-1), full (slop in the net) }
   // ---------------------------------------------------------------------------
-  var NET = { x: -16.5, y: -12.5, r: 2.5 };
+  var NET = { x: -13, y: -12.5, r: 2.5 };
   function moderator(c, o) {
     o = o || {};
     var lw = 0.6;
@@ -713,10 +713,14 @@
     // the picture
     var px = pad, py = pad + ar * 2 + 0.9, pw = w - pad * 2, ph = h - py - 4.6;
     if (p.type === "slop") {
+      // slop that was slop already: a sickly green glow, the thing in the middle
       c.save();
       c.beginPath(); c.rect(px, py, pw, ph); c.clip();
-      c.fillStyle = T.accent; c.fillRect(px, py, pw, ph);
-      c.fillStyle = shade(c); c.fillRect(px, py, pw, ph);
+      c.fillStyle = dots(c, T.accent, 0.9); c.fillRect(px, py, pw, ph);
+      c.fillStyle = T.paper;
+      c.beginPath(); c.ellipse(px + pw / 2, py + ph / 2, ph * 0.75, ph * 0.5, 0, 0, Math.PI * 2); c.fill();
+      ink(c, 0.25, T.accent);
+      for (var g = 1; g <= 3; g++) { c.beginPath(); c.ellipse(px + pw / 2, py + ph / 2, ph * (0.75 + g * 0.35), ph * (0.5 + g * 0.22), 0, 0, Math.PI * 2); c.stroke(); }
       c.restore();
       item(c, p.item, px + pw / 2, py + ph / 2 + ph * 0.06, ph * 0.42);
     } else {
@@ -743,7 +747,7 @@
 
   // The goo over a slopped picture, dripping down, with the thing in it
   function splat(c, x, y, w, h, kind) {
-    var cx = x + w / 2, cy = y + h * 0.48, rx = Math.min(w * 0.4, h * 1.1), ry = h * 0.46;
+    var cx = x + w * 0.56, cy = y + h * 0.44, rx = Math.min(w * 0.3, h * 0.85), ry = h * 0.38;
     c.beginPath();
     var n = 11;
     for (var i = 0; i <= n; i++) {
@@ -767,7 +771,7 @@
     c.beginPath(); c.ellipse(cx + rx * 0.5, cy + ry * 0.5, rx * 0.8, ry * 0.9, 0, 0, Math.PI * 2); c.fill(); c.restore();
     ink(c, 0.45);
     c.stroke();
-    item(c, typeof kind === "string" ? kind : "hand", cx, cy + h * 0.04, h * 0.4, -0.12);
+    item(c, typeof kind === "string" ? kind : "hand", cx, cy + h * 0.02, h * 0.34, -0.12);
   }
 
   // A fact check: it bounces slop straight back. Context added. Read by nobody.

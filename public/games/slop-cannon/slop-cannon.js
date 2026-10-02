@@ -15,35 +15,37 @@
 // charge: the power swings up and down and a dotted arc shows where the shot
 // will go, with red brackets on the post it'll land on by the time it gets
 // there (the feed keeps moving) and a tag saying what it's worth. Let go to
-// fire. A splash that lands near the line between two posts gets both. Hits
-// in a row build a chain, which multiplies everything (x1.25 a hit, up to
-// x3). Every fifth hit in a row goes viral: the slop spreads to the posts
-// either side for free. A miss, a bounce or a catch breaks the chain.
+// fire. A splash that lands near the line between two posts gets both. Real
+// posts slopped in a row build a chain, which multiplies what real posts pay
+// (x1.25 a post, up to x3). Every fifth in a row goes viral: the slop spreads
+// to the posts either side for free. A shot that only gets slop, a miss, a
+// bounce or a catch breaks the chain, so picking what to hit matters.
 //
 // THE ROUND. Three stages and a final push, each with an engagement target,
 // about two and a half minutes in all. Miss a stage's target and the board
 // pulls the funding: the round ends there.
-//   1. The feed (35s, target 900). Real posts and slop. Learn to aim.
-//   2. Context added (38s, target 1,500). Fact checks turn up in the feed:
+//   1. The feed (35s, target 600). Real posts and slop. Learn to aim.
+//   2. Context added (38s, target 1,000). Fact checks turn up in the feed:
 //      hit one and the slop bounces straight back, and if it lands on the
 //      cannon it jams it for a second and a half. Trending posts (a red tag)
 //      are worth triple. The feed is faster.
-//   3. Moderation (40s, target 1,900). The Moderator: one man in a window
+//   3. Moderation (40s, target 1,100). The Moderator: one man in a window
 //      cleaner's cradle on the side of the phone, with a very small net. He
 //      follows where you're aiming, slowly, and catches what passes through
 //      it. Three catches and he goes on lunch. Faster again.
-//   4. Final push (35s, target 2,600 for approval). Everything, at full
+//   4. Final push (35s, target 2,000 for approval). Everything, at full
 //      speed, and fewer real people post. Beat the target and it's Approved.
 // Between stages you pick one upgrade of three, each with a cost (UPGRADES):
 // More fingers (bigger splash, slower reload), Bot farm (B: ten seconds of
-// double engagement once a stage; targets up a tenth), Engagement bait (the
-// feed slows; fewer real posts), Content calendar (fast reload, small
-// splash), Rage bait (real posts pay more; more fact checks), Pay for reach
-// (more trending posts; targets up a fifth), and before the final push, Lay
-// off the moderator (no Moderator; twice the fact checks, out of spite).
+// double engagement once a stage; targets up a tenth), Engagement bait
+// (slopped posts keep paying while they're on screen; fewer real posts),
+// Content calendar (fast reload, small splash), Rage bait (real posts pay
+// more; more fact checks), Pay for reach (more trending posts; targets up a
+// fifth), and before the final push, Lay off the moderator (no Moderator;
+// twice the fact checks, out of spite).
 //
-// SCORING. Engagement: a real post 100, trending 300, slop 10, a post you've
-// already slopped 5, times the chain, doubled while bots run.
+// SCORING. Engagement: a real post 100 and a trending one 300, times the
+// chain; slop 10 and a post you've already slopped 5. Bots double it all.
 //
 // THE LADDER. Approved: beat the final push's target. Pending review: got
 // to the end. Not approved: funding pulled at stage 2 or 3. Rejected:
@@ -65,6 +67,7 @@
   var DEBUG = params.has("debug");
   var FIRST = DEBUG ? Math.max(0, Math.min(3, (parseInt(params.get("stage"), 10) || 1) - 1)) : 0;
   var SLOPPY = DEBUG ? parseFloat(params.get("sloppy")) || 0 : 0;   // a clumsier autopilot, for tuning
+  var PACE = DEBUG ? parseFloat(params.get("pace")) || 0 : 0;       // ...and a slower one: seconds between shots
 
   // ---------------------------------------------------------------------------
   // Tuning. World units: 100 across the screen's shorter side. Speeds scale
@@ -79,19 +82,19 @@
   var JAM = 1.5;
   var VIRAL = 5;               // hits in a row that make it go viral
   var BOTS_TIME = 10;
-  var MOD_CATCHES = 3, MOD_LUNCH = 9, MOD_SPEED = 15;
+  var MOD_CATCHES = 3, MOD_LUNCH = 9, MOD_SPEED = 9;
   var AIM_SPEED = 1.3;         // radians a second, keys and stick
   var MIN_ANGLE = 0.1, MAX_ANGLE = 1.45;
   var POINTS = { real: 100, slop: 10, again: 5 };
 
   var STAGES = [
-    { name: "The feed", time: 35, speed: 9, real: 0.62, trend: 0, fact: 0, mod: false, target: 900,
+    { name: "The feed", time: 35, speed: 12, real: 0.7, trend: 0, fact: 0, mod: false, target: 600,
       clear: "Engagement is up. Nobody is sure what was engaged with." },
-    { name: "Context added", time: 38, speed: 10.5, real: 0.56, trend: 0.2, fact: 0.16, mod: false, target: 1500,
+    { name: "Context added", time: 38, speed: 14, real: 0.64, trend: 0.2, fact: 0.16, mod: false, target: 1000,
       clear: "The fact checks added context. It was read by nobody." },
-    { name: "Moderation", time: 40, speed: 12, real: 0.52, trend: 0.2, fact: 0.14, mod: true, target: 1900,
+    { name: "Moderation", time: 40, speed: 16, real: 0.58, trend: 0.2, fact: 0.14, mod: true, target: 1100,
       clear: "The Moderator is on another lunch. He's earned it. He hasn't been paid for it." },
-    { name: "Final push", time: 35, speed: 14, real: 0.45, trend: 0.28, fact: 0.16, mod: true, target: 2600, final: true }
+    { name: "Final push", time: 35, speed: 19, real: 0.5, trend: 0.28, fact: 0.16, mod: true, target: 2000, final: true }
   ];
   var LAST = STAGES.length - 1;
 
@@ -101,8 +104,8 @@
       apply: function (m) { m.splash *= 1.9; m.reload *= 1.5; } },
     { id: "bots", label: "Bot farm", detail: function () { return (touching() ? "Tap Bots" : "Press B") + " for ten seconds of double engagement, once a stage. Targets go up a tenth."; },
       apply: function (m) { m.bots = true; m.target *= 1.1; } },
-    { id: "bait", label: "Engagement bait", detail: "The feed slows down by a quarter. Fewer real people post.",
-      apply: function (m) { m.feed *= 0.75; m.real *= 0.82; } },
+    { id: "bait", label: "Engagement bait", detail: "Slopped posts keep paying for as long as they're on screen. Fewer real people post.",
+      apply: function (m) { m.linger = true; m.real *= 0.85; } },
     { id: "calendar", label: "Content calendar", detail: "Reload twice as fast. Every splash is smaller.",
       apply: function (m) { m.reload *= 0.5; m.splash *= 0.6; } },
     { id: "rage", label: "Rage bait", detail: "Real posts pay half as much again. Fact checks turn up twice as often.",
@@ -169,7 +172,7 @@
     var target = " Target: " + fmt(targetFor(i)) + ".";
     if (i === 0) {
       return (touching() ? "Hold a finger anywhere to aim and charge. Let go to fire. " : "Aim with the mouse or the arrow keys. Hold to charge, let go to fire. ") +
-        "Real posts are worth ten times as much as slop. Five hits in a row goes viral." + target;
+        "Real posts pay ten times what slop does, and five in a row goes viral. Slop breaks the chain." + target;
     }
     if (i === 1) return "Fact checks bounce slop straight back at the cannon: aim round them. Trending posts are worth triple." + target;
     if (i === 2) {
@@ -196,7 +199,7 @@
   var noticed = false, hintNow = null, modSeen = 0;
   var shake = 0, signDays = 1214, signT = 0;
   var bg = null, hudEls = null, poses = {}, hudBox = null, hudAge = 0;
-  var shown = 0, offers = [], auto = { target: null, ang: 0.8, charge: false, think: 0, slop: 0 };
+  var shown = 0, offers = [], auto = { target: null, ang: 0.8, charge: false, think: 0, slop: 0, careless: false, rest: 0, idle: 0, hold: 0 };
   var stage = 0;
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -239,7 +242,7 @@
     L.vat = { x: -1, y: L.floor - 50, w: 15, h: 50 };
     L.sign = { x: (L.pivot.x + 8 + L.phoneX - 6) / 2, y: Math.max(30, WH * 0.3) };
     // the Moderator's cradle straddles the phone's left edge
-    L.modX = L.phoneX + 1;
+    L.modX = L.phoneX - 3.4;
     L.modTop = 30 - A.NET.y;
     L.modBottom = L.floor - 0.5;
     L.modHome = (L.modTop + L.modBottom) / 2;
@@ -256,7 +259,7 @@
   // The round
   // ---------------------------------------------------------------------------
   function newMods() {
-    return { splash: 1, reload: 1, feed: 1, real: 1, trend: 1, fact: 1, target: 1, realPay: 1, bots: false, noMod: false };
+    return { splash: 1, reload: 1, feed: 1, real: 1, trend: 1, fact: 1, target: 1, realPay: 1, bots: false, noMod: false, linger: false };
   }
 
   function reset(sh) {
@@ -266,9 +269,15 @@
     run = {
       score: 0, stageScore: 0, chain: 0, bestChain: 0, shots: 0, hits: 0, realSlopped: 0, trends: 0,
       caught: 0, bounced: 0, virals: 0, seen: 0, slopSeen: 0, mods: newMods(), taken: [],
-      learned: {}, daily: sh.daily, reached: 0
+      learned: {}, daily: sh.daily, reached: 0, breaks: {}
     };
     stage = FIRST;
+    // ?debug&take=bait,bots: start with these upgrades already picked
+    if (DEBUG && params.get("take")) {
+      params.get("take").split(",").forEach(function (id) {
+        UPGRADES.forEach(function (u) { if (u.id === id) { run.taken.push(id); u.apply(run.mods); } });
+      });
+    }
     shown = 0;
     feed = [];
     fillFeed(true);
@@ -285,6 +294,7 @@
     wrapT = 0;
     flood = 0;
     balls = [];
+    feed.forEach(function (q) { q.incoming = 0; });
     puddles = puddles.filter(function (p) { return p.t < 4; });
     charging = false;
     held = false;
@@ -390,18 +400,17 @@
   function launchSpeed(p) { return (VMIN + p * (VMAX - VMIN)) * K; }
 
   function fire() {
-    var v = launchSpeed(power);
+    // the same arc the dots showed, and the post it's heading for
+    var b = preview();
     var mz = muzzleAt(aim);
-    var b = path(mz.x, mz.y, Math.cos(aim) * v, Math.sin(aim) * v);
     b.t = 0;
     b.kind = pick(A.ITEMS);
     b.wob = Math.random();
     b.spin = rand(-0.4, 0.4);
-    b.modY = null;
-    if (mod) {
-      var tx = (L.modX + A.NET.x - b.x0) / b.vx;
-      if (tx > 0 && tx < b.end) b.modY = at(b, tx).y;
-    }
+    if (b.target) b.target.incoming = (b.target.incoming || 0) + 1;
+    // aimed at a real post nobody else was already slopping: if it gets slopped
+    // by something else first, landing on it doesn't count against you
+    b.fresh = !!(b.target && b.target.type === "real" && !b.target.slopped && b.target.incoming === 1);
     balls.push(b);
     run.shots++;
     run.learned.fire = true;
@@ -427,7 +436,7 @@
       // the Moderator's net
       if (mod && mod.state === "work" && !b.bounced) {
         var p = at(b, b.t), hx = L.modX + A.NET.x, hy = mod.y + A.NET.y;
-        if (Math.hypot(p.x - hx, p.y - hy) < A.NET.r + BALL_R * 0.85) { caught(b); balls.splice(i, 1); continue; }
+        if (Math.hypot(p.x - hx, (p.y - hy) * 1.3) < A.NET.r + BALL_R * 0.6) { arrived(b); caught(b); balls.splice(i, 1); continue; }
         if (!b.passed && t0 < b.end && p.x > hx + 3) { b.passed = true; if (Math.abs(p.y - hy) < 12 && Math.random() < 0.3) say(modSpeaker, pick(MOD_SAYS.passed)); }
       }
       if (b.t >= b.end) {
@@ -437,7 +446,13 @@
     }
   }
 
+  // A ball's done: whatever it was heading for isn't expecting it any more
+  function arrived(b) {
+    if (b.target) { b.target.incoming = Math.max(0, (b.target.incoming || 0) - 1); b.target = null; }
+  }
+
   function land(b) {
+    arrived(b);
     var p = at(b, b.end);
     if (b.what === "phone") {
       if (p.y < L.head) {
@@ -471,7 +486,7 @@
 
   function miss(b, where, p) {
     if (b.bounced) return;
-    breakChain();
+    breakChain("miss " + where);
     if (where === "top") {
       if (!run.learned.top) { run.learned.top = true; shell.callout("Nobody saw it", { sound: false, ms: 1100 }); }
       gafferSay(GAFFER.top);
@@ -483,7 +498,8 @@
     }
   }
 
-  function breakChain() {
+  function breakChain(why) {
+    if (run.chain && DEBUG) run.breaks[why] = (run.breaks[why] || 0) + 1;
     run.chain = 0;
   }
 
@@ -501,36 +517,50 @@
     sfx.splat();
     run.hits++;
     var mult = chainMult();
-    run.chain++;
-    run.bestChain = Math.max(run.bestChain, run.chain);
     // the one nearest the middle of the splash gets the big reaction
     hits.sort(function (a, c) { return Math.abs(a.y + L.cardH / 2 - y) - Math.abs(c.y + L.cardH / 2 - y); });
-    var total = 0, wasReal = false, wasTrend = false, wasSlop = false;
-    hits.forEach(function (q, n) {
-      var r = slopPost(q, b.kind, mult, n === 0 ? y : null);
+    var total = 0, wasReal = false, wasTrend = false;
+    hits.forEach(function (q) {
+      var r = slopPost(q, b.kind, mult);
       total += r.points;
       if (r.real) wasReal = true;
       if (r.trend) wasTrend = true;
-      if (r.slop) wasSlop = true;
     });
     pop(L.phoneX - 1, y, "+" + fmt(total), wasTrend || total >= 200);
-    if (run.chain % VIRAL === 0) viral(hits[0], mult);
-    else if (wasTrend) { shell.callout("Trend: hijacked", { sound: false, ms: 1200 }); gafferSay(GAFFER.trend, true); }
-    else if (wasReal) gafferSay(GAFFER.real);
-    else if (wasSlop && !run.learned.already) { run.learned.already = true; gafferSay(GAFFER.already, true); }
-    else if (wasSlop) gafferSay(GAFFER.already);
+    // only real posts keep the chain going: slop on slop breaks it
+    if (wasReal) {
+      run.chain++;
+      run.bestChain = Math.max(run.bestChain, run.chain);
+      if (run.chain % VIRAL === 0) viral(hits[0], chainMult());
+      else if (wasTrend) { shell.callout("Trend: hijacked", { sound: false, ms: 1200 }); gafferSay(GAFFER.trend, true); }
+      else gafferSay(GAFFER.real);
+    } else if (b.fresh) {
+      // it was real when you fired; your own splash got there first. No harm done.
+      gafferSay(GAFFER.already);
+    } else {
+      var had = run.chain;
+      breakChain("slop");
+      if (had >= 2 && !run.learned.already) {
+        run.learned.already = true;
+        shell.callout("Slop on slop", { sound: false, ms: 1100 });
+        gafferSay(GAFFER.already, true);
+      } else gafferSay(GAFFER.already, had >= 2);
+    }
   }
 
   function chainMult() { return 1 + 0.25 * Math.min(run.chain, 8); }
 
-  // What a post is worth to slop right now (the arc's tag says the same)
+  // What a post is worth to slop right now (the arc's tag says the same).
+  // The chain multiplies real posts only.
   function worth(q, mult) {
     if (q.type === "fact") return 0;
-    var base = q.type === "slop" ? POINTS.slop : q.slopped ? POINTS.again : POINTS.real * run.mods.realPay * (q.trending ? 3 : 1);
-    return Math.round(base * mult * (botsLeft > 0 ? 2 : 1));
+    var bots = botsLeft > 0 ? 2 : 1;
+    if (q.type === "slop") return POINTS.slop * bots;
+    if (q.slopped) return POINTS.again * bots;
+    return Math.round(POINTS.real * run.mods.realPay * (q.trending ? 3 : 1) * mult * bots);
   }
 
-  function slopPost(q, kind, mult, yMid) {
+  function slopPost(q, kind, mult) {
     var pts = worth(q, mult);
     var out = { points: pts, real: false, trend: false, slop: false };
     run.score += pts;
@@ -564,9 +594,9 @@
     [i - 1, i + 1, i - 2, i + 2].forEach(function (j, n) {
       var o = feed[j];
       if (!o || o.type === "fact" || (n > 1 && run.mods.splash < 1.5)) return;
-      if (o.y + L.cardH < 0 || o.y > L.sy1) return;
+      if (o.y < L.head - 4 || o.y + L.cardH > L.sy1 + 4) return;
       fx.push({ kind: "zap", x: L.cardX + L.cardW * 0.5, y0: q.y + L.cardH / 2, y1: o.y + L.cardH / 2, t: 0, life: 0.6 });
-      total += slopPost(o, pick(A.ITEMS), mult, null).points;
+      total += slopPost(o, pick(A.ITEMS), mult).points;
     });
     if (total) pop(L.cardX + L.cardW * 0.5, q.y - 2, "+" + fmt(total), true);
     shell.callout("Gone viral", { sound: false, ms: 1300 });
@@ -585,7 +615,7 @@
     nb.bounced = true;
     balls.push(nb);
     run.bounced++;
-    breakChain();
+    breakChain("bounce");
     signDays = 0;
     signT = 0;
     fact.flash = 0.5;
@@ -599,7 +629,7 @@
     var p = at(b, b.t);
     splash(p.x, p.y, 4);
     run.caught++;
-    breakChain();
+    breakChain("caught");
     mod.catches++;
     mod.swing = 1;
     mod.full = 1.2;
@@ -651,7 +681,7 @@
     });
     if (want == null && preview && preview.modY != null) want = preview.modY;
     if (want == null) want = mod.seek;
-    mod.seek += (want - mod.seek) * Math.min(1, dt * 3);
+    mod.seek += (want - mod.seek) * Math.min(1, dt * 1.6);
     var goal = clamp(mod.seek - A.NET.y, L.modTop, L.modBottom);
     mod.y += clamp(goal - mod.y, -speed * dt, speed * dt);
   }
@@ -792,9 +822,24 @@
     if (signT > 1) { signT = 0; signDays++; }
     scrollFeed(dt);
     updateBalls(dt);
+    if (run.mods.linger && phase === "play") {
+      // engagement bait: slopped posts keep paying while anyone can see them
+      feed.forEach(function (q) {
+        if (!q.slopped || q.y + L.cardH < L.head || q.y > L.sy1) return;
+        q.linger = (q.linger || 0) + dt;
+        if (q.linger >= 0.5) {
+          q.linger -= 0.5;
+          var pts = 10 * (botsLeft > 0 ? 2 : 1);
+          run.score += pts;
+          run.stageScore += pts;
+          q.likes += 400;
+          fx.push({ kind: "react", x: L.cardX + rand(4, L.cardW * 0.5), y: q.y + L.cardH * 0.5, vx: rand(-14, -4), vy: rand(-18, -8), t: 0, life: 1, r: 1.2 });
+        }
+      });
+    }
     if (botsLeft > 0) {
       botsLeft = Math.max(0, botsLeft - dt);
-      if (Math.random() < dt * 10) fx.push({ kind: "react", word: "Bot", x: rand(L.sx0, L.sx1), y: L.sy1 - rand(0, 6), vx: rand(-6, 6), vy: rand(-26, -14), t: 0, life: 1.4, r: 1.6, bot: true });
+      if (Math.random() < dt * 3.5) fx.push({ kind: "react", word: "Bot", x: L.sx1 - rand(3, 8), y: L.sy1 - rand(0, 6), vx: rand(-3, 1), vy: rand(-30, -18), t: 0, life: 1.6, r: 1.6, bot: true });
     }
 
     if (phase === "wrap") {
@@ -972,11 +1017,11 @@
     } else if (why === "done") {
       rank = 2;
       heading = "The feed is " + pct + "% slop.";
-      line = "Some of it is still somebody's dinner. The board would like it to be nobody's dinner. Pending review.";
+      line = "Short of the final target. The board will review it, which means nobody will.";
     } else if (run.reached >= 1) {
       rank = 3;
       heading = "Funding pulled at stage " + (run.reached + 1) + ".";
-      line = "There are still real people in the feed. The board has bought a bigger cannon from someone else.";
+      line = "There are still real people in the feed, posting their tea. The board has bought a bigger cannon from someone else.";
     } else {
       rank = 4;
       heading = "Funding pulled at stage 1.";
@@ -1021,46 +1066,81 @@
     return { p: p, t: t, y: yt };
   }
 
+  // Where a shot at this angle and power is when it passes the Moderator's net
+  function heightAt(ang, p, x) {
+    var v = launchSpeed(p), mz = muzzleAt(ang);
+    var t = (x - mz.x) / (Math.cos(ang) * v);
+    return t > 0 ? mz.y - Math.sin(ang) * v * t + 0.5 * GRAV * K * t * t : null;
+  }
+
+  // The best post to go for from here, trying a few angles (or only this one)
+  function choose(angles) {
+    var best = null;
+    var hoop = mod && mod.state === "work" ? mod.y + A.NET.y : null;
+    // a chain to protect, counting real posts with a shot already on the way
+    var chainy = run.chain > 0 || balls.some(function (b) { return b.target && b.target.type === "real" && !b.target.slopped; });
+    feed.forEach(function (q) {
+      if (q.type === "fact") return;
+      var value = q.type === "slop" ? 10 : q.slopped || q.incoming ? 3 : q.trending ? 300 : 100;
+      // slop would break the chain: wait for a real one, and only bother with
+      // slop at all when there's been nothing real for a while
+      if (value < 50 && (chainy || balls.length ? auto.idle < 8 : auto.idle < 2.5)) return;
+      angles.forEach(function (ang) {
+        var s = solve(q, ang);
+        if (!s || s.y < L.head + 2 || s.y > L.sy1 - 3) return;
+        if (!auto.careless) {
+          // keep off fact checks (the post's neighbours might be one) and away from the net
+          var blocked = feed.some(function (f) { return f.type === "fact" && Math.abs(f.y - q.y) < L.cardH * 0.75; });
+          if (blocked) return;
+          if (hoop != null) {
+            var h = heightAt(ang, s.p, L.modX + A.NET.x);
+            if (h != null && Math.abs(h - hoop) < 15) return;
+          }
+        }
+        var score = value - Math.abs(ang - aim) * 30 - s.t * 4;
+        if (!best || score > best.score) best = { q: q, ang: ang, score: score };
+      });
+    });
+    return best;
+  }
+
   function autopilot(dt) {
     var out = { ang: auto.ang, charge: false, bots: false };
     if (run.mods.bots && !botsUsed && clock > 4) out.bots = true;
-    var loaded = reload <= 0 && jam <= 0;
-    if (charging && auto.target) {
-      var s = solve(auto.target, aim);
-      if (!s || feed.indexOf(auto.target) < 0) { out.charge = false; auto.target = null; return out; }
-      var need = clamp(s.p + auto.slop, 0, 1);
-      out.charge = !(Math.abs(power - need) < 0.022 || (powerDir < 0 && power < need));
-      if (!out.charge) auto.target = null;
-      return out;
-    }
-    if (!loaded) return out;
+    if (reload > 0 || jam > 0) return out;
+    if (auto.rest > 0 && !charging) { auto.rest -= dt; return out; }
+    // pick a post: every so often, and at once if the one it had has gone,
+    // been slopped, or has a shot on the way already
+    var t = auto.target;
+    var stale = !t || feed.indexOf(t) < 0 || (t.type === "real" && (t.slopped || t.incoming));
     auto.think -= dt;
-    if (!auto.target || auto.think <= 0) {
+    if (stale || auto.think <= 0) {
       auto.think = 0.25;
-      var best = null;
-      var hoop = mod && mod.state === "work" ? mod.y + A.NET.y : null;
-      feed.forEach(function (q) {
-        if (q.type === "fact") return;
-        var value = q.type === "slop" ? 10 : q.slopped ? 3 : q.trending ? 300 : 100;
-        [aim, 0.55, 0.8, 1.0, 1.2].forEach(function (ang) {
-          var s = solve(q, ang);
-          if (!s || s.y < L.head + 2 || s.y > L.sy1 - 3) return;
-          // don't land on a fact check (the post's neighbours might be one)
-          var blocked = feed.some(function (f) { return f.type === "fact" && Math.abs(f.y + L.cardH / 2 - (q.y + L.cardH / 2)) < L.cardH * 0.6; });
-          if (blocked) return;
-          if (hoop != null && Math.abs((s.y + (mod.y + A.NET.y - s.y) * 0.2) - hoop) < 9) return;
-          var score = value - Math.abs(ang - aim) * 30 - s.t * 4;
-          if (!best || score > best.score) best = { q: q, ang: ang, score: score };
-        });
-      });
+      var best = choose([aim, auto.ang, 0.55, 0.8, 1.0, 1.2]);
       if (best) {
+        if (best.q !== auto.target) auto.slop = SLOPPY ? (Math.random() - 0.5) * 2 * SLOPPY : 0;
         auto.target = best.q;
         auto.ang = best.ang;
-        auto.slop = SLOPPY ? (Math.random() - 0.5) * 2 * SLOPPY : 0;
-      }
+        auto.idle = 0;
+      } else { auto.target = null; auto.idle += 0.25; }
     }
     out.ang = auto.ang;
-    if (auto.target && Math.abs(aim - auto.ang) < 0.02) out.charge = true;
+    // nothing worth it: keep holding a charge if one's going (it swings back
+    // and forth), and let it go only if it's been far too long
+    if (!auto.target) {
+      auto.hold += dt;
+      out.charge = charging && auto.hold < 6;
+      return out;
+    }
+    auto.hold = 0;
+    var aligned = Math.abs(aim - auto.ang) < 0.02;
+    if (!charging) { out.charge = aligned; return out; }
+    // charging: swing the barrel round if it must, and let go when the power's right
+    var s = aligned ? solve(auto.target, aim) : null;
+    if (!s) { out.charge = true; return out; }
+    var need = clamp(s.p + auto.slop, 0, 1);
+    out.charge = Math.abs(power - need) >= Math.max(0.022, dt / SWEEP * 0.55);
+    if (!out.charge) { auto.target = null; auto.careless = Math.random() < 0.08; auto.rest = PACE * (0.5 + Math.random()); }
     return out;
   }
 
@@ -1105,7 +1185,7 @@
   // The stage's notice goes up with the countdown, so it's read before Go
   function notice() {
     var title = stageInfo().final ? "Final push" : "Stage " + (stage + 1) + ": " + stageInfo().name;
-    shell.brief({ title: title, text: briefText(stage), ms: stage === 0 ? 9000 : 6500 });
+    shell.brief({ title: title, text: briefText(stage), ms: stage === 0 ? 8500 : 6500 });
   }
 
   // ---------------------------------------------------------------------------
@@ -1374,15 +1454,17 @@
     c.lineWidth = 2.2; c.strokeStyle = T.ink; c.stroke(pth);
     c.lineWidth = 1.1; c.strokeStyle = T.red; c.stroke(pth);
     // the tag: what it's worth, or that it'll come back
-    var words = q.type === "fact" ? "Bounces" : "+" + fmt(worth(q, chainMult()));
+    var fresh = q.type === "real" && !q.slopped && !q.incoming;
+    var warn = q.type === "fact" || (!fresh && run.chain >= 2);
+    var words = q.type === "fact" ? "Bounces" : warn ? "Breaks chain" : "+" + fmt(worth(q, chainMult()));
     var size = 3.2;
     var tw = A.measure(c, words, size) + 2.4;
-    var tx = L.phoneX - tw - 1.4, ty = clamp(q.y + L.cardH / 2, 4, L.sy1 - 2);
+    var tx = L.phoneX - tw - 1.4, ty = clamp(q.y + L.cardH / 2, L.head + 3, L.sy1 - 2);
     A.rrect(c, tx, ty - 2.4, tw, 4.8, 0.6);
-    c.fillStyle = q.type === "fact" ? T.red : T.paper;
+    c.fillStyle = warn ? T.red : T.paper;
     c.fill();
     A.ink(c, 0.4); c.stroke();
-    A.text(c, words, tx + tw / 2, ty + 0.2, size, null, { align: "center", fill: q.type === "fact" ? T.paper : T.ink });
+    A.text(c, words, tx + tw / 2, ty + 0.2, size, null, { align: "center", fill: warn ? T.paper : T.ink });
   }
 
   function drawFeed(c) {
@@ -1636,6 +1718,8 @@
     drawFx(c);
 
     var placed = [];
+    // keep the Moderator in view: bubbles go round him
+    if (mod && mod.y > 0) placed.push({ x: (L.modX + A.NET.x - 3) * U, y: (mod.y - 22) * U, w: 22 * U, h: 24 * U });
     var arrow = phase === "play" && shell.state() === "playing" ? hintNow : null;
     if (arrow) {
       arrow = { x: clamp(arrow.x, 12, WW - 12), y: Math.max(20, arrow.y), word: arrow.word };
