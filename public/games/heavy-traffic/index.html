@@ -12,15 +12,13 @@
   <!-- EDIT: title, description and the og: tags -->
   <title>Heavy Traffic: Notaste Games</title>
   <meta name="description" content="Kart racing with big drivers in tiny cars, on tracks where physics has given up. A free browser game in poor taste, coming soon from Notaste Games.">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#000000">
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;700&display=swap">
+  <link rel="preload" href="/fonts/notaste-display.woff" as="font" type="font/woff" crossorigin>
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/games/game.css">
 
@@ -29,19 +27,22 @@
   <meta property="og:title" content="Heavy Traffic">
   <meta property="og:description" content="Big drivers. Tiny karts. Physics has given up. Coming soon, free, in your browser.">
   <meta property="og:url" content="https://notastegames.com/games/heavy-traffic/">
-  <meta property="og:image" content="https://notastegames.com/og-image.png">
+  <meta property="og:image" content="https://notastegames.com/art/og-heavy-traffic.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
-<!-- EDIT: data-game is the slug, and must match the folder name and the GAMES entry -->
-<body data-game="heavy-traffic">
+<!--
+  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
+  --accent is the game's colour (same as its GAMES entry and its homepage poster).
+-->
+<body class="game" data-game="heavy-traffic" style="--accent: #4f9e9a">
   <a class="skip" href="#main">Skip to content</a>
 
   <header class="top">
     <div class="top-inner wrap">
       <a class="top-logo" href="/" aria-label="Notaste Games home">
-        <img src="/brand/logo.svg" alt="No Taste" width="557" height="166">
+        <img src="/brand/logo-on-dark.svg" alt="No Taste" width="557" height="166">
       </a>
       <nav class="top-nav" aria-label="Main">
         <a href="/#games">Games</a>
@@ -59,7 +60,7 @@
         <h1>Heavy Traffic</h1>
         <div class="game-meta">
           <span class="stamp-label" style="--tilt: 4deg">Not approved</span>
-          <p class="game-state">In development</p>
+          <p class="game-state"><span class="dot" aria-hidden="true"></span>In development</p>
         </div>
         <p class="game-pitch">Kart racing for drivers who were promised more legroom. The cars are small. The physics has given up.</p>
       </div>
@@ -98,12 +99,12 @@
             </div>
 
             <div class="ph ph-done">
-              <span class="stamp-label">Not approved</span>
+              <span class="stamp-label">Stalled</span>
               <!-- EDIT: the end-state copy -->
               <p class="ph-heading" tabindex="-1">This game is still being made.</p>
               <p class="ph-line">The karts are built. The drivers are seated, mostly. Physics has asked for more time.</p>
               <div class="ph-actions">
-                <a class="btn" href="/#follow">Follow for launch news</a>
+                <a class="btn" href="/#reject">Reject more things</a>
                 <a class="text-link" href="/#games">All games</a>
               </div>
               <button class="ph-restart" type="button">Restart</button>
@@ -128,7 +129,7 @@
       </div>
     </div>
 
-    <section class="section wrap" aria-labelledby="more-heading">
+    <section class="more wrap" aria-labelledby="more-heading">
       <div class="section-head">
         <h2 id="more-heading">More games</h2>
         <p class="section-note">Also unfinished. Also in poor taste.</p>
@@ -140,7 +141,7 @@
 
   <footer class="foot">
     <div class="foot-inner wrap">
-      <img class="foot-mark" src="/brand/mark.svg" alt="" width="183" height="166">
+      <img class="foot-mark" src="/brand/mark-on-dark.svg" alt="" width="183" height="166">
       <div>
         <p>Notaste Games makes satire. Real people, brands and events that appear in our games are being made fun of, not described.</p>
         <p>&copy; <span id="year">2026</span> Notaste Games</p>
