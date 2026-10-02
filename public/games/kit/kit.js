@@ -347,6 +347,9 @@
   //     touch: [{ key: "left", label: "Steer left", icon: "◀", side: "left" }, ...],
   //     aim: true,               follow a mouse or finger over the screen (input.aim)
   //     clickAction: true,       with aim, a mouse click also presses "action"
+  //     keys: { up: [...], ..., bless: ["KeyB"] },  extra names become extra inputs
+  //     pad: { action: [0, 2], bless: [1, 3] },     gamepad buttons per input, if not the defaults
+  //     modes: [{ key: "daily", label: "Today's run" }],  other ways to start, under Press start
   //     reset(shell),            a fresh round: put everything on the start line
   //     update(dt, input, shell), every frame while playing (and after the finish)
   //     render(dt, shell),        every frame while the game is on screen
@@ -355,6 +358,10 @@
   //
   // The game calls shell.callout(text) for in-game stamps and
   // shell.finish({ place, total, heading, line, stats }) when the round ends.
+  // Between stages, shell.interlude({ stamp, heading, line, stats, choices })
+  // shows a screen with a choice on it and resolves with the one picked; then
+  // shell.next() counts the next stage in. shell.mode is how the round began
+  // ("normal", or a key from modes).
   // ---------------------------------------------------------------------------
   function createGame(game) {
     var root = game.root;
@@ -363,6 +370,10 @@
     var state = "title";
     var raf = 0;
     var last = 0;
+    var actions = ["up", "down", "left", "right", "action"];
+    Object.keys(keys).concat((game.touch || []).map(function (b) { return b.key; })).forEach(function (k) {
+      if (actions.indexOf(k) < 0) actions.push(k);
+    });
     var input = { up: false, down: false, left: false, right: false, action: false, steer: 0, mode: "keys",
                   // stick: a gamepad's left stick, -1 to 1 on each axis
                   stick: { x: 0, y: 0 },
@@ -441,6 +452,13 @@
     var startBtn = el("button", "btn kit-start", "Press start");
     startBtn.type = "button";
     titlePanel.appendChild(startBtn);
+    var modeBtns = (game.modes || []).map(function (m) {
+      var b = el("button", "kit-quiet kit-mode", m.label);
+      b.type = "button";
+      b.addEventListener("click", function () { begin(m.key); });
+      titlePanel.appendChild(b);
+      return b;
+    });
     if (game.note) titlePanel.appendChild(el("p", "kit-note", game.note));
     if (game.hints) {
       var hint = el("p", "kit-hint");
@@ -490,6 +508,20 @@
     resultsPanel.appendChild(resultActions);
     root.appendChild(resultsPanel);
 
+    // Between stages: what happened, and a choice to make
+    var interPanel = el("section", "kit-panel kit-results kit-inter");
+    interPanel.setAttribute("aria-label", "Next stage");
+    var interStamp = el("span", "stamp-label");
+    var interHeading = el("h2", "kit-heading");
+    interHeading.tabIndex = -1;
+    var interLine = el("p", "kit-line");
+    var interStats = el("dl", "kit-stats");
+    var interAsk = el("p", "kit-ask");
+    var interChoices = el("div", "kit-choices");
+    [interStamp, interHeading, interLine, interStats, interAsk, interChoices].forEach(function (n) { interPanel.appendChild(n); });
+    root.appendChild(interPanel);
+    var interPick = null;
+
     var live = el("p", "kit-sr");
     live.setAttribute("aria-live", "polite");
     root.appendChild(live);
@@ -504,8 +536,11 @@
       sound: sound,
       reduceMotion: reduceMotion,
       state: function () { return state; },
+      mode: "normal",
       callout: callout,
       finish: finish,
+      interlude: interlude,
+      next: function () { countdown(); },
       announce: announce
     };
 
@@ -558,7 +593,8 @@
     }
 
     // ---------- Flow ----------
-    function begin() {
+    function begin(mode) {
+      shell.mode = typeof mode === "string" ? mode : "normal";
       sound.unlock();
       started = true;
       game.reset(shell);
@@ -570,6 +606,7 @@
 
     function restart() {
       clearTimers();
+      interPick = null;
       callouts.textContent = "";
       game.reset(shell);
       sound.resume();
@@ -579,6 +616,7 @@
 
     function quit() {
       clearTimers();
+      interPick = null;
       callouts.textContent = "";
       count.textContent = "";
       stopLoop();
@@ -586,6 +624,58 @@
       setState("title");
       sound.suspend();
       startBtn.focus({ preventScroll: true });
+    }
+
+    function fillStats(list, rows) {
+      list.textContent = "";
+      (rows || []).forEach(function (row) {
+        var wrap = el("div", row.highlight ? "is-new" : null);
+        wrap.appendChild(el("dt", null, row.label));
+        wrap.appendChild(el("dd", null, row.value));
+        list.appendChild(wrap);
+      });
+    }
+
+    // A stage is over and the next one is coming: say how it went and offer a
+    // choice. Resolves with the index of the choice picked (or 0 with no choices).
+    function interlude(opts) {
+      return new Promise(function (resolve) {
+        if (state !== "playing") return;
+        setState("ending");
+        finishTimer = window.setTimeout(function () {
+          interStamp.textContent = opts.stamp || "Approved";
+          interStamp.style.setProperty("--tilt", (opts.tilt != null ? opts.tilt : -4) + "deg");
+          interHeading.textContent = opts.heading || "";
+          interLine.textContent = opts.line || "";
+          fillStats(interStats, opts.stats);
+          interAsk.textContent = opts.ask || "";
+          interChoices.textContent = "";
+          var choices = opts.choices && opts.choices.length ? opts.choices : [{ label: opts.go || "Next stage" }];
+          var buttons = choices.map(function (c, i) {
+            var b = el("button", "kit-choice");
+            b.type = "button";
+            b.appendChild(el("span", "kit-choice-label", c.label));
+            if (c.detail) b.appendChild(el("span", "kit-choice-detail", c.detail));
+            b.addEventListener("click", function () { pickChoice(i); });
+            interChoices.appendChild(b);
+            return b;
+          });
+          interPick = function (i) {
+            interPick = null;
+            callouts.textContent = "";
+            resolve(i);
+          };
+          setState("interlude");
+          sound.stamp(0.15);
+          buttons[0].focus({ preventScroll: true });
+          announce((opts.heading || "") + " " + (opts.ask || "") + " " + choices.map(function (c) { return c.label + (c.detail ? ": " + c.detail : "") + "."; }).join(" "));
+        }, opts.delay != null ? opts.delay : 1200);
+      });
+    }
+    function pickChoice(i) {
+      if (state !== "interlude" || !interPick) return;
+      sound.tick();
+      interPick(i);
     }
 
     function clearTimers() {
@@ -654,13 +744,7 @@
         resultStamp.style.setProperty("--tilt", (result.place % 2 ? -5 : 4) + "deg");
         resultHeading.textContent = result.heading;
         resultLine.textContent = result.line || "";
-        resultStats.textContent = "";
-        (result.stats || []).forEach(function (row) {
-          var wrap = el("div", row.highlight ? "is-new" : null);
-          wrap.appendChild(el("dt", null, row.label));
-          wrap.appendChild(el("dd", null, row.value));
-          resultStats.appendChild(wrap);
-        });
+        fillStats(resultStats, result.stats);
         setState("results");
         sound.stamp(0.15);
         againBtn.focus({ preventScroll: true });
@@ -735,6 +819,11 @@
     document.addEventListener("keydown", function (e) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (state === "title" || state === "intro") return;
+      if (state === "interlude") {
+        var n = parseInt(e.key, 10);
+        if (n >= 1 && n <= interChoices.children.length) { e.preventDefault(); pickChoice(n - 1); }
+        return;
+      }
       // Enter and Space on a focused button (Resume, Restart) belong to the button
       var target = e.target;
       if ((e.key === "Enter" || e.key === " ") && target && target.closest && target.closest("button, a")) return;
@@ -870,9 +959,17 @@
         if (Math.abs(x) > 0.18) { input.steer = x; padHeld[x < 0 ? "left" : "right"] = true; }
         if (down(14)) { padHeld.left = true; input.steer = -1; }
         if (down(15)) { padHeld.right = true; input.steer = 1; }
-        if (down(0) || down(7) || down(12)) padHeld.up = true;
-        if (down(1) || down(6) || down(13)) padHeld.down = true;
-        if (down(2)) padHeld.action = true;
+        if (game.pad) {
+          Object.keys(game.pad).forEach(function (k) {
+            if (game.pad[k].some(down)) padHeld[k] = true;
+          });
+          if (down(12)) padHeld.up = true;
+          if (down(13)) padHeld.down = true;
+        } else {
+          if (down(0) || down(7) || down(12)) padHeld.up = true;
+          if (down(1) || down(6) || down(13)) padHeld.down = true;
+          if (down(2)) padHeld.action = true;
+        }
         var startNow = down(9);
         if (startNow && !padStartWas) { if (state === "paused") resume(); else pause(); }
         padStartWas = startNow;
@@ -881,7 +978,7 @@
     }
 
     function combineInput() {
-      ["up", "down", "left", "right", "action"].forEach(function (k) {
+      actions.forEach(function (k) {
         input[k] = !!(keyHeld[k] || touchHeld[k] || padHeld[k] || tapped[k]);
       });
       tapped = {};
