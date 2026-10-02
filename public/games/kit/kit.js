@@ -350,12 +350,16 @@
   //     keys: { up: [...], ..., bless: ["KeyB"] },  extra names become extra inputs
   //     pad: { action: [0, 2], bless: [1, 3] },     gamepad buttons per input, if not the defaults
   //     modes: [{ key: "daily", label: "Today's run" }],  other ways to start, under Press start
+  //     smallCallouts: true,     smaller in-game stamps, for a busy field
   //     reset(shell),            a fresh round: put everything on the start line
   //     update(dt, input, shell), every frame while playing (and after the finish)
   //     render(dt, shell),        every frame while the game is on screen
   //     resize(width, height, dpr)
   //   })
   //
+  // shell.padFill(key, share) shows a cooldown on a touch button, filling up
+  // from 0 to 1; a meter with data-pad in the HUD is hidden while touch
+  // buttons are showing, since the button says the same thing.
   // The game calls shell.callout(text) for in-game stamps and
   // shell.finish({ place, total, heading, line, stats }) when the round ends.
   // Between stages, shell.interlude({ stamp, heading, line, stats, choices })
@@ -394,6 +398,7 @@
     // ---------- Build the shell ----------
     root.textContent = "";
     root.classList.add("kit");
+    if (game.smallCallouts) root.classList.add("kit-small-callouts");
     root.setAttribute("data-kit", "title");
 
     var canvas = el("canvas", "kit-canvas");
@@ -541,8 +546,21 @@
       finish: finish,
       interlude: interlude,
       next: function () { countdown(); },
-      announce: announce
+      announce: announce,
+      padFill: padFill
     };
+
+    var pads = {};
+    function padFill(key, share) {
+      var p = pads[key] || (pads[key] = { el: touch.querySelector('.kit-pad[data-key="' + key + '"]'), at: -1 });
+      if (!p.el) return;
+      var v = Math.round(Math.max(0, Math.min(1, share)) * 50) / 50;
+      if (v === p.at) return;
+      p.at = v;
+      p.el.classList.add("has-fill");
+      p.el.style.setProperty("--fill", v);
+      p.el.classList.toggle("is-ready", v >= 1);
+    }
 
     function setState(next) {
       state = next;
