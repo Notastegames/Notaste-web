@@ -2,36 +2,50 @@
 
 The site for [notastegames.com](https://notastegames.com): free satirical browser games.
 
+**Design rules live in [`DESIGN.md`](DESIGN.md).** Colours, type, logo use, stamps, illustration, copy voice, motion, sound and how games behave. Read it before changing anything people will see.
+
 ## How it works
 
 - Plain static site, no build step. Everything the browser loads lives in `public/`.
 - Hosted on Cloudflare (Workers static assets). `wrangler.jsonc` tells Cloudflare to serve `public/`.
-- Cloudflare is connected to this repo, so every push to `main` goes live automatically.
+- Every branch and pull request gets its own Cloudflare preview link, so changes can be checked before they go live. Merging into `main` puts them live.
 
 ## Files
 
 | Path | What it is |
 | --- | --- |
+| `DESIGN.md` | The design and voice rules every page and game follows |
+| `CLAUDE.md` | Instructions for Claude sessions working on this repo |
 | `public/index.html` | Homepage, including the "reject the internet" mini-game |
 | `public/main.js` | The reject game (fake posts, NO button, swipe, N key) and the warning label |
-| `public/styles.css` | Shared design system for every page |
-| `public/games/` | Game pages, shared `game.css` / `game.js` |
+| `public/styles.css` | Shared styles and colour tokens for every page |
+| `public/games/game.css`, `game.js` | Game page layout, the arcade cabinet, "More games", share button, placeholder screen |
+| `public/games/kit/` | The shared game kit: Notaste intro, title/pause/results screens, countdown, controls, sound, fullscreen, saved bests |
+| `public/games/<slug>/` | One folder per game. Heavy Traffic is playable (`race.js`); the others show a placeholder |
 | `public/art/` | Game cover art (SVG) and per-game share images (`og-<slug>.png`) |
-| `public/brand/` | Logo, square mark and the stamp used in the reject game |
+| `public/brand/` | Logo, square mark and the worn stamp |
 | `public/fonts/notaste-display.woff` | Headline font, built from the logo's letterforms |
 | `public/404.html` | Page shown for links that don't exist |
 | `public/og-image.png` | Preview image when the homepage is shared |
+| `public/site.webmanifest` | Name and icons for "Add to home screen" |
+| `public/robots.txt`, `sitemap.xml` | For search engines |
 | `public/_headers` | Basic security headers |
 | `tools/build_font.py` | Rebuilds the headline font (`python3 tools/build_font.py public/fonts/notaste-display`, needs fonttools) |
 
-## Design
-
-Black ground with film grain, paper white for the About section, and the logo's stamp red reserved for rejection: stamps and the NO button. Each game has its own accent colour (Slop Cannon #b3bf2a, Heavy Traffic #4f9e9a, Thonglets #9a7bc4). Headlines use Notaste Display, a custom face drawn from the logo; body text uses the device's own UI font so the fake feed reads like a real one. No third-party fonts or trackers.
-
 ## Games
 
-Each game has a page at `public/games/<slug>/index.html`, sharing `public/games/game.css` and `public/games/game.js`. Cover art lives at `public/art/<slug>.svg` (800x600).
+Each game has a page at `public/games/<slug>/index.html`, sharing `public/games/game.css` and `public/games/game.js`.
 
-Until a game is ready, its page shows a placeholder "Press start" screen. The real game mounts in `<div id="game-root" data-placeholder>`: remove `data-placeholder` and replace the div's contents with the game.
+Playable games are built on the kit: the page loads `/games/kit/kit.css`, `/games/kit/kit.js` and the game's own script, which calls `Notaste.createGame()`. The kit supplies the Notaste intro, the screens, controls, sound and saving, so every game looks and behaves the same. See `public/games/heavy-traffic/race.js` for a complete example.
 
-To add a game: copy a game folder, edit the lines marked `<!-- EDIT -->`, add one line to the `GAMES` list at the top of `game.js`, add its cover to `public/art/`, and add a card on the homepage. Bigger games can have their own repo in the Notastegames org on a subdomain instead.
+Games that aren't ready show a placeholder "Press start" screen from `game.js` while their `#game-root` has `data-placeholder`.
+
+To add a game, follow the checklist at the end of `DESIGN.md`.
+
+## Testing a game locally
+
+```
+python3 -m http.server -d public 8787
+```
+
+Then open `http://localhost:8787/games/heavy-traffic/`. Adding `?autopilot` lets the computer drive your kart, and `?debug` exposes the race state as `window.__heavyTraffic` for poking at in the console.
