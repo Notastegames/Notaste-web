@@ -32,6 +32,7 @@ Write like a tired official who has seen everything and approved none of it.
 - No exclamation marks. No emoji in interface text. No em dashes. Use a full stop or a colon instead.
 - No "Oops", no "Uh oh", no apologising cutesy errors. Errors say what happened and what to do.
 - No jokes that punch down. Satire aims at platforms, companies, the powerful, the internet and our own bad habits. Never at people for who they are: body, race, religion, disability, gender, sexuality, class or age. When a game's joke is about a person ("large drivers, tiny cars"), the punchline is the situation (the car is too small, physics gave up), never the person.
+- Crude is fine; cruel isn't. Cartoon exaggeration, slapstick and toilet humour are on brand: Heavy Traffic's drivers are twice the width of their karts, wobble, sweat, show a bit of builder's bum and have a button marked Gas. The words never insult the driver: no jokes about weight, eating, health or laziness. The thing that suffers is the car ("Suspension: deceased", "The car's family has been informed").
 - Real people and real brands don't appear in games. Use invented stand-ins ("Space Billionaire", "A Company"). The satire disclaimer in the footer stays on every page.
 - No real slurs, no gore, nothing sexual. "Poor taste" means cheeky, not cruel.
 
@@ -151,7 +152,8 @@ Cover art and in-game graphics share one style. It's set by the existing covers 
 - **Characters** are chunky and simple: helmets, visors, dot eyes or no faces. No realistic people, no likenesses of real people.
 - **Covers** are 800×600 SVG (`public/art/<slug>.svg`) with the action in the middle. The stamp over a cover is added by the page's CSS, not baked into the art.
 - **Share images** are 1200×630 PNG (`public/art/og-<slug>.png`): headline on the left in Notaste Display, art on the right, logo bottom left, a stamp. Copy the layout of `public/og-image.png`.
-- **In games**, drawing code follows the same rules: black outline, flat fill, the four inks. Colours come from `Notaste.tokens()`.
+- **In games**, drawing code follows the same rules: black outline, flat fill, the four inks. Colours come from `Notaste.tokens()`. Grey is made with halftone dots on white, never a grey fill.
+- **Heavy Traffic's drivers** are the reference for characters in a game: white skin, a small helmet (white, red stripe, black visor) on a huge body, the shirt riding up over a strip of bare back, trousers spilling over both sides of a kart half their width, wheels splayed under the weight, and a TNY number plate. Seen from behind, the way the race is played.
 
 ---
 
@@ -182,6 +184,7 @@ About three seconds the first time in a visit, about one second after that (titl
 - Sounds are made in code with the Web Audio API through the kit (`Notaste.sound`). No audio files for now.
 - Lo-fi arcade: square and saw beeps, short noise bursts. Short and dry.
 - The signature sound is the **stamp**: a low thump with a slap of noise. It plays whenever a stamp lands.
+- Game sounds stay in the same lo-fi family: Heavy Traffic's engine is a buzzing saw wave and its Gas button is a long, low, wobbling note.
 - Sound starts only after the player presses something. One mute setting covers every game and is remembered (`notaste.muted`).
 - Pause all sound when the game is paused or the tab is hidden.
 
@@ -223,7 +226,8 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 - Plain static site, no build step. Everything the browser loads is in `public/`.
 - Shared page styles: `public/styles.css`. Shared game page styles: `public/games/game.css`. Shared game kit: `public/games/kit/`.
 - Each game: `public/games/<slug>/index.html` plus its own script and styles in the same folder.
-- Hosted on Cloudflare. Every branch and pull request gets a preview link. Merging into `main` puts it live.
+- Hosted on Cloudflare. Merging into `main` puts it live; Cloudflare also builds a preview link for every branch.
+- Every change people will see is reviewed before it goes live: a playable preview is published as a private Claude artifact (`python3 tools/preview_artifact.py <slug> <folder>` packages a game page for it), and once it's approved the pull request is merged.
 - Commits use the GitHub private address, never a personal email.
 
 ---
@@ -237,4 +241,4 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 5. Draw the 800×600 cover and the 1200×630 share image (section 7).
 6. Use the kit for intro, screens, controls, sound and saving. Draw with `Notaste.tokens()` colours.
 7. Write the copy in the house voice (section 2) and check the punch-down rule.
-8. Test at phone and desktop sizes, with keyboard, touch and reduced motion, then open a pull request and review the preview link.
+8. Test at phone and desktop sizes, with keyboard, touch and reduced motion, publish the preview artifact for approval, then merge the pull request.

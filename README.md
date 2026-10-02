@@ -8,7 +8,7 @@ The site for [notastegames.com](https://notastegames.com): free satirical browse
 
 - Plain static site, no build step. Everything the browser loads lives in `public/`.
 - Hosted on Cloudflare (Workers static assets). `wrangler.jsonc` tells Cloudflare to serve `public/`.
-- Every branch and pull request gets its own Cloudflare preview link, so changes can be checked before they go live. Merging into `main` puts them live.
+- Changes are checked before they go live: a playable preview is published as a private Claude artifact (see `tools/preview_artifact.py`), and once it's approved the pull request is merged. Merging into `main` puts it live. Cloudflare also builds a preview link for every branch.
 
 ## Files
 
@@ -21,7 +21,7 @@ The site for [notastegames.com](https://notastegames.com): free satirical browse
 | `public/styles.css` | Shared styles and colour tokens for every page |
 | `public/games/game.css`, `game.js` | Game page layout, the arcade cabinet, "More games", share button, placeholder screen |
 | `public/games/kit/` | The shared game kit: Notaste intro, title/pause/results screens, countdown, controls, sound, fullscreen, saved bests |
-| `public/games/<slug>/` | One folder per game. Heavy Traffic is playable (`race.js`); the others show a placeholder |
+| `public/games/<slug>/` | One folder per game. Heavy Traffic is playable (`race.js` the race, `ground.js` the 3D road, `driver.js` the karts and drivers); the others show a placeholder |
 | `public/art/` | Game cover art (SVG) and per-game share images (`og-<slug>.png`) |
 | `public/brand/` | Logo, square mark and the worn stamp |
 | `public/fonts/notaste-display.woff` | Headline font, built from the logo's letterforms |
@@ -31,6 +31,7 @@ The site for [notastegames.com](https://notastegames.com): free satirical browse
 | `public/robots.txt`, `sitemap.xml` | For search engines |
 | `public/_headers` | Basic security headers |
 | `tools/build_font.py` | Rebuilds the headline font (`python3 tools/build_font.py public/fonts/notaste-display`, needs fonttools) |
+| `tools/preview_artifact.py` | Packages a game page as a playable preview for a Claude artifact (`python3 tools/preview_artifact.py heavy-traffic <folder>`) |
 
 ## Games
 
