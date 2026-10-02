@@ -210,6 +210,13 @@
       looks: shuffle(A.LOOKS.slice(), shell.random),
       decor: A.LOOKS.map(function () { return Math.floor(shell.random() * 4); })
     };
+    // ?debug&with=intern,bigger: start with some of IT's suggestions already taken
+    if (DEBUG && params.get("with")) {
+      params.get("with").split(",").forEach(function (id) {
+        var o = OFFERS.filter(function (x) { return x.id === id; })[0];
+        if (o) { run.taken.push(o.id); o.apply(run.mods); }
+      });
+    }
     auto = { wait: 0.6, target: null };
     prev = {}; held = {};
     shakeAmt = 0;
@@ -483,7 +490,7 @@
     pts = Math.round(pts / 10) * 10;
     run.score += pts;
     var c = at(d, 40, 8);
-    G.pops.push({ x: c.x, y: c.y, text: "+" + pts, t: 0 });
+    G.pops.push({ x: c.x, y: Math.max(c.y, L.top + 24), text: "+" + pts, t: 0 });   // rising, but clear of the HUD
     addStamp(d, close && how !== "mute" ? "Just in time" : pick(STOPS), 0.75);
     dropBubble(d);
     if (how === "mute") { if (Math.random() < 0.25) say1(d, pick(MUTED)); }
@@ -630,7 +637,9 @@
   function internTick(dt) {
     var it = G.intern;
     if (!it || G.phase !== "play") return;
-    var home = { x: W * 0.5, y: H - L.strip * 0.5 };
+    // waiting in the strip, clear of the server and the sign, until needed
+    var home = { x: L.sign ? Math.min(L.sign.x + L.sign.w + 34, L.mute.x - L.mute.r - 30) : (L.server.x + L.server.w + W * 0.72) / 2,
+                 y: H - L.strip * 0.32 };
     var aim = it.target ? at(it.target, 24, 30) : home;    // the left of their head; yours goes on the right
     it.x += (aim.x - it.x) * Math.min(1, dt * 7);
     it.y += (aim.y - it.y) * Math.min(1, dt * 7);
@@ -1533,8 +1542,20 @@
     c.save();
     c.translate(it.x, it.y);
     c.rotate(-0.5);     // the intern comes from the other side
-    A.hand(c, 0, 0, clamp(L.k * 26, 24, 44), 0, "Intern");
+    var size = clamp(L.k * 28, 26, 46);
+    A.hand(c, 0, 0, size, 0);
     c.restore();
+    // a name badge, so you know who it is
+    var fs = clamp(L.k * 7.5, 10, 13);
+    c.font = fs + "px " + T.display;
+    var w = c.measureText("INTERN").width + fs * 0.9, h = fs * 1.45;
+    var bx = it.x - size * 0.62 - w / 2, by = it.y - size * 0.95 - h / 2;
+    A.rr(c, bx, by, w, h, 2);
+    A.fill(c, T.accent, 1.6, T.ink);
+    c.fillStyle = T.ink;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("INTERN", bx + w / 2, by + h / 2 + fs * 0.05);
   }
 
   // The arrow: first pass just reserves its space (so bubbles keep clear)
