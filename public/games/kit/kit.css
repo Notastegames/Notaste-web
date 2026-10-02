@@ -248,6 +248,41 @@
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
 }
 
+/* A notice card (shell.brief): paper, the game's colour along the top */
+.kit-brief {
+  position: absolute;
+  left: 50%;
+  bottom: 0.9rem;
+  z-index: 2;
+  width: min(25rem, calc(100% - 2rem));
+  padding: 0.55rem 0.8rem 0.65rem;
+  border-top: 5px solid var(--accent, var(--paper));
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+  transform: translate(-50%, 0);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease, visibility 0s 220ms;
+}
+.kit-brief.is-on { opacity: 1; visibility: visible; transition: opacity 220ms ease, transform 220ms ease; }
+@media (prefers-reduced-motion: no-preference) {
+  .kit-brief { transform: translate(-50%, 8px); }
+  .kit-brief.is-on { transform: translate(-50%, 0); }
+}
+#game-root.kit-touching .kit-brief { bottom: 5.4rem; }
+#game-root:not([data-kit="playing"]):not([data-kit="countdown"]):not([data-kit="paused"]) .kit-brief { display: none; }
+.kit-brief-title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.15rem;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+.kit-brief-text { margin: 0.3rem 0 0; font-size: 0.82rem; font-weight: 600; line-height: 1.35; }
+
 /* ---------- Title, pause and results ---------- */
 
 .kit-panel {
@@ -442,6 +477,10 @@
   .kit-choice-label { font-size: 0.95rem; }
   .kit-choice-detail { font-size: 0.72rem; line-height: 1.25; }
   .kit-hud-tl, .kit-hud-tr { top: 0.55rem; }
+  .kit-hud [data-minor] { display: none; }
+  .kit-brief { padding: 0.45rem 0.65rem 0.5rem; border-top-width: 4px; }
+  .kit-brief-title { font-size: 0.95rem; }
+  .kit-brief-text { margin-top: 0.2rem; font-size: 0.74rem; line-height: 1.3; }
   .kit-hud-tl { left: 0.6rem; }
   .kit-hud-tr { right: 0.6rem; }
   .kit-bar { top: 0.45rem; gap: 0.25rem; }
