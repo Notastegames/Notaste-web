@@ -729,8 +729,9 @@
     G.endT = 0;
     run.score += 2500;
     say("Home time", 3);
-    var folk = G.desks.filter(function (d) { return d.kind !== "ooo"; });
-    say1(pick(folk), pick(HOMES), true);
+    var folk = shuffle(G.desks.filter(function (d) { return d.kind !== "ooo" && d.kind !== "boss"; }), Math.random);
+    var lines = shuffle(HOMES.slice(), Math.random);
+    folk.slice(0, 2).forEach(function (d, n) { G.bubbles.push(bub(d, lines[n], 2.4)); });
     end("home");
   }
 
@@ -747,7 +748,8 @@
     sfx.melt();
     // the office has never been happier
     var folk = shuffle(G.desks.filter(function (d) { return d.kind !== "ooo"; }), Math.random);
-    folk.slice(0, 2).forEach(function (d, n) { G.bubbles.push(bub(d, CHEERS[(n + Math.floor(Math.random() * CHEERS.length)) % CHEERS.length], 3)); });
+    var lines = shuffle(CHEERS.slice(), Math.random);
+    folk.slice(0, 2).forEach(function (d, n) { G.bubbles.push(bub(d, lines[n], 3)); });
     for (var p = 0; p < 6; p++) addPuff(true);
     end("melt");
   }
@@ -1192,7 +1194,7 @@
     drawBubbles(c, arrowBox);
     drawHint(c, false);
     drawPops(c);
-    if (st === "playing" || st === "countdown" || st === "ending") drawHand(c);
+    if ((st === "playing" || st === "countdown") && G.phase === "play") drawHand(c);
     tickHum();
   }
 
