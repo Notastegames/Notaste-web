@@ -52,25 +52,28 @@
   var FEE_EVERY = 5;                 // the Priest keeps every fifth brick
   var DEVOTION_PER = 0.006;          // each one smitten makes them love you a bit more
   var DEVOTION_MAX = 2.5;
+  var TEETER = 0.6;                  // how long they wobble on the edge before following you in
+  var EXTENSION = 25;                // seconds added, once a run, to a stage that's nearly built
   var JUDGEMENT_TIME = 60;           // Judgement Day starts with this long
-  var JUDGEMENT_TIER = 30;           // ...and every this many bricks adds
+  var JUDGEMENT_TIER = 30;           // ...the first tier of bricks adds
+  var JUDGEMENT_GROW = 1.35;         // ...each tier after needs this much more than the last
   var JUDGEMENT_BONUS = 12;          // ...this many seconds
 
   // The run. Each stage brings its rival god, and some bring back an old one.
   var STAGES = [
     { rival: "feed", target: 100, time: 90, pits: 1, plinth: "Our god",
       clear: "The Thonglets have never been happier. They've never been anything else." },
-    { rival: "landlord", target: 110, time: 95, pits: 1, plinth: "Still our god", old: 1,
+    { rival: "landlord", target: 140, time: 95, pits: 1, plinth: "Still our god", old: 1,
       clear: "The Landlord would like to discuss the statue's rent." },
-    { rival: "rocket", target: 120, time: 100, pits: 1, plinth: "Our god again", old: 1,
+    { rival: "rocket", target: 180, time: 100, pits: 1, plinth: "Our god again", old: 1,
       clear: "Some of them are in space now. They send their love. It takes a while." },
-    { rival: "loudspeaker", target: 130, time: 100, pits: 2, plinth: "Our god. Louder.",
+    { rival: "loudspeaker", target: 240, time: 105, pits: 2, plinth: "Our god. Louder.",
       clear: "Nobody remembers what the shouting was about. Everyone agrees with it." },
-    { rival: "sea", target: 140, time: 105, pits: 1, plinth: "Our god. Wetter.", old: 1,
+    { rival: "sea", target: 290, time: 110, pits: 1, plinth: "Our god. Wetter.", old: 1,
       clear: "The statue's feet are wet. Nobody's mentioned it." },
-    { rival: "office", target: 150, time: 110, pits: 1, plinth: "Our god. Approved.", old: 1,
+    { rival: "office", target: 300, time: 115, pits: 1, plinth: "Our god. Approved.", old: 1,
       clear: "Permit filed. The statue is now officially a statue." },
-    { rival: "all", target: 150, time: 125, pits: 1, plinth: "All of our god",
+    { rival: "all", target: 360, time: 125, pits: 1, plinth: "All of our god",
       clear: "Everything happened at once. The statue survived. Some of them did too." },
     { rival: "judgement", target: Infinity, time: JUDGEMENT_TIME, pits: 1, plinth: "Judge us" }
   ];
@@ -122,6 +125,9 @@
   var JOINING = ["We saw the statue. We're in.", "Is that a bum. We're in.", "Nice statue. Where do we sign."];
   var TRIPPED = ["Fell over. For you.", "Ow. Worth it.", "Hurrying. Sorry."];
   var TIER_CALLS = ["Feet: approved", "Bum: in progress", "Thong: installed", "Head: pending"];
+  var TEETERING = ["Oh.", "Is that a pit.", "Bit of a drop.", "God's in the pit. Fair enough.", "Are we sure."];
+  var TRAILING = ["Following the trail.", "God went this way.", "Wait for us.", "Is god lost or are we."];
+  var CHEERS = ["Our god.", "It's beautiful.", "It's got a bum.", "Look at it.", "Worth it."];
 
   // ---------------------------------------------------------------------------
   // State. G is shared with the rivals (rivals.js).
@@ -140,6 +146,8 @@
   var run = null;                      // the whole run's tallies
   var smiteWait = 0, blessWait = 0, prevAction = false, prevBless = false, shake = 0;
   var timers = {}, stepT = 0, announced = false, firstFall = true;
+  var judgeTier = 0, judgeFrom = 0, judgeNext = 30;   // Judgement Day: which tier, and the bricks it starts and ends at
+  var feeCalled = false, guide = null, lostSight = 0;
 
   function rand(a, b) { return a + Math.random() * (b - a); }
   function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
@@ -288,7 +296,8 @@
       ox: Math.cos(a) * r, oy: Math.sin(a) * r,   // their place in the crowd
       state: "follow", t: 0, hat: false, carry: false, load: 0, censored: false,
       face: Math.random() < 0.5 ? -1 : 1, back: false, phase: Math.random() * 6,
-      speed: WALK * rand(0.9, 1.1), wet: 0, wade: 1, blessed: 0
+      speed: WALK * rand(0.9, 1.1), wet: 0, wade: 1, blessed: 0,
+      sx: x, sy: y, trail: false, teeter: 0      // where they last saw the light
     };
     if (opts) for (var k in opts) f[k] = opts[k];
     G.folk.push(f);
@@ -297,7 +306,8 @@
 
   function newPriest(x, y) {
     return { x: x, y: y, vx: 0, vy: 0, ox: -0.9, oy: 0.6, state: "follow", t: 0, face: 1, back: false,
-             phase: 0, priest: true, censored: false, speed: WALK * 0.8, gone: 0, wet: 0, wade: 1, blessed: 0 };
+             phase: 0, priest: true, censored: false, speed: WALK * 0.8, gone: 0, wet: 0, wade: 1, blessed: 0,
+             sx: x, sy: y, trail: false, teeter: 0 };
   }
 
   function reset(sh) {
@@ -310,7 +320,7 @@
     G.mods = { walk: 1, trip: 0, load: 1, smiteCd: 1, smiteR: 1, blessCd: 1, feeEvery: FEE_EVERY, time: 0,
                converts: 1, lure: 1, reach: 1, pitSave: 0, noPriest: false };
     G.devotion = 1;
-    run = { score: 0, statues: 0, lost: 0, fees: 0, smitten: 0, taken: [], daily: daily, reached: 0 };
+    run = { score: 0, statues: 0, lost: 0, fees: 0, smitten: 0, taken: [], daily: daily, reached: 0, extended: false };
     G.folk = [];
     G.priest = null;
     G.stage = FIRST;
@@ -333,10 +343,14 @@
       G.folk.forEach(function (f) {
         f.x = st.x + rand(-55, 55); f.y = st.y + rand(-55, 55);
         f.vx = f.vy = 0; f.state = "follow"; f.carry = false; f.load = 0; f.wet = 0; f.blessed = 0;
+        f.sx = f.x; f.sy = f.y; f.trail = false; f.teeter = 0;
       });
     }
     if (!G.mods.noPriest && (!G.priest || !alive(G.priest))) G.priest = newPriest(st.x - 40, st.y + 10);
-    else if (G.priest && alive(G.priest)) { G.priest.x = st.x - 40; G.priest.y = st.y + 10; G.priest.state = "follow"; G.priest.vx = G.priest.vy = 0; }
+    else if (G.priest && alive(G.priest)) {
+      G.priest.x = G.priest.sx = st.x - 40; G.priest.y = G.priest.sy = st.y + 10;
+      G.priest.state = "follow"; G.priest.vx = G.priest.vy = 0; G.priest.trail = false; G.priest.teeter = 0;
+    }
     G.light = { x: st.x + (G.plan.start.x < 0.5 ? 40 : -40), y: st.y };
     G.stageTime = info.time + G.mods.time;
     clock = 0;
@@ -351,8 +365,14 @@
     phase = "play";
     announced = false;
     firstFall = true;
-    timers = { prayer: 2.5, sermon: 5, rival: 6, puff: 9, behind: 4 };
+    timers = { prayer: 2.5, sermon: 5, rival: 6, puff: 9, behind: 4, teeter: 0 };
     run.reached = G.stage;
+    judgeTier = 0;
+    judgeFrom = 0;
+    judgeNext = JUDGEMENT_TIER;
+    feeCalled = false;
+    guide = G.stage === 0 ? "bricks" : null;
+    lostSight = 0;
     bg = null;
     statueImg = null;
     if (hudEls) paintHud();
@@ -367,8 +387,10 @@
   }
 
   function stageClear() {
+    if (phase !== "play") return;
     phase = "clear";
     run.statues++;
+    cheer();
     var secs = Math.ceil(timeLeft);
     var faithful = G.folk.filter(alive).length;
     var bonus = Math.round((secs * 20 + faithful * 25) * G.devotion);
@@ -393,6 +415,7 @@
       ask: next > LAST ? "Judgement Day is next. One last commandment." : "Stage " + (next + 1) + ": " + stageName(next) + ". Pick a commandment.",
       choices: offers.map(function (c) { return { label: c.label, detail: c.detail }; })
     };
+    paintHud();
     shell.interlude(opts).then(function (i) {
       var c = offers[i] || offers[0];
       if (c) { run.taken.push(c.id); c.apply(G.mods); }
@@ -414,6 +437,7 @@
   // ---------------------------------------------------------------------------
   function say(who, text, force) {
     if (!who || !text) return;
+    for (var j = 0; j < bubbles.length; j++) if (bubbles[j].text === text) return;   // once is plenty
     for (var i = 0; i < bubbles.length; i++) if (bubbles[i].who === who) { if (!force) return; bubbles.splice(i, 1); break; }
     if (bubbles.length >= 3) { if (!force) return; bubbles.shift(); }
     bubbles.push({ who: who, text: text, t: 0, life: 2.2 + text.length * 0.03 });
@@ -457,7 +481,9 @@
     blare: function () { N.sound.tone(220, 0.5, { type: "sawtooth", vol: 0.06 }); N.sound.tone(277, 0.5, { type: "sawtooth", vol: 0.05 }); },
     launch: function () { N.sound.noise(1.8, { type: "lowpass", freq: 400, vol: 0.22 }); N.sound.tone(90, 1.6, { type: "sawtooth", slide: 400, vol: 0.06 }); },
     stamp: function () { N.sound.stamp(); },
-    ready: function () { N.sound.tone(880, 0.06, { vol: 0.035 }); }
+    ready: function () { N.sound.tone(880, 0.06, { vol: 0.035 }); },
+    teeter: function () { N.sound.tone(622, 0.11, { type: "triangle", vol: 0.06 }); N.sound.tone(494, 0.2, { type: "triangle", vol: 0.06, delay: 0.13 }); },
+    extend: function () { N.sound.stamp(); N.sound.tone(784, 0.3, { type: "triangle", vol: 0.05, delay: 0.2 }); }
   };
 
   // ---------------------------------------------------------------------------
@@ -470,6 +496,24 @@
       if (dx * dx + dy * dy < 1) return pits[i];
     }
     return null;
+  }
+
+  // Is the light itself over the hole (the striped rim doesn't count)
+  function lightIn(pit) {
+    var dx = (G.light.x - pit.x) / pit.rx, dy = (G.light.y - pit.y) / pit.ry;
+    return dx * dx + dy * dy < 1;
+  }
+
+  // Put them back on the edge of the pit, still moving round it
+  function rim(f, pit) {
+    var ang = Math.atan2((f.y - pit.y) / pit.ry, (f.x - pit.x) / pit.rx);
+    var c = Math.cos(ang), s = Math.sin(ang);
+    f.x = pit.x + c * (pit.rx + 1.5);
+    f.y = pit.y + s * (pit.ry + 1.5);
+    var nx = c / pit.rx, ny = s / pit.ry, nl = Math.hypot(nx, ny);
+    nx /= nl; ny /= nl;
+    var vn = f.vx * nx + f.vy * ny;
+    if (vn < 0) { f.vx -= nx * vn; f.vy -= ny * vn; }
   }
 
   function steer(f, tx, ty, speed, dt) {
@@ -654,6 +698,7 @@
   }
 
   function deliver(f) {
+    if (phase !== "play") return;     // the statue's done: the rest can keep theirs
     var office = G.rivals.filter(function (r) { return r.kind === "office"; })[0];
     if (office && office.blocks()) { office.waiting(f); return; }
     var load = f.load || 1;
@@ -665,18 +710,24 @@
       run.fees += load;
       sfx.till();
       say(G.priest, pick(FEES), true);
-      if (run.fees <= load || delivered % (G.mods.feeEvery * 4) === 0) shell.callout("Administration fee", { sound: false, ms: 1100 });
+      if (!feeCalled) { feeCalled = true; shell.callout("Administration fee", { sound: false, ms: 1100 }); }
       return;
     }
     sfx.drop();
+    if (guide === "site") guide = null;
     var before = bricks;
     bricks += load;
     run.score += 100 * load * G.devotion;
     if (office) office.used(load);
-    var tier = judgement() ? JUDGEMENT_TIER : stageInfo().target / 5;
-    if (Math.floor(bricks / tier) > Math.floor(before / tier) && bricks < stageInfo().target) {
+    var tier = stageInfo().target / 5;
+    var up = judgement() ? bricks >= judgeNext : Math.floor(bricks / tier) > Math.floor(before / tier) && bricks < stageInfo().target;
+    if (up) {
       var n = Math.floor(bricks / tier);
       if (judgement()) {
+        // each tier needs a few more bricks than the last, so judgement comes in the end
+        judgeTier++;
+        judgeFrom = judgeNext;
+        judgeNext += Math.round(JUDGEMENT_TIER * Math.pow(JUDGEMENT_GROW, judgeTier));
         timeLeft += JUDGEMENT_BONUS;
         G.stageTime += JUDGEMENT_BONUS;
         run.score += 500 * G.devotion;
@@ -697,13 +748,13 @@
 
     if (f.state === "fall") {
       f.t += dt;
-      var pit = f.pit || { x: f.x, y: f.y + 30 };
+      var hole = f.pit || { x: f.x, y: f.y + 30 };
       if (f.how === "sea") { f.y += dt * 30; f.x += dt * 10; }
-      else { f.x += (pit.x - f.x) * dt * 2; f.y += (pit.y - f.y) * dt * 2; }
+      else { f.x += (hole.x - f.x) * dt * 2; f.y += (hole.y - f.y) * dt * 2; }
       if (f.t > 0.9) {
         if (f.how === "pit" && Math.random() < G.mods.pitSave) {
           // faith rewarded: they climb back out
-          f.state = "stun"; f.t = 1; f.x = pit.x + (Math.random() < 0.5 ? -1 : 1) * (pit.rx + 8); f.y = pit.y; f.vx = f.vy = 0;
+          f.state = "stun"; f.t = 1; f.x = hole.x + (Math.random() < 0.5 ? -1 : 1) * (hole.rx + 8); f.y = hole.y; f.vx = f.vy = 0;
           say(f, "Faith: rewarded.", true);
           return;
         }
@@ -731,6 +782,7 @@
         f.hat = true;
         f.state = "follow";
         sfx.pick();
+        if (guide === "bricks") guide = "site";
         if (Math.random() < 0.06) puff(f);
       }
       taken = true;
@@ -739,20 +791,31 @@
     }
     if (!taken && f.state !== "gone" && f.state !== "fall") {
       var reach = (scatter ? FOLLOW_R * 0.45 : FOLLOW_R) * G.mods.reach;
+      var speed = (f.carry ? WALK_LOADED : f.speed) * G.mods.walk * (f.blessed > 0 ? 1.5 : 1);
+      var spread = scatter ? crowdR * 2.4 : crowdR;
+      if (f.priest) spread = crowdR + 26;
       if (dl < reach) {
         f.state = "follow";
-        var spread = scatter ? crowdR * 2.4 : crowdR;
-        var tx = G.light.x + f.ox * spread, ty = G.light.y + f.oy * spread * 0.7;
-        if (f.priest) { tx = G.light.x + f.ox * (crowdR + 26); ty = G.light.y + f.oy * (crowdR + 26) * 0.7; }
-        var speed = (f.carry ? WALK_LOADED : f.speed) * G.mods.walk * (f.blessed > 0 ? 1.5 : 1);
-        steer(f, tx, ty, speed * (f.wade || 1), dt);
+        f.trail = false;
+        f.sx = G.light.x; f.sy = G.light.y;
+        steer(f, G.light.x + f.ox * spread, G.light.y + f.oy * spread * 0.7, speed * (f.wade || 1), dt);
         if (G.mods.trip && !f.priest && Math.hypot(f.vx, f.vy) > 40 && Math.random() < G.mods.trip * dt) {
           f.state = "stun"; f.t = 0.7;
           if (Math.random() < 0.3) say(f, pick(TRIPPED));
         }
       } else {
-        f.state = "pray";
-        steer(f, f.x, f.y, 0, dt);
+        // out of sight: they walk to where they last saw the light, and wait there
+        var wx = f.sx + f.ox * spread, wy = f.sy + f.oy * spread * 0.7;
+        if (Math.hypot(wx - f.x, wy - f.y) > 12) {
+          if (!f.trail && Math.random() < 0.08) say(f, pick(TRAILING));
+          f.state = "follow";
+          f.trail = true;
+          steer(f, wx, wy, speed * 0.85 * (f.wade || 1), dt);
+        } else {
+          f.state = "pray";
+          f.trail = false;
+          steer(f, f.x, f.y, 0, dt);
+        }
       }
     }
     if (f.state === "gone" || f.state === "fall" || f.state === "aboard") return;
@@ -764,23 +827,31 @@
     if (Math.abs(f.vx) > 6) f.face = f.vx > 0 ? 1 : -1;
     f.back = f.vy < -22 && Math.abs(f.vy) > Math.abs(f.vx) * 0.6;
 
-    // Blind faith: they walk wherever the light leads
+    // Blind faith: they'll follow the light into a pit, but only the light.
+    // Anything else (a shove, a slogan, the long way round) and they walk
+    // round the edge. Even then they wobble on the brink for a moment first.
     var pit = inPit(f);
-    if (pit && f.state === "march") {
-      // they'll march for a slogan, but only god gets them into a pit
-      var ang = Math.atan2((f.y - pit.y) / pit.ry, (f.x - pit.x) / pit.rx);
-      f.x = pit.x + Math.cos(ang) * (pit.rx + 2);
-      f.y = pit.y + Math.sin(ang) * (pit.ry + 2);
-      f.vx = f.vy = 0;
-      if (Math.random() < 0.02) say(f, "Is that a pit. Nobody said pit.");
-      pit = null;
-    }
-    if (pit) {
+    if (pit && f.state === "follow" && !f.trail && lightIn(pit)) {
+      var brink = f.teeter === 0;
+      f.teeter += dt;
+      if (brink) {
+        if (Math.random() < 0.25) say(f, pick(TEETERING));
+        if (timers.teeter <= 0) { timers.teeter = 1; sfx.teeter(); }
+      }
+      if (f.teeter < TEETER) { rim(f, pit); return; }
       f.pit = pit;
+      f.teeter = 0;
       lose([f], "pit");
       if (f.priest) { shell.callout("Priest: lost"); say(f, "Admin fee waived. Just this once.", true); }
       else if (firstFall) { firstFall = false; shell.callout("Faith: tested", { sound: false }); }
       return;
+    }
+    if (pit) {
+      rim(f, pit);
+      if (f.state === "march" && Math.random() < 0.02) say(f, "Is that a pit. Nobody said pit.");
+    } else if (f.teeter > 0) {
+      f.teeter = 0;
+      if (Math.random() < 0.3) say(f, pick(["Close one.", "Phew.", "Faith: postponed."]));
     }
     if (f.priest || f.state === "stun" || f.state === "pick") return;
     if (!f.carry) {
@@ -828,8 +899,21 @@
     say(neighbour || f, pick(PUFFED), true);
   }
 
+  // The statue's finished: everyone jumps up and down about it
+  function cheer() {
+    bubbles = [];
+    var n = 0;
+    G.folk.forEach(function (f) {
+      if (!alive(f)) return;
+      f.vx = f.vy = 0;
+      if (f.state !== "follow" && f.state !== "pray") f.state = "follow";
+      if (n < 2 && Math.random() < 0.15) { say(f, pick(CHEERS), true); n++; }
+    });
+    if (G.priest && alive(G.priest)) say(G.priest, "Collection plate's by the bum.", true);
+  }
+
   function update(dt, input) {
-    if (phase !== "play") { tickFx(dt); tickBubbles(dt); return; }
+    if (phase !== "play") { clock += dt; tickFx(dt); tickBubbles(dt); return; }
     if (!announced) {
       announced = true;
       var title = judgement() ? "Judgement Day" : "Stage " + (G.stage + 1) + ": " + stageName(G.stage);
@@ -857,6 +941,7 @@
     var live = G.folk.filter(alive);
     var crowdR = 10 + 3.6 * Math.sqrt(live.length);
     var scatter = G.priest && G.priest.state === "gone" && G.priest.gone > 0;
+    G.reach = (scatter ? FOLLOW_R * 0.45 : FOLLOW_R) * G.mods.reach;
     G.folk.forEach(function (f) { updateOne(f, dt, crowdR, scatter); });
     if (G.priest && !G.mods.noPriest) {
       if (G.priest.state === "gone") {
@@ -879,8 +964,20 @@
 
     var left = G.folk.filter(alive).length;
     var pending = G.folk.some(function (f) { return f.state === "fall" || f.state === "aboard"; });
+    // once a run, a statue that's nearly there gets more time. There's a form.
+    if (timeLeft <= 0 && !judgement() && !run.extended && left && bricks >= stageInfo().target * 0.6) {
+      run.extended = true;
+      timeLeft = EXTENSION;
+      G.stageTime += EXTENSION;
+      sfx.extend();
+      shell.callout("Extension: granted", { sound: false, ms: 1600 });
+      say(G.priest && alive(G.priest) ? G.priest : someone(), "One extension. Don't make it a habit.", true);
+    }
     if (!left && !pending) end("empty");
     else if (timeLeft <= 0) end(judgement() ? "judged" : "time");
+    // the light's reach shows while anyone is out of it
+    var behind = live.some(function (f) { return f.state === "pray" || f.trail; });
+    lostSight = clamp(lostSight + (behind ? dt : -dt) * 2.5, 0, 1);
     paintHud();
   }
 
@@ -900,6 +997,7 @@
     timers.rival -= dt;
     timers.puff -= dt;
     timers.behind -= dt;
+    timers.teeter -= dt;
     if (timers.prayer <= 0) {
       timers.prayer = rand(3.5, 6);
       var f = someone(function (o) { return o.state === "follow"; });
@@ -991,8 +1089,8 @@
   // ---------------------------------------------------------------------------
   // HUD: stage, time and meters top left; score, faithful and devotion top right
   // ---------------------------------------------------------------------------
-  function meter(name, key) {
-    return '<p class="kit-meter" data-' + key + '><span class="kit-meter-label">' + name + '</span><span class="kit-meter-bar"><span data-' + key + '-bar></span></span></p>';
+  function meter(name, key, pad) {
+    return '<p class="kit-meter" data-' + key + (pad ? " data-pad" : "") + '><span class="kit-meter-label">' + name + '</span><span class="kit-meter-bar"><span data-' + key + '-bar></span></span></p>';
   }
   function buildHud() {
     var hud = shell.hud;
@@ -1000,7 +1098,7 @@
       '<div class="kit-hud-tl">' +
         '<p class="kit-stat"><small data-stage-label>Stage</small><span data-stage>1</span></p>' +
         '<p class="kit-mono" data-time>0:00</p>' +
-        meter("Statue", "statue") + meter("Smite", "smite") + meter("Bless", "bless") +
+        meter("Statue", "statue") + meter("Smite", "smite", true) + meter("Bless", "bless", true) +
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big"><span data-score>0</span></p>' +
@@ -1025,11 +1123,13 @@
     setText(hudEls["stage-label"], judgement() ? "Judgement" : "Stage");
     setText(hudEls.stage, judgement() ? "Day" : (G.stage + 1) + "/7");
     setText(hudEls.time, Math.floor(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + (s % 60));
-    setWidth(hudEls["statue-bar"], judgement() ? (bricks % JUDGEMENT_TIER) / JUDGEMENT_TIER : bricks / stageInfo().target);
-    setWidth(hudEls["smite-bar"], 1 - smiteWait / (SMITE_CD * G.mods.smiteCd));
+    setWidth(hudEls["statue-bar"], judgement() ? (bricks - judgeFrom) / (judgeNext - judgeFrom) : bricks / stageInfo().target);
+    var smiteShare = 1 - smiteWait / (SMITE_CD * G.mods.smiteCd), blessShare = 1 - blessWait / (BLESS_CD * G.mods.blessCd);
+    setWidth(hudEls["smite-bar"], smiteShare);
     hudEls.smite.classList.toggle("is-full", smiteWait <= 0);
-    setWidth(hudEls["bless-bar"], 1 - blessWait / (BLESS_CD * G.mods.blessCd));
+    setWidth(hudEls["bless-bar"], blessShare);
     hudEls.bless.classList.toggle("is-full", blessWait <= 0);
+    if (shell.padFill) { shell.padFill("action", smiteShare); shell.padFill("bless", blessShare); }
     setText(hudEls.score, fmt(run.score));
     setText(hudEls.faithful, String(G.folk.filter(alive).length));
     setText(hudEls.devotion, "x" + G.devotion.toFixed(2));
@@ -1048,6 +1148,7 @@
     bg = null;
     statueImg = null;
     dotsCache = null;
+    boxes = null;
     // keep everyone where they were, in proportion
     if (G.light && (oldW !== G.WW || oldH !== G.WH)) {
       var kx = G.WW / oldW, ky = G.WH / oldH;
@@ -1341,6 +1442,7 @@
     var hop = moving && !calm ? Math.abs(Math.sin(f.phase)) * 1.8 : 0;
     var lean = moving && !calm ? Math.sin(f.phase) * 0.06 : 0;
     if (f.state === "march" && !calm) hop = Math.abs(Math.sin(f.phase * 1.4)) * 3;
+    if (phase === "clear" && !calm) hop = Math.abs(Math.sin(clock * 9 + f.phase)) * 5;
     var wading = f.wade < 1 && f.state !== "fall";
     c.fillStyle = T.ash;
     if (!wading) { c.beginPath(); c.ellipse(f.x, f.y, f.priest ? 9 : 7, 2.4, 0, 0, Math.PI * 2); c.fill(); }
@@ -1360,6 +1462,9 @@
       else { c.rotate(f.t * 7); c.scale(k, k); }
     } else if (f.state === "stun") {
       c.rotate(Math.sin(f.t * 30) * 0.25);
+    } else if (f.teeter > 0) {
+      // wobbling on the brink
+      c.rotate(calm ? 0.2 : Math.sin(clock * 26 + f.phase) * 0.32);
     } else c.rotate(lean);
     if (f.face < 0) c.scale(-1, 1);
     c.drawImage(spr.img, -spr.ox, -spr.oy, spr.w, spr.h);
@@ -1378,12 +1483,21 @@
       c.stroke();
     }
     if (f.state === "stun") {
-      c.strokeStyle = T.paper;
-      c.lineWidth = 1.4;
+      // seeing sparkles: the Notaste sparkle, never a plus (it reads as a cross)
+      c.fillStyle = T.paper;
+      c.strokeStyle = T.ink;
+      c.lineWidth = 0.7;
       for (var i = 0; i < 3; i++) {
         var a = f.t * 8 + i * 2.1;
         var sx = f.x + Math.cos(a) * 9, sy = f.y - 30 + Math.sin(a) * 3;
-        c.beginPath(); c.moveTo(sx - 2, sy); c.lineTo(sx + 2, sy); c.moveTo(sx, sy - 2); c.lineTo(sx, sy + 2); c.stroke();
+        c.beginPath();
+        c.moveTo(sx, sy - 2.8);
+        c.quadraticCurveTo(sx, sy, sx + 2.4, sy);
+        c.quadraticCurveTo(sx, sy, sx, sy + 2.8);
+        c.quadraticCurveTo(sx, sy, sx - 2.4, sy);
+        c.quadraticCurveTo(sx, sy, sx, sy - 2.8);
+        c.fill();
+        c.stroke();
       }
     }
   }
@@ -1403,6 +1517,48 @@
     c.beginPath();
     c.ellipse(L.x, L.y, 40, 18, 0, 0, Math.PI * 2);
     c.stroke();
+    c.restore();
+  }
+
+  // How far your light reaches, shown while anyone's out of it
+  function drawReach(c) {
+    var L = G.light;
+    c.save();
+    c.globalAlpha = 0.4 * lostSight;
+    c.setLineDash([2, 8]);
+    c.lineDashOffset = shell.reduceMotion ? 0 : -clock * 10;
+    c.strokeStyle = G.T.paper;
+    c.lineWidth = 1.4;
+    c.beginPath();
+    c.arc(L.x, L.y, G.reach || FOLLOW_R, 0, Math.PI * 2);
+    c.stroke();
+    c.restore();
+  }
+
+  // Stage one only: an arrow over the bricks, then over the statue
+  function drawGuide(c) {
+    var T = G.T, P = G.place, at, word;
+    if (guide === "bricks") { at = { x: P.quarry.x, y: P.quarry.y - 52 }; word = "Bricks"; }
+    else { at = { x: P.site.x, y: P.site.y - 50 }; word = "Statue"; }
+    var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(clock * 4)) * -5;
+    c.save();
+    c.translate(at.x, at.y + bob);
+    c.lineJoin = "round";
+    c.beginPath();
+    c.moveTo(-5, -16); c.lineTo(5, -16); c.lineTo(5, -6); c.lineTo(11, -6); c.lineTo(0, 6); c.lineTo(-11, -6); c.lineTo(-5, -6);
+    c.closePath();
+    c.fillStyle = T.paper;
+    c.fill();
+    c.lineWidth = 2;
+    c.strokeStyle = T.ink;
+    c.stroke();
+    c.font = "10px " + T.display;
+    c.textAlign = "center";
+    c.textBaseline = "bottom";
+    c.lineWidth = 3;
+    c.strokeText(word.toUpperCase(), 0, -19);
+    c.fillStyle = T.paper;
+    c.fillText(word.toUpperCase(), 0, -19);
     c.restore();
   }
 
@@ -1507,8 +1663,9 @@
   }
 
   // A speech bubble: paper, ink outline, a tail, capitals. Drawn in screen
-  // pixels so the words stay readable on a phone.
-  function drawBubble(c, b) {
+  // pixels so the words stay readable on a phone. Bubbles that would land on
+  // one another are stacked instead.
+  function drawBubble(c, b, placed) {
     var T = G.T, who = b.who;
     var lift = who.lift != null ? who.lift : who.priest ? 44 : 34;
     var ax = who.x * SC, ay = (who.y - lift) * SC;
@@ -1523,18 +1680,33 @@
     lines.forEach(function (l) { tw = Math.max(tw, c.measureText(l).width); });
     var pad = size * 0.5, lh = size * 1.02;
     var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.3;
-    var bx = clamp(ax - bw / 2, 6, W - bw - 6), by = clamp(ay - bh - size * 0.7, 54, H - bh - 6);
+    var bx = clamp(ax - bw / 2, 6, W - bw - 6);
+    // clear of the HUD and the buttons above wherever it lands
+    var top = 6;
+    hudBoxes().forEach(function (r) { if (bx < r.right + 4 && bx + bw > r.left - 4) top = Math.max(top, r.bottom + 4); });
+    var by = clamp(ay - bh - size * 0.7, top, H - bh - 6);
+    for (var tries = 0; tries < 4; tries++) {
+      var hit = null;
+      for (var k = 0; k < placed.length; k++) {
+        var o = placed[k];
+        if (bx < o.x + o.w + 4 && bx + bw + 4 > o.x && by < o.y + o.h + 4 && by + bh + 4 > o.y) { hit = o; break; }
+      }
+      if (!hit) break;
+      by = hit.y - bh - size * 0.8 >= top ? hit.y - bh - size * 0.8 : hit.y + hit.h + size * 0.8;
+      by = clamp(by, top, H - bh - 6);
+    }
+    placed.push({ x: bx, y: by, w: bw, h: bh });
     var tailX = clamp(ax, bx + 12, bx + bw - 12);
     var pop = shell.reduceMotion ? 1 : clamp(b.t * 8, 0, 1);
     c.globalAlpha = Math.min(pop, clamp((b.life - b.t) * 3, 0, 1));
     c.beginPath();
     var r = Math.min(9, bh / 2);
+    var under = by > ay;      // stacked below the speaker: the tail points up
     c.moveTo(bx + r, by);
+    if (under) { c.lineTo(tailX - 5, by); c.lineTo(tailX - 2, by - size * 0.7); c.lineTo(tailX + 6, by); }
     c.arcTo(bx + bw, by, bx + bw, by + bh, r);
     c.arcTo(bx + bw, by + bh, bx, by + bh, r);
-    c.lineTo(tailX + 6, by + bh);
-    c.lineTo(tailX - 2, by + bh + size * 0.7);
-    c.lineTo(tailX - 5, by + bh);
+    if (!under) { c.lineTo(tailX + 6, by + bh); c.lineTo(tailX - 2, by + bh + size * 0.7); c.lineTo(tailX - 5, by + bh); }
     c.arcTo(bx, by + bh, bx, by, r);
     c.arcTo(bx, by, bx + bw, by, r);
     c.closePath();
@@ -1551,6 +1723,20 @@
     c.globalAlpha = 1;
   }
 
+  // Where the HUD and the buttons sit over the canvas, in CSS pixels. Measured
+  // about once a second, as the score grows.
+  var boxes = null, boxAge = 0;
+  function hudBoxes() {
+    if (boxes) return boxes;
+    var base = root.getBoundingClientRect();
+    boxes = [];
+    Array.prototype.forEach.call(root.querySelectorAll(".kit-hud-tl, .kit-hud-tr, .kit-bar"), function (el) {
+      var r = el.getBoundingClientRect();
+      if (r.width) boxes.push({ left: r.left - base.left, right: r.right - base.left, bottom: r.bottom - base.top });
+    });
+    return boxes;
+  }
+
   function render() {
     if (!ctx || !G.light || !run) return;
     if (!hudEls) { buildHud(); paintHud(); }
@@ -1564,6 +1750,7 @@
 
     G.rivals.forEach(function (r) { r.ground(c); });
     drawFx(c, fx.filter(function (e) { return e.kind === "scorch"; }));
+    if (lostSight > 0) drawReach(c);
     drawLightPool(c);
 
     // everything standing on the field, back to front
@@ -1577,11 +1764,14 @@
     things.sort(function (a, b) { return a.y - b.y; });
     things.forEach(function (t) { if (t.draw) t.draw(c); else drawPerson(c, t.f); });
 
+    if (guide && phase === "play") drawGuide(c);
     drawHand(c);
     drawFx(c, fx.filter(function (e) { return e.kind !== "scorch"; }));
 
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    bubbles.forEach(function (b) { drawBubble(c, b); });
+    if (++boxAge > 60) { boxes = null; boxAge = 0; }
+    var placed = [];
+    bubbles.forEach(function (b) { drawBubble(c, b, placed); });
   }
 
   // ---------------------------------------------------------------------------
@@ -1607,6 +1797,7 @@
     },
     pad: { action: [0, 2, 7], bless: [1, 3, 6] },
     modes: [{ key: "daily", label: "Today's run" }],
+    smallCallouts: true,
     touch: [
       { key: "bless", label: "Bless", icon: "Bless", side: "left" },
       { key: "action", label: "Smite", icon: "Smite", side: "right" }

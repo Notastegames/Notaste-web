@@ -273,10 +273,10 @@
   // during boarding to scrub the launch.
   // ---------------------------------------------------------------------------
   function rocket(G, H, spot) {
-    var BEAM = 105;
+    var BEAM = 105, SEATS = 8;
     var me = {
       kind: "rocket", name: "Space Billionaire", spot: spot,
-      x: 0, y: 0, phase: "idle", t: 7, aboard: [], lift: 0,
+      x: 0, y: 0, phase: "idle", t: 7, aboard: [], lift: 0, claimed: 0,
       who: { x: 0, y: 0, lift: 92, state: "rival" },
       intro: "Free trip to space. Small print applies.",
       lines: ["Going somewhere better. Not you.", "First class. Everyone else, the hold.", "Mars has no taxes.",
@@ -284,6 +284,9 @@
       place: function () { me.x = spot.x * G.WW; me.y = spot.y * G.WH; me.who.x = me.x; me.who.y = me.y; },
       update: function (dt) {
         me.t -= dt;
+        // seats taken: those aboard, and those on their way
+        me.claimed = me.aboard.length;
+        G.folk.forEach(function (f) { if (f.state === "board") me.claimed++; });
         if (me.phase === "idle" && me.t <= 0) {
           me.phase = "boarding"; me.t = 6;
           H.say(me.who, "Boarding now. Free seats.", true);
@@ -319,9 +322,11 @@
           }
           return true;
         }
-        if (me.phase !== "boarding" || f.blessed > 0 || dl < 60) return false;
+        if (me.phase !== "boarding" || f.blessed > 0 || dl < 60 || me.claimed >= SEATS) return false;
         if (Math.hypot(f.x - me.x, f.y - me.y) < BEAM * G.mods.lure) {
           f.state = "board";
+          me.claimed++;
+          if (me.claimed === SEATS) H.say(me.who, "Fully booked. The rest of you can stay and watch.", true);
           if (Math.random() < 0.2) H.say(f, H.pick(["Ooh. Free.", "Space. Like heaven but further.", "Is god up there.", "I've never been anywhere."]));
           return true;
         }
@@ -343,7 +348,7 @@
         c.fillStyle = T.ash;
         c.beginPath(); c.ellipse(me.x, me.y + 2, 30, 9, 0, 0, Math.PI * 2); c.fill();
         ring(c, me.x, me.y + 2, 30, 9, T.paper, 1.2, [3, 3]);
-        if (me.phase === "boarding") {
+        if (me.phase === "boarding" && me.claimed < SEATS) {
           c.save();
           c.globalAlpha = 0.55 + Math.sin(me.t * 8) * 0.15;
           c.fillStyle = H.dots(c);
@@ -391,7 +396,11 @@
       // the small print
       label(c, T, 0, -22, "Free", 7, null, T.ink);
       c.restore();
-      if (me.phase === "boarding") label(c, T, me.x, me.y - 92, "Boarding " + Math.ceil(me.t), 9, T.paper);
+      if (me.phase === "boarding") {
+        label(c, T, me.x, me.y - 92, "Boarding " + Math.ceil(me.t), 9, T.paper);
+        var free = SEATS - me.claimed;
+        label(c, T, me.x, me.y - 106, free > 0 ? free + (free === 1 ? " seat left" : " seats left") : "Fully booked", 7, null, T.paper);
+      }
     }
     return me;
   }

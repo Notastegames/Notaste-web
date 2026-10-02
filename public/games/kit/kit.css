@@ -197,6 +197,13 @@
 
 .kit-pad-face svg { width: 1.6rem; height: 1.6rem; fill: currentColor; }
 
+/* a cooldown, filling from the bottom (shell.padFill), and ready in the game's colour */
+.kit-pad.has-fill .kit-pad-face {
+  background: linear-gradient(to top, color-mix(in srgb, var(--accent, #ffffff) 55%, transparent) calc(var(--fill, 1) * 100%), rgba(0, 0, 0, 0.45) 0);
+}
+.kit-pad.has-fill.is-ready .kit-pad-face { border-color: var(--accent, var(--paper)); border-width: 3px; }
+#game-root.kit-touching .kit-meter[data-pad] { display: none; }
+
 .kit-pad.is-down .kit-pad-face {
   border-color: var(--paper);
   background: var(--paper);
@@ -220,6 +227,7 @@
   transform: rotate(var(--tilt, -4deg));
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
 }
+.kit-small-callouts .kit-callouts .stamp-label { font-size: clamp(0.85rem, 0.7vw + 0.7rem, 1.15rem); }
 
 /* high on the screen, so the grid stays in view underneath */
 .kit-count {
