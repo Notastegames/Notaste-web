@@ -21,7 +21,7 @@ The site for [notastegames.com](https://notastegames.com): free satirical browse
 | `public/styles.css` | Shared styles and colour tokens for every page |
 | `public/games/game.css`, `game.js` | Game page layout, the arcade cabinet, "More games", share button, placeholder screen |
 | `public/games/kit/` | The shared game kit: Notaste intro, title/pause/results screens, countdown, controls, sound, fullscreen, saved bests |
-| `public/games/<slug>/` | One folder per game. Heavy Traffic is playable (`race.js` the race, `ground.js` the 3D road, `driver.js` the karts and drivers); the others show a placeholder |
+| `public/games/<slug>/` | One folder per game. Heavy Traffic is playable (`race.js` the race, `ground.js` the 3D road, `driver.js` the karts and drivers), and so is Thonglets (`thonglets.js` the game, `sprites.js` the characters); Slop Cannon shows a placeholder |
 | `public/art/` | Game cover art (SVG) and per-game share images (`og-<slug>.png`) |
 | `public/brand/` | Logo, square mark and the worn stamp |
 | `public/fonts/notaste-display.woff` | Headline font, built from the logo's letterforms |
@@ -50,3 +50,5 @@ python3 -m http.server -d public 8787
 ```
 
 Then open `http://localhost:8787/games/heavy-traffic/`. Adding `?autopilot` lets the computer drive your kart, and `?debug` exposes the race state as `window.__heavyTraffic` for poking at in the console.
+
+Thonglets takes the same flags: `?autopilot` lets the computer play god, and `?debug` exposes the crowd and the score as `window.__thonglets`.
