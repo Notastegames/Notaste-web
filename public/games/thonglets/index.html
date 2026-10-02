@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <!--
+    Game page. To add a game: copy this folder to /games/<new-slug>/, change
+    everything marked EDIT on this page, then add one line to GAMES in
+    /games/game.js so it shows up under "More games" on the other pages.
+    Cover art lives at /art/<slug>.svg (800x600).
+  -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- EDIT: title, description and the og: tags -->
+  <title>Thonglets: Notaste Games</title>
+  <meta name="description" content="Tiny simulated creatures think you're their god. You are not a good one. A free browser game in poor taste, coming soon from Notaste Games.">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <link rel="preload" href="/fonts/notaste-display.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/games/game.css">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Notaste Games">
+  <meta property="og:title" content="Thonglets">
+  <meta property="og:description" content="Tiny creatures think you're their god. You are not a good one. Coming soon, free, in your browser.">
+  <meta property="og:url" content="https://notastegames.com/games/thonglets/">
+  <meta property="og:image" content="https://notastegames.com/art/og-thonglets.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<!--
+  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
+  --accent is the game's colour (same as its GAMES entry and its homepage poster).
+-->
+<body class="game" data-game="thonglets" style="--accent: #9a7bc4">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="top-inner wrap">
+      <a class="top-logo" href="/" aria-label="Notaste Games home">
+        <img src="/brand/logo-on-dark.svg" alt="No Taste" width="557" height="166">
+      </a>
+      <nav class="top-nav" aria-label="Main">
+        <a href="/#games">Games</a>
+        <a href="/#about">About</a>
+        <a href="/#follow">Follow</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="game-page wrap">
+
+      <!-- EDIT: title, stamp (and its tilt), pitch -->
+      <div class="game-head">
+        <h1>Thonglets</h1>
+        <div class="game-meta">
+          <span class="stamp-label" style="--tilt: -3deg">Classified</span>
+          <p class="game-state"><span class="dot" aria-hidden="true"></span>In development</p>
+        </div>
+        <p class="game-pitch">Tiny simulated creatures who think you're their god. They build you statues. You are not a good one.</p>
+      </div>
+
+      <section class="cabinet" aria-label="Game screen">
+        <div class="screen">
+          <!-- EDIT: cover art path -->
+          <img class="screen-art" src="/art/thonglets.svg" alt="" width="800" height="600">
+
+          <!--
+            The real game mounts here. When it's ready, load its script on this
+            page, remove data-placeholder and let the game replace everything
+            inside #game-root. game.js only runs the placeholder below while
+            data-placeholder is present.
+          -->
+          <div id="game-root" data-placeholder style="--tilt: -3deg">
+            <!-- EDIT: the fake boot lines. Each pair is [task, result]. Keep it to five or six. -->
+            <script type="application/json" class="ph-script">
+              { "boot": [
+                ["Simulating a small civilisation", "ok"],
+                ["Teaching them to worship you", "ok"],
+                ["Checking you deserve it", "no"],
+                ["Granting free will", "revoked"],
+                ["Answering prayers", "queued"]
+              ] }
+            </script>
+
+            <div class="ph ph-idle">
+              <p class="ph-title" aria-hidden="true">Thonglets</p>
+              <button class="btn ph-start" type="button">Press start</button>
+              <p class="ph-note">One god. Several thousand believers.</p>
+            </div>
+
+            <div class="ph ph-boot" tabindex="-1" aria-label="Loading">
+              <ol class="boot-log" aria-live="polite"></ol>
+            </div>
+
+            <div class="ph ph-done">
+              <span class="stamp-label">Not yet</span>
+              <!-- EDIT: the end-state copy -->
+              <p class="ph-heading" tabindex="-1">This game is still being made.</p>
+              <p class="ph-line">The Thonglets are ready. They have been praying for this game. Their prayers are on hold.</p>
+              <div class="ph-actions">
+                <a class="btn" href="/#reject">Reject more things</a>
+                <a class="text-link" href="/#games">All games</a>
+              </div>
+              <button class="ph-restart" type="button">Restart</button>
+            </div>
+          </div>
+        </div>
+        <p class="cabinet-strip"><span>Notaste Games</span><span>Free play</span></p>
+      </section>
+
+      <div class="game-info">
+        <h2>How to play</h2>
+        <!-- EDIT: two or three short lines -->
+        <ul class="how">
+          <li>Watch your Thonglets build a society.</li>
+          <li>Reward them, punish them, or forget they exist.</li>
+          <li>They will love you either way. That's the problem.</li>
+        </ul>
+        <div class="share">
+          <button class="btn-line" id="share" type="button">Share</button>
+          <span class="share-status" id="share-status" role="status"></span>
+        </div>
+      </div>
+    </div>
+
+    <section class="more wrap" aria-labelledby="more-heading">
+      <div class="section-head">
+        <h2 id="more-heading">More games</h2>
+        <p class="section-note">Also unfinished. Also in poor taste.</p>
+      </div>
+      <!-- Filled from GAMES in /games/game.js -->
+      <ul class="more-list" id="more-list"></ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-inner wrap">
+      <img class="foot-mark" src="/brand/mark-on-dark.svg" alt="" width="183" height="166">
+      <div>
+        <p>Notaste Games makes satire. Real people, brands and events that appear in our games are being made fun of, not described.</p>
+        <p>&copy; <span id="year">2026</span> Notaste Games</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/games/game.js" defer></script>
+</body>
+</html>
