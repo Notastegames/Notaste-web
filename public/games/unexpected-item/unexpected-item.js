@@ -193,8 +193,11 @@
   var BEV = {
     freeze: ["It does that.", "Not again, Dennis.", "Behave, Dennis.", "It's done that all day.",
              "Dennis thinks everyone's a thief. Even me.", "I've got nine of these. Dennis is the worst."],
-    approve: ["Approved. Didn't look.", "You look over twenty-five. Or under. Either way.", "It's scissors, Dennis. Calm down.",
-              "Approved. I've seen your face. It's fine."],
+    approve: ["Approved. Didn't look.", "You look over twenty-five. Or under. Either way.", "Approved. I've seen your face. It's fine."],
+    // and when she knows what it was
+    what: { scissors: "It's scissors, Dennis. Calm down.", candle: "It's a candle, Dennis. It's not a weapon. Probably.",
+            wine: "It's for cooking, Dennis. It says so.", crackers: "They're crackers, Dennis. They barely bang.",
+            glue: "It's glue, Dennis. Let it go." },
     both: ["Two for one. Lovely.", "While I'm here. Approved. Sorted."],
     never: ["Never mind, then.", "Fixed it yourself. Lovely.", "Don't call me if it's fixed."],
     chat: ["Busy today. It's always busy today.", "I used to be on the tills. The real ones.",
@@ -497,7 +500,13 @@
     if (!playing) return;
     if (phase === "clear") {
       clearT += dt;
-      if (clearT > 1 && clearT - dt <= 1) stageDone();
+      var last = stage >= STAGES.length - 1;
+      function at(t) { return clearT > t && clearT - dt <= t; }
+      if (!last && at(1)) stageDone();
+      // the end of the run: one last accusation on the way out
+      if (last && at(1.3)) { dennis(SAY.accuse, true); sfx.alarm(); flashT = 0; if (!shell.reduceMotion) shake = 0.6; }
+      if (last && at(2.7)) { dennis("Sorry. That was your receipt.", true); sfx.ok(); }
+      if (last && at(3.9)) stageDone();
       return;
     }
     if (phase !== "play") return;
@@ -515,9 +524,6 @@
     if (timeLeft <= 0) { closed(); return; }
 
     scanLock = Math.max(0, scanLock - dt);
-    var wasSettling = scale.t > 0;
-    scale.t = Math.max(0, scale.t - dt);
-    if (wasSettling && scale.t <= 0) sfx.ok();
 
     // bring your own bags: the machine doesn't trust them
     if (mods.byob && !st.byobDone && clock > 1.2) { st.byobDone = true; accuse("byob"); }
@@ -542,6 +548,10 @@
 
   // Things that move whatever's happening: hops, drops, bubbles, Bev's legs
   function animate(dt) {
+    // the scale settles whatever else is going on
+    var wasSettling = scale.t > 0;
+    scale.t = Math.max(0, scale.t - dt);
+    if (wasSettling && scale.t <= 0 && phase === "play") sfx.ok();
     if (hand && hand.t < 1) hand.t = Math.min(1, hand.t + dt / HOP);
     for (var i = drops.length - 1; i >= 0; i--) {
       var d = drops[i];
@@ -695,7 +705,7 @@
     if (!shell.reduceMotion) fx.push({ kind: "flash", t: 0, life: 0.25 });
     if (it.age) {
       approvals++;
-      approvalNames.push(it.name);
+      approvalNames.push(it.id);
       shell.callout("Approval needed", { ms: 1300 });
       dennis(SAY.age[it.id] || "Approval needed.", true);
       callBev();
@@ -944,9 +954,10 @@
         bev.done = true;
         sfx.swipe();
         var froze = !!frozen, ok = approvals > 0;
+        var what = ok && Math.random() < 0.65 ? BEV.what[approvalNames[approvalNames.length - 1]] : null;
         if (frozen) { frozen = null; afterAccuse(); sorryT = 0; }
         if (approvals) { run.approved += approvals; approvals = 0; approvalNames = []; }
-        var line = froze && ok ? pick(BEV.both) : ok ? pick(BEV.approve) : info().xmas && Math.random() < 0.5 ? pick(BEV.xmas) : pick(BEV.freeze);
+        var line = froze && ok ? pick(BEV.both) : ok ? what || pick(BEV.approve) : info().xmas && Math.random() < 0.5 ? pick(BEV.xmas) : pick(BEV.freeze);
         say("bev", line, true);
         shell.callout(ok ? "Approved. Didn't look" : "Sorted. Didn't look", { sound: false, ms: 1300 });
       }
@@ -1401,6 +1412,7 @@
     if (frozen) return "alarm";
     if (sorryT > 0) return "sorry";
     if (look) return "puzzled";
+    if (phase === "clear" && stage >= STAGES.length - 1 && clearT > 1.3) return clearT < 2.7 ? "alarm" : "sorry";
     if (phase === "clear") return "calm";
     if (sus > 66) return "angry";
     if (sus > 33) return "watch";
