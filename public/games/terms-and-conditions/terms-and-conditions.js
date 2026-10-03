@@ -46,7 +46,10 @@
 // three wrong strikes at most. Pending review: all four apps and 70%. Not
 // approved: all four apps, or out of rights on the third or fourth. Rejected:
 // out of rights before that. Today's terms (the daily run) gives everyone the
-// same clauses in the same order, the same pop-ups and the same perks.
+// same clauses in the same order, the same pop-ups and the same perks on
+// offer. Each app draws from its own seeded streams (the clauses, the friend's
+// circles, the pop-ups, the perks), so a different perk picked between apps
+// changes nothing about the next app's terms.
 //
 // Built on the shared kit (/games/kit/kit.js). clauses.js holds the words,
 // cast.js draws Legal and the mascots. Everything is drawn on the canvas in
@@ -149,7 +152,10 @@
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function fmt(n) { return Math.round(n).toLocaleString("en-GB"); }
   function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
-  function rnd() { return shell.random(); }
+  // Each app draws from its own streams, seeded from the run, so today's
+  // terms are the same for everyone whatever they picked between apps
+  var rnd = Math.random;
+  function stream(i, which) { return N.seeded(((shell.seed % 1000003) + 1) * 977 + i * 7919 + which * 104729); }
   function shuffle(list) {
     for (var i = list.length - 1; i > 0; i--) {
       var j = Math.floor(rnd() * (i + 1)), t = list[i];
@@ -181,6 +187,7 @@
   function buildDoc(i) {
     var st = STAGES[i];
     app = C.apps[i];
+    rnd = stream(i, 1);
     var badItems = [], normals = [], amendables = [];
     take(app.bad, C.bad, st.bad, 0.45).forEach(function (t) { badItems.push({ type: "bad", text: t }); });
     take(app.sting, C.sting, st.sting, 0.4).forEach(function (s) { badItems.push({ type: "sting", text: s[0], n: s[1] }); });
@@ -229,13 +236,16 @@
       b.kind = "clause";
       b.num = section + "." + n;
       b.state = "open";
-      b.hinted = isBad(b) && run.mods.hint > 0 && rnd() < run.mods.hint;
       doc.push(b);
     });
+    // the friend's circles
+    var friend = stream(i, 2);
+    doc.forEach(function (b) { b.hinted = isClause(b) && isBad(b) && run.mods.hint > 0 && friend() < run.mods.hint; });
     doc.push({ kind: "end" });
     if (L) measureAll();
 
     // pop-ups, at points through the terms
+    rnd = stream(i, 3);
     var count = Math.round(st.popups * run.mods.popups);
     var pool = shuffle(C.popups.concat(C.appPopups[app.key] || []).slice());
     popupPlan = [];
@@ -867,11 +877,11 @@
   }
 
   // ---------- Between apps ----------
+  // The same order for everyone today, whatever they picked last time: what
+  // they've taken already drops out and the next in line moves up
   function offer() {
-    var pool = PERKS.filter(function (p) { return run.taken.indexOf(p.id) < 0; });
-    var out = [];
-    while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
-    return out;
+    rnd = stream(stage, 4);
+    return shuffle(PERKS.slice()).filter(function (p) { return run.taken.indexOf(p.id) < 0; }).slice(0, 3);
   }
 
   function stageStamp() {
@@ -2132,6 +2142,8 @@
                  seconds: Math.round(travel / avg), onScreen: +(L.view.h / avg).toFixed(1), clauses: doc.filter(isClause).length };
       },
       popup: function () { openPopup(C.popups[0]); },
+      // the pop-ups still to come this app, and when
+      plan: function () { return popupPlan.map(function (p) { return [+p.at.toFixed(4), p.def.title]; }); },
       say: say,
       // jump to the bottom of the terms, having struck everything bad on the way
       skip: function () {
