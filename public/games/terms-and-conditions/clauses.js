@@ -458,7 +458,8 @@
       amend: ["Small change.", "Tiny edit. Ignore me.", "Just one word.", "Nothing to see here."],
       amendCaught: ["I was only tidying.", "That was a typo. Legally.", "Overruled. By you. Somehow."],
       streak: ["Stop reading.", "Somebody stop them.", "Are you a lawyer.", "This is very unusual."],
-      accept: ["Pleasure.", "All binding.", "That's a yes."]
+      accept: ["Pleasure.", "All binding.", "That's a yes."],
+      skim: ["That's the spirit.", "Faster. Don't read it.", "Good. Scroll past.", "Lovely. Keep scrolling."]
     },
     mascot: {
       caught: ["Good catch. We'll put it back.", "You're reading. That's unusual.", "We love readers. We keep a list.",
@@ -468,6 +469,7 @@
       popup: ["Still reading. Amazing.", "Rate us. Please. Please."],
       accept: ["Thanks for accepting.", "Nobody reads them anyway.", "Welcome aboard. There's no way off."],
       decline: ["Ha. Good one.", "There's no decline. It's a picture of one."],
+      skim: ["Skimming. We love that.", "Wheee."],
       waited: "I've accepted for you. You're welcome."
     }
   };

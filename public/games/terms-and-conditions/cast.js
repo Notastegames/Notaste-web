@@ -25,10 +25,14 @@
     DPR = dpr || 1;
   }
 
-  // Halftone dots that stay the same size on screen whatever the scale
+  // Halftone dots that stay the same size on screen whatever the scale. The
+  // pattern is kept per canvas, so a frame doesn't make new ones.
   function dots(c, colour, k, size) {
     var n = Math.max(3, Math.round((size || 3.4) * DPR));
     var key = colour + n;
+    var made = c.__tcDots || (c.__tcDots = {});
+    var pkey = key + "|" + k.toFixed(4);
+    if (made[pkey]) return made[pkey];
     if (!tiles[key]) {
       var t = document.createElement("canvas");
       t.width = t.height = n;
@@ -41,6 +45,8 @@
     }
     var pat = c.createPattern(tiles[key], "repeat");
     if (pat.setTransform && window.DOMMatrix) pat.setTransform(new DOMMatrix().scale(1 / k));
+    if (Object.keys(made).length > 40) c.__tcDots = made = {};
+    made[pkey] = pat;
     return pat;
   }
 

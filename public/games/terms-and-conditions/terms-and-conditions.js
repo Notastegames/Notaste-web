@@ -81,10 +81,10 @@
 
   // What each app's terms hold. lps: lines a second the page scrolls.
   var STAGES = [
-    { normal: 9, bad: 5, sting: 0, smallBad: 0, smallOk: 0, amend: 0, popups: 0, lps: 1.35, ramp: 0.1 },
-    { normal: 9, bad: 3, sting: 3, smallBad: 0, smallOk: 0, amend: 0, popups: 1, lps: 1.55, ramp: 0.12 },
-    { normal: 7, bad: 3, sting: 2, smallBad: 3, smallOk: 3, amend: 0, popups: 2, lps: 1.75, ramp: 0.14 },
-    { normal: 7, bad: 3, sting: 3, smallBad: 3, smallOk: 2, amend: 4, popups: 2, lps: 1.9, ramp: 0.3 }
+    { normal: 7, bad: 5, sting: 0, smallBad: 0, smallOk: 0, amend: 0, popups: 0, lps: 1.45, ramp: 0.1 },
+    { normal: 7, bad: 3, sting: 3, smallBad: 0, smallOk: 0, amend: 0, popups: 1, lps: 1.65, ramp: 0.12 },
+    { normal: 6, bad: 3, sting: 2, smallBad: 3, smallOk: 3, amend: 0, popups: 2, lps: 1.85, ramp: 0.14 },
+    { normal: 6, bad: 2, sting: 3, smallBad: 3, smallOk: 2, amend: 3, popups: 2, lps: 2, ramp: 0.3 }
   ];
 
   // What's new each app, shown as a notice with the countdown
@@ -97,19 +97,19 @@
 
   // Between apps: one perk, each with a cost
   var PERKS = [
-    { id: "glasses", label: "Reading glasses", detail: "Bigger print from now on. Fewer clauses fit on the screen.",
+    { id: "glasses", label: "Reading glasses", detail: "Bigger print. Fewer clauses fit on the screen.",
       apply: function (m) { m.size *= 1.13; } },
     { id: "coffee", label: "Strong coffee", detail: "The terms scroll a fifth slower. Wrong strikes cost double.",
       apply: function (m) { m.speed *= 0.8; m.wrong *= 2; } },
     { id: "skim", label: "Skim it", detail: "The terms scroll a third faster. Every catch scores double.",
       apply: function (m) { m.speed *= 1.3; m.catch *= 2; } },
-    { id: "aid", label: "Legal aid", detail: "Your next three wrong strikes are free. Catches score a fifth less.",
+    { id: "aid", label: "Legal aid", detail: "Three wrong strikes for free. Catches score a fifth less.",
       apply: function (m) { m.free += 3; m.catch *= 0.8; } },
-    { id: "friend", label: "A friend who reads terms", detail: "Circles one bad clause in three for you. Takes half the points for those.",
+    { id: "friend", label: "A friend who reads terms", detail: "Circles one bad clause in three. Takes half the points for it.",
       apply: function (m) { m.hint = 0.34; } },
-    { id: "blocker", label: "Ad blocker", detail: "No more pop-ups. The terms scroll a tenth faster to make up for it.",
+    { id: "blocker", label: "Ad blocker", detail: "No more pop-ups. The terms scroll a tenth faster instead.",
       apply: function (m) { m.popups = 0; m.speed *= 1.1; } },
-    { id: "highlighter", label: "Highlighter", detail: "The last three words of every clause are highlighted. Twice the pop-ups.",
+    { id: "highlighter", label: "Highlighter", detail: "The last three words of every clause, highlighted. Twice the pop-ups.",
       apply: function (m) { m.highlight = true; m.popups *= 2; } },
     { id: "cooling", label: "Cooling-off period", detail: "Two extra rights, over the limit. Streaks build half as fast.",
       apply: function (m) { run.rights += 2; m.streak *= 0.5; } }
@@ -117,10 +117,10 @@
 
   // The results ladder: what it takes and what it says
   var RANKS = [
-    { stamp: "Approved", line: "You read every word of four sets of terms. The company has flagged your account as unusual." },
+    { stamp: "Approved", line: "You read every word. The company has flagged your account as unusual." },
     { stamp: "Pending review", line: "You caught most of it. The rest is binding, and your fridge has been told." },
     { stamp: "Not approved", line: "You read some of it. They read all of you." },
-    { stamp: "Rejected", line: "You agreed to nearly everything. Don't worry. Everyone does. That's the business model." }
+    { stamp: "Rejected", line: "You agreed to nearly everything. Everyone does. That's the business model." }
   ];
 
   // ---------------------------------------------------------------------------
@@ -143,6 +143,7 @@
   var hudEls = null, bg = null, stampCache = {}, autoT = 0, autoPick = 0;
   var said = { legal: -9, mascot: -9 };
   var pointer = { x: 0, y: 0, mouse: false };
+  var pending = 0, fling = 0, pull = 0, skimmed = 0, lastSkim = -99;
   var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -299,6 +300,7 @@
     m.textW = m.view.w - m.pad * 2 - 6;
     m.fonts = {
       body: "500 " + fs + "px " + bodyFont(),
+      bold: "700 " + fs + "px " + bodyFont(),
       num: Math.round(fs * 1.02) + "px " + T.display,
       foot: "italic 500 " + Math.max(11, Math.round(fs * 0.82)) + "px " + bodyFont(),
       head: Math.round(fs * 1.3) + "px " + T.display,
@@ -378,12 +380,13 @@
     return out.concat(body);
   }
 
+  function fontFor(f) { return f === "num" ? L.fonts.num : f === "foot" ? L.fonts.foot : f === "bold" ? L.fonts.bold : L.fonts.body; }
   function wrap(toks, width, firstIndent) {
     var lines = [], line = { words: [], w: firstIndent || 0 };
-    mctx.font = L.fonts.body;
-    var space = mctx.measureText(" ").width;
     toks.forEach(function (tok) {
-      mctx.font = tok.f === "num" ? L.fonts.num : tok.f === "foot" ? L.fonts.foot : L.fonts.body;
+      mctx.font = fontFor(tok.f === "num" ? "body" : tok.f);
+      var space = mctx.measureText(" ").width;
+      mctx.font = fontFor(tok.f);
       var w = mctx.measureText(tok.t).width;
       var gap = line.words.length ? (tok.f === "num" || (line.words[line.words.length - 1].f === "num") ? space * 1.6 : space) : 0;
       if (line.words.length && line.w + gap + w > width) {
@@ -417,7 +420,7 @@
       b.kick = wrap(words(app.kicker, "body"), L.textW);
       b.h = Math.round(L.fs * 2.3 + L.lh * 1.3 + b.kick.length * L.lh + pad * 2.6);
     } else if (b.kind === "end") {
-      b.lines = wrap(words("That's everything. By pressing Accept, you agree to all of the above, and to anything we add later.", "body"), L.textW);
+      b.lines = wrap(words("That's everything. By pressing Accept, you agree to all of the above, and to anything we add later.", "bold"), L.textW);
       b.h = Math.round(b.lines.length * L.lh + pad * 3);
     }
   }
@@ -503,7 +506,7 @@
       });
       dottedRule(c, x0, b.h - 2, L.view.w - pad * 2);
     } else if (b.kind === "end") {
-      c.font = "700 " + L.fs + "px " + bodyFont();
+      c.font = L.fonts.bold;
       c.fillStyle = T.ink;
       b.lines.forEach(function (line, li) {
         line.words.forEach(function (w) { c.fillText(w.t, x0 + w.x, Math.round(pad * 1.2 + L.lh * 0.8 + li * L.lh)); });
@@ -548,7 +551,7 @@
     layout();
     buildDoc(i);
     measureAll();
-    scroll = -L.view.h * 0.42;
+    scroll = -L.view.h * 0.3;
     speed = 0;
     hitch = 0;
     phase = "read";
@@ -563,6 +566,8 @@
     fx = [];
     pops = [];
     footer = 0;
+    pending = fling = pull = skimmed = 0;
+    drag = null;
     accepted = false;
     noticed = false;
     hintNow = null;
@@ -575,27 +580,38 @@
   function scrollSpeed() {
     var st = STAGES[stage];
     var progress = clamp(scroll / Math.max(1, docH - L.view.h), 0, 1);
-    var fit = clamp(L.view.h / L.lh / 16, 0.72, 1);
+    var fit = clamp(L.view.h / L.lh / 15, 0.84, 1);
     return st.lps * L.lh * run.mods.speed * (1 + st.ramp * progress) * fit;
   }
 
   function update(dt, input) {
     var state = shell.state();
-    if (state !== "playing") { prev.up = input.up; prev.down = input.down; prev.action = input.action; return; }
+    if (state !== "playing") {
+      prev.up = input.up; prev.down = input.down; prev.action = input.action;
+      if (state === "ending") cosmetics(dt);
+      return;
+    }
     clock += dt;
     stageClock += dt;
     phaseClock += dt;
+    if (pen > 0 && pen - dt <= 0) say("legal", "Fine. Have it back.", true);
     pen = Math.max(0, pen - dt);
     shake = Math.max(0, shake - dt * 3);
 
     keys(input, dt);
     if (AUTOPILOT) autopilot(dt);
+    if (stageClock - dt < 0.3 && stageClock >= 0.3) say("mascot", app.hello, true);
+    if (stageClock - dt < 3.6 && stageClock >= 3.6) say("legal", app.legal, true);
 
     if (phase === "read") {
       var target = scrollSpeed() * clamp(stageClock / 1.6, 0, 1);
       if (hitch > 0) { hitch -= dt; target *= 0.12; }
       speed += (target - speed) * Math.min(1, dt * 7);
-      scroll += speed * dt;
+      var take = pending * Math.min(1, dt * 10);
+      pending -= take;
+      fling *= Math.exp(-dt * 3.4);
+      if (fling < 5) fling = 0;
+      scroll = Math.min(maxScroll() + 0.5, scroll + speed * dt + take + fling * dt);
       var end = doc[doc.length - 1];
       if (end.top + end.h - scroll <= L.view.h * 0.66) {
         phase = "accept";
@@ -627,13 +643,21 @@
     });
     keepSelection();
 
+    if (!drag) pull += (0 - pull) * Math.min(1, dt * 14);
     if (popup) popup.t += dt;
     if (arm) tickArm(dt);
+    cosmetics(dt, true);
+    pickHint();
+    paintHud();
+  }
+
+  // what keeps moving after the round stops: bubbles, ink, points, the cast
+  function cosmetics(dt, playing) {
+    if (!playing) { phaseClock += dt; clock += dt; }
+    if (phase === "done" || phase === "accept") footer = Math.min(1, footer + dt * 4);
     bubbles = bubbles.filter(function (bb) { bb.t += dt; return bb.t < bb.life; });
     fx = fx.filter(function (e) { e.t += dt; return e.t < e.life; });
     pops = pops.filter(function (e) { e.t += dt; return e.t < 0.9; });
-    pickHint();
-    paintHud();
   }
 
   // ---------- Striking ----------
@@ -654,6 +678,7 @@
 
   function caught(b) {
     b.state = "struck";
+    var before = Math.floor(run.streak);
     run.streak += run.mods.streak;
     var mult = Math.min(4, 1 + Math.floor(run.streak / 3));
     var points = Math.round(POINTS[b.type === "small" ? "small" : b.type] * run.mods.catch * mult * (b.hinted ? 0.5 : 1));
@@ -667,7 +692,7 @@
     if (!calm()) shake = Math.max(shake, 0.5);
     sfx.strike(mult);
     var s = Math.floor(run.streak);
-    if (s === 5 || s === 10 || s === 15) {
+    if (s !== before && (s === 5 || s === 10 || s === 15)) {
       shell.callout(s === 5 ? "Reading: suspicious" : s === 10 ? "Account: flagged" : "Legal: informed", { sound: false, ms: 1100 });
       say("legal", pick(C.lines.legal.streak), true);
     } else if (b.type === "amend") {
@@ -804,6 +829,8 @@
   function acceptAll(waited) {
     if (accepted || phase !== "accept") return;
     accepted = true;
+    run.learned = run.learned || {};
+    run.learned.accept = true;
     var signed = 0;
     doc.forEach(function (b) {
       if (isClause(b) && b.state === "open" && isBad(b)) {
@@ -840,7 +867,6 @@
   // ---------- Between apps ----------
   function offer() {
     var pool = PERKS.filter(function (p) { return run.taken.indexOf(p.id) < 0; });
-    if (stage >= 2) pool = pool.filter(function (p) { return p.id !== "blocker" || true; });
     var out = [];
     while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
     return out;
@@ -875,7 +901,7 @@
       heading: app.installed,
       line: app.after,
       stats: stats,
-      ask: "App " + (stage + 2) + ": " + next.name + ". Pick something to read it with.",
+      ask: "Next: " + next.name + ". Pick one.",
       choices: offers.map(function (p) { return { label: p.label, detail: p.detail }; }),
       delay: 1500
     }).then(function (i) {
@@ -912,10 +938,10 @@
     var rec = shell.record(score);
     var heading, line;
     if (finished) {
-      heading = "You struck " + run.caught + " of " + total + " bad clauses.";
+      heading = run.caught + " of " + total + " struck.";
       line = RANKS[rank].line;
     } else {
-      heading = "You signed away every right.";
+      heading = "No rights left.";
       line = "The last one was the right to complain about it.";
     }
     var worst = run.agreed.filter(function (b) { return b.type === "bad"; });
@@ -925,7 +951,6 @@
     var stats = [
       { label: "Score", value: fmt(score) },
       { label: "Struck", value: run.caught + "/" + total },
-      { label: "Signed away", value: String(run.missed) },
       { label: "Legal fees", value: "£" + fmt(run.fees) },
       { label: rec.isNew ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
         value: fmt(rec.isNew ? score : rec.best || 0), highlight: rec.isNew }
@@ -975,8 +1000,15 @@
       if (pressed.action) closePopup();
       return;
     }
+    var was = sel;
     if (pressed.down) moveSel(1);
     if (pressed.up) moveSel(-1);
+    // screen readers hear the clause the highlight lands on
+    if (sel !== was) {
+      if (sel === ACCEPT) shell.announce("Accept. There is no other button.");
+      else if (sel === DECLINE) shell.announce("Decline.");
+      else if (sel >= 0) shell.announce(doc[sel].num + ". " + (doc[sel].amended ? amendedText(doc[sel]) : doc[sel].text) + (doc[sel].foot ? " " + doc[sel].foot : ""));
+    }
     if (pressed.action) {
       if (sel === ACCEPT) acceptAll(false);
       else if (sel === DECLINE) decline();
@@ -995,10 +1027,12 @@
     var y = b.top - scroll;
     return y + b.h > 2 && y < L.view.h - 4;
   }
+  // still on screen and not yet past the top; "open" ones can still be struck
   function strikable(b) { return isClause(b) && b.top + b.h * 0.5 - scroll >= 0 && onScreen(b); }
+  function choosable(b) { return strikable(b) && b.state === "open"; }
 
   function firstOnScreen() {
-    for (var i = 0; i < doc.length; i++) if (strikable(doc[i]) && doc[i].top - scroll >= -doc[i].h * 0.3) return i;
+    for (var i = 0; i < doc.length; i++) if (choosable(doc[i]) && doc[i].top - scroll >= -doc[i].h * 0.3) return i;
     return phase === "accept" ? ACCEPT : -1;
   }
 
@@ -1007,15 +1041,16 @@
     if (sel === DECLINE) { if (dir < 0) sel = ACCEPT; return; }
     if (sel === ACCEPT) {
       if (dir > 0) { sel = DECLINE; return; }
-      for (var j = doc.length - 1; j >= 0; j--) if (strikable(doc[j])) { sel = j; return; }
+      for (var j = doc.length - 1; j >= 0; j--) if (choosable(doc[j])) { sel = j; return; }
       return;
     }
     if (sel < 0) { sel = firstOnScreen(); return; }
     for (var i = sel + dir; i >= 0 && i < doc.length; i += dir) {
-      if (strikable(doc[i])) { sel = i; return; }
+      if (choosable(doc[i])) { sel = i; return; }
       if (dir > 0 && doc[i].top - scroll > L.view.h) break;
     }
     if (dir > 0 && phase === "accept") sel = ACCEPT;
+    else if (dir > 0) pushAhead(L.lh * 3);
   }
 
   // the highlight can't stay on a clause that's scrolled away
@@ -1031,7 +1066,7 @@
   function hit(x, y) {
     var v = L.view;
     if (x < v.x || x > v.x + v.w || y < v.y || y > v.y + v.h) return -1;
-    var dy = y - v.y + scroll;
+    var dy = y - v.y + scroll - pull;
     for (var i = 0; i < doc.length; i++) {
       var b = doc[i];
       if (dy >= b.top - 3 && dy < b.top + b.h + 3 && isClause(b)) return i;
@@ -1049,6 +1084,10 @@
     return t && t.closest && t.closest(".kit-panel, .kit-bar, .kit-pad, button, a");
   }
 
+  // A mouse click strikes straight away. A finger strikes when it lifts, so a
+  // finger that drags scrolls the page on instead: forwards only, like the
+  // real thing, with a bit of give if you pull it back.
+  var drag = null;
   root.addEventListener("pointerdown", function (e) {
     if (!shell || shell.state() !== "playing" || ignore(e) || AUTOPILOT) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -1063,18 +1102,78 @@
       if (inRect(p.x, p.y, r.accept)) { acceptAll(false); return; }
       if (inRect(p.x, p.y, r.decline)) { decline(); return; }
     }
-    var i = hit(p.x, p.y);
-    if (i >= 0) strike(doc[i]);
+    if (e.pointerType === "mouse") {
+      var i = hit(p.x, p.y);
+      if (i >= 0) strike(doc[i]);
+      return;
+    }
+    drag = { id: e.pointerId, y0: p.y, last: p.y, t: performance.now(), moved: false, v: 0 };
   });
   root.addEventListener("pointermove", function (e) {
-    if (!shell || e.pointerType !== "mouse" || AUTOPILOT) return;
+    if (!shell || AUTOPILOT) return;
     var p = pointAt(e);
+    if (drag && e.pointerId === drag.id) {
+      if (!drag.moved && Math.abs(p.y - drag.y0) > 10) drag.moved = true;
+      var now = performance.now(), dy = drag.last - p.y, ms = Math.max(1, now - drag.t);
+      drag.last = p.y;
+      drag.t = now;
+      if (drag.moved && shell.state() === "playing") {
+        if (dy > 0) pushAhead(dy, true);
+        else pull = Math.min(30, pull - dy * 0.35);
+        drag.v = drag.v * 0.6 + (dy / ms * 1000) * 0.4;
+      }
+      return;
+    }
+    if (e.pointerType !== "mouse") return;
     pointer.x = p.x; pointer.y = p.y; pointer.mouse = true;
     if (shell.state() !== "playing") return;
     if (Math.abs(e.movementX) + Math.abs(e.movementY) > 0) keyMode = false;
     hover = popup ? -1 : hit(p.x, p.y);
   });
+  function lift(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var d = drag;
+    drag = null;
+    if (!shell || shell.state() !== "playing") return;
+    if (!d.moved) {
+      if (e.type === "pointercancel") return;
+      var p = pointAt(e), i = hit(p.x, p.y);
+      if (i >= 0) strike(doc[i]);
+      return;
+    }
+    // a flick keeps it going for a moment
+    if (d.v > 150 && performance.now() - d.t < 120) fling = Math.min(1200, d.v);
+  }
+  root.addEventListener("pointerup", lift);
+  root.addEventListener("pointercancel", lift);
   root.addEventListener("pointerleave", function () { hover = -1; });
+  // the wheel reads ahead too (and never scrolls the page under the game)
+  root.addEventListener("wheel", function (e) {
+    if (!shell || shell.state() !== "playing" || AUTOPILOT) return;
+    e.preventDefault();
+    var dy = e.deltaMode === 1 ? e.deltaY * 18 : e.deltaMode === 2 ? e.deltaY * L.view.h : e.deltaY;
+    if (dy > 0) pushAhead(Math.min(dy, L.view.h * 0.5) * 0.8);
+    else pull = Math.min(30, pull - dy * 0.15);
+  }, { passive: false });
+
+  // Read ahead: push the page on, faster than it scrolls by itself. You can't
+  // push it back. Legal is all for it.
+  function pushAhead(px, now) {
+    if (phase !== "read" || popup || accepted) return;
+    if (now) scroll = Math.min(maxScroll(), scroll + px);
+    else pending += px;
+    skimmed += px;
+    if (skimmed > L.view.h * 0.9 && clock - lastSkim > 9) {
+      skimmed = 0;
+      lastSkim = clock;
+      if (Math.random() < 0.7) say("legal", pick(C.lines.legal.skim), true);
+      else say("mascot", pick(C.lines.mascot.skim), true);
+    }
+  }
+  function maxScroll() {
+    var end = doc[doc.length - 1];
+    return end.top + end.h - L.view.h * 0.66;
+  }
 
   // ---------------------------------------------------------------------------
   // The autopilot (?autopilot, ?clip): reads each clause once it's fully on
@@ -1236,7 +1335,13 @@
     hudEls.pips.forEach(function (p, i) {
       var want = i >= max ? "none" : "";
       if (p.style.display !== want) p.style.display = want;
-      p.classList.toggle("is-on", i < run.rights);
+      var on = i < run.rights;
+      if (p.classList.contains("is-on") && !on && !calm()) {
+        p.classList.remove("is-lost");
+        void p.offsetWidth;
+        p.classList.add("is-lost");
+      }
+      p.classList.toggle("is-on", on);
     });
     setText(hudEls["rights-n"], " " + Math.max(0, run.rights) + " of " + max);
     setText(hudEls.score, fmt(run.score));
@@ -1345,18 +1450,9 @@
     var close = touchy() ? "tap it to close it" : "click it or press Space";
     var text = BRIEFS[stage].replace("{how}", how).replace("{close}", close);
     shell.brief({ title: "App " + (stage + 1) + ": " + app.name, text: text, ms: stage === 0 ? 7600 : 6800 });
-    // and the cast say hello
-    window.setTimeout(function () {
-      if (shell.state() === "countdown" || shell.state() === "playing") {
-        say("mascot", app.hello, true);
-      }
-    }, 900);
-    window.setTimeout(function () {
-      if (shell.state() === "countdown" || shell.state() === "playing") say("legal", app.legal, true);
-    }, 3800);
   }
 
-  function screenY(b) { return Math.round((L.view.y + b.top - scroll) * DPR) / DPR; }
+  function screenY(b) { return Math.round((L.view.y + b.top - scroll + pull) * DPR) / DPR; }
 
   function drawPage(c) {
     var v = L.view;
@@ -1393,7 +1489,7 @@
     }
     // points, floating up off the page
     pops.forEach(function (p) {
-      var k = p.t / 0.9, py = L.view.y + p.y - scroll - k * 22;
+      var k = p.t / 0.9, py = L.view.y + p.y - scroll + pull - k * 22;
       c.globalAlpha = 1 - k * k;
       c.font = Math.round(L.fs * 1.15) + "px " + T.display;
       c.textAlign = "center";
@@ -1401,7 +1497,7 @@
       c.lineWidth = 4;
       c.strokeStyle = T.paper;
       c.strokeText(p.text, p.x, py);
-      c.fillStyle = p.bad ? T.red : T.ink;
+      c.fillStyle = T.ink;
       c.fillText(p.text, p.x, py);
       c.globalAlpha = 1;
     });
@@ -1937,8 +2033,8 @@
     note: "Four apps, four sets of terms. Strike the bad clauses. Then accept anyway.",
     pitch: "Read the terms. Strike out the bad bits. Accept anyway. There is no other button.",
     hints: {
-      keys: "Click a bad clause to strike it, or pick one with up and down (W, S) and press Space. P to pause.",
-      touch: "Tap a bad clause to strike it. Leave the normal ones alone."
+      keys: "Click a bad clause to strike it, or pick one with up and down (W, S) and press Space. Scroll to read ahead. P to pause.",
+      touch: "Tap a bad clause to strike it. Flick the page up to read ahead."
     },
     againLabel: "Read again",
     daily: { label: "Today's terms" },
@@ -1970,6 +2066,25 @@
       doc: function () { return doc; },
       state: function () { return { stage: stage + 1, phase: phase, scroll: Math.round(scroll), docH: docH, sel: sel, mode: L && L.mode, fs: L && L.fs }; },
       strike: function (i) { strike(doc[i]); },
+      // the first open clause of a type that's fully on screen, and where its middle is
+      find: function (type) {
+        for (var i = 0; i < doc.length; i++) {
+          var b = doc[i], y = b.top - scroll;
+          if (isClause(b) && b.state === "open" && (!type || b.type === type) && y > L.lh && y + b.h < L.view.h - L.lh) {
+            return { i: i, x: Math.round(L.view.x + L.view.w * 0.4), y: Math.round(L.view.y + y + b.h / 2), text: b.text, state: b.state };
+          }
+        }
+        return null;
+      },
+      block: function (i) { var b = doc[i]; return { type: b.type, state: b.state, text: b.text }; },
+      armOut: function () { return !!arm && arm.phase === "write"; },
+      // how long this app's terms take to scroll, and how long a line is on screen
+      pace: function () {
+        var st = STAGES[stage], v = scrollSpeed() / (1 + st.ramp * clamp(scroll / Math.max(1, docH - L.view.h), 0, 1));
+        var avg = v * (1 + st.ramp / 2), travel = docH - L.view.h * 0.66 + L.view.h * 0.3;
+        return { mode: L.mode, fs: L.fs, viewH: Math.round(L.view.h), lines: +(L.view.h / L.lh).toFixed(1), pxs: +avg.toFixed(1),
+                 seconds: Math.round(travel / avg), onScreen: +(L.view.h / avg).toFixed(1), clauses: doc.filter(isClause).length };
+      },
       popup: function () { openPopup(C.popups[0]); },
       say: say,
       // jump to the bottom of the terms, having struck everything bad on the way
