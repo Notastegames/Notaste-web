@@ -289,6 +289,9 @@
     c.clip(body);
     c.fillStyle = T.ink;
     c.fillRect(-9, -9.6, 18, 6);
+    // paper halftone on the trousers, so they don't vanish on a black floor
+    c.fillStyle = dots(c, T.paper, 0.9);
+    c.fillRect(-9, -9.6, 18, 6);
     ink(c, 0.7, T.paper);
     c.beginPath(); c.moveTo(-9, -9.6); c.lineTo(9, -9.6); c.stroke();
     c.restore();
@@ -301,6 +304,12 @@
     c.fillStyle = T.red; c.fill(); ink(c, lw * 0.7); c.stroke();
     ink(c, lw);
     c.stroke(body);
+    // and a paper edge round the bottom of them
+    c.save();
+    c.beginPath(); c.rect(-10, -9.8, 20, 8); c.clip();
+    ink(c, lw * 0.75, T.paper);
+    c.beginPath(); c.ellipse(0, -13.5, 8.25, 8.65, 0, 0, Math.PI * 2); c.stroke();
+    c.restore();
 
     // the clipboard, held in front
     c.save();
@@ -432,20 +441,40 @@
     c.translate(x, y);
     if (rot) c.rotate(rot);
     if (kind === "hand") {
-      // a hand with too many fingers
-      var n = 8;
-      for (var i = 0; i < n; i++) {
-        var a = -Math.PI * 0.92 + (i / (n - 1)) * Math.PI * 0.84;
-        var len = s * (0.95 + (i % 2) * 0.12);
-        c.beginPath();
-        c.moveTo(0, s * 0.15);
-        c.lineTo(Math.cos(a) * len, s * 0.15 + Math.sin(a) * len);
-        ink(c, s * 0.3); c.stroke();
-        ink(c, s * 0.3 - lw * 2, T.paper); c.stroke();
+      // a hand with too many fingers: a palm, a thumb out to the side and
+      // seven fingers up, fanned out (eight in all, counting the thumb)
+      // outline first, then the fill, so a finger is as wide on black as on paper
+      var fw = s * 0.19, base = s * 0.12, fan = 0.95;
+      for (var i = 0; i < 7; i++) {
+        var k = i / 6 - 0.5, len = s * (0.66 - k * k * 0.5 + (i % 2) * 0.05);
+        c.save();
+        c.translate(k * s * 0.86, base);
+        c.rotate(k * fan);
+        rrect(c, -fw / 2, -len, fw, len + s * 0.3, fw / 2);
+        ink(c, lw * 1.3); c.stroke(); c.fillStyle = T.paper; c.fill();
+        c.restore();
       }
-      oval(c, 0, s * 0.3, s * 0.52, s * 0.5, T.paper, lw);
-      ink(c, lw * 0.6);
-      c.beginPath(); c.moveTo(-s * 0.2, s * 0.35); c.quadraticCurveTo(0, s * 0.5, s * 0.22, s * 0.3); c.stroke();
+      // the palm, over the bottoms of the fingers
+      var palm = new Path2D();
+      palm.moveTo(-s * 0.5, base);
+      palm.quadraticCurveTo(0, base - s * 0.1, s * 0.5, base);
+      palm.quadraticCurveTo(s * 0.58, s * 0.6, s * 0.28, s * 0.82);
+      palm.lineTo(-s * 0.28, s * 0.82);
+      palm.quadraticCurveTo(-s * 0.58, s * 0.6, -s * 0.5, base);
+      palm.closePath();
+      ink(c, lw * 1.5); c.stroke(palm);
+      c.fillStyle = T.paper; c.fill(palm);
+      c.save(); c.clip(palm); c.fillStyle = shade(c); c.fillRect(s * 0.12, s * 0.3, s * 0.6, s * 0.7); c.restore();
+      // the thumb, out to the left like a mitten's
+      c.save();
+      c.translate(-s * 0.44, s * 0.5);
+      c.rotate(-1.05);
+      rrect(c, -s * 0.14, -s * 0.46, s * 0.28, s * 0.56, s * 0.14);
+      ink(c, lw * 1.3); c.stroke(); c.fillStyle = T.paper; c.fill();
+      c.restore();
+      // a crease
+      ink(c, lw * 0.55);
+      c.beginPath(); c.moveTo(-s * 0.16, s * 0.46); c.quadraticCurveTo(s * 0.04, s * 0.56, s * 0.24, s * 0.4); c.stroke();
     } else if (kind === "dog") {
       // a dog, melting
       c.beginPath();
@@ -510,21 +539,21 @@
     var lw = Math.max(0.35, r * 0.18);
     c.save();
     c.translate(x, y);
-    c.beginPath();
+    var goo = new Path2D();
     var n = 7;
     for (var i = 0; i <= n; i++) {
       var a = (i / n) * Math.PI * 2;
       var rr = r * (1 + 0.12 * Math.sin(a * 3 + wob * Math.PI * 2));
       var px = Math.cos(a) * rr, py = Math.sin(a) * rr;
-      if (!i) c.moveTo(px, py); else c.lineTo(px, py);
+      if (!i) goo.moveTo(px, py); else goo.lineTo(px, py);
     }
-    c.closePath();
+    goo.closePath();
     c.fillStyle = T.accent;
-    c.fill();
-    c.save(); c.clip(); c.fillStyle = shade(c);
+    c.fill(goo);
+    c.save(); c.clip(goo); c.fillStyle = shade(c);
     c.beginPath(); c.arc(r * 0.35, r * 0.4, r * 0.9, 0, Math.PI * 2); c.fill(); c.restore();
     ink(c, lw);
-    c.stroke();
+    c.stroke(goo);
     oval(c, -r * 0.35, -r * 0.4, r * 0.22, r * 0.14, T.paper, 0, null, -0.5);
     c.restore();
     if (kind) item(c, kind, x + r * 0.15, y - r * 0.55, r * 0.95, spin || 0);
@@ -748,29 +777,42 @@
   // The goo over a slopped picture, dripping down, with the thing in it
   function splat(c, x, y, w, h, kind) {
     var cx = x + w * 0.56, cy = y + h * 0.44, rx = Math.min(w * 0.3, h * 0.85), ry = h * 0.38;
-    c.beginPath();
-    var n = 11;
-    for (var i = 0; i <= n; i++) {
+    // the splat and its drips, wound the same way so they fill as one shape
+    var blobPath = new Path2D(), drips = new Path2D(), goo = new Path2D();
+    var n = 22;
+    for (var i = 0; i < n; i++) {
       var a = (i / n) * Math.PI * 2;
       var k = 1 + 0.16 * Math.sin(a * 4 + 1) + 0.08 * Math.cos(a * 7);
       var px = cx + Math.cos(a) * rx * k, py = cy + Math.sin(a) * ry * k;
-      if (!i) c.moveTo(px, py); else c.lineTo(px, py);
+      if (!i) blobPath.moveTo(px, py); else blobPath.lineTo(px, py);
     }
-    c.closePath();
+    blobPath.closePath();
     // drips running off the bottom
     [-0.5, -0.1, 0.35].forEach(function (d, j) {
-      var dx = cx + d * rx, len = h * (0.38 + j * 0.12);
-      c.moveTo(dx - 1, cy + ry * 0.6);
-      c.lineTo(dx - 0.9, cy + ry * 0.6 + len);
-      c.arc(dx, cy + ry * 0.6 + len, 0.95, Math.PI, 0, true);
-      c.lineTo(dx + 1, cy + ry * 0.6);
+      var dx = cx + d * rx, top = cy + ry * 0.55, len = h * (0.38 + j * 0.12);
+      drips.moveTo(dx + 1, top);
+      drips.lineTo(dx + 0.9, top + len);
+      drips.arc(dx, top + len, 0.95, 0, Math.PI, false);
+      drips.lineTo(dx - 1, top);
+      drips.closePath();
     });
+    goo.addPath(blobPath);
+    goo.addPath(drips);
     c.fillStyle = T.accent;
-    c.fill("nonzero");
-    c.save(); c.clip("nonzero"); c.fillStyle = shade(c);
+    c.fill(goo, "nonzero");
+    c.save(); c.clip(goo, "nonzero"); c.fillStyle = shade(c);
     c.beginPath(); c.ellipse(cx + rx * 0.5, cy + ry * 0.5, rx * 0.8, ry * 0.9, 0, 0, Math.PI * 2); c.fill(); c.restore();
+    // the outline goes round the outside of the lot: the splat's edge where
+    // there are no drips, and the drips' edges outside the splat
     ink(c, 0.45);
-    c.stroke();
+    function outsideOf(path) {
+      var o = new Path2D();
+      o.rect(x - 4, y - 4, w + 8, h + 8);
+      o.addPath(path);
+      return o;
+    }
+    c.save(); c.clip(outsideOf(drips), "evenodd"); c.stroke(blobPath); c.restore();
+    c.save(); c.clip(outsideOf(blobPath), "evenodd"); c.stroke(drips); c.restore();
     item(c, typeof kind === "string" ? kind : "hand", cx, cy + h * 0.02, h * 0.34, -0.12);
   }
 
