@@ -591,6 +591,7 @@
     [interStamp, interHeading, interLine, interStats, interAsk, interChoices].forEach(function (n) { interPanel.appendChild(n); });
     root.appendChild(interPanel);
     var interPick = null;
+    var autoPick = 0;
 
     var live = el("p", "kit-sr");
     live.setAttribute("aria-live", "polite");
@@ -803,6 +804,10 @@
           setState("interlude");
           sound.stamp(0.15);
           buttons[0].focus({ preventScroll: true });
+          // the autopilot (and so a clip being filmed) picks for itself after a moment
+          if (flags.autopilot) {
+            autoPick = window.setTimeout(function () { pickChoice(Math.floor(Math.random() * buttons.length)); }, 2600);
+          }
           announce((opts.heading || "") + " " + (opts.ask || "") + " " + choices.map(function (c) { return c.label + (c.detail ? ": " + c.detail : "") + "."; }).join(" "));
         }, opts.delay != null ? opts.delay : 1200);
       });
@@ -817,6 +822,7 @@
       countTimers.forEach(window.clearTimeout);
       countTimers = [];
       window.clearTimeout(finishTimer);
+      window.clearTimeout(autoPick);
     }
 
     // 3, 2, 1, Go. Each one a stamp with a beep.
