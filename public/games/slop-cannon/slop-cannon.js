@@ -1168,10 +1168,11 @@
       what = "short by " + by + " at stage 1";
       line = "The feed is still mostly people's dinners. The board has seen enough dinners.";
     }
+    // lean, to fit a phone: out early, the line already says the feed's
+    // still mostly people, so it's how far you got instead
     var stats = [{ label: "Engagement", value: fmt(score) }];
     if (rank === 3) stats.push({ label: "Reached", value: "Stage " + (run.reached + 1) });
-    stats.push({ label: "Feed", value: pct + "% slop" });
-    if (rank <= 2) stats.push({ label: "Best chain", value: String(run.bestChain) });
+    if (rank <= 2) stats.push({ label: "Feed", value: pct + "% slop" }, { label: "Best chain", value: String(run.bestChain) });
     stats.push({ label: rec.isNew ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
                  value: fmt(rec.isNew ? score : rec.best || 0), highlight: rec.isNew });
     if (run.daily) stats.unshift({ label: "Run", value: shell.today });
