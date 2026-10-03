@@ -184,6 +184,7 @@
     bubbles = []; fx = [];
     noticed = false;
     hint = null;
+    paintHud();   // the countdown shows the new course, not the last one
   }
 
   // Once a page, a routine callout; the rest happen quietly
@@ -282,11 +283,12 @@
     }
     return null;
   }
+  // An advert only gets clicked when the fingertip is actually on it
   function advertAt(x, y) {
     for (var i = 0; i < G.items.length; i++) {
       var it = G.items[i];
-      if (it.y > y + EARLY) break;
-      if (it.kind === "advert" && it.loaded && x > it.x0 - TIP && x < it.x1 + TIP && it.y >= y - 0.5 && it.y <= y + EARLY) return it;
+      if (it.y > y + 1) break;
+      if (it.kind === "advert" && it.loaded && x > it.x0 - TIP && x < it.x1 + TIP && it.y >= y - 0.5 && it.y <= y + 1) return it;
     }
     return null;
   }
