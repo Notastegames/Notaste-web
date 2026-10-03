@@ -30,11 +30,16 @@
 
 /* Phones: the results fit the square screen, and scroll rather than cut off if they can't */
 @media (max-width: 39.99rem) {
-  .kit-results:not(.kit-inter) { gap: 0.45rem; align-content: safe center; overflow-y: auto; padding: 0.75rem 0.9rem; }
+  .kit-results:not(.kit-inter) { gap: 0.35rem; align-content: safe center; overflow-y: auto; padding: 0.5rem 0.8rem; }
   .kit-results:not(.kit-inter) .stamp-label { font-size: 1.25rem; }
+  .kit-results:not(.kit-inter) .kit-heading { margin-top: 0.1rem; font-size: 1.4rem; }
   .kit-results:not(.kit-inter) .kit-line { font-size: 0.78rem; line-height: 1.35; }
-  .kit-results:not(.kit-inter) .kit-stats { gap: 0.25rem 0.75rem; }
+  .kit-results:not(.kit-inter) .kit-stats { gap: 0.15rem 0.75rem; }
+  .kit-results:not(.kit-inter) .kit-stats dt { font-size: 0.66rem; }
+  .kit-results:not(.kit-inter) .kit-stats dd { font-size: 0.85rem; }
+  .kit-results:not(.kit-inter) .kit-actions { gap: 0.35rem 0.8rem; margin-top: 0.1rem; }
   .kit-results:not(.kit-inter) .kit-actions .btn { font-size: 1rem; padding: 0.6rem 0.9rem 0.5rem; }
+  .kit-results:not(.kit-inter) .kit-quiet { padding: 0.45rem 0.8rem; }
 }
 
 /* No touch buttons in this game (you tap the clauses), so the notice can sit low */

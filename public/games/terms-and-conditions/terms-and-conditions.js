@@ -312,13 +312,13 @@
       body: "500 " + fs + "px " + bodyFont(),
       bold: "700 " + fs + "px " + bodyFont(),
       num: Math.round(fs * 1.02) + "px " + T.display,
-      foot: "italic 500 " + Math.max(11, Math.round(fs * 0.82)) + "px " + bodyFont(),
+      foot: "italic 500 " + Math.max(12, Math.round(fs * 0.82)) + "px " + bodyFont(),
       head: Math.round(fs * 1.3) + "px " + T.display,
       title: Math.round(fs * 2.3) + "px " + T.display,
-      small: "500 " + Math.max(11, Math.round(fs * 0.85)) + "px " + bodyFont(),
+      small: "500 " + Math.max(12, Math.round(fs * 0.85)) + "px " + bodyFont(),
       bubble: Math.round(clamp(fs * 0.98, 12, 16)) + "px " + T.display
     };
-    m.footLh = Math.round(Math.max(11, fs * 0.82) * 1.3);
+    m.footLh = Math.round(Math.max(12, fs * 0.82) * 1.3);
     L = m;
   }
 
@@ -583,6 +583,7 @@
     hintNow = null;
     autoT = 0;
     bg = null;
+    hudBoxes = null;
     said = { legal: -9, mascot: -9 };
     paintHud();
   }
@@ -960,14 +961,15 @@
     var quote = (worst.length ? pick(worst) : run.agreed.length ? pick(run.agreed) : null);
     if (quote) line += " You also agreed to this: “" + agreedText(quote) + "”";
     else line += " Then you pressed Accept anyway. There was no other button.";
+    // short, so they sit on one or two rows on a phone's square screen
     var stats = [
       { label: "Score", value: fmt(score) },
       { label: "Struck", value: run.caught + "/" + total },
-      { label: "Legal fees", value: "£" + fmt(run.fees) },
       { label: rec.isNew ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
         value: fmt(rec.isNew ? score : rec.best || 0), highlight: rec.isNew }
     ];
-    if (!finished) stats.splice(1, 0, { label: "Reached", value: "App " + (stage + 1) + " of 4" });
+    if (run.fees) stats.splice(2, 0, { label: "Legal fees", value: "£" + fmt(run.fees) });
+    if (!finished) stats.splice(1, 0, { label: "App", value: (stage + 1) + " of 4" });
     if (run.daily) stats.unshift({ label: "Run", value: shell.today });
     shell.finish({
       place: rank + 1, total: 4, stamp: RANKS[rank].stamp, heading: heading, line: line, stats: stats,
@@ -1024,6 +1026,11 @@
     if (pressed.action) {
       if (sel === ACCEPT) acceptAll(false);
       else if (sel === DECLINE) decline();
+      // the highlight has just moved by itself (its clause scrolled away):
+      // a press this quick was meant for the old one, so it strikes nothing
+      else if (sel >= 0 && clock - jumped < 0.3) sfx.tick();
+      // at the end, a press on a clause that's already dealt with goes to Accept
+      else if (sel >= 0 && doc[sel].state !== "open" && phase === "accept") { sel = ACCEPT; shell.announce("Accept. There is no other button."); }
       else if (sel >= 0) strike(doc[sel]);
       else if (phase === "accept") { sel = ACCEPT; }
     }
@@ -1066,10 +1073,11 @@
   }
 
   // the highlight can't stay on a clause that's scrolled away
+  var jumped = -9;   // when the highlight last moved by itself
   function keepSelection() {
     if (sel >= 0 && !strikable(doc[sel])) {
-      var next = firstOnScreen();
-      sel = next;
+      sel = firstOnScreen();
+      jumped = clock;
     }
     if (hover >= 0 && !strikable(doc[hover])) hover = -1;
   }
@@ -1360,6 +1368,8 @@
       p.classList.toggle("is-on", on);
     });
     setText(hudEls["rights-n"], " " + Math.max(0, run.rights) + " of " + max);
+    // a longer score is a wider corner: measure the HUD again
+    if (hudEls.score && hudEls.score.textContent.length !== fmt(run.score).length) hudBoxes = null;
     setText(hudEls.score, fmt(run.score));
     setText(hudEls.streak, "x" + Math.min(4, 1 + Math.floor(run.streak / 3)));
   }
@@ -1376,6 +1386,7 @@
     layout();
     stampCache = {};
     bg = null;
+    hudBoxes = null;
     if (doc.length) measureAll();
   }
 
@@ -1465,6 +1476,7 @@
     var c = ctx;
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.drawImage(bg, 0, 0);
+    if (L.mode !== "wide") legends(c);
     var sx = 0, sy = 0;
     if (shake > 0 && !calm()) { sx = (Math.random() - 0.5) * 4 * shake; sy = (Math.random() - 0.5) * 4 * shake; }
     c.setTransform(DPR, 0, 0, DPR, sx * DPR, sy * DPR);
@@ -1478,6 +1490,32 @@
     drawFx(c);
     drawBubbles(c);
     if (hintNow && state === "playing") drawArrow(c, hintNow.x, hintNow.y, hintNow.word);
+    // under the results and the choices between apps, the page steps back so
+    // the words on top aren't read against the words underneath
+    var back = state === "results" || state === "interlude";
+    dim = back ? (calm() ? 1 : Math.min(1, dim + 0.07)) : 0;
+    if (dim) {
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.globalAlpha = 0.6 * dim;
+      c.fillStyle = T.ink;
+      c.fillRect(0, 0, c.canvas.width, c.canvas.height);
+      c.globalAlpha = 1;
+    }
+  }
+  var dim = 0;
+
+  // On narrow screens the HUD's corners sit over the phone's top edge: the
+  // edge stops short of them, like a label on a form, rather than running
+  // through the words
+  function legends(c) {
+    hudBottom(0, 0);
+    var ph = L.phone;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    c.fillStyle = T.ink;
+    hudBoxes.forEach(function (r) {
+      if (r.bar || r.bottom < ph.y - 2) return;
+      c.fillRect(r.left - 6, ph.y - 3, r.right - r.left + 12, 6);
+    });
   }
 
   // The stage's notice goes up with the countdown, so it's read before Go
@@ -1738,7 +1776,7 @@
     c.fillStyle = fg;
     var now = new Date();
     var time = (now.getHours() < 10 ? "0" : "") + now.getHours() + ":" + (now.getMinutes() < 10 ? "0" : "") + now.getMinutes();
-    var fsz = Math.round(sb * 0.78);
+    var fsz = Math.max(12, Math.round(sb * 0.82));
     c.font = fsz + "px " + T.display;
     c.textBaseline = "middle";
     c.textAlign = "left";
@@ -1768,7 +1806,7 @@
     c.textAlign = "left";
     c.fillText(app.name.toUpperCase(), p.x + L.pad + isz + 8, iy + 1);
     var pages = 1 + Math.floor(progress * (app.pages - 1));
-    c.font = Math.round(bar * 0.34) + "px " + T.display;
+    c.font = Math.max(12, Math.round(bar * 0.36)) + "px " + T.display;
     c.textAlign = "right";
     c.fillText("PAGE " + fmt(pages) + " OF " + fmt(app.pages), p.x + p.w - L.pad, iy + 1);
     c.restore();
@@ -1780,7 +1818,7 @@
     var fh = L.fs * 5.6, fy = v.y + v.h - fh * k;
     var bw = Math.min(v.w * 0.62, L.fs * 13), bh = L.fs * 2.6;
     var accept = { x: v.x + (v.w - bw) / 2, y: fy + L.fs * 0.8, w: bw, h: bh };
-    c_dec.font = Math.max(11, Math.round(L.fs * 0.78)) + "px " + bodyFont();
+    c_dec.font = Math.max(12, Math.round(L.fs * 0.78)) + "px " + bodyFont();
     var dw = c_dec.measureText("Decline").width + 12;
     var decline = { x: v.x + (v.w - dw) / 2, y: accept.y + bh + L.fs * 0.35, w: dw, h: L.fs * 1.3 };
     return { panel: { x: v.x, y: fy, w: v.w, h: fh }, accept: accept, decline: decline };
@@ -1827,7 +1865,7 @@
     c.fillText("ACCEPT", a.x + a.w / 2, a.y + a.h / 2 + 1);
     c.restore();
     var d = r.decline;
-    c.font = Math.max(11, Math.round(L.fs * 0.78)) + "px " + bodyFont();
+    c.font = Math.max(12, Math.round(L.fs * 0.78)) + "px " + bodyFont();
     c.fillStyle = T.ink;
     c.textAlign = "center";
     c.textBaseline = "middle";
@@ -2024,7 +2062,7 @@
       hudBoxes = [];
       Array.prototype.forEach.call(root.querySelectorAll(".kit-hud-tl, .kit-hud-tr, .kit-bar"), function (el) {
         var r = el.getBoundingClientRect();
-        if (r.width) hudBoxes.push({ left: r.left - base.left, right: r.right - base.left, bottom: r.bottom - base.top });
+        if (r.width) hudBoxes.push({ left: r.left - base.left, right: r.right - base.left, bottom: r.bottom - base.top, bar: el.classList.contains("kit-bar") });
       });
     }
     var bottom = 0;
@@ -2059,7 +2097,7 @@
     c.lineWidth = 2.2;
     c.strokeStyle = T.ink;
     c.stroke();
-    var size = Math.round(clamp(L.fs * 0.86, 11, 15));
+    var size = Math.round(clamp(L.fs * 0.86, 12, 15));
     c.font = size + "px " + T.display;
     var text = word.toUpperCase(), tw = c.measureText(text).width;
     var tx = clamp(0, -x + tw / 2 + 10, W - x - tw / 2 - 10);
@@ -2142,6 +2180,8 @@
                  seconds: Math.round(travel / avg), onScreen: +(L.view.h / avg).toFixed(1), clauses: doc.filter(isClause).length };
       },
       popup: function () { openPopup(C.popups[0]); },
+      // where the pop-up and the buttons at the bottom are, for test scripts that tap them
+      rects: function () { return { popup: popup ? popupRect() : null, accept: phase === "accept" ? acceptRects() : null }; },
       // the pop-ups still to come this app, and when
       plan: function () { return popupPlan.map(function (p) { return [+p.at.toFixed(4), p.def.title]; }); },
       say: say,
