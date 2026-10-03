@@ -66,13 +66,13 @@
 // does, like letting an item go round again, changes what the next shop
 // deals. What the machine and Bev say is left to chance.
 //
-// SCORING. Each item scanned: 100, plus 150 for a perfect scan, plus a streak
-// bonus (10 a scan in a row, up to 200; a miss, something going round again,
-// wrong fruit or an accusation starts it again, and it carries from shop to
-// shop). Bagging: 10. Fruit picked right: 150, plus up to 100 for being
-// quick. Each shop paid for: 20 a second left on the clock, and 500 for a
-// clean record (nobody accused you). If the shop shuts before you've paid,
-// the run is over.
+// SCORING. Each item scanned: 100, plus 200 for a perfect scan, plus a streak
+// bonus for perfect scans in a row (15 for each one before it, up to 300;
+// anything less than perfect, a miss, something going round again, wrong
+// fruit or an accusation starts it again, and it carries from shop to shop).
+// Bagging: 10. Fruit picked right: 150, plus up to 100 for being quick. Each
+// shop paid for: 20 a second left on the clock, and 500 for a clean record
+// (nobody accused you). If the shop shuts before you've paid, the run is over.
 //
 // THE LADDER (DESIGN.md, section 6). Approved: every shop paid for, at least
 // 17,500 points, and accused no more than once (the basket's false alarm).
@@ -113,7 +113,11 @@
   var SUS_MISS = 12, SUS_ROUND = 8, SUS_WRONG = 24, SUS_GUESS = 16;
   var SUS_DRAIN = 0.5;        // a second, in the first three shops: it doesn't forget quickly
   var SUS_EDGE = 1.6;         // a second, up, on Christmas Eve
-  var SUS_PERFECT = 9, SUS_GOOD = 2, SUS_AFTER = 25;
+  var SUS_PERFECT = 8;        // down, for a perfect scan
+  var SUS_GOOD = 2;           // up, for one that wasn't: it saw you fumble
+  var SUS_AFTER = 25;         // where it's left after an accusation is sorted
+  var PERFECT_PTS = 200;      // on top of 100 for any scan
+  var STREAK_PTS = 15, STREAK_CAP = 20;   // a perfect scan in a row: 15 more for each before it, up to 20
   var ALARM_FROM = 20;        // suspicion over this, and the scale saying OK may set it off...
   var ALARM_MAX = 0.65;       // ...this likely when it's full
   var FIRST_ALARM = 2;        // the basket's false alarm comes after this many things are bagged
@@ -147,7 +151,7 @@
       sets: [], fruit: 0, age: [], heavy: [],
       brief: "Scan each item as its barcode crosses the red line. Then bag it, but only when the scale says OK.",
       clear: "One basket. The machine has opened a file on you.",
-      hello: "Welcome. Please scan your first item. I'm watching." },
+      hello: "Scan your first item. I'm watching." },
     { name: "A trolley", count: 10, belt: 12.5, gap: [12, 22], time: 52, walk: 5, pool: "trolley",
       sets: ["lime", "onion", "apple", "potato", "banana"], fruit: 3, age: [], heavy: [],
       brief: "Loose fruit has no barcode. The belt stops and the till asks what it is: pick the matching picture before it guesses.",
@@ -162,7 +166,7 @@
       sets: ["sprout", "potato", "apple"], fruit: 2, age: ["crackers", "candle"], heavy: ["turkey"],
       brief: "The machine is on edge: its suspicion rises on its own, and only perfect scans calm it down. The shop shuts early.",
       clear: "",
-      hello: "Merry Christmas. Please scan your first item. Slowly." }
+      hello: "Merry Christmas. Scan it slowly." }
   ];
 
   // Ways of shopping, picked between stages. Something good, something bad,
@@ -176,8 +180,8 @@
       apply: function (m) { m.walk *= 0.45; m.chat += 1.6; } },
     { id: "glasses", label: "Wear your reading glasses", detail: "The machine waits twice as long before guessing your fruit. The belt runs a bit faster.",
       apply: function (m) { m.lookup *= 2; m.belt *= 1.1; } },
-    { id: "mean", label: "Scan like you mean it", detail: "Perfect scans score half as much again. Anything less than perfect looks suspicious.",
-      apply: function (m) { m.perfect *= 1.5; m.goodSus += 8; } },
+    { id: "mean", label: "Scan like you mean it", detail: "Perfect scans score a third more. Anything less than perfect looks very suspicious.",
+      apply: function (m) { m.perfect *= 4 / 3; m.goodSus += 6; } },
     { id: "quiet", label: "Come back when it's quieter", detail: "Fifteen more seconds before the shop shuts, though they don't score. Bev's on her break, so she takes longer.",
       apply: function (m) { m.time += 15; m.walk *= 1.4; } },
     { id: "wave", label: "Wave at the camera", detail: "Suspicion wears off three times as fast. Every item scores a tenth less.",
@@ -194,31 +198,31 @@
   // ---------------------------------------------------------------------------
   var SAY = {
     scanned: ["Thank you.", "Noted.", "Item accepted. You are pending.", "Good. Suspiciously good.", "Beep. That's me being polite."],
-    streak: ["Five in a row. What are you hiding.", "Very smooth. Too smooth.", "Nobody's this good at scanning. Nobody honest."],
+    streak: ["Five in a row. What are you hiding.", "Very smooth. Too smooth.", "Nobody scans like that. Nobody honest."],
     missed: ["I didn't see a barcode.", "That was the belt.", "Please scan the item, not the air.", "Scanning nothing is suspicious.", "Was that a barcode. No."],
     fruitMiss: ["Fruit and veg have no barcode. Wait.", "No barcode on that. Hold on."],
-    holding: ["Please place the item in the bagging area.", "Bag that one first.", "One thing at a time. I'm watching both."],
+    holding: ["Place the item in the bagging area.", "Bag that one first.", "One thing at a time. I'm watching both."],
     round: ["That one's going round again.", "Have you scanned your item.", "It'll be back. They always come back."],
     accuse: "Unexpected item in the bagging area.",
-    accuseWatch: ["I've seen enough. Unexpected item.", "I've been watching you. Unexpected item."],
-    lift: "Please remove the item from the bagging area.",
-    back: "Please replace the item in the bagging area.",
+    accuseWatch: ["I've seen enough. Unexpected item.", "I've been watching. Unexpected item."],
+    lift: "Remove the item from the bagging area.",
+    back: "Replace the item in the bagging area.",
     again: ["Unexpected item in the bagging area.", "No. Unexpected item. Again.", "Still unexpected."],
     sorry: ["Sorry. Item: expected.", "My mistake. I'll remember it.", "Apologies. It won't happen again. It will.", "That was my fault. Don't tell Bev."],
     coming: ["Assistance is on its way.", "Assistance is on its way. Slowly.", "Help is coming. Eventually."],
     arrive: ["She's here. You're in trouble.", "Bev. Search them."],
     age: { wine: "Cooking wine. For cooking, is it.", scissors: "Scissors. Approval needed.", candle: "A large candle. Why so large.",
-           crackers: "Crackers. They go bang. Approval needed." },
+           crackers: "Crackers. They go bang." },
     right: ["{name}. If you say so.", "{name}. I'll allow it.", "{name}. I was going to say that."],
-    wrong: ["Noted. Charged as {wrong}.", "{name}. If you insist. I'll be checking."],
+    wrong: ["Noted. Charged as {wrong}.", "{name}. If you insist."],
     guessed: "I've gone with {wrong}.",
     heavy: ["Heavy item. Please wait.", "Heavy item. Please wait. Longer."],
     turkey: "Turkey detected. Please wait.",
     high: ["I'm watching you.", "Smile. You're on camera.", "I've seen this before.", "Hmm."],
-    bagFirst: "Bag your item first. I'll wait. I'm good at waiting.",
-    waitApproval: "Waiting for approval. Bev's on her way. Probably.",
-    tenLeft: "The shop shuts in ten seconds. I'll lock you in.",
-    paid: ["Thank you for shopping. Please take your receipt.", "Payment accepted. You may go. I'll be watching."],
+    bagFirst: "Bag your item first. I'm good at waiting.",
+    waitApproval: "Bev's on her way. Probably.",
+    tenLeft: "Ten seconds. Then I lock you in.",
+    paid: ["Thank you for shopping. Take your receipt.", "Paid. You may go. I'll be watching."],
     shut: "We're closed. You're staying."
   };
   var BEV = {
@@ -340,6 +344,11 @@
     // Dennis talks from the speaker on his right. On a narrow screen his
     // bubble starts at the edge of his screen, so two lines are enough.
     L.dennis = { x: L.narrow ? L.kx + L.kW / 2 - 2.6 : L.kx + L.kW / 2 + 0.5, y: L.scrT + 5 };
+    // the face's size (as drawScreen draws it), and how far into the screen a
+    // long line's bubble may come on a very small screen without covering it
+    var sh = L.scrB - L.scrT, strip = Math.max(Math.min(5.2, sh * 0.22), L.tmin + 1);
+    L.faceR = Math.min((L.kW - 6) * 0.42, (sh - strip) * 0.55);
+    L.dennisIn = L.kx + L.faceR * 0.85 + 1.2;
   }
 
   // where each of the Christmas queue stands, and how big
@@ -766,14 +775,15 @@
     var perfect = Math.abs(barCentre(it) - L.sx) <= PERFECT;
     belt.splice(belt.indexOf(it), 1);
     hand = { item: it, t: 0, from: { x: it.x, y: L.belt } };
-    streak++;
+    // the streak is perfect scans in a row
+    streak = perfect ? streak + 1 : 0;
     run.scanned++;
     learned.scan++;
-    var pts = 100 + (perfect ? 150 * mods.perfect : 0) + 10 * Math.min(streak - 1, 20);
-    pts = Math.round(pts * mods.points / 10) * 10;
-    addScore(pts);
+    var bonus = perfect ? PERFECT_PTS * mods.perfect : 0, run1 = perfect ? STREAK_PTS * Math.min(streak - 1, STREAK_CAP) : 0;
+    var pts = Math.round((100 + bonus + run1) * mods.points / 10) * 10;
+    addScore(pts, "scan", (100 + bonus) * mods.points, run1 * mods.points);
     if (perfect) { run.perfect++; st.perfect++; sfx.perfect(); sus -= SUS_PERFECT; }
-    else { sfx.beep(); sus += mods.goodSus - SUS_GOOD; }
+    else { sfx.beep(); sus += SUS_GOOD + mods.goodSus; }
     sus = Math.max(0, sus);
     float(L.sx, L.belt + 11, (perfect ? "Perfect " : "") + "+" + pts, perfect ? "perfect" : "good");
     if (!shell.reduceMotion) fx.push({ kind: "flash", t: 0, life: 0.25 });
@@ -791,9 +801,15 @@
     }
   }
 
-  function addScore(pts) {
+  // part: what it was for (?debug keeps a tally, to tune the scoring by)
+  function addScore(pts, part, a, b) {
     run.score += pts;
     st.score += pts;
+    if (DEBUG) {
+      var p = run.parts || (run.parts = {});
+      if (part === "scan") { p.scan = (p.scan || 0) + a; p.streak = (p.streak || 0) + b; }
+      else p[part] = (p[part] || 0) + pts;
+    }
   }
 
   function float(x, y, text, kind) {
@@ -822,7 +838,7 @@
     bagGrace = 0.22;
     st.done++;
     learned.bag++;
-    addScore(10);
+    addScore(10, "bag");
     if (it.heavy) {
       sfx.thud();
       if (!shell.reduceMotion) shake = 0.5;
@@ -953,9 +969,8 @@
     if (right) {
       var quick = Math.max(0, 1 - look.t / look.limit);
       var pts = Math.round((150 + 100 * quick) * mods.points / 10) * 10;
-      addScore(pts);
+      addScore(pts, "fruit");
       run.fruitRight++;
-      streak++;
       sus = Math.max(0, sus - 5);
       sfx.right();
       float(L.sx, L.belt - 17, "+" + pts, "perfect");
@@ -1110,7 +1125,8 @@
     // the extra seconds from coming back when it's quieter don't score
     var scored = Math.max(0, Math.ceil(timeLeft - mods.time));
     var bonus = scored * TIME_BONUS + (st.fault ? 0 : CLEAN_BONUS);
-    addScore(bonus);
+    addScore(scored * TIME_BONUS, "time");
+    addScore(st.fault ? 0 : CLEAN_BONUS, "clean");
     st.bonus = bonus;
     st.secs = secs;
     if (DEBUG) dlog.push("paid " + (stage + 1) + ": " + timeLeft.toFixed(1) + "s left, accused " + st.accused + ", fault " + st.fault + ", sus " + Math.round(sus));
@@ -2078,17 +2094,28 @@
 
   // A speech bubble: paper, a thick ink outline, a tail to the speaker, two
   // short lines of capitals at most (DESIGN.md, section 7)
-  function drawBubble(c, b, placed) {
-    if (b.who === "bev" && bev.state === "off") return;
-    if (look && b.who === "dennis") return;
-    var a = anchor(b.who);
+  // how a bubble's words fall into lines, and its sizes
+  function bubbleText(c, who, text, inset) {
+    var a = anchor(who);
+    // on a very small screen a long line of Dennis's comes in over the blank
+    // side of his screen, so it still fits in two lines
+    if (inset) a.x = L.dennisIn * U;
     var size = clamp(U * 3.3, 12, 20);
     c.font = size + "px " + T.display;
-    var pad = size * (L.narrow ? 0.42 : 0.5), lh = size * 1.02;
+    var pad = size * (L.narrow ? 0.42 : 0.5);
     var gap = L.narrow ? 4 : size * 0.7;
     var maxW = a.side === "right" ? Math.min(W - a.x - gap - (L.narrow ? 4 : 14), size * 15) : Math.min(size * 13, W * (L.narrow ? 0.62 : 0.46));
     maxW = Math.max(maxW, size * 6);
-    var lines = wrapAll(c, b.text.toUpperCase(), maxW - pad * 2);
+    var bt = { a: a, size: size, pad: pad, gap: gap, lines: wrapAll(c, text.toUpperCase(), maxW - pad * 2) };
+    if (bt.lines.length > 2 && who === "dennis" && L.narrow && !inset) return bubbleText(c, who, text, true);
+    return bt;
+  }
+
+  function drawBubble(c, b, placed) {
+    if (b.who === "bev" && bev.state === "off") return;
+    if (look && b.who === "dennis") return;
+    var bt = bubbleText(c, b.who, b.text);
+    var a = bt.a, size = bt.size, pad = bt.pad, gap = bt.gap, lines = bt.lines, lh = size * 1.02;
     var tw = 0;
     lines.forEach(function (l) { tw = Math.max(tw, c.measureText(l).width); });
     var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.2;
@@ -2414,6 +2441,21 @@
       dealt: function () { return dlog.slice(); },
       idle: function (secs) { if (auto) auto.cool = secs; },
       bagAt: function () { return { x: L.bagX * U, y: (L.belt - L.bagH / 2) * U }; },
+      // every line anyone says that would take more than two lines on this screen
+      longLines: function () {
+        var out = [], names = Object.keys(S.FRUIT).map(function (k) { return S.FRUIT[k].name; });
+        function each(v, f) { if (typeof v === "string") f(v); else if (Array.isArray(v)) v.forEach(function (x) { each(x, f); }); else if (v) Object.keys(v).forEach(function (k) { each(v[k], f); }); }
+        function check(who, text) {
+          var variants = /\{name\}|\{wrong\}/.test(text) ? names.map(function (n) { return fill(text, { name: n, wrong: n }); }) : [text.replace("{veg}", "an apple")];
+          variants.forEach(function (t) { var n = bubbleText(ctx, who, t).lines.length; if (n > 2) out.push(who + " (" + n + "): " + t); });
+        }
+        each(SAY, function (t) { check("dennis", t); });
+        STAGES.forEach(function (s) { check("dennis", s.hello); });
+        check("dennis", "Sorry. That was your receipt.");
+        each(BEV, function (t) { check("bev", t); });
+        QUEUE.forEach(function (t) { check("q0", t); check("q1", t); });
+        return out;
+      },
       // everything a test needs to play by the rules, in one snapshot
       peek: function () {
         return {
