@@ -39,7 +39,7 @@
 //      cleaner's cradle on the side of the phone, with a very small net. He
 //      follows where you're aiming, slowly, and catches what passes through
 //      it. Three catches and he goes on lunch. Faster again.
-//   4. Final push (35s, target 2,600 for approval). Everything, faster, and
+//   4. Final push (35s, target 2,800 for approval). Everything, faster, and
 //      fewer real people post. Beat the target and it's Approved.
 // Between stages you pick one upgrade of three, each with a cost (UPGRADES):
 // More fingers (bigger splash, slower reload), Bot farm (B: ten seconds of
@@ -106,7 +106,7 @@
       clear: "The fact checks added context. It was read by nobody." },
     { name: "Moderation", time: 40, speed: 19, real: 0.58, trend: 0.2, fact: 0.14, mod: true, target: 1000,
       clear: "The Moderator is on another lunch. He's earned it. He hasn't been paid for it." },
-    { name: "Final push", time: 35, speed: 22, real: 0.5, trend: 0.28, fact: 0.16, mod: true, target: 2600, final: true }
+    { name: "Final push", time: 35, speed: 22, real: 0.5, trend: 0.28, fact: 0.16, mod: true, target: 2800, final: true }
   ];
   var LAST = STAGES.length - 1;
 

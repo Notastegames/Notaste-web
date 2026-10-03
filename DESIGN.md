@@ -314,6 +314,8 @@ A content farm's cannon fires AI slop at a giant phone's feed. Only real people'
 - **The finale:** when the final push ends, slime floods the phone's screen from the bottom.
 - **Results** say how it went against the target in a few words ("Over by 611.", "Short by 340."), with the share of the feed that ended up slop in the numbers.
 
+**The cover** is drawn with the game's own art: the Gaffer shouting "More. Faster. Worse." behind the cannon and the vat, a shot landing on Sandra's tea while she shouts "That was my tea.", the Moderator dangling his tiny net over it from his cradle, bots in the comments, and the feed turning green. The middle stays dark so the title screen's words read over it.
+
 ### Unexpected Item
 
 To be written when the game is built.
