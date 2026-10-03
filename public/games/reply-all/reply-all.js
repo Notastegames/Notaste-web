@@ -43,10 +43,15 @@
 // more if nothing got out that stage, and 2,500 for making it to 17:00.
 //
 // DIFFICULTY
-// Tuned with the autopilot at three reaction speeds (?debug&skill=): a casual
-// player lands anywhere from Rejected to Pending review, an engaged one
-// usually gets home, and a sharp one gets Approved. The autopilot itself
-// plays like the sharp one; in ?clip it's a bit slower, so the server sweats.
+// Tuned with test players that react like people: they wait a reaction time
+// (0.30, 0.45 or 0.65 seconds, give or take a fifth) after whoever is nearest
+// to sending changes, then click them or press their key, and mute a row when
+// two or more in it are typing. The pressure builds stage by stage: a 0.45s
+// player lets nothing out in stage 1, a couple by lunch, a few more after,
+// and usually gets home (stage 4 is where the rest melt); a 0.65s one melts
+// the server in the afternoon, mostly in stage 3; a 0.30s one gets Approved.
+// Keys keep up with a mouse. The autopilot plays like the sharp one; in ?clip
+// it's a bit slower, so the server sweats.
 //
 // THE LADDER (results stamp)
 //   Approved        home at 17:00 with 3 or fewer replies got out all day
@@ -65,7 +70,8 @@
 //
 // TESTING
 // ?autopilot plays it (&speed=4 for four times as fast), ?clip films it.
-// ?debug exposes window.__replyAll, and with it &stage=3 starts at stage 3,
+// ?debug exposes window.__replyAll (the test players' view of the office,
+// and STAGES to try a change on), and with it &stage=3 starts at stage 3,
 // &skill=0.6 slows the autopilot down, and &with=intern,bigger starts the
 // day with those of IT's suggestions already taken.
 (function () {
@@ -97,31 +103,30 @@
   var MULT_MAX = 4;
   var CLOSE = 0.85;                  // a close call: stopped with the bar this full
   var APPROVED_OUT = 3;              // replies that may get out in a day and still be Approved
-  var BOSS_SPREAD = [3, 4];          // desks each of the assistant's emails sets off, start to end of the stage
-  var BOSS_FIRST = 8;                // seconds before the assistant's first email
-  var BOSS_GAP = [8, 5.5];           // and between the rest
   var POKES = 3, POKE_TIME = 1, SLAP = 1;   // poke this many people who aren't typing in this long, and your hand is slapped away for this long
   var LAST = 3;
 
   // spawn: seconds between new repliers, start to end of the stage. dur: how
   // long a reply takes to type. busy: no new ones start while this many are
-  // typing. bursts: [when, how many]: the thread gets forwarded.
+  // typing. bursts: [when, how many]: the thread gets forwarded. boss: when
+  // the CEO's assistant first emails everyone, the gap between emails and how
+  // many desks each one sets off (start to end of the stage).
   var STAGES = [
     { name: "Your team", desks: 9, time: 28, spawn: [1.8, 1.1], dur: [3.8, 3.0], busy: 4,
-      bursts: [[12, 2], [21, 3]],
+      bursts: [[10, 2], [17, 3], [24, 3]],
       quick: 0, stubborn: 0, ooo: 0, boss: false,
       clear: "Your team has gone quiet. They've booked a meeting to discuss the email." },
-    { name: "The department", desks: 12, time: 32, spawn: [1.0, 0.7], dur: [3.2, 2.7], busy: 6,
-      bursts: [[8, 3], [16, 4], [23, 3], [29, 4]],
+    { name: "The department", desks: 12, time: 32, spawn: [1.15, 0.8], dur: [3.3, 2.8], busy: 5,
+      bursts: [[9, 3], [19, 3], [27, 4]],
       quick: 3, stubborn: 0, ooo: 0, boss: false, mute: true,
       clear: "The department has gone to lunch. They're discussing the thread in the queue." },
-    { name: "The whole company", desks: 16, time: 36, spawn: [1.1, 0.8], dur: [3.2, 2.7], busy: 7,
+    { name: "The whole company", desks: 16, time: 36, spawn: [1.2, 0.85], dur: [3.2, 2.7], busy: 7,
       bursts: [[9, 3], [20, 4], [30, 4]],
       quick: 3, stubborn: 3, ooo: 2, boss: false, mute: true,
       clear: "Everyone has had their say. Someone has printed the thread." },
-    { name: "The CEO's assistant", desks: 16, time: 40, spawn: [1.2, 0.85], dur: [3.2, 2.7], busy: 7,
-      bursts: [[14, 4], [29, 4]],
-      quick: 3, stubborn: 3, ooo: 2, boss: true, mute: true }
+    { name: "The CEO's assistant", desks: 16, time: 40, spawn: [1.3, 0.95], dur: [3.2, 2.7], busy: 6,
+      bursts: [[14, 3], [29, 4]],
+      quick: 3, stubborn: 3, ooo: 2, mute: true, boss: { first: 8, gap: [9, 6.5], spread: [3, 4] } }
   ];
 
   // What they type. Their manners, never them.
@@ -155,12 +160,12 @@
 
   // Between stages: IT's suggestions. Each one helps and each one costs.
   var OFFERS = [
-    { id: "reboot", label: "Turn it off and on again", detail: "The server starts the next stage empty. So does Mute thread.", mute: true,
-      apply: function (m) { run.load = 0; m.muteEmpty = true; } },
+    { id: "reboot", label: "Turn it off and on again", detail: "The server starts the next stage empty and cools down faster. Mute thread starts empty too.", mute: true,
+      apply: function (m) { run.load = 0; m.drain *= 1.2; m.muteEmpty = true; } },
     { id: "bigger", label: "Bigger server", detail: "Holds half as much again. Everyone types a bit faster to fill it.",
       apply: function (m) { m.cap *= 1.5; m.typeSpeed *= 1.04; } },
-    { id: "training", label: "Email etiquette training", detail: "Everyone types a bit slower. Each one you stop scores a third less.",
-      apply: function (m) { m.typeSpeed *= 0.85; m.points *= 0.67; } },
+    { id: "training", label: "Email etiquette training", detail: "Everyone types a bit slower. Each one you stop scores a quarter less.",
+      apply: function (m) { m.typeSpeed *= 0.9; m.points *= 0.75; } },
     { id: "button", label: "Hide the reply all button", detail: "A reply that gets out sets off one more, not two. More people start replying on their own.",
       apply: function (m) { m.spread = 1; m.spawn *= 1.1; } },
     { id: "rules", label: "Inbox rules", detail: "Mute thread recharges twice as fast. The server holds a bit less.", mute: true,
@@ -244,7 +249,7 @@
       stage: FIRST, score: 0, stopped: 0, out: 0, streak: 0, bestStreak: 0, load: 0,
       taken: [], melted: false, meltAt: "", mutes: 0,
       learned: {},
-      mods: { cap: 1, typeSpeed: 1, points: 1, spread: 2, spawn: 1, muteCd: 1, intern: false, muteEmpty: false },
+      mods: { cap: 1, drain: 1, typeSpeed: 1, points: 1, spread: 2, spawn: 1, muteCd: 1, intern: false, muteEmpty: false },
       // the office, the same for everyone in today's run: who sits where, and what's on their desk
       looks: shuffle(A.LOOKS.slice(), shell.random),
       decor: A.LOOKS.map(function () { return Math.floor(shell.random() * 4); })
@@ -277,7 +282,7 @@
       desks: [], flights: [], fx: [], stamps: [], bubbles: [], tapes: [], pops: [], pendingOoo: [],
       time: 0, spawnWait: 0.9, phase: "play", endT: 0,
       muteWait: st.mute ? (run.mods.muteEmpty ? MUTE_CD * run.mods.muteCd : MUTE_CD * run.mods.muteCd * 0.3) : Infinity,
-      bossWait: BOSS_FIRST, boss: null, bossSent: 0,
+      bossWait: st.boss ? st.boss.first : 0, boss: null, bossSent: 0,
       internWait: 3, internOops: 14, intern: null,
       stageOut: 0, stageStopped: 0, recentOut: [], keyAcc: 0,
       briefed: false, hint: null, groaned: 0, lastLand: -10,
@@ -621,7 +626,7 @@
     d.t = 0;
     d.gaze = { x: 0, y: 0.1, t: 1 };
     dropBubble(d);
-    var bossSpread = Math.round(lerp(BOSS_SPREAD[0], BOSS_SPREAD[1], G.time / info().time));
+    var bossSpread = d.kind === "boss" ? Math.round(lerp(info().boss.spread[0], info().boss.spread[1], G.time / info().time)) : 0;
     launch({ from: d, to: "server", load: LOAD[d.kind], spread: d.kind === "boss" ? bossSpread : run.mods.spread,
              kind: d.kind, dur: 0.6 });
     sfx.send();
@@ -752,7 +757,7 @@
         b.line = G.bossSent === 2 ? BOSS_JOKE : pick(LINES.boss.filter(function (l) { return l !== BOSS_JOKE || G.bossSent > 2; }));
         say1(b, b.line, true);
         lookAt(b, 1.4);      // the office turns round
-        G.bossWait = lerp(BOSS_GAP[0], BOSS_GAP[1], G.time / info().time);
+        G.bossWait = lerp(info().boss.gap[0], info().boss.gap[1], G.time / info().time);
       }
     }
   }
@@ -898,15 +903,16 @@
     var score = Math.round(run.score);
     var rec = shell.record(score);
     var outText = run.out === 1 ? "1 reply got out" : run.out + " replies got out";
-    // four at most, and short, so they sit on one row on a phone (when it
-    // melted is in the heading; a new best is in the accent)
+    // short, and few, so they sit on one row on a phone (when it melted is in
+    // the heading; a new best is in the accent; today's run says so in its
+    // best, since the date is too wide to share the row)
     var stats = [
       { label: "Score", value: fmt(score) },
       { label: "Out", value: String(run.out) },
-      { label: rec.isNew ? "New best" : shell.daily ? "Today's best" : "Best", value: fmt(rec.best || 0), highlight: rec.isNew }
+      { label: rec.isNew ? (shell.daily ? "New best today" : "New best") : shell.daily ? "Today's best" : "Best",
+        value: fmt(rec.best || 0), highlight: rec.isNew }
     ];
-    if (shell.daily) stats.unshift({ label: "Run", value: shell.today });
-    else stats.splice(1, 0, { label: "Stopped", value: String(run.stopped) });
+    if (!shell.daily) stats.splice(1, 0, { label: "Stopped", value: String(run.stopped) });
     shell.finish({
       place: rank,
       total: 4,
@@ -936,7 +942,7 @@
       bossTick(dt);
       internTick(dt);
       G.muteWait -= dt;
-      run.load = Math.max(0, run.load - DRAIN * dt);
+      run.load = Math.max(0, run.load - DRAIN * run.mods.drain * dt);
       if (G.time >= info().time) endStage();
     } else {
       G.endT += dt;
@@ -1768,7 +1774,7 @@
     var size = clamp(L.k * 20, 20, 28);
     var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(performance.now() / 250)) * 5;
     if (dir === "left") {
-      if (measureOnly) return { x: x, y: y - size * 1.1, w: size * 3.4, h: size * 1.6 };
+      if (measureOnly) return { x: x - 2, y: y - size * 1.45, w: size * 3.6, h: size * 1.95 };   // the word sits above the arrow
       c.setTransform(DPR, 0, 0, DPR, 0, 0);
       A.arrow(c, x + bob, y, h.word, size, "left", W - 4);
       return null;
@@ -2055,6 +2061,7 @@
 
   if (DEBUG) {
     window.__replyAll = {
+      stages: STAGES,       // the tuning, for test players to try changes on
       run: function () { return run; },
       stage: function () { return G; },
       layout: function () { return L; },
@@ -2063,16 +2070,23 @@
       desks: function () {
         var r = root.getBoundingClientRect();
         return G.desks.map(function (d) {
-          var p = at(d, 40, 32);
+          var p = at(d, 40, 32), body = at(d, 40, 48), bar = at(d, 40, 3);
           return { i: d.i, col: d.col, row: d.row, kind: d.kind, state: d.state, t: d.t, hits: d.hits,
-                   left: (1 - d.t) * d.dur, x: r.left + p.x, y: r.top + p.y };
+                   left: (1 - d.t) * d.dur, x: r.left + p.x, y: r.top + p.y,
+                   spots: [[r.left + p.x, r.top + p.y], [r.left + body.x, r.top + body.y], [r.left + bar.x, r.top + bar.y]] };
         });
       },
       mute: function () { return { ready: G.muteWait <= 0 && info().mute, row: muteRow(), x: L.mute.x, y: L.mute.y }; },
       // the key for desk i (a KeyboardEvent code), and Mute thread's
       keyFor: function (i) { var d = G.desks[i]; return KEY_ROWS[d.row][d.col]; },
       muteKey: function () { return "Space"; },
-      bubbles: function () { var r = root.getBoundingClientRect(); return bubbleHits.map(function (h) { return { i: h.desk.i, x: r.left + h.box.x + h.box.w / 2, y: r.top + h.box.y + h.box.h / 2, typing: h.desk.state === "typing" }; }); },
+      bubbles: function () {
+        var r = root.getBoundingClientRect();
+        return bubbleHits.map(function (h) {
+          return { i: h.desk.i, x: r.left + h.box.x + h.box.w / 2, y: r.top + h.box.y + h.box.h / 2, typing: h.desk.state === "typing",
+                   box: [r.left + h.box.x, r.top + h.box.y, h.box.w, h.box.h] };
+        });
+      },
       state: function () { return shell.state(); },
       score: function () {
         return { stage: run.stage + 1, clock: clockText(), score: Math.round(run.score), stopped: run.stopped, out: run.out,
