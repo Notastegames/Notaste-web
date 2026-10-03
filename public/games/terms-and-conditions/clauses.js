@@ -285,14 +285,15 @@
     "Payments", "Subscriptions", "Cancelling", "Liability", "Changes to these terms", "Cookies",
     "Your content", "Things you can't do", "Things we can do", "Complaints", "The legal bit",
     "More of the legal bit", "Definitions", "General", "Notices", "Ending this agreement", "Privacy",
-    "Security", "Your rights", "Our rights", "Updates"
+    "Security", "Your rights", "Our rights", "Updates", "Things we can do (all of them)", "Your rights (summary)",
+    "This section is long on purpose", "The bit nobody reads", "Definitions you won't need"
   ];
 
   // The four apps, one a stage. Each has a mascot (cast.js draws them), its
   // own clauses, the line it opens with, and what happens if you press Decline.
   var apps = [
     {
-      key: "torch", name: "Torch Plus", mascot: "Beam", pages: 212,
+      key: "torch", name: "Torch Plus", mascot: "Beam", pages: 212, header: "ink",
       subtitle: "Terms of service. Version 14.2.",
       kicker: "Please read carefully. Nobody does.",
       hello: "Hi. I'm Beam. I need your location to make light.",
@@ -386,7 +387,7 @@
       smallOk: [["Your first date is free.*", "*Treats not included."]]
     },
     {
-      key: "bank", name: "A Bank", mascot: "Penny", pages: 4112,
+      key: "bank", name: "A Bank", mascot: "Penny", pages: 4112, header: "ink",
       subtitle: "Terms and conditions. All 4,112 pages.",
       kicker: "Your money matters to us. Mostly to us.",
       hello: "I'm Penny. Your money is safe with us. With us.",

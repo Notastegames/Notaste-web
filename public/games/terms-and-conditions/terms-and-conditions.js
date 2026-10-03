@@ -1387,6 +1387,26 @@
     }
     c.globalAlpha = 1;
     var ph = L.phone;
+    if (L.mode === "wide") {
+      var cx = W / 2, cy = ph.y + (H - ph.y) * 0.45, R = Math.min(W * 0.5, H * 0.95);
+      [[1, 0.13], [0.8, 0.19], [0.6, 0.25], [0.4, 0.31]].forEach(function (ring, i, all) {
+        var step = Math.max(4, Math.round(7 * DPR));
+        var tile = document.createElement("canvas");
+        tile.width = tile.height = step;
+        var tc = tile.getContext("2d");
+        tc.fillStyle = T.accent;
+        tc.beginPath();
+        tc.arc(step / 2, step / 2, step * ring[1], 0, Math.PI * 2);
+        tc.fill();
+        var pat = c.createPattern(tile, "repeat");
+        if (pat.setTransform && window.DOMMatrix) pat.setTransform(new DOMMatrix().scale(1 / DPR));
+        c.beginPath();
+        c.arc(cx, cy, R * ring[0], 0, Math.PI * 2);
+        if (all[i + 1]) { c.moveTo(cx + R * all[i + 1][0], cy); c.arc(cx, cy, R * all[i + 1][0], 0, Math.PI * 2, true); }
+        c.fillStyle = pat;
+        c.fill("evenodd");
+      });
+    }
     CAST.roundRect(c, ph.x, ph.y, ph.w, ph.h, ph.r);
     c.fillStyle = T.ink;
     c.fill();
@@ -1690,11 +1710,22 @@
     c.arcTo(p.x + p.w, p.y, p.x + p.w, p.y + rr, rr);
     c.lineTo(p.x + p.w, p.y + L.head);
     c.closePath();
-    c.fillStyle = T.accent;
+    var dark = app.header === "ink";
+    var fg = dark ? T.paper : T.ink;
+    c.fillStyle = dark ? T.ink : T.accent;
     c.fill();
-    c.fillStyle = T.ink;
-    c.fillRect(p.x, p.y + L.head - 2, p.w, 2);
+    if (dark) {
+      // a dark app: a peach rule under it, and the bank's double line
+      c.fillStyle = T.accent;
+      c.fillRect(p.x, p.y + L.head - 4, p.w, 4);
+      if (app.key === "bank") { c.fillStyle = T.paper; c.fillRect(p.x + L.pad, p.y + L.head - 9, p.w - L.pad * 2, 1.5); }
+    } else {
+      c.fillStyle = T.ink;
+      c.fillRect(p.x, p.y + L.head - 2, p.w, 2);
+    }
+    c.fillStyle = fg;
     // status bar: the time, a notch, the battery (which the torch is draining)
+    c.fillStyle = fg;
     var now = new Date();
     var time = (now.getHours() < 10 ? "0" : "") + now.getHours() + ":" + (now.getMinutes() < 10 ? "0" : "") + now.getMinutes();
     var fsz = Math.round(sb * 0.78);
@@ -1703,23 +1734,26 @@
     c.textAlign = "left";
     c.fillText(time, p.x + rr * 0.9, p.y + sb * 0.62);
     CAST.roundRect(c, p.x + p.w / 2 - p.w * 0.12, p.y + 3, p.w * 0.24, sb * 0.62, sb * 0.31);
+    c.fillStyle = T.ink;
     c.fill();
+    if (dark) { c.lineWidth = 1.2; c.strokeStyle = T.paper; c.stroke(); }
     var progress = clamp(scroll / Math.max(1, docH - L.view.h), 0, 1);
     var level = [1 - 0.55 * progress, 0.45 - 0.2 * progress, 0.25 - 0.1 * progress, 0.12 - 0.08 * progress][stage];
     var bw = sb * 1.5, bh = sb * 0.62, bx = p.x + p.w - rr * 0.9 - bw, by = p.y + sb * 0.62 - bh / 2;
     c.lineWidth = 1.4;
-    c.strokeStyle = T.ink;
+    c.strokeStyle = fg;
     c.strokeRect(bx, by, bw, bh);
+    c.fillStyle = fg;
     c.fillRect(bx + bw, by + bh * 0.3, 2, bh * 0.4);
-    c.fillStyle = level < 0.2 ? T.red : T.ink;
+    c.fillStyle = level < 0.2 ? T.red : fg;
     c.fillRect(bx + 1.5, by + 1.5, (bw - 3) * clamp(level, 0.04, 1), bh - 3);
     // signal bars
-    c.fillStyle = T.ink;
+    c.fillStyle = fg;
     for (var s = 0; s < 4; s++) c.fillRect(bx - 8 - (3 - s) * 4, by + bh - (s + 1) * bh / 4, 2.6, (s + 1) * bh / 4);
     // the app bar
     var iy = p.y + sb + bar / 2, isz = bar * 0.7;
     CAST.icon(c, p.x + L.pad + isz / 2, iy, isz);
-    c.fillStyle = T.ink;
+    c.fillStyle = fg;
     c.font = Math.round(bar * 0.5) + "px " + T.display;
     c.textAlign = "left";
     c.fillText(app.name.toUpperCase(), p.x + L.pad + isz + 8, iy + 1);
