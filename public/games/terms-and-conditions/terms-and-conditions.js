@@ -253,7 +253,8 @@
     var m = {};
     var ar = W / H;
     m.mode = ar >= 1.2 ? "wide" : H / W >= 1.15 ? "tall" : "square";
-    var top = W < 520 ? 44 : 52;
+    // below the HUD: in the middle only the kit's buttons, across the page the corners too
+    var top = m.mode === "wide" ? Math.max(52, hudFit.bar + 6) : Math.max(42, hudFit.corners - Math.round(clamp(W / 330 * 13, 12, 15)) + 2, hudFit.bar + 2);
     if (m.mode === "wide") {
       var pw = clamp(Math.min(W * 0.5, (H - top) * 0.78), 250, 440);
       var bez = Math.round(clamp(pw * 0.04, 8, 15));
@@ -307,6 +308,28 @@
     };
     m.footLh = Math.round(Math.max(11, fs * 0.82) * 1.3);
     L = m;
+  }
+
+  // Where the HTML HUD ends, measured once it's showing (it's sized by the page's
+  // width, not the screen's, so in the clip frame it's bigger than on a phone)
+  var hudFit = { done: false, corners: 0, bar: 0 };
+  function fitHud() {
+    hudFit.done = true;
+    var base = root.getBoundingClientRect(), corners = 0, bar = 0;
+    Array.prototype.forEach.call(root.querySelectorAll(".kit-hud-tl, .kit-hud-tr, .kit-bar"), function (el) {
+      var r = el.getBoundingClientRect();
+      if (!r.height) return;
+      if (el.classList.contains("kit-bar")) bar = Math.max(bar, r.bottom - base.top);
+      else corners = Math.max(corners, r.bottom - base.top);
+    });
+    if (Math.abs(corners - hudFit.corners) > 1 || Math.abs(bar - hudFit.bar) > 1) {
+      hudFit.corners = corners;
+      hudFit.bar = bar;
+      layout();
+      measureAll();
+      bg = null;
+      hudBoxes = null;
+    }
   }
 
   var bodyFamily = null;
@@ -1228,6 +1251,7 @@
     ctx = (shell ? shell.canvas : root.querySelector("canvas")).getContext("2d");
     if (!T) return;
     CAST.init(T, DPR);
+    hudFit.done = false;
     layout();
     stampCache = {};
     bg = null;
@@ -1291,6 +1315,7 @@
   function render() {
     if (!ctx || !run || !L) return;
     var state = shell.state();
+    if (!hudFit.done && (state === "countdown" || state === "playing")) fitHud();
     if (!noticed && (state === "countdown" || state === "playing")) {
       noticed = true;
       notice();
@@ -1947,7 +1972,12 @@
       strike: function (i) { strike(doc[i]); },
       popup: function () { openPopup(C.popups[0]); },
       say: say,
-      skip: function () { scroll = docH; }
+      // jump to the bottom of the terms, having struck everything bad on the way
+      skip: function () {
+        doc.forEach(function (b) { if (isClause(b) && b.state === "open" && isBad(b)) { b.state = "struck"; b.struckAt = clock - 1; } });
+        var end = doc[doc.length - 1];
+        scroll = end.top + end.h - L.view.h * 0.7;
+      }
     };
   }
 })();

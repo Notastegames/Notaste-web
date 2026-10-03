@@ -13,7 +13,8 @@
   var GAMES = [
     { slug: "thonglets",     title: "Thonglets",     accent: "#9a7bc4", stamp: "Classified",     pitch: "Tiny creatures in thongs who think you're their god. You are not a good one.", status: "Playable now. Seven stages and a Judgement Day." },
     { slug: "heavy-traffic", title: "Heavy Traffic", accent: "#4f9e9a", stamp: "Not approved",   pitch: "Kart racing. Large drivers, tiny cars. Physics has given up.", status: "Early prototype. Playable now." },
-    { slug: "slop-cannon",   title: "Slop Cannon",   accent: "#b3bf2a", stamp: "Pending review", pitch: "Fire endless AI slop into a feed. Nobody is checking." }
+    { slug: "slop-cannon",   title: "Slop Cannon",   accent: "#b3bf2a", stamp: "Pending review", pitch: "Fire endless AI slop into a feed. Nobody is checking." },
+    { slug: "terms-and-conditions", title: "Terms and Conditions", accent: "#f2b48c", stamp: "Unread", pitch: "Read the terms. Strike out the bad bits. Accept anyway. There is no other button.", status: "Playable now." }
   ];
 
   var current = document.body.getAttribute("data-game");
