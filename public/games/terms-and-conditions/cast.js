@@ -112,8 +112,9 @@
   //   o.face: "glare" | "shout" | "smug"
   //   o.look: { x, y } where the pupils point, -1 to 1
   //   o.fist: raise a fist (shouting), o.pen: holding the confiscated red pen
-  //   o.reach: { x, y, t } reach an arm out to a point (in his units) with a pen
-  //   o.anim: seconds, for the wobbles
+  //   o.low: hold the fist or the pen at his cheek (a phone's short strip)
+  //   o.reach: { x, y, scribble } reach an arm out to a point (in his units) with a pen
+  //   o.anim: seconds, for the wobbles; o.calm: reduced motion, nothing shakes
   // ---------------------------------------------------------------------------
   function legal(c, x, y, s, o) {
     o = o || {};
@@ -192,23 +193,45 @@
     // a raised fist, or the arm reaching across with a pen
     if (o.reach) {
       var r = o.reach, ex = r.x, ey = r.y;
-      sleeve(c, 30, -40, ex - 6, ey + 8, 15);
-      // the pen: ink, with a paper edge, tip at the point
+      // shoulder, elbow, wrist: the elbow bends out to the side, so it reads
+      // as an arm in a sleeve rather than a pole
+      var wx = ex - 7, wy = ey + 10;
+      var dx = wx - 30, dy = wy + 40, len = Math.hypot(dx, dy) || 1;
+      var bend = Math.min(26, len * 0.16);
+      var elx = 30 + dx * 0.5 + (dy / len) * bend, ely = -40 + dy * 0.5 - (dx / len) * bend;
+      sleeve(c, 30, -40, elx, ely, 15);
+      sleeve(c, elx, ely, wx, wy, 13);
+      oval(c, elx, ely, 7.5, 7.5);
+      fill(c, T.ink);
+      // a shirt cuff at the wrist, paper with an ink edge
+      var ca = Math.atan2(wy - ely, wx - elx);
+      c.save();
+      c.translate(wx, wy);
+      c.rotate(ca);
+      roundRect(c, -3, -8, 7, 16, 2);
+      fill(c, T.paper);
+      stroke(c, 1.8);
+      c.restore();
+      // the pen: a paper barrel with an ink cap and nib, big enough to see,
+      // shaking as he writes (not with reduced motion)
       c.save();
       c.translate(ex, ey);
-      c.rotate(-0.5 + Math.sin(anim * 30) * (r.scribble ? 0.12 : 0));
-      roundRect(c, -2, -26, 5, 24, 2);
+      c.rotate(-0.5 + (o.calm ? 0 : Math.sin(anim * 30) * (r.scribble ? 0.12 : 0)));
+      roundRect(c, -3.5, -34, 7, 30, 2.5);
+      fill(c, T.paper);
+      stroke(c, 1.8);
+      roundRect(c, -3.5, -34, 7, 9, 2.5);
       fill(c, T.ink);
-      stroke(c, 1.2, T.paper);
+      stroke(c, 1.8);
       c.beginPath();
-      c.moveTo(-2, -2);
-      c.lineTo(3, -2);
-      c.lineTo(0.5, 3);
+      c.moveTo(-3.5, -4);
+      c.lineTo(3.5, -4);
+      c.lineTo(0, 4);
       c.closePath();
       fill(c, T.ink);
-      stroke(c, 1, T.paper);
+      stroke(c, 1.2);
       c.restore();
-      mitten(c, ex - 4, ey - 9, 9, 0.4);
+      mitten(c, ex - 4, ey - 10, 9, 0.4);
     }
 
     // the head: round, white, sitting straight on the shoulders
@@ -243,7 +266,8 @@
     });
     var mx = hx + gx * 0.8;
     if (o.face === "shout") {
-      var open = 5.5 + Math.abs(Math.sin(anim * 22)) * 2.4;
+      // the mouth works as he shouts (held open with reduced motion)
+      var open = 5.5 + (o.calm ? 1.6 : Math.abs(Math.sin(anim * 22)) * 2.4);
       oval(c, mx, hy + 17, 7.5, open);
       fill(c, T.ink);
       c.save();
@@ -313,8 +337,10 @@
     });
 
     if (o.fist || o.pen) {
-      var shake = o.fist ? Math.sin(anim * 34) * 2.4 : 0;
-      var fx = 46, fy = -106 + shake;
+      // the fist shakes (not with reduced motion); o.low holds it at his
+      // cheek, for a phone's short strip where there's no room above his head
+      var shake = o.fist && !o.calm ? Math.sin(anim * 34) * 2.4 : 0;
+      var fx = 46, fy = (o.low ? -86 : -106) + shake;
       sleeve(c, 32, -42, fx - 2, fy + 12, 15);
       if (o.pen) {
         // the confiscated pen, held up for everyone to see

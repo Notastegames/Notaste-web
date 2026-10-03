@@ -6,6 +6,7 @@
 // the person trying to read them (DESIGN.md, section 2 and section 13).
 //
 //   normal   real-sounding boilerplate. Leave these alone.
+//   real     the normal ones that sound bad and are real (also in normal).
 //   bad      out of order from the first word. Strike them.
 //   sting    fine until the last few words. [text, how many words turn it]
 //   small    a fine clause with an asterisk and a footnote. [main, footnote]
@@ -107,6 +108,30 @@
     "You must not try to get into parts of the App you're not meant to access.",
     "We may close accounts that haven't been used for two years.",
     "Where we say “we”, “us” or “our”, we mean the company that runs the App."
+  ];
+
+  // Normal clauses that sound bad, because they are: they're in real terms
+  // already, probably yours. Leave them alone like any normal clause. Strike
+  // one and Legal points out that it's real, which is the joke.
+  var real = [
+    "We may send you messages about your account. These can't be switched off.",
+    "If you send us feedback, we may use it to improve the App without paying you.",
+    "By continuing to use the App, you accept these terms.",
+    "We may transfer our rights under these terms to another company.",
+    "We may remove content that breaks these terms without telling you first.",
+    "Our total liability to you is limited to what you paid us in the last 12 months.",
+    "We are not liable for losses we could not reasonably have foreseen.",
+    "Subscriptions renew automatically unless you cancel at least 24 hours before they renew.",
+    "Free trials become paid subscriptions unless you cancel before the trial ends.",
+    "We collect information about how you use the App so we can improve it.",
+    "If we don't enforce a term straight away, we can still enforce it later.",
+    "Anything we say in our adverts doesn't change these terms.",
+    "In these terms, “including” means “including but not limited to”.",
+    "Beta features may change or disappear without notice.",
+    "We may close accounts that haven't been used for two years.",
+    "Unpaid amounts may be passed to a debt collection agency.",
+    "We may share data with the police where the law requires us to.",
+    "Calls may be recorded for training and quality purposes."
   ];
 
   var bad = [
@@ -453,6 +478,9 @@
       wrong: ["That one was fine, you melon.", "Billable.", "That's an afternoon. Billed.", "Perfectly good clause, you numpty.",
               "Stet. Look it up.", "Read it again, you plonker.", "My invoice is in the post.", "Normal clause. Normal.",
               "That's £600, you lemon.", "I'll be billing you for that."],
+      real: ["That one's real. It's in yours.", "That one's real. You agreed to it this morning.",
+             "Real clause. Everybody's got that one.", "That's a real one, you melon. Check your phone.",
+             "Real. Word for word. Billable."],
       missed: ["Lovely.", "Binding now.", "Signed. Sealed.", "Pleasure doing business.", "That's legally yours now.",
                "Agreed. No takebacks.", "Lovely. Next."],
       pen: ["I'll take that pen.", "Pen. Now.", "Give me that, you absolute weapon."],
@@ -478,7 +506,7 @@
   };
 
   window.TermsClauses = {
-    normal: normal, bad: bad, sting: sting, smallBad: smallBad, smallOk: smallOk, amend: amend,
+    normal: normal, real: real, bad: bad, sting: sting, smallBad: smallBad, smallOk: smallOk, amend: amend,
     headings: headings, apps: apps, popups: popups, appPopups: appPopups, lines: lines
   };
 })();

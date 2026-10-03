@@ -81,18 +81,20 @@
   var PER_RIGHT = 40;          // at each Accept, for each right still held
   var CLEAN = 250;             // ...and for a clean read
   var WAIT_ACCEPT = 9;         // seconds before the mascot presses Accept for you
+  var READ = 1.2;              // seconds a clause must have been all on screen before a push can carry it off the top
+  var SIGNED_MS = 0.85;        // how long the Signed stamp stays up at the top of the page
 
   // What each app's terms hold. lps: lines a second the page scrolls.
   var STAGES = [
-    { normal: 7, bad: 5, sting: 0, smallBad: 0, smallOk: 0, amend: 0, popups: 0, lps: 1.45, ramp: 0.1 },
-    { normal: 7, bad: 3, sting: 3, smallBad: 0, smallOk: 0, amend: 0, popups: 1, lps: 1.65, ramp: 0.12 },
-    { normal: 6, bad: 3, sting: 2, smallBad: 3, smallOk: 3, amend: 0, popups: 2, lps: 1.85, ramp: 0.14 },
-    { normal: 6, bad: 2, sting: 3, smallBad: 3, smallOk: 2, amend: 3, popups: 2, lps: 2, ramp: 0.3 }
+    { normal: 7, bad: 5, sting: 0, smallBad: 0, smallOk: 0, amend: 0, popups: 0, lps: 1.15, ramp: 0.08 },
+    { normal: 7, bad: 3, sting: 3, smallBad: 0, smallOk: 0, amend: 0, popups: 1, lps: 1.35, ramp: 0.1 },
+    { normal: 6, bad: 3, sting: 2, smallBad: 3, smallOk: 3, amend: 0, popups: 2, lps: 1.55, ramp: 0.12 },
+    { normal: 6, bad: 2, sting: 3, smallBad: 3, smallOk: 2, amend: 3, popups: 2, lps: 1.7, ramp: 0.15 }
   ];
 
   // What's new each app, shown as a notice with the countdown
   var BRIEFS = [
-    "Its terms scroll up the phone. Most clauses are normal. Strike the ones that aren't before they scroll away: {how}. Strike a normal one and Legal bills you.",
+    "Most clauses are normal. Strike the ones that aren't before they scroll off the top: {how}. Each one that gets away signs off one of your rights. Strike a normal one and Legal bills you.",
     "Read to the end. Some clauses turn bad in their last few words. And a pop-up will ask if you're still reading: {close}.",
     "A dating app for dogs. Read the small print: a fine clause with a bad footnote is a bad clause. A harmless footnote is fine.",
     "Legal edits clauses while you read. When his pen comes out, read that clause again. It's a bank, so everything's faster."
@@ -121,7 +123,7 @@
   // The results ladder: what it takes and what it says
   var RANKS = [
     { stamp: "Approved", line: "You read the terms. The company has flagged your account as unusual." },
-    { stamp: "Pending review", line: "You caught most of it. The rest is binding, and your fridge has been told." },
+    { stamp: "Pending review", line: "You caught most of it. The rest is binding, and has been shared with our partners." },
     { stamp: "Not approved", line: "You read some of it. They read all of you." },
     { stamp: "Rejected", line: "You agreed to nearly everything. Everyone does. That's the business model." }
   ];
@@ -147,6 +149,11 @@
   var said = { legal: -9, mascot: -9 };
   var pointer = { x: 0, y: 0, mouse: false };
   var pending = 0, fling = 0, pull = 0, skimmed = 0, lastSkim = -99;
+  // a push (a drag and its glide, a run of wheel turns, a press of Down) moves
+  // the page on half a screen at most
+  var gesture = { left: 0, wheelAt: -9 };
+  var signs = [];                      // Signed stamps at the top of the page
+  var greetAt = -1;                    // when the notice went, so the cast can say hello
   var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -192,7 +199,8 @@
     take(app.bad, C.bad, st.bad, 0.45).forEach(function (t) { badItems.push({ type: "bad", text: t }); });
     take(app.sting, C.sting, st.sting, 0.4).forEach(function (s) { badItems.push({ type: "sting", text: s[0], n: s[1] }); });
     take(app.smallBad, C.smallBad, st.smallBad, 0.34).forEach(function (s) { badItems.push({ type: "small", text: s[0], foot: s[1] }); });
-    take(app.normal, C.normal, st.normal, 0.35).forEach(function (t) { normals.push({ type: "normal", text: t }); });
+    // real: a clause from real terms that sounds bad. Strike it and Legal says so.
+    take(app.normal, C.normal, st.normal, 0.35).forEach(function (t) { normals.push({ type: "normal", text: t, real: C.real.indexOf(t) >= 0 }); });
     take(app.smallOk, C.smallOk, st.smallOk, 0.34).forEach(function (s) { normals.push({ type: "smallok", text: s[0], foot: s[1] }); });
     take(null, C.amend, st.amend, 0).forEach(function (s) { amendables.push({ type: "amendable", text: s[0], from: s[1], to: s[2] }); });
     shuffle(badItems);
@@ -236,6 +244,8 @@
       b.kind = "clause";
       b.num = section + "." + n;
       b.state = "open";
+      // the clause that's about itself uses its own number
+      if (/^Clause 4 /.test(b.text)) b.text = b.text.replace(/Clause 4/g, "Clause " + b.num);
       doc.push(b);
     });
     // the friend's circles
@@ -257,8 +267,11 @@
   // ---------------------------------------------------------------------------
   // Layout: where the phone, the page and the cast go, at any shape of screen
   //   wide    4:3 desktop. The phone in the middle, Legal and the mascot either side.
-  //   tall    the 4:5 clip frame and phones in fullscreen. The cast stand underneath.
-  //   square  phones. The page fills the screen; the cast peek up at the corners.
+  //   tall    the 4:5 clip frame and phones in fullscreen. The cast stand in a
+  //           strip under the page, and talk in it.
+  //   square  phones in the page. The page fills the screen; the cast's heads
+  //           peek up from a short strip under it, and talk in it, so nothing
+  //           they say covers the terms.
   // ---------------------------------------------------------------------------
   function layout() {
     var m = {};
@@ -266,6 +279,7 @@
     m.mode = ar >= 1.2 ? "wide" : H / W >= 1.15 ? "tall" : "square";
     // below the HUD: in the middle only the kit's buttons, across the page the corners too
     var top = m.mode === "wide" ? Math.max(52, hudFit.bar + 6) : Math.max(42, hudFit.corners - Math.round(clamp(W / 330 * 13, 12, 15)) + 2, hudFit.bar + 2);
+    m.strip = null;
     if (m.mode === "wide") {
       var pw = clamp(Math.min(W * 0.5, (H - top) * 0.78), 250, 440);
       var bez = Math.round(clamp(pw * 0.04, 8, 15));
@@ -273,29 +287,42 @@
       m.page = { x: m.phone.x + bez, y: top + bez, w: m.phone.w - bez * 2, h: H - top - bez };
       var col = m.phone.x;
       var ls = Math.min(col * 0.86 / 112, H * 0.6 / 146);
-      m.legal = { x: col * 0.5, y: H + 14 * ls, s: ls, rest: 0, up: 0 };
+      m.legal = { x: col * 0.5, y: H + 14 * ls, s: ls };
       var ms = Math.min(col * 0.72 / 112, H * 0.36 / 112);
-      m.mascot = { x: W - col * 0.5, y: H - 10, s: ms, rest: 0, up: 0 };
+      m.mascot = { x: W - col * 0.5, y: H - 10, s: ms };
       m.bubbleW = col - 18;
     } else {
       var side = Math.round(clamp(W * 0.03, 7, 14));
       m.phone = { x: side - 6, y: top - 6, w: W - (side - 6) * 2, h: H, r: 20, bez: 6 };
-      var strip = m.mode === "tall" ? Math.round(clamp(W * 0.3, 96, 170)) : 0;
-      m.page = { x: side, y: top, w: W - side * 2, h: H - top - strip - (strip ? 0 : 4) };
-      var u = W / 330;
-      if (m.mode === "tall") {
+      var tall = m.mode === "tall";
+      var strip = tall ? Math.round(clamp(W * 0.3, 96, 170)) : Math.round(clamp(H * 0.15, 40, 56));
+      m.page = { x: side, y: top, w: W - side * 2, h: H - top - strip };
+      var sy = m.page.y + m.page.h + 2;
+      m.strip = { x: 0, y: sy, w: W, h: H - sy };
+      var lx, mx;
+      if (tall) {
+        // standing: head and shoulders
         var ts = Math.min(strip * 0.9 / 120, W * 0.3 / 112);
-        m.legal = { x: W * 0.2, y: H + 22 * ts, s: ts, rest: 0, up: 0 };
+        lx = Math.max(W * 0.14, 50 * ts + 4);
+        m.legal = { x: lx, y: H + 22 * ts, s: ts };
         var tm = Math.min(strip * 0.8 / 110, W * 0.26 / 112);
-        m.mascot = { x: W * 0.8, y: H - 6, s: tm, rest: 0, up: 0 };
+        mx = Math.min(W * 0.86, W - 56 * tm - 2);
+        m.mascot = { x: mx, y: H - 6, s: tm };
+        m.talk = { x: lx + 48 * ts + 8, r: mx - 40 * tm - 8 };
       } else {
-        // peeking: just the head shows until they've something to say
-        var ps = 0.72 * u;
-        m.legal = { x: W * 0.12, y: H + 92 * ps, s: ps, rest: 0, up: 58 * ps };
-        var pm = 0.68 * u;
-        m.mascot = { x: W * 0.88, y: H + 58 * pm, s: pm, rest: 0, up: 46 * pm };
+        // peeking: the wig and the eyes, the top of the icon and its grin
+        var ps = (m.strip.h - 3) / 60;
+        lx = 48 * ps + 3;
+        m.legal = { x: lx, y: sy + 3 + 136 * ps, s: ps, low: true };
+        var pm = (m.strip.h - 3) / 66;
+        mx = W - 42 * pm - 3;
+        m.mascot = { x: mx, y: sy + 3 + 104 * pm, s: pm };
+        m.talk = { x: lx + 48 * ps + 6, r: mx - 40 * pm - 6 };
       }
-      m.bubbleW = W * 0.56;
+      m.talk.y = sy + 3;
+      m.talk.h = m.strip.h - 6;
+      m.talk.w = m.talk.r - m.talk.x;
+      m.bubbleW = m.talk.w;
     }
     var p = m.page;
     var fs = m.mode === "wide" ? clamp(Math.round(p.w / 21), 14, 17) : clamp(Math.round(p.w / 22), 13, 16);
@@ -303,8 +330,9 @@
     m.fs = fs;
     m.lh = Math.round(fs * 1.34);
     m.pad = Math.round(fs * 0.85);
-    m.status = Math.round(clamp(fs * 0.95, 12, 15));
-    m.bar = Math.round(fs * 2.2);
+    // on a phone's square screen there's no room for the phone's own status bar
+    m.status = m.mode === "square" ? 0 : Math.round(clamp(fs * 0.95, 12, 15));
+    m.bar = Math.round(fs * (m.mode === "square" ? 1.9 : 2.2));
     m.head = m.status + m.bar;
     m.view = { x: p.x, y: p.y + m.head, w: p.w, h: p.h - m.head };
     m.textW = m.view.w - m.pad * 2 - 6;
@@ -316,7 +344,7 @@
       head: Math.round(fs * 1.3) + "px " + T.display,
       title: Math.round(fs * 2.3) + "px " + T.display,
       small: "500 " + Math.max(12, Math.round(fs * 0.85)) + "px " + bodyFont(),
-      bubble: Math.round(clamp(fs * 0.98, 12, 16)) + "px " + T.display
+      bubble: Math.round(m.strip ? clamp(fs * 0.9, 12, 15) : clamp(fs * 0.98, 12, 16)) + "px " + T.display
     };
     m.footLh = Math.round(Math.max(12, fs * 0.82) * 1.3);
     L = m;
@@ -327,6 +355,7 @@
   var hudFit = { done: false, corners: 0, bar: 0 };
   function fitHud() {
     hudFit.done = true;
+    fitPips();
     var base = root.getBoundingClientRect(), corners = 0, bar = 0;
     Array.prototype.forEach.call(root.querySelectorAll(".kit-hud-tl, .kit-hud-tr, .kit-bar"), function (el) {
       var r = el.getBoundingClientRect();
@@ -545,7 +574,7 @@
     CAST.init(T, DPR);
     run = {
       score: 0, caught: 0, missed: 0, wrong: 0, fees: 0, rights: RIGHTS, streak: 0, best: 0,
-      used: {}, taken: [], agreed: [], mods: freshMods(), daily: sh.daily, quick: 0, popupsClosed: 0
+      used: {}, taken: [], agreed: [], real: [], mods: freshMods(), daily: sh.daily, quick: 0, popupsClosed: 0
     };
     if (!hudEls) buildHud();
     stampCache = {};
@@ -577,6 +606,9 @@
     pops = [];
     footer = 0;
     pending = fling = pull = skimmed = 0;
+    gesture = { left: 0, wheelAt: -9 };
+    signs = [];
+    greetAt = -1;
     drag = null;
     accepted = false;
     noticed = false;
@@ -611,22 +643,40 @@
 
     keys(input, dt);
     if (AUTOPILOT) autopilot(dt);
-    if (stageClock - dt < 0.3 && stageClock >= 0.3) say("mascot", app.hello, true);
-    if (stageClock - dt < 3.6 && stageClock >= 3.6) say("legal", app.legal, true);
+    // the cast say hello once the notice has gone, so it isn't said under it
+    var briefOn = briefUp();
+    if (greetAt < 0 && (!briefOn || stageClock > 9)) greetAt = stageClock;
+    if (greetAt >= 0) {
+      var since = stageClock - greetAt;
+      if (since - dt < 0.3 && since >= 0.3) say("mascot", app.hello, true);
+      if (since - dt < 3.3 && since >= 3.3) say("legal", app.legal, true);
+    }
 
     if (phase === "read") {
       var target = scrollSpeed() * clamp(stageClock / 1.6, 0, 1);
+      // the notice sits over the bottom of the page, where the clauses come in:
+      // the page creeps while it's up
+      if (briefOn) target *= 0.3;
       if (hitch > 0) { hitch -= dt; target *= 0.12; }
       // Legal's hand is on the page while he writes: it barely moves
       if (arm && arm.phase !== "back") target *= 0.2;
       speed += (target - speed) * Math.min(1, dt * 7);
+      // pushes (the wheel, Down, a flick's glide) stop short of anything unread
       var take = pending * Math.min(1, dt * 10);
       pending -= take;
       fling *= Math.exp(-dt * 3.4);
       if (fling < 5) fling = 0;
-      scroll = Math.min(maxScroll() + 0.5, scroll + speed * dt + take + fling * dt);
+      var glide = Math.min(fling * dt, gesture.left);
+      gesture.left -= glide;
+      if (gesture.left <= 0) fling = 0;
+      var base = scroll + speed * dt, push = take + glide, limit = pushLimit();
+      if (push > 0 && base + push > limit) {
+        push = Math.max(0, limit - base);
+        pending = fling = 0;
+      }
+      scroll = Math.min(maxScroll() + 0.5, base + push);
       var end = doc[doc.length - 1];
-      if (end.top + end.h - scroll <= L.view.h * 0.66) {
+      if (end.top + end.h - scroll <= acceptAt()) {
         phase = "accept";
         phaseClock = 0;
         speed = 0;
@@ -654,6 +704,21 @@
       if (!accepted && phaseClock > WAIT_ACCEPT) acceptAll(true);
     }
 
+    // how long each clause has been all there to read (not under a pop-up or the notice)
+    if (!popup) {
+      var clear = L.view.h;
+      if (briefOn) {
+        var br = briefEl.getBoundingClientRect(), base = root.getBoundingClientRect();
+        if (br.height) clear = Math.min(clear, br.top - base.top - L.view.y);
+      }
+      // (clear of the very edges, where nobody's reading yet)
+      var edge = L.lh * 0.5;
+      doc.forEach(function (b) {
+        if (!isClause(b) || b.state !== "open") return;
+        var y = b.top - scroll;
+        if (y >= edge && y + b.h <= clear - edge) b.shown = (b.shown || 0) + dt;
+      });
+    }
     // anything bad that scrolls away unstruck is signed
     doc.forEach(function (b) {
       if (isClause(b) && b.state === "open" && isBad(b) && b.top + b.h * 0.5 - scroll < 0) missed(b);
@@ -673,6 +738,7 @@
     if (!playing) { phaseClock += dt; clock += dt; }
     if (phase === "done" || phase === "accept") footer = Math.min(1, footer + dt * 4);
     bubbles = bubbles.filter(function (bb) { bb.t += dt; return bb.t < bb.life; });
+    signs = signs.filter(function (e) { e.t += dt; return e.t < SIGNED_MS; });
     fx = fx.filter(function (e) { e.t += dt; return e.t < e.life; });
     pops = pops.filter(function (e) { e.t += dt; return e.t < 0.9; });
   }
@@ -716,9 +782,8 @@
       say("legal", pick(C.lines.legal.amendCaught), true);
     } else if ((b.type === "sting" || b.type === "small") && Math.random() < 0.75) {
       say("legal", pick(C.lines.legal[b.type]), true);
-    } else if (Math.random() < 0.55) {
-      if (Math.random() < 0.62) say("legal", pick(C.lines.legal.caught));
-      else say("mascot", pick(C.lines.mascot.caught));
+    } else if (Math.random() < 0.5) {
+      say("legal", pick(C.lines.legal.caught));
     }
     run.learned = run.learned || {};
     run.learned.strike = true;
@@ -744,7 +809,13 @@
     }
     sfx.wrong();
     if (!calm()) shake = Math.max(shake, 0.3);
-    say("legal", pick(C.lines.legal.wrong), true);
+    // a real clause that only sounds bad: that's the joke, so Legal says so
+    if (b.real) {
+      run.real.push(b);
+      say("legal", pick(C.lines.legal.real), true);
+    } else {
+      say("legal", pick(C.lines.legal.wrong), true);
+    }
     if (clock - wrongAt < PEN_GAP && !free) {
       pen = PEN_TIME;
       wrongAt = -99;
@@ -765,7 +836,10 @@
     run.rights--;
     run.agreed.push(b);
     sfx.signed();
-    if (Math.random() < 0.6) say("legal", pick(C.lines.legal.missed));
+    // it goes off the top half read, so say so where you're looking: a Signed
+    // stamp pinned at the top of the page, and the right going in the HUD
+    signs.push({ t: 0, x: L.view.x + L.view.w * (0.3 + ((b.top * 7) % 40) / 100), tilt: ((b.top * 13) % 9 - 4) * 0.02 });
+    if (Math.random() < 0.7) say("legal", pick(C.lines.legal.missed));
     else say("mascot", pick(C.lines.mascot.missed));
     if (run.rights <= 0) end("rights");
   }
@@ -784,7 +858,7 @@
   function openPopup(def) {
     popup = { def: def, t: 0 };
     sfx.ding();
-    if (Math.random() < 0.5) say("mascot", pick(C.lines.mascot.popup));
+    if (Math.random() < 0.3) say("mascot", pick(C.lines.mascot.popup));
   }
   function closePopup() {
     if (!popup) return;
@@ -858,6 +932,7 @@
       if (isClause(b) && b.state === "open" && isBad(b)) {
         b.state = "signed";
         b.signedAt = clock;
+        b.atAccept = true;
         run.missed++;
         run.stageMissed++;
         run.rights--;
@@ -870,11 +945,13 @@
     shell.callout("Accepted", { ms: 1400, tilt: -4 });
     say("mascot", waited ? C.lines.mascot.waited : pick(C.lines.mascot.accept), true);
     if (!waited) say("legal", pick(C.lines.legal.accept), true);
-    if (run.rights <= 0) { end("rights"); return; }
+    if (run.rights <= 0) { paintHud(); end("rights"); return; }
     var kept = Math.max(0, run.rights);
     var bonus = kept * PER_RIGHT + (run.stageMissed === 0 && run.stageWrong === 0 ? CLEAN : 0);
     run.score += bonus;
     pops.push({ text: "+" + bonus, x: L.view.x + L.view.w * 0.5, y: scroll + L.view.h * 0.5, t: 0 });
+    // the HUD only repaints in play: show the bonus before the round stops
+    paintHud();
     phase = "done";
     if (stage < STAGES.length - 1) stageClear();
     else end("done");
@@ -906,6 +983,7 @@
   function stageClear() {
     var restored = run.rights < RIGHTS;
     if (restored) run.rights++;
+    paintHud();
     var offers = offer();
     var next = C.apps[stage + 1];
     var total = run.stageCaught + run.stageMissed;
@@ -933,12 +1011,13 @@
       shell.next();
     });
     // the autopilot (and the clip camera) can't click: it picks for itself
+    // (a little after the kit would, where the kit already does)
     if (AUTOPILOT) {
       window.clearTimeout(autoPick);
       autoPick = window.setTimeout(function () {
         var first = root.querySelector(".kit-inter .kit-choice");
         if (shell.state() === "interlude" && first) first.click();
-      }, 1500 + 2600);
+      }, 1500 + 3000);
     }
   }
 
@@ -958,17 +1037,21 @@
     else rank = 3;
     var score = Math.round(run.score);
     var rec = shell.record(score);
+    paintHud();
     var heading, line;
     if (finished) {
       heading = run.caught + " of " + total + " struck.";
       line = RANKS[rank].line;
     } else {
       heading = "No rights left.";
-      line = "The last one was the right to complain about it.";
+      // out early, it's the business model; out late, the last right went too
+      line = rank === 3 ? RANKS[3].line : "The last one was the right to complain about it.";
     }
     var worst = run.agreed.filter(function (b) { return b.type === "bad"; });
     var quote = (worst.length ? pick(worst) : run.agreed.length ? pick(run.agreed) : null);
-    if (quote) line += " You also agreed to this: “" + agreedText(quote) + "”";
+    // a real clause struck as a bad one is the sharpest thing in the run: quote that first
+    if (run.real.length) line += " You struck this: “" + pick(run.real).text + "” That one's real.";
+    else if (quote) line += " You also agreed to this: “" + agreedText(quote) + "”";
     else line += " Then you pressed Accept anyway. There was no other button.";
     // short, so they sit on one or two rows on a phone's square screen
     var stats = [
@@ -982,7 +1065,7 @@
     if (run.daily) stats.unshift({ label: "Run", value: shell.today });
     shell.finish({
       place: rank + 1, total: 4, stamp: RANKS[rank].stamp, heading: heading, line: line, stats: stats,
-      share: fmt(score) + " points, " + run.caught + " of " + total + " bad clauses struck" + (finished ? "" : ", app " + (stage + 1) + " of 4"),
+      share: fmt(score) + " points, " + run.caught + " of " + total + " bad clauses struck" + (finished ? ", then accepted anyway" : ", out of rights in app " + (stage + 1) + " of 4"),
       delay: 1600
     });
   }
@@ -1001,6 +1084,9 @@
   // ---------------------------------------------------------------------------
   function keys(input, dt) {
     var pressed = { up: false, down: false, action: input.action && !prev.action };
+    // a fresh press of Down can push the page on; holding it down only walks
+    // the highlight, so a held key can't run the terms past you
+    fresh = input.down && !prev.down;
     ["up", "down"].forEach(function (k) {
       if (input[k] && !prev[k]) { pressed[k] = true; repeat[k] = 0.36; }
       else if (input[k]) {
@@ -1079,8 +1165,9 @@
       if (dir > 0 && doc[i].top - scroll > L.view.h) break;
     }
     if (dir > 0 && phase === "accept") sel = ACCEPT;
-    else if (dir > 0) pushAhead(L.lh * 3);
+    else if (dir > 0 && fresh) { startGesture(); pushAhead(L.lh * 3); }
   }
+  var fresh = false;
 
   // the highlight can't stay on a clause that's scrolled away
   var jumped = -9;   // when the highlight last moved by itself
@@ -1128,9 +1215,11 @@
       return;
     }
     if (phase === "accept") {
+      // the buttons answer to a fingertip's worth around them (56px at least)
       var r = acceptRects();
-      if (inRect(p.x, p.y, r.accept)) { acceptAll(false); return; }
-      if (inRect(p.x, p.y, r.decline)) { decline(); return; }
+      if (inRect(p.x, p.y, r.acceptHit)) { acceptAll(false); return; }
+      if (inRect(p.x, p.y, r.declineHit)) { decline(); return; }
+      if (inRect(p.x, p.y, r.panel)) return;
     }
     if (e.pointerType === "mouse") {
       var i = hit(p.x, p.y);
@@ -1138,6 +1227,8 @@
       return;
     }
     drag = { id: e.pointerId, y0: p.y, last: p.y, t: performance.now(), moved: false, v: 0 };
+    startGesture();
+    fling = 0;
   });
   root.addEventListener("pointermove", function (e) {
     if (!shell || AUTOPILOT) return;
@@ -1171,47 +1262,77 @@
       if (i >= 0) strike(doc[i]);
       return;
     }
-    // a flick keeps it going for a moment: half a screen more at most,
-    // so a flick on a small phone doesn't fling bad clauses past unread
-    if (d.v > 150 && performance.now() - d.t < 120) {
+    // a flick keeps it going for a moment, with what's left of the half a
+    // screen this push is allowed (the glide in update spends it)
+    if (d.v > 150 && performance.now() - d.t < 120 && gesture.left > 0) {
       fling = Math.min(L.view.h * 1.6, d.v);
-      sfx.flick(fling);
+      sfx.flick(Math.min(fling, gesture.left * 3.4));
     }
   }
   root.addEventListener("pointerup", lift);
   root.addEventListener("pointercancel", lift);
   root.addEventListener("pointerleave", function () { hover = -1; });
-  // the wheel reads ahead too (and never scrolls the page under the game)
+  // the wheel reads ahead too (and never scrolls the page under the game).
+  // A run of wheel events with no pause between them is one push: a
+  // trackpad swipe and its momentum count once
   root.addEventListener("wheel", function (e) {
     if (!shell || shell.state() !== "playing" || AUTOPILOT) return;
     e.preventDefault();
+    var now = performance.now() / 1000;
+    if (now - gesture.wheelAt > 0.3) startGesture();
+    gesture.wheelAt = now;
     var dy = e.deltaMode === 1 ? e.deltaY * 18 : e.deltaMode === 2 ? e.deltaY * L.view.h : e.deltaY;
-    if (dy > 0) pushAhead(Math.min(dy, L.view.h * 0.5) * 0.8);
+    if (dy > 0) pushAhead(dy * 0.8);
     else pull = Math.min(30, pull - dy * 0.15);
   }, { passive: false });
 
   // Read ahead: push the page on, faster than it scrolls by itself. You can't
-  // push it back. Legal is all for it.
+  // push it back. Legal is all for it. But a push never carries a clause off
+  // the top before it's been all on screen for a moment (READ), and one push
+  // moves the page half a screen at most, so a flick, a trackpad swipe or a
+  // held key can't sign away clauses nobody saw.
+  function startGesture() { gesture.left = L.view.h * 0.5; }
   function pushAhead(px, now) {
     if (phase !== "read" || popup || accepted) return;
-    if (now) scroll = Math.min(maxScroll(), scroll + px);
+    px = Math.min(px, gesture.left);
+    if (px <= 0) return;
+    gesture.left -= px;
+    if (now) scroll = Math.max(scroll, Math.min(maxScroll(), scroll + px, pushLimit()));
     else pending += px;
     skimmed += px;
     if (skimmed > L.view.h * 0.9 && clock - lastSkim > 9) {
       skimmed = 0;
       lastSkim = clock;
-      if (Math.random() < 0.7) say("legal", pick(C.lines.legal.skim), true);
-      else say("mascot", pick(C.lines.mascot.skim), true);
+      say("legal", pick(C.lines.legal.skim), true);
     }
   }
+  // How far a push may take the page: the first clause that hasn't yet been
+  // all on screen for READ seconds stays all on screen, far enough down that
+  // the page scrolling by itself gives it the rest of that time before its
+  // top goes off (and longer again before it's signed)
+  function pushLimit() {
+    var v = scrollSpeed();
+    for (var i = 0; i < doc.length; i++) {
+      var b = doc[i];
+      if (!isClause(b) || b.state !== "open" || (b.shown || 0) >= READ) continue;
+      if (b.top + b.h * 0.5 <= scroll) continue;
+      return b.top - L.lh * 0.5 - (READ - (b.shown || 0)) * v - 2;
+    }
+    return Infinity;
+  }
+  // Accept comes up when the end of the terms is clear of the panel it sits on
+  function acceptAt() { return Math.min(L.view.h * 0.66, L.view.h - footerH() - L.lh * 0.5); }
   function maxScroll() {
     var end = doc[doc.length - 1];
-    return end.top + end.h - L.view.h * 0.66;
+    return end.top + end.h - acceptAt();
   }
 
   // ---------------------------------------------------------------------------
   // The autopilot (?autopilot, ?clip): reads each clause once it's fully on
-  // screen, takes a moment over it, and strikes the bad ones. Not perfect.
+  // screen, takes a moment over it, and strikes the bad ones. A decent reader,
+  // not a perfect one, so a clip shows the whole game: it misses a few (and
+  // they're signed), it falls for a real clause that sounds bad (Legal's
+  // STET), and in the bank it tries Decline once before it gives in.
   // ---------------------------------------------------------------------------
   function autopilot(dt) {
     autoT -= dt;
@@ -1222,9 +1343,14 @@
     if (phase === "accept") {
       var waiting = doc.filter(function (b) { return isClause(b) && b.state === "open" && isBad(b) && onScreen(b) && b.verdict !== "miss"; });
       if (waiting.length) { aim(waiting[0]); return; }
-      sel = ACCEPT;
       keyMode = true;
-      if (phaseClock > 0.9) acceptAll(false);
+      if (stage === STAGES.length - 1 && !run.autoDeclined) {
+        sel = phaseClock > 0.5 ? DECLINE : ACCEPT;
+        if (phaseClock > 1.1) { decline(); run.autoDeclined = true; autoT = 1.4; }
+        return;
+      }
+      sel = ACCEPT;
+      if (phaseClock > 0.9 && autoT <= 0) acceptAll(false);
       return;
     }
     if (autoT > 0) return;
@@ -1235,9 +1361,12 @@
       if (y + b.h > L.view.h) continue;            // not all on screen yet
       b.seen = b.seen || clock;
       if (b.verdict == null) {
-        var skill = [0.97, 0.95, 0.94, 0.93][stage];
-        b.verdict = isBad(b) ? (Math.random() < skill ? "strike" : "miss") : (Math.random() < 0.025 ? "strike" : "leave");
-        b.readFor = 0.35 + b.text.length * 0.012;
+        var skill = [0.9, 0.86, 0.85, 0.84][stage];
+        // wrong strikes: mostly the real clauses that sound bad, and one for
+        // sure once the first app's done, so a run shows Legal's STET
+        var fooled = b.real ? 0.35 : run.wrong === 0 && stage >= 1 ? 0.3 : 0.03;
+        b.verdict = isBad(b) ? (Math.random() < skill ? "strike" : "miss") : (Math.random() < fooled ? "strike" : "leave");
+        b.readFor = 0.5 + (b.text.length + (b.foot ? b.foot.length : 0)) * 0.022;
       }
       if (b.verdict === "strike" && clock - b.seen > b.readFor) { aim(b); return; }
     }
@@ -1251,8 +1380,10 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Hints: one arrow at a time, pointing at the thing to deal with now, until
-  // you've shown you know (DESIGN.md, section 10)
+  // Hints: one at a time, pointing at the thing to deal with now, until you've
+  // shown you know (DESIGN.md, section 10). A hint is a small tag that sits on
+  // the dotted rule above its clause, in the gap between the lines, so it
+  // never covers the words of the clause above.
   // ---------------------------------------------------------------------------
   function pickHint() {
     hintNow = null;
@@ -1261,14 +1392,14 @@
     if (popup) {
       if (!learned.popup) {
         var r = popupRect();
-        hintNow = { x: r.x + r.w / 2, y: r.y - 4, word: touchy() ? "Tap to close" : keyMode ? "Space to close" : "Click to close" };
+        hintNow = { x: r.x + r.w / 2, y: r.y, word: touchy() ? "Tap to close" : keyMode ? "Space to close" : "Click to close" };
       }
       return;
     }
     if (phase === "accept" && !accepted) {
       if (!learned.accept) {
-        var a = acceptRects().accept;
-        hintNow = { x: a.x + a.w / 2, y: a.y - 4, word: "There is no other button" };
+        var a = acceptRects();
+        hintNow = { x: a.accept.x + a.accept.w / 2, y: a.panel.y, word: "There is no other button" };
       }
       return;
     }
@@ -1278,14 +1409,18 @@
       var b = doc[i];
       if (!isClause(b) || b.state !== "open" || b.type !== want || !onScreen(b)) continue;
       var y = L.view.y + b.top - scroll;
-      if (y < L.view.y + L.lh * 2.4 || y + b.h > L.view.y + L.view.h) continue;
-      var word = want === "bad" ? (keyMode ? (sel === i ? "Space" : "Down, then Space") : touchy() ? "Tap it" : "Click it")
+      if (y < L.view.y + L.lh * 1.2 || y + b.h > L.view.y + L.view.h) continue;
+      // on keys, which way the highlight has to go to get there
+      var word = want === "bad" ? (keyMode ? (sel === i ? "Space" : sel > i ? "Up, then Space" : "Down, then Space") : touchy() ? "Tap it" : "Click it")
                : want === "sting" ? "Read to the end" : want === "small" ? "Read the small print" : "Legal changed this";
-      var x = L.view.x + L.view.w * 0.5;
+      // from the left margin, where the clause starts; a sting's tag over its last words
+      var x = null;
       var last = b.lines[b.lines.length - 1];
       if (want === "sting" && last) { var lw = last.words[last.words.length - 1]; x = L.view.x + L.pad + lw.x + lw.w * 0.5; }
-      if (want === "amend") x = L.view.x + L.view.w * 0.6;
-      hintNow = { x: x, y: y + 2, word: word, block: i };
+      if (want === "amend") {
+        b.lines.forEach(function (line) { line.words.forEach(function (w) { if (x == null && w.f === "ins") x = L.view.x + L.pad + w.x + w.w * 0.5; }); });
+      }
+      hintNow = { x: x, left: x == null, y: y, word: word, block: i };
       return;
     }
   }
@@ -1363,10 +1498,26 @@
     hudEls.pips = Array.prototype.slice.call(shell.hud.querySelectorAll(".tc-pip"));
   }
   function setText(node, text) { if (node && node.textContent !== text) node.textContent = text; }
+  // The rights run under the kit's buttons on a narrow screen (seven of them
+  // after the Cooling-off period, or any number on a small phone): first the
+  // word "Rights" goes, then the pips get smaller
+  function fitPips() {
+    var bar = root.querySelector(".kit-bar");
+    root.classList.remove("tc-tight", "tc-tighter");
+    if (!bar || !hudEls) return;
+    var b = bar.getBoundingClientRect();
+    var shown = hudEls.pips.filter(function (p) { return p.style.display !== "none"; });
+    if (!b.width || !shown.length) return;
+    function over() { return shown[shown.length - 1].getBoundingClientRect().right > b.left - 4; }
+    if (over()) root.classList.add("tc-tight");
+    if (over()) root.classList.add("tc-tighter");
+  }
+  var pipCount = 0;
   function paintHud() {
     if (!hudEls || !run) return;
     setText(hudEls.stage, (stage + 1) + "/4");
     var max = Math.max(RIGHTS, run.rights);
+    if (max !== pipCount) { pipCount = max; hudFit.done = false; }
     hudEls.pips.forEach(function (p, i) {
       var want = i >= max ? "none" : "";
       if (p.style.display !== want) p.style.display = want;
@@ -1493,6 +1644,7 @@
     c.setTransform(DPR, 0, 0, DPR, sx * DPR, sy * DPR);
 
     drawPage(c);
+    drawSigns(c);
     drawHeader(c);
     if (phase === "accept" || (phase === "done" && footer > 0)) drawFooter(c);
     if (popup) drawPopup(c);
@@ -1500,7 +1652,7 @@
     drawCast(c);
     drawFx(c);
     drawBubbles(c);
-    if (hintNow && state === "playing") drawArrow(c, hintNow.x, hintNow.y, hintNow.word);
+    if (hintNow && state === "playing") drawTag(c, hintNow);
     // under the results and the choices between apps, the page steps back so
     // the words on top aren't read against the words underneath
     var back = state === "results" || state === "interlude";
@@ -1525,13 +1677,15 @@
     c.fillStyle = T.ink;
     hudBoxes.forEach(function (r) {
       if (r.bar || r.bottom < ph.y - 2) return;
-      c.fillRect(r.left - 6, ph.y - 3, r.right - r.left + 12, 6);
+      // all the way down the corner, so the phone's rounded corner doesn't
+      // run through the words either (the app's header covers the rest)
+      c.fillRect(r.left - 6, ph.y - 3, r.right - r.left + 12, Math.max(6, r.bottom + 2 - (ph.y - 3)));
     });
   }
 
   // The stage's notice goes up with the countdown, so it's read before Go
   function notice() {
-    var how = touchy() ? "tap them" : "click them, or pick with up and down and press Space";
+    var how = touchy() ? "tap them" : "click them, or pick one with up and down and press Space";
     var close = touchy() ? "tap it to close it" : "click it or press Space";
     var text = BRIEFS[stage].replace("{how}", how).replace("{close}", close);
     shell.brief({ title: "App " + (stage + 1) + ": " + app.name, text: text, ms: stage === 0 ? 7600 : 6800 });
@@ -1556,7 +1710,8 @@
         c.fillRect(v.x, y, v.w, b.h);
         c.fillStyle = T.ink;
         c.fillRect(v.x, y, 5, b.h);
-      } else if ((!keyMode && hover === i && b.state === "open") || (hintNow && hintNow.block === i)) {
+      } else if (!keyMode && ((hover === i && b.state === "open") || (hintNow && hintNow.block === i))) {
+        // (on keys there's one highlight only: the keys' own)
         c.fillStyle = CAST.dots(c, T.accent, DPR, 2.6);
         c.fillRect(v.x, y, v.w, b.h);
         c.fillStyle = T.accent;
@@ -1664,7 +1819,40 @@
       c.lineJoin = "round";
       c.stroke();
       c.restore();
+      // signed at Accept, still on the page: stamped where it is
+      if (b.atAccept) {
+        var s = stampImage("Signed", Math.max(12, Math.round(L.fs * 0.9)));
+        c.save();
+        c.globalAlpha = calm() ? 1 : clamp((clock - b.signedAt) / 0.15, 0, 1);
+        c.translate(L.view.x + L.view.w - L.pad - s.w * 0.55, y + b.h * 0.42);
+        c.rotate(0.06);
+        c.drawImage(s.img, -s.w / 2, -s.h / 2, s.w, s.h);
+        c.restore();
+      }
     }
+  }
+
+  // A bad clause going off the top half read is signed where you can't see
+  // it: a small Signed stamp lands at the top of the page for a moment
+  function drawSigns(c) {
+    if (!signs.length) return;
+    var s = stampImage("Signed", Math.max(12, Math.round(L.fs * 0.95)));
+    signs.forEach(function (e, n) {
+      var k = clamp(e.t / 0.25, 0, 1), scale = 1, alpha = 1;
+      if (calm()) alpha = k;
+      else {
+        scale = k < 0.7 ? 1.7 - k / 0.7 * 0.75 : 0.95 + (k - 0.7) / 0.3 * 0.05;
+        alpha = Math.min(1, k * 3);
+      }
+      alpha *= clamp((SIGNED_MS - e.t) / 0.2, 0, 1);
+      c.save();
+      c.globalAlpha = alpha;
+      c.translate(e.x, L.view.y + s.h * 0.62 + 4 + n * (s.h + 2));
+      c.rotate(e.tilt);
+      c.scale(scale, scale);
+      c.drawImage(s.img, -s.w / 2, -s.h / 2, s.w, s.h);
+      c.restore();
+    });
   }
 
   // red rings round the last words of a sting, the small print, Legal's edit
@@ -1774,41 +1962,41 @@
     c.fillStyle = dark ? T.ink : T.accent;
     c.fill();
     if (dark) {
-      // a dark app: a peach rule under it, and the bank's double line
+      // a dark app: a peach rule under it
       c.fillStyle = T.accent;
       c.fillRect(p.x, p.y + L.head - 4, p.w, 4);
-      if (app.key === "bank") { c.fillStyle = T.paper; c.fillRect(p.x + L.pad, p.y + L.head - 9, p.w - L.pad * 2, 1.5); }
     } else {
       c.fillStyle = T.ink;
       c.fillRect(p.x, p.y + L.head - 2, p.w, 2);
     }
-    c.fillStyle = fg;
-    // status bar: the time, a notch, the battery (which the torch is draining)
-    c.fillStyle = fg;
-    var now = new Date();
-    var time = (now.getHours() < 10 ? "0" : "") + now.getHours() + ":" + (now.getMinutes() < 10 ? "0" : "") + now.getMinutes();
-    var fsz = Math.max(12, Math.round(sb * 0.82));
-    c.font = fsz + "px " + T.display;
-    c.textBaseline = "middle";
-    c.textAlign = "left";
-    c.fillText(time, p.x + rr * 0.9, p.y + sb * 0.62);
-    CAST.roundRect(c, p.x + p.w / 2 - p.w * 0.12, p.y + 3, p.w * 0.24, sb * 0.62, sb * 0.31);
-    c.fillStyle = T.ink;
-    c.fill();
-    if (dark) { c.lineWidth = 1.2; c.strokeStyle = T.paper; c.stroke(); }
     var progress = clamp(scroll / Math.max(1, docH - L.view.h), 0, 1);
-    var level = [1 - 0.55 * progress, 0.45 - 0.2 * progress, 0.25 - 0.1 * progress, 0.12 - 0.08 * progress][stage];
-    var bw = sb * 1.5, bh = sb * 0.62, bx = p.x + p.w - rr * 0.9 - bw, by = p.y + sb * 0.62 - bh / 2;
-    c.lineWidth = 1.4;
-    c.strokeStyle = fg;
-    c.strokeRect(bx, by, bw, bh);
-    c.fillStyle = fg;
-    c.fillRect(bx + bw, by + bh * 0.3, 2, bh * 0.4);
-    c.fillStyle = level < 0.2 ? T.red : fg;
-    c.fillRect(bx + 1.5, by + 1.5, (bw - 3) * clamp(level, 0.04, 1), bh - 3);
-    // signal bars
-    c.fillStyle = fg;
-    for (var s = 0; s < 4; s++) c.fillRect(bx - 8 - (3 - s) * 4, by + bh - (s + 1) * bh / 4, 2.6, (s + 1) * bh / 4);
+    c.textBaseline = "middle";
+    if (sb > 0) {
+      // status bar: the time, a notch, the battery (which the torch is draining)
+      c.fillStyle = fg;
+      var now = new Date();
+      var time = (now.getHours() < 10 ? "0" : "") + now.getHours() + ":" + (now.getMinutes() < 10 ? "0" : "") + now.getMinutes();
+      var fsz = Math.max(12, Math.round(sb * 0.82));
+      c.font = fsz + "px " + T.display;
+      c.textAlign = "left";
+      c.fillText(time, p.x + rr * 0.9, p.y + sb * 0.62);
+      CAST.roundRect(c, p.x + p.w / 2 - p.w * 0.12, p.y + 3, p.w * 0.24, sb * 0.62, sb * 0.31);
+      c.fillStyle = T.ink;
+      c.fill();
+      if (dark) { c.lineWidth = 1.2; c.strokeStyle = T.paper; c.stroke(); }
+      var level = [1 - 0.55 * progress, 0.45 - 0.2 * progress, 0.25 - 0.1 * progress, 0.12 - 0.08 * progress][stage];
+      var bw = sb * 1.5, bh = sb * 0.62, bx = p.x + p.w - rr * 0.9 - bw, by = p.y + sb * 0.62 - bh / 2;
+      c.lineWidth = 1.4;
+      c.strokeStyle = fg;
+      c.strokeRect(bx, by, bw, bh);
+      c.fillStyle = fg;
+      c.fillRect(bx + bw, by + bh * 0.3, 2, bh * 0.4);
+      c.fillStyle = level < 0.2 ? T.red : fg;
+      c.fillRect(bx + 1.5, by + 1.5, (bw - 3) * clamp(level, 0.04, 1), bh - 3);
+      // signal bars
+      c.fillStyle = fg;
+      for (var s = 0; s < 4; s++) c.fillRect(bx - 8 - (3 - s) * 4, by + bh - (s + 1) * bh / 4, 2.6, (s + 1) * bh / 4);
+    }
     // the app bar
     var iy = p.y + sb + bar / 2, isz = bar * 0.7;
     CAST.icon(c, p.x + L.pad + isz / 2, iy, isz);
@@ -1823,16 +2011,28 @@
     c.restore();
   }
 
-  // Accept, and a very small Decline
+  // Accept, and a very small Decline. Each answers to a fingertip's worth of
+  // screen round it (Accept 56px tall at least), and the two never overlap.
+  var TAP = 56;
+  function footerParts() {
+    var fs = L.fs, bh = fs * 2.6, hitH = Math.max(TAP, bh + 8);
+    var top = Math.max(fs * 0.8, (hitH - bh) / 2 + 3);       // Accept, from the panel's top
+    var dTop = top + bh / 2 + hitH / 2;                       // where Decline's patch starts
+    var dh = fs * 1.3;
+    return { bh: bh, hitH: hitH, top: top, dTop: dTop, dh: dh, h: Math.max(fs * 5.6, dTop + dh + fs * 0.9) };
+  }
+  function footerH() { return footerParts().h; }
   function acceptRects() {
-    var v = L.view, k = calm() ? 1 : 1 - Math.pow(1 - footer, 3);
-    var fh = L.fs * 5.6, fy = v.y + v.h - fh * k;
-    var bw = Math.min(v.w * 0.62, L.fs * 13), bh = L.fs * 2.6;
-    var accept = { x: v.x + (v.w - bw) / 2, y: fy + L.fs * 0.8, w: bw, h: bh };
+    var v = L.view, k = calm() ? 1 : 1 - Math.pow(1 - footer, 3), f = footerParts();
+    var fh = f.h, fy = v.y + v.h - fh * k;
+    var bw = Math.min(v.w * 0.62, L.fs * 13), bh = f.bh;
+    var accept = { x: v.x + (v.w - bw) / 2, y: fy + f.top, w: bw, h: bh };
+    var acceptHit = { x: accept.x - 8, y: accept.y + bh / 2 - f.hitH / 2, w: bw + 16, h: f.hitH };
     c_dec.font = Math.max(12, Math.round(L.fs * 0.78)) + "px " + bodyFont();
     var dw = c_dec.measureText("Decline").width + 12;
-    var decline = { x: v.x + (v.w - dw) / 2, y: accept.y + bh + L.fs * 0.35, w: dw, h: L.fs * 1.3 };
-    return { panel: { x: v.x, y: fy, w: v.w, h: fh }, accept: accept, decline: decline };
+    var decline = { x: v.x + (v.w - dw) / 2, y: fy + f.dTop + 3, w: dw, h: f.dh };
+    var declineHit = { x: decline.x - 18, y: fy + f.dTop, w: dw + 36, h: fh - f.dTop };
+    return { panel: { x: v.x, y: fy, w: v.w, h: fh }, accept: accept, acceptHit: acceptHit, decline: decline, declineHit: declineHit };
   }
   var c_dec = document.createElement("canvas").getContext("2d");
 
@@ -1958,17 +2158,20 @@
   // ---------- Legal and the mascot ----------
   function castPose(who) {
     var spot = who === "legal" ? L.legal : L.mascot;
-    var talking = speaking(who) || (who === "legal" && (arm || pen > 0));
-    // the peekers rise up to talk and sink back down after
-    var key = who + "Rise";
-    var want = talking || phase === "accept" ? 1 : 0;
-    castPose[key] = castPose[key] == null ? want : castPose[key] + (want - castPose[key]) * 0.12;
-    var rise = calm() ? want : castPose[key];
-    return { x: spot.x, y: spot.y - spot.up * rise, s: spot.s };
+    return { x: spot.x, y: spot.y, s: spot.s };
   }
 
   function drawCast(c) {
     var lp = castPose("legal"), mp = castPose("mascot");
+    // on phones the cast keep to their strip under the page (all but Legal's
+    // arm when he reaches up to edit a clause)
+    var st = L.strip;
+    if (st) {
+      c.save();
+      c.beginPath();
+      c.rect(st.x, st.y, st.w, st.h);
+      c.clip();
+    }
     var lb = speaking("legal");
     var face = pen > 0 ? "smug" : lb ? (lb.text.length < 22 || /Objection|Billable|Stet|Pen/.test(lb.text) ? "shout" : "glare") : phase === "accept" ? "smug" : "glare";
     var reach = null;
@@ -1984,19 +2187,25 @@
     var look = { x: 0.7, y: 0.1 };
     if (arm) look = { x: 0.9, y: -0.3 };
     else if (L.mode !== "wide") look = { x: 0.6, y: -0.6 };
-    CAST.legal(c, lp.x, lp.y, lp.s, {
-      face: arm ? "smug" : face, anim: clock, look: look, reach: reach, calm: calm(),
-      fist: !reach && lb && face === "shout" && pen <= 0, pen: pen > 0 && !reach
-    });
     var mb = speaking("mascot");
     CAST.mascot(c, mp.x, mp.y, mp.s, app.key, {
-      anim: clock, calm: calm(), wave: mb ? 1 : 0.25, hop: accepted && !calm() ? Math.abs(Math.sin(phaseClock * 9)) * 0.6 : 0,
+      anim: clock, calm: calm(), wave: mb ? 1 : 0.25, hop: accepted && !calm() && L.mode !== "square" ? Math.abs(Math.sin(phaseClock * 9)) * 0.6 : 0,
       look: L.mode === "wide" ? { x: -0.8, y: 0.1 } : { x: -0.5, y: -0.5 }
     });
+    // Legal last, so his arm comes up over everything when he reaches
+    if (st && reach) c.restore();
+    CAST.legal(c, lp.x, lp.y, lp.s, {
+      face: arm ? "smug" : face, anim: clock, look: look, reach: reach, calm: calm(), low: L.legal.low,
+      fist: !reach && lb && face === "shout" && pen <= 0, pen: pen > 0 && !reach
+    });
+    if (st && !reach) c.restore();
   }
 
-  // Bubbles over the speaker's head. In the corners they lean inwards.
+  // Bubbles over the speaker's head, beside the phone. On phones they sit in
+  // the cast's strip under the page instead, between the two of them, with
+  // the tail pointing sideways at whoever's talking.
   function drawBubbles(c) {
+    if (L.strip) { stripBubbles(c); return; }
     var placed = [], pr = popup ? popupRect() : null;
     bubbles.forEach(function (b) {
       var who = b.who === "legal" ? castPose("legal") : castPose("mascot");
@@ -2066,6 +2275,86 @@
     });
   }
 
+  // Words wrapped to a width, in capitals, at most `max` lines (a smaller size
+  // if they won't fit, never under 12px)
+  function setBubble(c, text, width, max) {
+    var size = parseFloat(L.fonts.bubble), lines;
+    for (; size >= 12; size -= 1) {
+      c.font = size + "px " + T.display;
+      lines = [""];
+      text.toUpperCase().split(" ").forEach(function (w) {
+        var tryLine = lines[lines.length - 1] ? lines[lines.length - 1] + " " + w : w;
+        if (c.measureText(tryLine).width > width - size * 1.1 && lines[lines.length - 1]) lines.push(w);
+        else lines[lines.length - 1] = tryLine;
+      });
+      if (lines.length <= max) break;
+    }
+    size = Math.max(12, size);
+    c.font = size + "px " + T.display;
+    var tw = 0;
+    lines.forEach(function (l) { tw = Math.max(tw, c.measureText(l).width); });
+    var pad = size * 0.55, lh = size * 1.04;
+    return { lines: lines, size: size, pad: pad, lh: lh, w: tw + pad * 2, h: lines.length * lh + pad * 1.2 };
+  }
+
+  function stripBubbles(c) {
+    var t = L.talk;
+    if (!bubbles.length || t.w < 60) return;
+    // Legal first: he has the floor if there's only room for one
+    var list = bubbles.slice().sort(function (a, b) { return a.who === "legal" ? -1 : b.who === "legal" ? 1 : 0; });
+    var max = t.h >= 70 ? 2 : t.h >= 34 ? 2 : 1;
+    var sets = list.map(function (b) { return { b: b, s: setBubble(c, b.text, t.w, max) }; });
+    var total = sets.reduce(function (a, x) { return a + x.s.h; }, 0) + (sets.length - 1) * 4;
+    if (total > t.h) sets = sets.slice(0, 1);
+    var single = sets.length === 1;
+    sets.forEach(function (x, n) {
+      var b = x.b, s = x.s, legal = b.who === "legal";
+      var who = castPose(b.who);
+      // the speaker's mouth, roughly
+      var my = legal ? who.y - 82 * who.s : who.y - 52 * who.s;
+      var by = single ? clamp(my - s.h / 2, t.y, t.y + t.h - s.h) : n === 0 ? t.y : t.y + t.h - s.h;
+      var bx = legal ? t.x : t.x + t.w - s.w;
+      var ty = clamp(my, by + 7, by + s.h - 7);
+      var pop = calm() ? 1 : clamp(b.t * 9, 0, 1);
+      c.globalAlpha = Math.min(pop, clamp((b.life - b.t) * 4, 0, 1));
+      var r = Math.min(9, s.h / 2), bw = s.w, bh = s.h, tail = Math.min(9, t.x - 2);
+      c.beginPath();
+      c.moveTo(bx + r, by);
+      c.arcTo(bx + bw, by, bx + bw, by + bh, r);
+      if (!legal) {
+        c.lineTo(bx + bw, ty - 5);
+        c.lineTo(bx + bw + tail, ty + 1);
+        c.lineTo(bx + bw, ty + 5);
+      }
+      c.arcTo(bx + bw, by + bh, bx, by + bh, r);
+      c.arcTo(bx, by + bh, bx, by, r);
+      if (legal) {
+        c.lineTo(bx, ty + 5);
+        c.lineTo(bx - tail, ty + 1);
+        c.lineTo(bx, ty - 5);
+      }
+      c.arcTo(bx, by, bx + bw, by, r);
+      c.closePath();
+      c.save();
+      c.translate(2, 3);
+      c.fillStyle = T.ink;
+      c.fill();
+      c.restore();
+      c.fillStyle = T.paper;
+      c.fill();
+      c.lineWidth = 2.4;
+      c.lineJoin = "round";
+      c.strokeStyle = T.ink;
+      c.stroke();
+      c.fillStyle = T.ink;
+      c.font = s.size + "px " + T.display;
+      c.textAlign = "center";
+      c.textBaseline = "top";
+      s.lines.forEach(function (l, i) { c.fillText(l, bx + bw / 2, by + s.pad * 0.72 + i * s.lh); });
+      c.globalAlpha = 1;
+    });
+  }
+
   // the bottom of whatever HUD sits above this stretch of the screen
   var hudBoxes = null, hudAge = 0;
   function hudBottom(x, w) {
@@ -2096,25 +2385,36 @@
     });
   }
 
-  // A small bobbing arrow with a word on it
-  function drawArrow(c, x, y, word) {
-    var bob = calm() ? 0 : Math.abs(Math.sin(clock * 4)) * -5;
+  // The hint: a small ink tag with a word on it and a peach arrowhead under
+  // it, sitting on a line (the rule above a clause, the top of the pop-up or
+  // of Accept's panel) in the gap between the words, so it covers none of
+  // them. It nudges towards its target (not with reduced motion).
+  function drawTag(c, h) {
+    var size = Math.round(clamp(L.fs * 0.78, 12, 14));
+    c.font = size + "px " + T.display;
+    var text = h.word.toUpperCase(), tw = c.measureText(text).width;
+    var bw = tw + 12, bh = size + 4;
+    var v = L.view;
+    // from the left margin, or centred on a word, kept on the page
+    var cx = h.left ? v.x + L.pad + bw / 2 - 2 : clamp(h.x, v.x + bw / 2 + 2, v.x + v.w - bw / 2 - 8);
+    var ax = h.left ? v.x + L.pad + 8 : clamp(h.x, cx - bw / 2 + 8, cx + bw / 2 - 8);
+    var bob = calm() ? 0 : Math.abs(Math.sin(clock * 4)) * 2;
+    // centred a touch below the line: there's more room under a rule than over it
+    var top = Math.round(h.y - bh / 2 + 1 - bob);
     c.save();
-    c.translate(Math.round(x), Math.round(y + bob));
     c.lineJoin = "round";
+    // the arrowhead, pointing down at the thing
     c.beginPath();
-    c.moveTo(-5, -18); c.lineTo(5, -18); c.lineTo(5, -8); c.lineTo(11, -8); c.lineTo(0, 3); c.lineTo(-11, -8); c.lineTo(-5, -8);
+    c.moveTo(ax - 6, top + bh - 1);
+    c.lineTo(ax + 6, top + bh - 1);
+    c.lineTo(ax, top + bh + 6);
     c.closePath();
     c.fillStyle = T.accent;
     c.fill();
-    c.lineWidth = 2.2;
+    c.lineWidth = 1.6;
     c.strokeStyle = T.ink;
     c.stroke();
-    var size = Math.round(clamp(L.fs * 0.86, 12, 15));
-    c.font = size + "px " + T.display;
-    var text = word.toUpperCase(), tw = c.measureText(text).width;
-    var tx = clamp(0, -x + tw / 2 + 10, W - x - tw / 2 - 10);
-    CAST.roundRect(c, tx - tw / 2 - 6, -20 - size * 1.5, tw + 12, size * 1.4, 4);
+    CAST.roundRect(c, Math.round(cx - bw / 2), top, Math.round(bw), bh, 4);
     c.fillStyle = T.ink;
     c.fill();
     c.lineWidth = 1.5;
@@ -2123,7 +2423,7 @@
     c.fillStyle = T.paper;
     c.textAlign = "center";
     c.textBaseline = "middle";
-    c.fillText(text, tx, -20 - size * 0.8);
+    c.fillText(text, cx, top + bh / 2 + 1);
     c.restore();
   }
 
@@ -2139,11 +2439,14 @@
     note: "Four apps, four sets of terms. Strike the bad clauses. Then accept anyway.",
     pitch: "Read the terms. Strike out the bad bits. Accept anyway. There is no other button.",
     hints: {
-      keys: "Click a bad clause to strike it, or pick one with up and down (W, S) and press Space. Scroll to read ahead. P to pause.",
-      touch: "Tap a bad clause to strike it. Flick the page up to read ahead."
+      keys: "Click a bad clause to strike it, or pick one with up and down (W, S) and press Space. P to pause.",
+      touch: "Tap a bad clause to strike it before it scrolls off the top."
     },
     againLabel: "Read again",
     daily: { label: "Today's terms" },
+    // a reading game needs the whole height of a phone: on a touch screen the
+    // round goes full-window (the fullscreen button takes it back out)
+    fullOnTouch: true,
     keys: {
       up: ["ArrowUp", "KeyW"], down: ["ArrowDown", "KeyS"], left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"],
       action: ["Space", "Enter"]
