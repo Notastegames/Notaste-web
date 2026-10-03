@@ -634,13 +634,14 @@
       // pop-ups, part way through
       var progress = scroll / Math.max(1, docH - L.view.h);
       if (!popup && popupPlan.length && progress >= popupPlan[0].at) openPopup(popupPlan.shift().def);
-      // Legal's edits, once the clause is well on screen
+      // Legal's edits, once the clause is all on screen and low enough to
+      // leave time to read it again after he's done (on a phone too)
       if (STAGES[stage].amend && !arm && !popup) {
         for (var a = 0; a < doc.length; a++) {
           var b = doc[a];
           if (b.type !== "amendable" || b.state !== "open") continue;
           var y = b.top - scroll;
-          if (y < L.view.h * 0.62 && y > L.view.h * 0.2) { startAmend(b); break; }
+          if (y + b.h < L.view.h - 4 && y > L.view.h * 0.42) { startAmend(b); break; }
         }
       }
     } else if (phase === "accept") {
@@ -1161,9 +1162,10 @@
       if (i >= 0) strike(doc[i]);
       return;
     }
-    // a flick keeps it going for a moment
+    // a flick keeps it going for a moment: half a screen more at most,
+    // so a flick on a small phone doesn't fling bad clauses past unread
     if (d.v > 150 && performance.now() - d.t < 120) {
-      fling = Math.min(1200, d.v);
+      fling = Math.min(L.view.h * 1.6, d.v);
       sfx.flick(fling);
     }
   }
@@ -2168,6 +2170,17 @@
           }
         }
         return null;
+      },
+      // every open clause that's all on screen, top first: { i, type, bad, x, y }
+      spots: function () {
+        var out = [];
+        doc.forEach(function (b, i) {
+          var y = b.top - scroll;
+          if (isClause(b) && b.state === "open" && y > L.lh && y + b.h < L.view.h - L.lh) {
+            out.push({ i: i, type: b.type, bad: isBad(b), x: Math.round(L.view.x + L.view.w * 0.4), y: Math.round(L.view.y + y + b.h / 2) });
+          }
+        });
+        return out;
       },
       block: function (i) { var b = doc[i]; return { type: b.type, state: b.state, text: b.text }; },
       armOut: function () { return !!arm && arm.phase === "write"; },
