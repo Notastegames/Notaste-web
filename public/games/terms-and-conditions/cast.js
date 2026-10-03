@@ -197,8 +197,8 @@
       // as an arm in a sleeve rather than a pole
       var wx = ex - 7, wy = ey + 10;
       var dx = wx - 30, dy = wy + 40, len = Math.hypot(dx, dy) || 1;
-      var bend = Math.min(26, len * 0.16);
-      var elx = 30 + dx * 0.5 + (dy / len) * bend, ely = -40 + dy * 0.5 - (dx / len) * bend;
+      var bend = Math.min(40, len * 0.2);
+      var elx = 30 + dx * 0.45 + (dy / len) * bend, ely = -40 + dy * 0.45 - (dx / len) * bend;
       sleeve(c, 30, -40, elx, ely, 15);
       sleeve(c, elx, ely, wx, wy, 13);
       oval(c, elx, ely, 7.5, 7.5);

@@ -693,15 +693,17 @@
       // pop-ups, part way through
       var progress = scroll / Math.max(1, docH - L.view.h);
       if (!popup && !arm && popupPlan.length && progress >= popupPlan[0].at) openPopup(popupPlan.shift().def);
-      // Legal's edits: on a clause in the upper middle of the page, clear of
-      // the speech bubbles at the bottom, and the page holds still while he
-      // writes, so there's time to read it again after (on a phone too)
+      // Legal's edits: on a clause in the upper middle of the page beside the
+      // phone, and lower down on a phone, where his arm comes up from the
+      // strip under the page (so it crosses as few lines as it can). The
+      // page holds still while he writes, so there's time to read it again.
       if (STAGES[stage].amend && !arm && !popup) {
+        var lo = L.strip ? 0.4 : 0.2, hi = L.strip ? 0.84 : 0.6;
         for (var a = 0; a < doc.length; a++) {
           var b = doc[a];
           if (b.type !== "amendable" || b.state !== "open") continue;
           var y = b.top - scroll;
-          if (y + b.h < L.view.h * 0.6 && y > L.view.h * 0.2) { startAmend(b); break; }
+          if (y + b.h < L.view.h * hi && y > L.view.h * lo) { startAmend(b); break; }
         }
       }
     } else if (phase === "accept") {
@@ -2401,9 +2403,10 @@
     var text = h.word.toUpperCase(), tw = c.measureText(text).width;
     var bw = tw + 12, bh = size + 4;
     var v = L.view;
-    // from the left margin, or centred on a word, kept on the page
-    var cx = h.left ? v.x + L.pad + bw / 2 - 2 : clamp(h.x, v.x + bw / 2 + 2, v.x + v.w - bw / 2 - 8);
-    var ax = h.left ? v.x + L.pad + 8 : clamp(h.x, cx - bw / 2 + 8, cx + bw / 2 - 8);
+    // from the left margin (the arrowhead in the margin, just short of the
+    // clause number), or centred on a word, kept on the page
+    var cx = h.left ? v.x + 3 + bw / 2 : clamp(h.x, v.x + bw / 2 + 2, v.x + v.w - bw / 2 - 8);
+    var ax = h.left ? v.x + Math.max(8, L.pad - 6) : clamp(h.x, cx - bw / 2 + 8, cx + bw / 2 - 8);
     var bob = calm() ? 0 : Math.abs(Math.sin(clock * 4)) * 2;
     // centred a touch below the line: there's more room under a rule than over it
     var top = Math.round(h.y - bh / 2 + 1 - bob);
