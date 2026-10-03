@@ -169,7 +169,9 @@
 
   function startCourse(n) {
     var def = COURSES[n];
-    var page = PG.build(n, shell.random, run.mods, run.owed);
+    // each page has its own seed, taken from the round's (today's, in today's
+    // run), so earlier choices change what's on it but not where it all is
+    var page = PG.build(n, N.seeded(shell.seed + (n + 1) * 7919), run.mods, run.owed);
     run.owed = 0;
     G = {
       n: n, def: def, items: page.items, triggers: page.triggers, len: page.len, storyTotal: page.storyTotal,
@@ -748,8 +750,9 @@
   // Three settings to choose from, the same for everyone in today's run
   function offers() {
     var pool = OFFERS[G.n].filter(function (k) { return run.picked.indexOf(k) < 0; });
+    var r = N.seeded(shell.seed + 104729 + G.n);
     for (var i = pool.length - 1; i > 0; i--) {
-      var j = Math.floor(shell.random() * (i + 1)), t = pool[i];
+      var j = Math.floor(r() * (i + 1)), t = pool[i];
       pool[i] = pool[j]; pool[j] = t;
     }
     return pool.slice(0, 3);

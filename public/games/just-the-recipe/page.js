@@ -1,7 +1,8 @@
 // Just the Recipe: the pages, and the words on them.
 //
-// Each course is one recipe page, built fresh from shell.random so that
-// today's run lays out the same three pages for everyone. A page is a list of
+// Each course is one recipe page, built fresh from a seed taken from the
+// round's (shell.seed), so today's run lays out the same three pages for
+// everyone, whatever they chose along the way. A page is a list of
 // items in page units: 100 across the column, y measured down from the top of
 // the page. recipe.js scrolls through them, draws them and makes them fight.
 //
@@ -159,7 +160,7 @@
   // ---------------------------------------------------------------------------
   // Building a page
   // ---------------------------------------------------------------------------
-  // n: which course (0, 1, 2). rand: shell.random. mods: the choices so far.
+  // n: which course (0, 1, 2). rand: a seeded random for this page. mods: the choices so far.
   // extraAds: adverts owed for cookies accepted on earlier pages.
   function build(n, rand, mods, extraAds) {
     var def = COURSES[n];
