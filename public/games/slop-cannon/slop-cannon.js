@@ -4,37 +4,43 @@
 // go, and a ball of AI slop (green goo carrying a hand with too many fingers,
 // a melting dog, a soldier carved from bread) lands on whatever it hits.
 //
-// THE JOKE. Real posts are worth ten times as much to ruin as slop is, and
-// the platform pays you in engagement for doing it. The feed turns green as
-// you go, the people who posted shout at you, and bots comment "So real".
-// The results tell you how much of the feed is slop now. It's aimed at the
-// platforms that reward this, never at the people scrolling past or posting
-// their tea: they're the ones getting slopped, and they're not happy.
+// THE JOKE. The platform pays you in engagement for slopping a real post,
+// and docks you for slop on slop (it downranks duplicate content), so the
+// slop needs real people to feed on. The feed turns green as you go, the
+// people who posted shout at you, and bots pile into the comments. It's
+// aimed at the platforms that reward this, never at the people scrolling
+// past or posting their tea: they're the ones getting slopped, and they're
+// not happy.
 //
 // THE LOOP. Aim with the mouse, a finger, the arrow keys or a stick. Hold to
-// charge: the power swings up and down and a dotted arc shows where the shot
-// will go, with red brackets on the post it'll land on by the time it gets
-// there (the feed keeps moving) and a tag saying what it's worth. Let go to
-// fire. A splash that lands near the line between two posts gets both. Real
-// posts slopped in a row build a chain, which multiplies what real posts pay
-// (x1.25 a post, up to x3). Every fifth in a row goes viral: the slop spreads
-// to the posts either side for free. A shot that only gets slop, a miss, a
-// bounce or a catch breaks the chain, so picking what to hit matters.
+// charge: where the shot will land climbs the phone at a steady speed, then
+// comes back down, and a dotted arc shows the shot, with red brackets on the
+// post it'll land on by the time it gets there (the feed keeps moving), a
+// ghost of the blob where it'll hit, and a tag saying what it's worth. Let
+// go to fire; let go a moment after the brackets leave a real post and it
+// still goes to that post (GRACE), so the brackets you saw are the shot you
+// get. A splash near the line between two posts gets both. Real posts
+// slopped in a row build a chain, which multiplies what real posts pay
+// (x1.25 a post, up to x3). Every fourth in a row goes viral: the slop
+// spreads to the posts either side. A shot that only gets slop costs 25 and
+// breaks the chain; a miss, a bounce or a catch breaks it too.
 //
 // THE ROUND. Three stages and a final push, each with an engagement target,
 // about two and a half minutes in all. Miss a stage's target and the board
-// pulls the funding: the round ends there.
-//   1. The feed (35s, target 600). Real posts and slop. Learn to aim.
-//   2. Context added (38s, target 1,000). Fact checks turn up in the feed:
+// pulls the funding: the round ends there. The targets are set against
+// people playing at human speed (a careful player clears them all and
+// usually beats the last; one who fires at anything is out at stage 1).
+//   1. The feed (35s, target 800). Real posts and slop. Learn to aim.
+//   2. Context added (38s, target 1,100). Fact checks turn up in the feed:
 //      hit one and the slop bounces straight back, and if it lands on the
 //      cannon it jams it for a second and a half. Trending posts (a red tag)
 //      are worth triple. The feed is faster.
-//   3. Moderation (40s, target 1,100). The Moderator: one man in a window
+//   3. Moderation (40s, target 1,000). The Moderator: one man in a window
 //      cleaner's cradle on the side of the phone, with a very small net. He
 //      follows where you're aiming, slowly, and catches what passes through
 //      it. Three catches and he goes on lunch. Faster again.
-//   4. Final push (35s, target 2,000 for approval). Everything, at full
-//      speed, and fewer real people post. Beat the target and it's Approved.
+//   4. Final push (35s, target 2,600 for approval). Everything, faster, and
+//      fewer real people post. Beat the target and it's Approved.
 // Between stages you pick one upgrade of three, each with a cost (UPGRADES):
 // More fingers (bigger splash, slower reload), Bot farm (B: ten seconds of
 // double engagement once a stage; targets up a tenth), Engagement bait
@@ -45,11 +51,13 @@
 // twice the fact checks, out of spite).
 //
 // SCORING. Engagement: a real post 100 and a trending one 300, times the
-// chain; slop 10 and a post you've already slopped 5. Bots double it all.
+// chain; slop, or a post that's slop already, costs 25 (never taking a
+// stage below nothing). Bots double what real posts pay.
 //
 // THE LADDER. Approved: beat the final push's target. Pending review: got
 // to the end. Not approved: funding pulled at stage 2 or 3. Rejected:
-// funding pulled at stage 1.
+// funding pulled at stage 1. The results say how far over or short of the
+// target you were, and how much of the feed ended up slop.
 //
 // Built on the shared kit (/games/kit/kit.js) for the intro, screens,
 // controls, sound and saving. art.js draws everything; this file is the
@@ -85,20 +93,20 @@
   var JAM = 1.5;
   var VIRAL = 4;               // real posts in a row that make it go viral
   var BOTS_TIME = 10;
-  var MOD_CATCHES = 3, MOD_LUNCH = 9, MOD_SPEED = 9;
+  var MOD_CATCHES = 3, MOD_LUNCH = 9, MOD_SPEED = 7;
   var AIM_SPEED = 1.3;         // radians a second, keys and stick
   var MIN_ANGLE = 0.15, MAX_ANGLE = 1.3;
   var POINTS = { real: 100 };
   var COST = 25;               // a shot that only gets slop: the platform downranks duplicate content
 
   var STAGES = [
-    { name: "The feed", time: 35, speed: 15, real: 0.7, trend: 0, fact: 0, mod: false, target: 900,
+    { name: "The feed", time: 35, speed: 15, real: 0.7, trend: 0, fact: 0, mod: false, target: 800,
       clear: "Engagement is up. Nobody is sure what was engaged with." },
     { name: "Context added", time: 38, speed: 17, real: 0.64, trend: 0.2, fact: 0.16, mod: false, target: 1100,
       clear: "The fact checks added context. It was read by nobody." },
-    { name: "Moderation", time: 40, speed: 19, real: 0.58, trend: 0.2, fact: 0.14, mod: true, target: 1300,
+    { name: "Moderation", time: 40, speed: 19, real: 0.58, trend: 0.2, fact: 0.14, mod: true, target: 1000,
       clear: "The Moderator is on another lunch. He's earned it. He hasn't been paid for it." },
-    { name: "Final push", time: 35, speed: 22, real: 0.5, trend: 0.28, fact: 0.16, mod: true, target: 2400, final: true }
+    { name: "Final push", time: 35, speed: 22, real: 0.5, trend: 0.28, fact: 0.16, mod: true, target: 2600, final: true }
   ];
   var LAST = STAGES.length - 1;
 
@@ -251,8 +259,14 @@
     // the Moderator's cradle straddles the phone's left edge
     L.modX = L.phoneX - 3.4;
     L.modTop = 30 - A.NET.y;
-    L.modBottom = L.floor - 0.5;
+    // ...and his net never comes down to the cannon's mouth: a flat shot can
+    // always go under him
+    L.modBottom = L.pivot.y + 0.5;
     L.modHome = (L.modTop + L.modBottom) / 2;
+    // On a square screen his net is only just past the cannon's mouth, where
+    // every shot from one angle crosses at the same height, so he'd stop the
+    // lot: there he moves slower, and is as hard to get past as on a wide one
+    L.modPace = clamp((L.modX + A.NET.x - L.pivot.x) / 30, 0.5, 1);
     K = Math.max(1, WH / 100);
     // keep the feed where it was, relative to the bottom of the screen
     if (old != null && old !== L.sy1) feed.forEach(function (p) { p.y += L.sy1 - old; });
@@ -629,7 +643,7 @@
       run.score -= cost;
       run.stageScore -= cost;
       run.costs += cost;
-      pop(L.phoneX - 1, y, "-" + COST, false, true);
+      if (cost) pop(L.phoneX - 1, y, "-" + cost, false, true);
       if (!said.already) {
         said.already = true;
         shell.callout("Slop on slop", { sound: false, ms: 1100 });
@@ -753,7 +767,7 @@
     if (!mod) return;
     mod.swing = Math.max(0, mod.swing - dt * 2.5);
     mod.full = Math.max(0, mod.full - dt);
-    var speed = (stage === LAST ? MOD_SPEED * 1.2 : MOD_SPEED) * K;
+    var speed = (stage === LAST ? MOD_SPEED * 1.2 : MOD_SPEED) * K * L.modPace;
     if (mod.state === "in") {
       mod.y += 40 * K * dt;
       if (mod.y >= L.modHome) {
@@ -770,13 +784,16 @@
       if (mod.lunch <= 0) { mod.state = "in"; mod.y = -30; }
       return;
     }
-    // work: head for where the next shot will cross, or where the arc says
+    // work: head for where the next shot will cross, or where the arc says.
+    // He lunges for a shot in flight at half his speed, so one that clearly
+    // goes over or under him gets past; one fired straight at him doesn't.
     var want = null, soonest = Infinity;
     balls.forEach(function (b) {
       if (b.bounced || b.modY == null || b.t > b.end) return;
       if (b.end - b.t < soonest) { soonest = b.end - b.t; want = b.modY; }
     });
-    if (want == null && preview && preview.modY != null) want = preview.modY;
+    if (want != null) speed *= 0.5;
+    else if (preview && preview.modY != null) want = preview.modY;
     if (want == null) want = mod.seek;
     mod.seek += (want - mod.seek) * Math.min(1, dt * 1.6);
     var goal = clamp(mod.seek - A.NET.y, L.modTop, L.modBottom);
@@ -933,7 +950,7 @@
         q.linger = (q.linger || 0) + dt;
         if (q.linger >= 1) {
           q.linger -= 1;
-          var pts = 5 * (botsLeft > 0 ? 2 : 1);
+          var pts = 10 * (botsLeft > 0 ? 2 : 1);
           run.score += pts;
           run.stageScore += pts;
           q.likes += 400;
@@ -943,7 +960,7 @@
     }
     if (botsLeft > 0) {
       botsLeft = Math.max(0, botsLeft - dt);
-      if (Math.random() < dt * 3.5) fx.push({ kind: "react", word: "Bot", x: L.sx1 - rand(3, 8), y: L.sy1 - rand(0, 6), vx: rand(-3, 1), vy: rand(-30, -18), t: 0, life: 1.6, r: 1.6, bot: true });
+      if (Math.random() < dt * 3.5) fx.push({ kind: "react", word: "Bot", x: L.sx1 - rand(3, 8), y: L.sy1 - rand(0, 6), vx: rand(-3, 1), vy: rand(-30, -18), t: 0, life: 1.6, r: 1.6 });
     }
 
     if (phase === "wrap") {
@@ -1125,13 +1142,15 @@
     var score = Math.round(run.score);
     var rec = shell.record(score);
     var rank, heading, line, what;
-    // the heading says what happened; short enough to fit a phone's square
-    // screen: a one-line heading, two lines of joke
-    var target = targetFor(stage), by = fmt(Math.abs(Math.round(run.stageScore) - target));
+    // The heading says how it went against the target, in a few words: it
+    // has to sit on one line on a phone's square screen, over two lines of
+    // joke. How much of the feed is slop goes in the numbers.
+    var target = targetFor(stage), diff = Math.round(run.stageScore) - target, by = fmt(Math.abs(diff));
+    var reachedAt = "stage " + (run.reached + 1);
     if (why === "approved") {
       rank = 1;
-      heading = by === "0" ? "Target met. Just." : "Target beaten by " + by + ".";
-      what = by === "0" ? "target met, just" : "target beaten by " + by;
+      heading = diff ? "Over by " + by + "." : "Bang on target.";
+      what = diff ? "final target beaten by " + by : "final target met exactly";
       line = "Nobody can tell what's real any more. The board has approved a bigger cannon.";
     } else if (why === "done") {
       rank = 2;
@@ -1140,17 +1159,17 @@
       line = "The board will review it, which means nobody will.";
     } else if (run.reached >= 1) {
       rank = 3;
-      heading = "Funding pulled at stage " + (run.reached + 1) + ".";
-      what = "funding pulled at stage " + (run.reached + 1);
+      heading = "Short by " + by + ".";
+      what = "short by " + by + " at " + reachedAt;
       line = "Real people are still in the feed, posting their tea. The board has replaced you with a script.";
     } else {
       rank = 4;
-      heading = "Funding pulled at stage 1.";
-      what = "funding pulled at stage 1";
+      heading = "Short by " + by + ".";
+      what = "short by " + by + " at stage 1";
       line = "The feed is still mostly people's dinners. The board has seen enough dinners.";
     }
     var stats = [{ label: "Engagement", value: fmt(score) }];
-    if (rank > 2) stats.push({ label: "Short by", value: by });
+    if (rank === 3) stats.push({ label: "Reached", value: "Stage " + (run.reached + 1) });
     stats.push({ label: "Feed", value: pct + "% slop" });
     if (rank <= 2) stats.push({ label: "Best chain", value: String(run.bestChain) });
     stats.push({ label: rec.isNew ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
@@ -1711,7 +1730,8 @@
         if (e.word) {
           var w = A.measure(c, e.word, 2.6) + 2;
           A.rrect(c, e.x - w / 2, e.y - 1.9, w, 3.8, 0.6);
-          c.fillStyle = e.bot ? T.accent : T.paper; c.fill();
+          // every comment chip is a bot's, so they're all slime
+          c.fillStyle = T.accent; c.fill();
           A.ink(c, 0.3); c.stroke();
           A.text(c, e.word, e.x, e.y + 0.15, 2.6, null, { align: "center", fill: T.ink });
         } else {
@@ -1763,8 +1783,9 @@
     var pad = size * 0.45, lh = size * 1.02;
     var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.2;
     var cx = (L.cardX + L.cardW / 2) * U;
-    var by = (q.y + L.cardH) * U - bh - 3.2 * U;
     var clipTop = (L.head + 0.5) * U, clipBot = L.sy1 * U;
+    // over the bottom of the post, but all of it on the screen
+    var by = clamp((q.y + L.cardH) * U - bh - 3.2 * U, clipTop + 4, clipBot - bh - 4);
     c.save();
     c.beginPath(); c.rect(L.sx0 * U, clipTop, (L.sx1 - L.sx0) * U, clipBot - clipTop); c.clip();
     var grow = shell.reduceMotion ? 1 : 0.85 + 0.15 * clamp(k.t * 7, 0, 1);
