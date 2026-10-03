@@ -31,7 +31,7 @@
 //   4. A Bank (Penny, wears a bow tie). Legal leans in and edits clauses on the
 //      screen while you read: a word struck out, a new one written in. A fine
 //      clause can go bad in front of you. Fastest, longest, and it speeds up.
-// Between apps (shell.interlude) you get one right back and pick a perk, each
+// Between apps (shell.interlude) you get up to two rights back and pick a perk, each
 // with a cost: reading glasses, strong coffee, skimming, legal aid, a friend
 // who reads terms, an ad blocker, a highlighter, a cooling-off period.
 // A round is about two minutes.
@@ -84,12 +84,17 @@
   var READ = 1.2;              // seconds a clause must have been all on screen before a push can carry it off the top
   var SIGNED_MS = 0.85;        // how long the Signed stamp stays up at the top of the page
 
-  // What each app's terms hold. lps: lines a second the page scrolls.
+  // What each app's terms hold. lps: lines a second the page scrolls, and
+  // ramp: how much faster it is by the end. Reading every clause in full as
+  // it arrives takes about 24 characters a second in the first app on a
+  // desktop, an ordinary reading speed, rising to about 30 by the end of the
+  // bank (stings and small print pack more words into a line, so the later
+  // apps ask more of you than their speed suggests)
   var STAGES = [
-    { normal: 7, bad: 5, sting: 0, smallBad: 0, smallOk: 0, amend: 0, popups: 0, lps: 1.15, ramp: 0.08 },
-    { normal: 7, bad: 3, sting: 3, smallBad: 0, smallOk: 0, amend: 0, popups: 1, lps: 1.35, ramp: 0.1 },
-    { normal: 6, bad: 3, sting: 2, smallBad: 3, smallOk: 3, amend: 0, popups: 2, lps: 1.55, ramp: 0.12 },
-    { normal: 6, bad: 2, sting: 3, smallBad: 3, smallOk: 2, amend: 3, popups: 2, lps: 1.7, ramp: 0.15 }
+    { normal: 6, bad: 5, sting: 0, smallBad: 0, smallOk: 0, amend: 0, popups: 0, lps: 1.12, ramp: 0.06 },
+    { normal: 6, bad: 3, sting: 3, smallBad: 0, smallOk: 0, amend: 0, popups: 1, lps: 1.18, ramp: 0.08 },
+    { normal: 5, bad: 3, sting: 2, smallBad: 3, smallOk: 2, amend: 0, popups: 2, lps: 1.3, ramp: 0.1 },
+    { normal: 5, bad: 2, sting: 3, smallBad: 3, smallOk: 2, amend: 3, popups: 2, lps: 1.42, ramp: 0.12 }
   ];
 
   // What's new each app, shown as a notice with the countdown
@@ -310,10 +315,10 @@
         m.mascot = { x: mx, y: H - 6, s: tm };
         m.talk = { x: lx + 48 * ts + 8, r: mx - 40 * tm - 8 };
       } else {
-        // peeking: the wig and the eyes, the top of the icon and its grin
-        var ps = (m.strip.h - 3) / 60;
+        // peeking: the wig, the eyes and the frown, the top of the icon and its grin
+        var ps = (m.strip.h - 3) / 58;
         lx = 48 * ps + 3;
-        m.legal = { x: lx, y: sy + 3 + 136 * ps, s: ps, low: true };
+        m.legal = { x: lx, y: sy + 3 + 124 * ps, s: ps, low: true };
         var pm = (m.strip.h - 3) / 66;
         mx = W - 42 * pm - 3;
         m.mascot = { x: mx, y: sy + 3 + 104 * pm, s: pm };
@@ -981,8 +986,9 @@
   }
 
   function stageClear() {
-    var restored = run.rights < RIGHTS;
-    if (restored) run.rights++;
+    // up to two rights back between apps (never over five; Cooling-off can)
+    var restored = Math.max(0, Math.min(2, RIGHTS - run.rights));
+    run.rights += restored;
     paintHud();
     var offers = offer();
     var next = C.apps[stage + 1];
@@ -992,7 +998,7 @@
       { label: "Struck", value: run.stageCaught + "/" + total },
       { label: "Wrong strikes", value: String(run.stageWrong) },
       { label: "Signed away", value: String(run.stageMissed) },
-      { label: "Rights", value: run.rights + (restored ? " (one back)" : "") },
+      { label: "Rights", value: run.rights + (restored === 2 ? " (two back)" : restored ? " (one back)" : "") },
       { label: "Score", value: fmt(run.score) }
     ];
     shell.interlude({
@@ -1364,7 +1370,7 @@
         var skill = [0.9, 0.86, 0.85, 0.84][stage];
         // wrong strikes: mostly the real clauses that sound bad, and one for
         // sure once the first app's done, so a run shows Legal's STET
-        var fooled = b.real ? 0.35 : run.wrong === 0 && stage >= 1 ? 0.3 : 0.03;
+        var fooled = b.real ? 0.25 : run.wrong === 0 && stage >= 1 ? 0.25 : 0.02;
         b.verdict = isBad(b) ? (Math.random() < skill ? "strike" : "miss") : (Math.random() < fooled ? "strike" : "leave");
         b.readFor = 0.5 + (b.text.length + (b.foot ? b.foot.length : 0)) * 0.022;
       }
@@ -1646,7 +1652,7 @@
     drawPage(c);
     drawSigns(c);
     drawHeader(c);
-    if (phase === "accept" || (phase === "done" && footer > 0)) drawFooter(c);
+    if (phase === "accept" || ((phase === "done" || phase === "over") && footer > 0)) drawFooter(c);
     if (popup) drawPopup(c);
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     drawCast(c);
