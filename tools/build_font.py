@@ -151,7 +151,7 @@ UPM = 1000
 def build(out_base):
     order = [".notdef", "space"]
     cmap = {32: "space", 160: "space"}
-    advances = {".notdef": (300, 0), "space": (200, 0)}
+    advances = {".notdef": (300, 0), "space": (260, 0)}   # a wide enough space that small words do not run together
     glyphs = {}
 
     def draw(paths):
