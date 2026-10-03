@@ -617,6 +617,8 @@
     if (phase === "read") {
       var target = scrollSpeed() * clamp(stageClock / 1.6, 0, 1);
       if (hitch > 0) { hitch -= dt; target *= 0.12; }
+      // Legal's hand is on the page while he writes: it barely moves
+      if (arm && arm.phase !== "back") target *= 0.2;
       speed += (target - speed) * Math.min(1, dt * 7);
       var take = pending * Math.min(1, dt * 10);
       pending -= take;
@@ -633,15 +635,16 @@
       }
       // pop-ups, part way through
       var progress = scroll / Math.max(1, docH - L.view.h);
-      if (!popup && popupPlan.length && progress >= popupPlan[0].at) openPopup(popupPlan.shift().def);
-      // Legal's edits, once the clause is all on screen and low enough to
-      // leave time to read it again after he's done (on a phone too)
+      if (!popup && !arm && popupPlan.length && progress >= popupPlan[0].at) openPopup(popupPlan.shift().def);
+      // Legal's edits: on a clause in the upper middle of the page, clear of
+      // the speech bubbles at the bottom, and the page holds still while he
+      // writes, so there's time to read it again after (on a phone too)
       if (STAGES[stage].amend && !arm && !popup) {
         for (var a = 0; a < doc.length; a++) {
           var b = doc[a];
           if (b.type !== "amendable" || b.state !== "open") continue;
           var y = b.top - scroll;
-          if (y + b.h < L.view.h - 4 && y > L.view.h * 0.42) { startAmend(b); break; }
+          if (y + b.h < L.view.h * 0.6 && y > L.view.h * 0.2) { startAmend(b); break; }
         }
       }
     } else if (phase === "accept") {
