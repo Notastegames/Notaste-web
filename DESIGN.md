@@ -243,7 +243,7 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 
 **Behaviour.**
 - Pause automatically when the tab is hidden or the window loses focus.
-- Fullscreen button on every game. Phones that can't do real fullscreen get a full-window version.
+- Fullscreen button on every game. Phones that can't do real fullscreen get a full-window version. A game that needs the whole height of a phone (a reading game) can go full-window by itself when a round starts on a touch screen (`fullOnTouch`); the button takes it back out.
 - Save only bests and settings, in the browser's local storage, under `notaste.<slug>.<name>` (`shell.record` does this). No accounts, no tracking, no cookies.
 
 **Autopilot and clips.** Every game drives itself when `Notaste.flags.autopilot` is on, well enough to reach the results screen: the play-through (`tools/playtest.mjs`) depends on it. `?autopilot` turns it on, and `&speed=4` runs it four times as fast. `?clip` is for filming social clips: a 9:16 frame with the logo at the top, the game's screen at 4:5 in the middle, and the title (with its accent bar), the pitch and "Free at notastegames.com" underneath. The autopilot plays, the pause, sound and fullscreen buttons are hidden, the game doesn't pause when the screen recorder takes the focus, and Enter starts it.

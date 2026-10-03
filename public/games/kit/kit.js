@@ -390,6 +390,8 @@
   //                              today (or { label: "Today's race" } to name it)
   //     modes: [{ key, label }], other ways to start, under Press start
   //     pitch: "...",            one line about the game, for the clip frame (?clip)
+  //     fullOnTouch: true,       on a touch screen, go full-window when a round starts
+  //                              (for a game that needs the whole height of a phone)
   //     smallCallouts: true,     smaller in-game stamps, for a busy field
   //     reset(shell),            a fresh round: put everything on the start line
   //     update(dt, input, shell), every frame while playing (and after the finish)
@@ -732,6 +734,7 @@
       sound.unlock();
       started = true;
       newRound();
+      if (game.fullOnTouch && coarse && !isFull() && !flags.clip) enterFull();
       game.reset(shell);
       resize();
       setState("intro");
