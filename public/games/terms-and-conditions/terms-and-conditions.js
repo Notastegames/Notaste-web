@@ -1489,7 +1489,7 @@
     }
     // points, floating up off the page
     pops.forEach(function (p) {
-      var k = p.t / 0.9, py = L.view.y + p.y - scroll + pull - k * 22;
+      var k = p.t / 0.9, py = L.view.y + p.y - scroll + pull - (calm() ? 0 : k * 22);
       c.globalAlpha = 1 - k * k;
       c.font = Math.round(L.fs * 1.15) + "px " + T.display;
       c.textAlign = "center";
