@@ -259,7 +259,7 @@
   // ---------------------------------------------------------------------------
   // The hand: you. A pointing hand, pointing down the page, with the cuff in
   // the game's colour. x, y is the tip of the finger; s is the size (the hand
-  // is 18s from fingertip to cuff). o: { press 0..1, squash 0..1, tilt }
+  // is 22.6s from fingertip to cuff). o: { press 0..1, squash 0..1, tilt }
   // ---------------------------------------------------------------------------
   function hand(c, x, y, s, o) {
     o = o || {};
@@ -269,58 +269,66 @@
     c.rotate(o.tilt || 0);
     c.scale(s * (1 + squash * 0.08), s * (1 - squash * 0.06));
     c.translate(0, press * 1.4);
-    var w = 1.05;
+    var w = 1.0;
     c.lineJoin = "round";
     c.lineCap = "round";
-    // the finger, pointing down
-    var fl = 8.2 - squash * 1.2;
-    rrect(c, -1.75, -fl - 2, 3.5, fl + 2, 1.75);
-    c.fillStyle = T.paper;
-    c.fill();
-    ink(c, w);
-    c.stroke();
-    seg(c, [[-0.9, -3.4], [0.9, -3.4]], 0.45);
-    // the back of the hand
+    function paper(path) {
+      c.fillStyle = T.paper;
+      c.fill(path);
+      ink(c, w);
+      c.stroke(path);
+    }
+    // the finger, pointing down, coming out from under the fist
+    var fl = 11 - squash * 1.6;
+    var finger = new Path2D();
+    finger.moveTo(-1.95, -fl - 2);
+    finger.lineTo(-1.95, -1.9);
+    finger.arc(0, -1.9, 1.95, Math.PI, 0, true);
+    finger.lineTo(1.95, -fl - 2);
+    finger.closePath();
+    paper(finger);
+    // a fingernail and a knuckle crease
     c.beginPath();
-    c.moveTo(-5.6, -16);
-    c.lineTo(5.4, -16);
-    c.quadraticCurveTo(6.8, -12, 5.8, -8.4);
-    c.quadraticCurveTo(4.6, -5.6, 1.6, -6.8);
-    c.lineTo(-1.6, -6.8);
-    c.quadraticCurveTo(-5.4, -6.4, -6.4, -9.4);
-    c.quadraticCurveTo(-7.1, -13, -5.6, -16);
-    c.closePath();
+    c.arc(0, -2.2, 1.05, Math.PI * 0.15, Math.PI * 0.85);
+    ink(c, 0.4);
+    c.stroke();
+    seg(c, [[-1.1, -6.4], [1.1, -6.4]], 0.4);
+    // the fist: the back of the hand, the rest of it curled up
+    var fist = new Path2D();
+    if (fist.roundRect) fist.roundRect(-5.2, -18.4, 12.6, 11.4, 3.6);
+    else fist.rect(-5.2, -18.4, 12.6, 11.4);
     c.fillStyle = T.paper;
-    c.fill();
+    c.fill(fist);
     c.save();
-    c.clip();
+    c.clip(fist);
+    var sh = new Path2D();
+    sh.ellipse(9.4, -9.5, 5.2, 9, 0, 0, Math.PI * 2);
     c.fillStyle = dots(c, T.ink);
-    c.fillRect(2.2, -17, 6, 12);
+    c.fill(sh);
     c.restore();
     ink(c, w);
-    c.stroke();
-    // curled fingers, knuckles down
-    [[3.4, -7.6], [5.3, -9.4]].forEach(function (k) {
-      c.beginPath();
-      c.ellipse(k[0], k[1], 1.6, 1.5, 0, 0, Math.PI * 2);
-      c.fillStyle = T.paper;
-      c.fill();
-      ink(c, w * 0.8);
-      c.stroke();
+    c.stroke(fist);
+    // three curled fingers, knuckles to us, along the bottom
+    [[3.0, -7.4], [5.15, -7.7], [6.95, -8.8]].forEach(function (k, i) {
+      var b = new Path2D();
+      b.ellipse(k[0], k[1], 1.3, 1.75, i * 0.25, 0, Math.PI * 2);
+      paper(b);
     });
-    // the thumb, tucked across
-    c.beginPath();
-    c.moveTo(-6.2, -11.2);
-    c.quadraticCurveTo(-4.4, -7.8, -1.9, -8.6);
-    ink(c, w * 0.8);
-    c.stroke();
-    // the cuff
-    rrect(c, -6.4, -20, 12.8, 4.6, 1);
+    seg(c, [[4.1, -9.4], [4.1, -11.4]], 0.4);
+    seg(c, [[6.1, -9.9], [6.2, -11.6]], 0.4);
+    // the thumb, folded across the front
+    var thumb = new Path2D();
+    thumb.ellipse(-2.3, -11.6, 3.4, 1.55, 0.75, 0, Math.PI * 2);
+    paper(thumb);
+    // the cuff, in the game's colour
+    var cuff = new Path2D();
+    if (cuff.roundRect) cuff.roundRect(-5.8, -22.6, 13.8, 4.8, 1);
+    else cuff.rect(-5.8, -22.6, 13.8, 4.8);
     c.fillStyle = T.accent;
-    c.fill();
+    c.fill(cuff);
     ink(c, w);
-    c.stroke();
-    seg(c, [[-4.6, -17.7], [4.6, -17.7]], 0.4, T.ink);
+    c.stroke(cuff);
+    blob(c, 4.8, -20.2, 0.7, 0.7, T.paper, 0.35);
     c.restore();
   }
 
@@ -425,24 +433,43 @@
     }
   }
 
-  // The dog, Biscuit. Floppy ears, the family eyebrows.
+  // The dog, Biscuit. Floppy ears, a big snout, the family eyebrows.
   function dog(c, x, y, r) {
     var w = r * 0.13;
-    blob(c, x, y, r * 1.05, r * 0.95, T.paper);
-    shadeOval(c, x, y, r * 1.05, r * 0.95);
-    blob(c, x, y, r * 1.05, r * 0.95, null, w);
+    blob(c, x, y - r * 0.1, r * 0.95, r * 0.85, T.paper);
+    shadeOval(c, x, y - r * 0.1, r * 0.95, r * 0.85);
+    blob(c, x, y - r * 0.1, r * 0.95, r * 0.85, null, w);
     [-1, 1].forEach(function (s) {
-      blob(c, x + s * r * 0.98, y + r * 0.15, r * 0.3, r * 0.62, T.ink, w, s * 0.25);
-      var ex = x + s * r * 0.34, ey = y - r * 0.1;
-      blob(c, ex, ey, r * 0.18, r * 0.22, T.paper, w * 0.7);
+      // ears, hanging, in ink
+      c.beginPath();
+      c.moveTo(x + s * r * 0.55, y - r * 0.82);
+      c.quadraticCurveTo(x + s * r * 1.45, y - r * 0.75, x + s * r * 1.25, y + r * 0.45);
+      c.quadraticCurveTo(x + s * r * 1.05, y + r * 0.75, x + s * r * 0.82, y + r * 0.3);
+      c.quadraticCurveTo(x + s * r * 0.75, y - r * 0.3, x + s * r * 0.55, y - r * 0.82);
+      c.fillStyle = T.ink;
+      c.fill();
+      ink(c, w * 0.8, T.paper);
+      c.stroke();
+      var ex = x + s * r * 0.34, ey = y - r * 0.3;
+      blob(c, ex, ey, r * 0.17, r * 0.21, T.paper, w * 0.7);
       blob(c, ex - s * r * 0.03, ey + r * 0.03, r * 0.08, r * 0.1, T.ink);
-      seg(c, [[x + s * r * 0.12, y - r * 0.32], [x + s * r * 0.52, y - r * 0.48]], w * 1.3);
+      seg(c, [[x + s * r * 0.1, y - r * 0.5], [x + s * r * 0.5, y - r * 0.66]], w * 1.3);
     });
-    blob(c, x, y + r * 0.26, r * 0.24, r * 0.17, T.ink);
+    // the snout, and a frown under it
+    blob(c, x, y + r * 0.32, r * 0.55, r * 0.42, T.paper, w);
+    blob(c, x, y + r * 0.12, r * 0.22, r * 0.15, T.ink);
+    seg(c, [[x, y + r * 0.26], [x, y + r * 0.42]], w * 0.8);
     c.beginPath();
-    c.moveTo(x - r * 0.24, y + r * 0.62);
-    c.quadraticCurveTo(x, y + r * 0.48, x + r * 0.24, y + r * 0.62);
+    c.moveTo(x - r * 0.28, y + r * 0.58);
+    c.quadraticCurveTo(x, y + r * 0.4, x + r * 0.28, y + r * 0.58);
     ink(c, w * 0.85);
+    c.stroke();
+    // a collar in the game's colour
+    c.beginPath();
+    c.ellipse(x, y + r * 0.72, r * 0.6, r * 0.2, 0, 0.1, Math.PI - 0.1);
+    ink(c, r * 0.2, T.ink);
+    c.stroke();
+    ink(c, r * 0.1, T.accent);
     c.stroke();
   }
 
@@ -480,29 +507,40 @@
       blob(c, x - r * 0.3, y - r * 0.02, r * 0.16, r * 0.05, T.paper);
       steam(c, x, y - r * 0.3, r * 0.8, w);
     } else if (kind === "lasagne") {
-      rrect(c, x - r, y - r * 0.2, r * 2, r * 0.75, r * 0.12);
-      c.fillStyle = T.paper;
-      c.fill();
-      shadeClip(c, x + r * 0.4, y, r, r);
-      ink(c, w);
-      c.stroke();
-      // the layers, seen through the side of the dish
-      [0, 1, 2].forEach(function (i) {
-        var ly = y - r * 0.5 + i * r * 0.18;
-        rrect(c, x - r * 0.85, ly, r * 1.7, r * 0.14, r * 0.05);
-        c.fillStyle = i % 2 ? T.paper : T.red;
+      // a slice on a plate: layers of pasta and sauce, cheese on top
+      blob(c, x, y + r * 0.5, r * 1.1, r * 0.2, T.paper, w);
+      var lx0 = x - r * 0.8, lx1 = x + r * 0.8, top = y - r * 0.5, bot = y + r * 0.45;
+      var layers = 5, lh = (bot - top) / layers;
+      for (var i = 0; i < layers; i++) {
+        c.beginPath();
+        c.moveTo(lx0, top + i * lh);
+        for (var k = 0; k <= 8; k++) c.lineTo(lx0 + (lx1 - lx0) * k / 8, top + i * lh + (k % 2 ? r * 0.04 : -r * 0.03));
+        c.lineTo(lx1, top + (i + 1) * lh);
+        c.lineTo(lx0, top + (i + 1) * lh);
+        c.closePath();
+        c.fillStyle = i % 2 ? T.red : T.paper;
         c.fill();
+        if (!(i % 2)) shadeClip(c, x + r * 0.5, y, r * 0.6, r);
         ink(c, w * 0.8);
         c.stroke();
-      });
-      rrect(c, x - r * 0.88, y - r * 0.68, r * 1.76, r * 0.2, r * 0.08);
+      }
+      // the cheese, melting down the side
+      c.beginPath();
+      c.moveTo(lx0 - r * 0.05, top + r * 0.02);
+      c.lineTo(lx1 + r * 0.05, top + r * 0.02);
+      c.lineTo(lx1 + r * 0.05, top + r * 0.18);
+      c.quadraticCurveTo(lx1 - r * 0.1, top + r * 0.2, lx1 - r * 0.15, top + r * 0.36);
+      c.quadraticCurveTo(lx1 - r * 0.25, top + r * 0.2, x, top + r * 0.18);
+      c.quadraticCurveTo(lx0 + r * 0.3, top + r * 0.2, lx0 + r * 0.22, top + r * 0.42);
+      c.quadraticCurveTo(lx0 + r * 0.1, top + r * 0.2, lx0 - r * 0.05, top + r * 0.18);
+      c.closePath();
       c.fillStyle = T.accent;
       c.fill();
-      ink(c, w * 0.8);
+      ink(c, w);
       c.stroke();
-      blob(c, x - r * 1.05, y + r * 0.05, r * 0.14, r * 0.2, T.paper, w);
-      blob(c, x + r * 1.05, y + r * 0.05, r * 0.14, r * 0.2, T.paper, w);
-      steam(c, x, y - r * 0.8, r * 0.6, w);
+      ink(c, w * 1.2);
+      c.strokeRect(lx0, top, lx1 - lx0, bot - top);
+      steam(c, x, y - r * 0.6, r * 0.6, w);
     } else if (kind === "sponge") {
       blob(c, x, y + r * 0.5, r * 1.05, r * 0.16, T.paper, w);
       rrect(c, x - r * 0.85, y - r * 0.35, r * 1.7, r * 0.82, r * 0.1);
@@ -545,13 +583,15 @@
     }
   }
 
+  // Halftone over the current shape's shaded side. The shape stays the
+  // current path, so the caller can still outline it.
   function shadeClip(c, x, y, rx, ry) {
     c.save();
     c.clip();
-    c.beginPath();
-    c.ellipse(x + rx * 0.5, y + ry * 0.3, rx, ry, 0, 0, Math.PI * 2);
+    var p = new Path2D();
+    p.ellipse(x + rx * 0.5, y + ry * 0.3, rx, ry, 0, 0, Math.PI * 2);
     c.fillStyle = dots(c, T.ink);
-    c.fill();
+    c.fill(p);
     c.restore();
   }
 

@@ -24,7 +24,7 @@
     {
       key: "starter", name: "Starter", dish: "Nan's tomato soup", food: "Soup",
       sub: "Ready in 20 minutes. Reading time: 45 minutes.",
-      speed: 25, gap: [28, 34], shift: 34, par: 38, limit: 100, art: "soup",
+      speed: 25, gap: [28, 34], shift: 34, par: 25, limit: 90, art: "soup",
       plan: [
         { t: "story", rows: 5, quote: 1 },
         { t: "banner", v: "edge" },
@@ -45,7 +45,7 @@
     {
       key: "main", name: "Main", dish: "Easy weeknight lasagne", food: "Lasagne",
       sub: "Serves four. Reading time: one evening.",
-      speed: 27, gap: [25, 31], shift: 42, par: 50, limit: 120, art: "lasagne",
+      speed: 27, gap: [25, 31], shift: 42, par: 40, limit: 110, art: "lasagne",
       plan: [
         { t: "story", rows: 4 },
         { t: "banner", v: "middle" },
@@ -73,7 +73,7 @@
     {
       key: "pudding", name: "Pudding", dish: "A very simple sponge", food: "Sponge",
       sub: "Four ingredients. Seven thousand words.",
-      speed: 29, gap: [22, 28], shift: 48, par: 58, limit: 140, art: "sponge",
+      speed: 29, gap: [22, 28], shift: 48, par: 46, limit: 125, art: "sponge",
       plan: [
         { t: "story", rows: 4 },
         { t: "video" },

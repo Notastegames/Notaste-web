@@ -104,7 +104,7 @@
   var VIDEO_LIFE = 11;           // seconds before it gives up
   var MANAGE_WAIT = 1.7;         // loading your preferences
   var TAB_TIME = 1.8;            // the new tab an advert opens
-  var LADDER = [0.92, 1.06, 1.3];   // time against par: approved, pending review, not approved, then rejected
+  var LADDER = [1, 1.2, 1.5];       // time against par: approved, pending review, not approved, then rejected
 
   // Between courses: something good, something bad, in that order
   var CHOICES = {
@@ -817,11 +817,29 @@
   // does what a careful player would: reject cookies, dodge the cat, keep to
   // the white space, close what can be closed and go round what can't.
   // ---------------------------------------------------------------------------
+  // ?debug&sloppy plays like a person: it decides a third of a second late,
+  // steers roughly and fumbles a click now and then (for tuning the ladder).
+  var SLOPPY = DEBUG && params.has("sloppy"), late = null, lateT = 0;
   function autopilot(dt) {
+    if (!SLOPPY) return pilot(dt);
+    lateT -= dt;
+    var now = pilot(dt);
+    if (lateT <= 0 || !late) {
+      lateT = 0.28 + Math.random() * 0.17;
+      late = { x: now.x + (Math.random() - 0.5) * 7, act: false };
+    }
+    if (now.act && Math.random() < 0.75) late.act = true;
+    var out = { x: late.x, act: late.act };
+    late.act = false;
+    return out;
+  }
+
+  function pilot(dt) {
     autoCd -= dt;
     var x = hand.x, y = G.scroll, out = { x: x, act: false };
     function tap(lo, hi) {
       out.x = (lo + hi) / 2;
+      out.click = [lo, hi];
       if (x >= lo + 0.6 && x <= hi - 0.6 && autoCd <= 0) { out.act = true; autoCd = 0.3; }
     }
     if (G.tab) return out;
@@ -890,7 +908,6 @@
       want = (left > 3 && (Math.abs(want - left) < Math.abs(want - right) || right > 97)) ? left : right;
     }
     out.x = clamp(want, TIP, 100 - TIP);
-    if (out.act) prevAct = false;
     return out;
   }
 
@@ -1031,9 +1048,9 @@
   }
   function notice() {
     var texts = [
-      "Steer to the tiny Reject all on each cookie banner and " + how() + ". Accept all works too, but sends adverts after you. The life story slows you down: keep to the white space.",
-      "Newsletter pop-ups land where you are: move before they do, or find the little X. Adverts load late and jump open, and nothing closes an advert, so go round.",
-      "Autoplay videos come loose and follow you: keep away until the X turns up. Some Jump to recipe buttons are adverts, and one banner hides Reject all under Manage."
+      "Steer onto the tiny Reject all and " + how() + ". Accept all costs you adverts. The words slow you down: keep to the white space.",
+      "Pop-ups land where you are: move, or close the little X. Adverts jump open late and can't be closed. Go round.",
+      "Videos follow you: keep away until the X turns up. Some Jump buttons are adverts. One banner hides Reject all under Manage."
     ];
     shell.brief({ title: ["Course one: starter", "Course two: main", "Course three: pudding"][G.n], text: texts[G.n], ms: 5200 });
   }
@@ -1049,7 +1066,7 @@
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big" data-time>0:00</p>' +
-        '<p class="kit-stat"><small>Skipped</small><span data-skip>100%</span></p>' +
+        '<p class="kit-stat" data-minor><small>Skipped</small><span data-skip>100%</span></p>' +
       '</div>';
     hudEls = {
       course: shell.hud.querySelector("[data-course]"),
@@ -1192,6 +1209,8 @@
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     if (++boxAge > 60) { boxes = null; boxAge = 0; }
     var placed = [];
+    // no arrow once you're already on the thing it points at
+    if (hint && G.hover && Math.abs(hint.x - hand.x) < 6) hint = null;
     if (hint && shell.state() === "playing") {
       var ax = clamp(hint.x, 14, 86);
       placed.push({ x: OX + (ax - 14) * U, y: (hint.y - 24) * U, w: 28 * U, h: 24 * U });
@@ -2061,7 +2080,14 @@
       run: function () { return run; },
       hand: function () { return hand; },
       state: function () { return shell.state(); },
-      view: function () { return { U: U, HY: HY, VH: VH, OX: OX, W: W, H: H }; }
+      view: function () { return { U: U, HY: HY, VH: VH, OX: OX, W: W, H: H }; },
+      // what the autopilot would do now, for test players that use real input
+      advice: function () {
+        if (!G || shell.state() !== "playing" || G.over) return null;
+        var cd = autoCd, o = pilot(0);
+        autoCd = cd;
+        return { x: o.x, click: o.click || null, hand: hand.x, U: U, OX: OX, HY: HY };
+      }
     };
   }
 })();
