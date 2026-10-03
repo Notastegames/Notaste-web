@@ -19,8 +19,10 @@
   var S = 1;            // device pixels per local unit
   var cache = {};
   var dotTile = null, pxTile = null, lightTile = null;
-  var HX = 40, HY = 29, HR = 13.5;     // the head
+  var HX = 40, HY = 29, HR = 13.5;     // the head, as drawn
+  var HS = 1.25, HDY = 1.5;            // ...then scaled up a quarter (and down a touch) so faces read on a phone
   var TAU = Math.PI * 2;
+  var GAP = 0.32;                      // the space between words, in ems (see text())
 
   function init(tokens, scale) {
     T = tokens;
@@ -112,16 +114,19 @@
     return pat;
   }
 
-  // Halftone in the crescent away from the light (top left), like the covers
-  function crescent(c, x, y, rx, ry) {
+  // Halftone in the crescent away from the light (top left), like the covers.
+  // off: how far the light side shifts, as a share of the size (0.25 for a
+  // body; a face gets a thin rim, so the expression stays clear)
+  function crescent(c, x, y, rx, ry, off) {
+    var ox = off == null ? 0.24 : off, oy = off == null ? 0.26 : off * 1.1;
     c.save();
     ell(c, x, y, rx, ry);
     c.clip();
     c.beginPath();
     c.moveTo(x + rx * 1.1, y);
     c.ellipse(x, y, rx * 1.1, ry * 1.1, 0, 0, TAU);
-    c.moveTo(x - rx * 0.24 + rx, y - ry * 0.26);
-    c.ellipse(x - rx * 0.24, y - ry * 0.26, rx, ry, 0, 0, TAU);
+    c.moveTo(x - rx * ox + rx, y - ry * oy);
+    c.ellipse(x - rx * ox, y - ry * oy, rx, ry, 0, 0, TAU);
     c.fillStyle = shade(c);
     c.fill("evenodd");
     c.restore();
@@ -482,18 +487,31 @@
       rr(c, HX - 3.6, 51.5, 7.2, 7, 1);
       fill(c, T.paper, 1);
     }
-    // ears, then the head over them
+    // ears, then the head over them: big and round, nearly as wide as the shoulders
+    c.save();
+    headSpace(c);
     ell(c, HX - HR + 0.2, HY + 1.5, 2.5, 3.4);
     fill(c, T.paper, 1.3);
     ell(c, HX + HR - 0.2, HY + 1.5, 2.5, 3.4);
     fill(c, T.paper, 1.3);
     ell(c, HX, HY, HR, HR);
     fill(c, T.paper);
-    crescent(c, HX, HY, HR, HR);
+    crescent(c, HX, HY, HR, HR, 0.09);
     ell(c, HX, HY, HR, HR);
-    stroke(c, 1.7);
+    stroke(c, 1.6);
     drawHat(c, look);
+    c.restore();
   }
+
+  // The head and everything on it is drawn round (HX, HY) at HR, then scaled
+  // up by HS about its centre, which sits HDY lower
+  function headSpace(c) {
+    c.translate(HX, HY + HDY);
+    c.scale(HS, HS);
+    c.translate(-HX, -HY);
+  }
+  // Where a point on the head ends up, in desk units
+  function headPoint(x, y) { return { x: HX + (x - HX) * HS, y: HY + HDY + (y - HY) * HS }; }
 
   // An empty chair, for anyone out of the office
   function drawChair(c) {
@@ -630,6 +648,12 @@
   //   mood: idle, type, shout, smug, sulk, cheer, sad, flinch
   //   gx, gy: where they're looking, -1 to 1
   function drawFace(c, look, f) {
+    c.save();
+    headSpace(c);
+    drawFaceParts(c, look, f);
+    c.restore();
+  }
+  function drawFaceParts(c, look, f) {
     var mood = f.mood;
     var gx = f.gx || 0, gy = f.gy || 0;
     // eyes
@@ -767,6 +791,28 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Text. Notaste Display's space is narrow (0.2em), and at the small sizes a
+  // phone gets, words run together ("NOTSURE THIS"). So display text on the
+  // canvas is drawn a word at a time with a GAP between. size: the font size,
+  // in whatever units the canvas is drawing in. how: "fill" (the default), or
+  // "both" for an outline (strokeStyle) under the fill.
+  // ---------------------------------------------------------------------------
+  function textWidth(c, str, size) {
+    var w = 0;
+    String(str).split(" ").forEach(function (word, i) { w += c.measureText(word).width + (i ? size * GAP : 0); });
+    return w;
+  }
+  function text(c, str, x, y, size, how) {
+    var words = String(str).split(" ");
+    var align = c.textAlign, w = textWidth(c, str, size);
+    var at = align === "center" ? x - w / 2 : align === "right" || align === "end" ? x - w : x;
+    c.textAlign = "left";
+    if (how === "both") words.reduce(function (p, word) { c.strokeText(word, p, y); return p + c.measureText(word).width + size * GAP; }, at);
+    words.reduce(function (p, word) { c.fillText(word, p, y); return p + c.measureText(word).width + size * GAP; }, at);
+    c.textAlign = align;
+  }
+
+  // ---------------------------------------------------------------------------
   // Screen-pixel pieces: drawn with the canvas at CSS pixel scale
   // ---------------------------------------------------------------------------
 
@@ -852,14 +898,14 @@
   }
 
   // A small rubber stamp: paper, a red double border, red capitals
-  function stamp(c, x, y, text, size, tilt, alpha, grow) {
+  function stamp(c, x, y, label, size, tilt, alpha, grow) {
     c.save();
     c.globalAlpha *= alpha;
     c.translate(x, y);
     c.rotate(tilt);
     c.scale(grow, grow);
     c.font = size + "px " + T.display;
-    var w = c.measureText(text.toUpperCase()).width + size * 1.1, h = size * 1.55;
+    var w = textWidth(c, label.toUpperCase(), size) + size * 1.1, h = size * 1.55;
     c.fillStyle = T.paper;
     c.fillRect(-w / 2, -h / 2, w, h);
     c.lineWidth = Math.max(1.5, size * 0.13);
@@ -870,7 +916,7 @@
     c.fillStyle = T.red;
     c.textAlign = "center";
     c.textBaseline = "middle";
-    c.fillText(text.toUpperCase(), 0, size * 0.06);
+    text(c, label.toUpperCase(), 0, size * 0.06, size);
     c.restore();
   }
 
@@ -910,7 +956,7 @@
     c.textAlign = "center";
     c.textBaseline = "top";
     var lh = size * 1.02;
-    lines.forEach(function (l, i) { c.fillText(l, x + w / 2, y + (h - lines.length * lh) / 2 + i * lh + size * 0.06); });
+    lines.forEach(function (l, i) { text(c, l, x + w / 2, y + (h - lines.length * lh) / 2 + i * lh + size * 0.06, size); });
     c.restore();
   }
 
@@ -930,20 +976,21 @@
     c.closePath();
     fill(c, T.paper, 2);
     c.restore();
-    c.font = "10px " + T.display;
+    var fs = Math.max(10, 12 / s);
+    c.font = fs + "px " + T.display;
     c.textAlign = dir === "left" ? "left" : "center";
     c.textBaseline = "bottom";
     c.lineWidth = 3.4;
     c.strokeStyle = T.ink;
+    c.fillStyle = T.paper;
     var tx = dir === "left" ? 4 : 0, ty = dir === "left" ? -13 : -25;
-    if (dir === "left" && maxRight) {
+    if (maxRight) {
       // keep the word on the screen
-      var over = x + (tx + c.measureText(word.toUpperCase()).width) * s - maxRight;
+      var tw = textWidth(c, word.toUpperCase(), fs);
+      var over = x + (tx + (dir === "left" ? tw : tw / 2)) * s - maxRight;
       if (over > 0) tx -= over / s;
     }
-    c.strokeText(word.toUpperCase(), tx, ty);
-    c.fillStyle = T.paper;
-    c.fillText(word.toUpperCase(), tx, ty);
+    text(c, word.toUpperCase(), tx, ty, fs, "both");
     c.restore();
   }
 
@@ -983,15 +1030,15 @@
     c.textBaseline = "middle";
     c.textAlign = "left";
     var label = word.toUpperCase();
-    var lw = c.measureText(label).width, star = c.measureText(" * ").width;
+    var lw = c.measureText(label).width, star = c.measureText("*").width, gap = size * 0.45;
     var at = -w / 2 + size * 0.4;
     while (at < w / 2) {
       c.fillStyle = T.paper;
       c.fillText(label, at, size * 0.06);
-      at += lw;
+      at += lw + gap;
       c.fillStyle = T.ink;
-      c.fillText(" * ", at, size * 0.12);
-      at += star;
+      c.fillText("*", at, size * 0.12);
+      at += star + gap;
     }
     c.restore();
   }
@@ -1146,9 +1193,9 @@
     c.fillStyle = T.ink;
     c.textAlign = "left";
     c.textBaseline = "top";
-    c.fillText("DAYS SINCE", x + 7, y + 6);
-    c.fillText("THE LAST", x + 7, y + 6 + small * 1.05);
-    c.fillText("REPLY ALL", x + 7, y + 6 + small * 2.1);
+    text(c, "DAYS SINCE", x + 7, y + 6, small);
+    text(c, "THE LAST", x + 7, y + 6 + small * 1.05, small);
+    text(c, "REPLY ALL", x + 7, y + 6 + small * 2.1, small);
     var big = Math.min(h * 0.72, w * 0.36);
     c.font = big + "px " + T.display;
     c.textAlign = "right";
@@ -1165,10 +1212,10 @@
     c.arc(x, y, r, 0, TAU);
     c.fillStyle = T.ink;
     c.fill();
+    // recharging: the accent fills it from the bottom (solid, no see-through grey)
     c.save();
     c.clip();
     c.fillStyle = T.accent;
-    c.globalAlpha = 0.55;
     var fh = r * 2 * Math.max(0, Math.min(1, share));
     c.fillRect(x - r, y + r - fh, r * 2, fh);
     c.restore();
@@ -1176,23 +1223,26 @@
     c.arc(x, y, r, 0, TAU);
     c.lineWidth = ready ? 3 : 2;
     c.strokeStyle = ready ? T.accent : T.paper;
-    c.globalAlpha = ready ? 1 : 0.6;
     c.stroke();
-    c.globalAlpha = 1;
     if (pressed) {
       c.beginPath();
       c.arc(x, y, r - 1, 0, TAU);
       c.fillStyle = T.paper;
       c.fill();
     }
-    var size = Math.max(10, r * 0.42);
-    c.font = size + "px " + T.display;
+    var size = Math.max(12, r * 0.44), small = Math.max(12, size * 0.8);
     c.textAlign = "center";
     c.textBaseline = "middle";
+    c.lineJoin = "round";
+    c.lineWidth = 3;
+    c.strokeStyle = T.ink;
     c.fillStyle = pressed ? T.ink : T.paper;
-    c.fillText("MUTE", x, y - size * 0.32);
-    c.font = size * 0.72 + "px " + T.display;
-    c.fillText(key.toUpperCase(), x, y + size * 0.62);
+    c.font = size + "px " + T.display;
+    if (!pressed) c.strokeText("MUTE", x, y - size * 0.36);
+    c.fillText("MUTE", x, y - size * 0.36);
+    c.font = small + "px " + T.display;
+    if (!pressed) c.strokeText(key.toUpperCase(), x, y + size * 0.6);
+    c.fillText(key.toUpperCase(), x, y + size * 0.6);
     c.restore();
   }
 
@@ -1213,6 +1263,9 @@
     arms: drawArms,
     shade: shade,
     shadePx: shadePx,
+    text: text,
+    textWidth: textWidth,
+    headPoint: headPoint,
     envelope: envelope,
     motion: motion,
     hand: hand,

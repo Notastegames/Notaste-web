@@ -78,7 +78,8 @@
   var params = new URLSearchParams(window.location.search);
   var AUTOPILOT = N.flags.autopilot;      // ?autopilot or ?clip: the computer stops the replies
   var DEBUG = params.has("debug");
-  var FIRST = DEBUG ? Math.max(0, Math.min(3, (parseInt(params.get("stage"), 10) || 1) - 1)) : 0;
+  // ?debug&stage=3 (or ?clip&stage=4, for filming the finale) starts at that stage
+  var FIRST = DEBUG || N.flags.clip ? Math.max(0, Math.min(3, (parseInt(params.get("stage"), 10) || 1) - 1)) : 0;
   // ?debug&skill=0.6: a slower autopilot, for tuning the difficulty
   var SKILL = DEBUG && params.has("skill") ? Math.max(0.3, Math.min(2, parseFloat(params.get("skill")) || 1)) : N.flags.clip ? 0.85 : 1;
 
@@ -95,7 +96,10 @@
   var MULT_MAX = 4;
   var CLOSE = 0.85;                  // a close call: stopped with the bar this full
   var APPROVED_OUT = 3;              // replies that may get out in a day and still be Approved
-  var BOSS_SPREAD = 4;
+  var BOSS_SPREAD = [3, 4];          // desks each of the assistant's emails sets off, start to end of the stage
+  var BOSS_FIRST = 8;                // seconds before the assistant's first email
+  var BOSS_GAP = [8, 5.5];           // and between the rest
+  var POKES = 3, POKE_TIME = 1, SLAP = 1;   // poke this many people who aren't typing in this long, and your hand is slapped away for this long
   var LAST = 3;
 
   // spawn: seconds between new repliers, start to end of the stage. dur: how
@@ -106,16 +110,16 @@
       bursts: [[12, 2], [21, 3]],
       quick: 0, stubborn: 0, ooo: 0, boss: false,
       clear: "Your team has gone quiet. They've booked a meeting to discuss the email." },
-    { name: "The department", desks: 12, time: 32, spawn: [1.2, 0.85], dur: [3.4, 2.9], busy: 5,
-      bursts: [[9, 3], [19, 3], [27, 4]],
+    { name: "The department", desks: 12, time: 32, spawn: [1.1, 0.75], dur: [3.3, 2.8], busy: 6,
+      bursts: [[9, 3], [18, 4], [27, 4]],
       quick: 3, stubborn: 0, ooo: 0, boss: false, mute: true,
       clear: "The department has gone to lunch. They're discussing the thread in the queue." },
-    { name: "The whole company", desks: 16, time: 36, spawn: [1.4, 1.0], dur: [3.4, 2.9], busy: 6,
-      bursts: [[9, 3], [20, 3], [30, 3]],
+    { name: "The whole company", desks: 16, time: 36, spawn: [1.2, 0.85], dur: [3.3, 2.8], busy: 7,
+      bursts: [[9, 3], [20, 4], [30, 4]],
       quick: 3, stubborn: 3, ooo: 2, boss: false, mute: true,
-      clear: "Everyone has had their say. IT have sent an email asking people to stop. To everyone." },
+      clear: "Everyone has had their say. Someone has printed the thread." },
     { name: "The CEO's assistant", desks: 16, time: 40, spawn: [1.2, 0.85], dur: [3.2, 2.7], busy: 7,
-      bursts: [[13, 4], [28, 4]],
+      bursts: [[14, 4], [29, 4]],
       quick: 3, stubborn: 3, ooo: 2, boss: true, mute: true }
   ];
 
@@ -126,16 +130,19 @@
              "Is this about the fridge", "Did anyone else get this", "Can IT block this", "Please advise",
              "Wrong button. Sorry", "Who is Dave", "Is this the fire drill", "Let's take this offline",
              "Adding my manager", "Stop replying all, you lemon", "Reply all is not a personality",
-             "Off this list please", "Remove me as well", "Stop it, you melon"],
-    quick: ["+1", "Same", "Me too", "This", "Thanks", "Following", "Noted", "Agreed", "Sent from my phone", "Seconded", "+1 +1"],
+             "Who approved this list", "This could have been a meeting", "Stop it, you melon"],
+    quick: ["+1", "Same", "Me too", "Same as above", "Thanks", "Following", "Noted", "Agreed", "Sent from my phone", "Seconded", "Ditto"],
     stubborn: ["Per my last email", "As I said", "To reiterate", "Circling back", "Just to be clear", "Please see below",
                "Further to my email", "As previously stated", "See attached. All of it"],
     boss: ["Please stop replying all", "Sent on behalf of the CEO", "The CEO is aware", "Please do not reply to this email",
-           "The CEO has asked everyone to stop"],
+           "The CEO has asked everyone to stop", "Please reply to confirm you have stopped replying"],
     ooo: ["I am out of the office", "Back Monday", "On annual leave", "Limited access to email", "Out until further notice"]
   };
+  var BOSS_JOKE = "Please reply to confirm you have stopped replying";   // always the assistant's second email
   var GRUMBLES = ["Fine.", "I was only saying.", "It was important.", "I'll say it in the meeting.", "Rude.", "Noted.",
                   "Who did that.", "I had a point.", "Saving it for Friday.", "I'll print it out then.", "Pillock."];
+  var BIRTHDAY = "It's my birthday.";      // the one in the party hat. Nobody noticed, because of the email.
+  var SERVER_LAST = ["I quit.", "I'm going home.", "Not today."];
   var MUTED = ["Muted. By a numpty.", "Who muted me.", "I've been muted.", "Rude.", "I'll write a letter."];
   var FLINCH = ["Still typing.", "As I was saying.", "I'm not done.", "Further to that."];
   var SNIPES = ["Reply all, you melon.", "Who replied all. Numpty.", "Oh, here we go.", "Plonker."];
@@ -147,15 +154,15 @@
 
   // Between stages: IT's suggestions. Each one helps and each one costs.
   var OFFERS = [
-    { id: "reboot", label: "Turn it off and on again", detail: "The server starts the next stage empty. So does Mute thread.",
+    { id: "reboot", label: "Turn it off and on again", detail: "The server starts the next stage empty. So does Mute thread.", mute: true,
       apply: function (m) { run.load = 0; m.muteEmpty = true; } },
     { id: "bigger", label: "Bigger server", detail: "Holds half as much again. Everyone types a bit faster to fill it.",
-      apply: function (m) { m.cap *= 1.5; m.typeSpeed *= 1.12; } },
-    { id: "training", label: "Email etiquette training", detail: "Everyone takes a third longer to type. Each one you stop scores a third less.",
-      apply: function (m) { m.typeSpeed *= 0.75; m.points *= 0.67; } },
+      apply: function (m) { m.cap *= 1.5; m.typeSpeed *= 1.04; } },
+    { id: "training", label: "Email etiquette training", detail: "Everyone types a bit slower. Each one you stop scores a third less.",
+      apply: function (m) { m.typeSpeed *= 0.85; m.points *= 0.67; } },
     { id: "button", label: "Hide the reply all button", detail: "A reply that gets out sets off one more, not two. More people start replying on their own.",
-      apply: function (m) { m.spread = 1; m.spawn *= 1.25; } },
-    { id: "rules", label: "Inbox rules", detail: "Mute thread recharges twice as fast. The server holds a bit less.",
+      apply: function (m) { m.spread = 1; m.spawn *= 1.1; } },
+    { id: "rules", label: "Inbox rules", detail: "Mute thread recharges twice as fast. The server holds a bit less.", mute: true,
       apply: function (m) { m.muteCd *= 0.5; m.cap *= 0.85; } },
     { id: "intern", label: "Hire an intern", detail: "Stops someone every few seconds. Replies all now and then.",
       apply: function (m) { m.intern = true; } }
@@ -190,6 +197,30 @@
   var hum = null;
   var calloutAt = -10, calloutPri = 0;
   var layoutAge = 99;
+  var bubbleHits = [];   // where the speech bubbles were drawn last frame, so a click on one stops its speaker
+
+  // The keyboard: one key per desk, laid out like the office (the back row is
+  // 1 2 3 4, then Q W E R, A S D F and Z X C V), so a stop is one press
+  var KEY_ROWS = [["Digit1", "Digit2", "Digit3", "Digit4"], ["KeyQ", "KeyW", "KeyE", "KeyR"],
+                  ["KeyA", "KeyS", "KeyD", "KeyF"], ["KeyZ", "KeyX", "KeyC", "KeyV"]];
+  var keyNames = {};     // what's printed on each key, on this keyboard
+  KEY_ROWS.forEach(function (row) { row.forEach(function (code) { keyNames[code] = code.replace(/^(Digit|Key)/, ""); }); });
+  try {
+    if (navigator.keyboard && navigator.keyboard.getLayoutMap) {
+      navigator.keyboard.getLayoutMap().then(function (map) {
+        Object.keys(keyNames).forEach(function (code) {
+          var k = map.get(code);
+          if (k && /^[a-z0-9]$/i.test(k)) keyNames[code] = k.toUpperCase();
+        });
+      }, function () {});
+    }
+  } catch (e) { /* the QWERTY names will do */ }
+  function blockKeys() {
+    var out = {};
+    KEY_ROWS.forEach(function (row, r) { row.forEach(function (code, c) { out["k" + (r * 4 + c)] = [code]; }); });
+    return out;
+  }
+  function keyName(d) { var row = KEY_ROWS[d.row]; return row && row[d.col] ? keyNames[row[d.col]] : ""; }
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function lerp(a, b, f) { return a + (b - a) * clamp(f, 0, 1); }
@@ -198,6 +229,7 @@
   function info() { return STAGES[run.stage]; }
   function stoppable(d) { return d.kind === "normal" || d.kind === "quick" || d.kind === "stubborn"; }
   function touching() { return root.classList.contains("kit-touching"); }
+  function padsOn() { return touching() && !N.flags.clip; }      // the kit's touch buttons are showing (never in the clip frame)
   function mult() { return Math.min(MULT_MAX, 1 + Math.floor(run.streak / STREAK_STEP)); }
   function cap() { return CAP * run.mods.cap; }
 
@@ -244,11 +276,12 @@
       desks: [], flights: [], fx: [], stamps: [], bubbles: [], tapes: [], pops: [], pendingOoo: [],
       time: 0, spawnWait: 0.9, phase: "play", endT: 0,
       muteWait: st.mute ? (run.mods.muteEmpty ? MUTE_CD * run.mods.muteCd : MUTE_CD * run.mods.muteCd * 0.3) : Infinity,
-      bossWait: 4.5, boss: null,
+      bossWait: BOSS_FIRST, boss: null, bossSent: 0,
       internWait: 3, internOops: 14, intern: null,
       stageOut: 0, stageStopped: 0, recentOut: [], keyAcc: 0,
       briefed: false, hint: null, groaned: 0, lastLand: -10,
-      bursts: st.bursts.slice(), forwards: 0
+      bursts: st.bursts.slice(), forwards: 0,
+      pokes: [], slapped: 0, lights: 0
     };
     run.mods.muteEmpty = false;
     // who's at which desk this stage, and what sort of replier they are: from
@@ -306,13 +339,31 @@
     return bottom ? bottom + 4 : clamp(H * 0.13, 44, 72);
   }
 
+  // How much of the bottom the touch button takes, so the strip can hold it
+  // clear of the desks. It's the smallest a touch button may be (3.5rem,
+  // 56px) and sits low in the corner, so the office keeps its room.
+  var PAD_REM = 3.5, PAD_GAP = 0.4;
+  function fitPad() {
+    var pad = root.querySelector('.kit-pad[data-key="mute"]'), side = pad && pad.parentNode, bar = side && side.parentNode;
+    if (!pad || pad.style.width) return;
+    pad.style.width = pad.style.height = PAD_REM + "rem";
+    if (bar) { bar.style.paddingBottom = PAD_GAP + "rem"; bar.style.paddingRight = PAD_GAP + 0.2 + "rem"; }
+  }
+  function padRoom() {
+    var rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    return Math.round(rem * (PAD_REM + PAD_GAP) + 6);
+  }
+
   function layout(force) {
     if (!G || !run) return;
     var top = hudTop();
-    if (!force && Math.abs(top - L.top) < 3 && L.W === W && L.H === H) return;
-    L.top = top; L.W = W; L.H = H;
+    var touch = padsOn();
+    fitPad();
+    if (!force && Math.abs(top - L.top) < 3 && L.W === W && L.H === H && L.touch === touch) return;
+    L.top = top; L.W = W; L.H = H; L.touch = touch;
     var n = G.desks.length;
     var strip = Math.round(clamp(H * 0.17, 62, 104));
+    if (touch) strip = Math.round(Math.max(strip, padRoom()));     // the Mute button sits in the strip, not on a desk
     var gridH = H - strip - top - 2;
     var opts = n === 9 ? [[3, 3]] : n === 12 ? [[4, 3], [3, 4]] : [[4, 4]];
     var best = null;
@@ -323,23 +374,44 @@
     L.k = Math.min(best.k, 2.4);
     L.cols = best.cols; L.rows = best.rows;
     // spare room goes into the aisles, a little, rather than round the edges
+    // (and on a tall screen, the rest above and below the office)
     var k = L.k;
     var spareX = (W - 12) - L.cols * PX * k, spareY = gridH - ((L.rows - 1) * PY + CH) * k;
     L.px = PX * k + (L.cols > 1 ? clamp(spareX / (L.cols - 1), 0, PX * k * 0.22) : 0);
-    L.py = PY * k + (L.rows > 1 ? clamp(spareY / (L.rows - 1), 0, PY * k * 0.5) : 0);
+    L.py = PY * k + (L.rows > 1 ? clamp(spareY / (L.rows - 1), 0, PY * k * 0.22) : 0);
     L.ox = (W - ((L.cols - 1) * L.px + PX * k)) / 2;
     L.oy = top + (gridH - ((L.rows - 1) * L.py + CH * k)) / 2;
     G.desks.forEach(function (d, i) { d.col = i % L.cols; d.row = Math.floor(i / L.cols); });
-    // the strip
+    // the strip: the server on the left, Mute thread (or the touch button) on
+    // the right, and the sign and the intern's spot in between
     var sh = strip - 12;
     L.strip = strip;
     L.server = { x: 10, y: H - strip + 6, w: Math.round(Math.min(W * 0.44, sh * 2.9, 250)), h: sh };
     L.mute = { x: W - 14 - Math.min(30, strip * 0.4), y: H - strip / 2 - 2, r: Math.min(30, strip * 0.4) };
-    var signX = L.server.x + L.server.w + 14, signR = W - 2 * L.mute.r - 30;
-    var sw = Math.min(150, signR - signX);
-    L.sign = sw >= 92 ? { x: signX + Math.max(0, (signR - signX - sw) / 2), y: H - strip + 8, w: sw, h: strip - 16 } : null;
+    var zoneL = L.server.x + L.server.w + 12;
+    var zoneR = (touch ? padLeft() : L.mute.x - L.mute.r) - 12;
+    var internW = run.mods.intern ? clamp(k * 28, 26, 46) * 0.62 + 46 : 0;
+    L.internHome = { x: run.mods.intern ? zoneR - 6 : (zoneL + zoneR) / 2, y: H - strip * 0.32 };
+    var room = zoneR - internW - zoneL;
+    var sw = Math.min(150, room);
+    L.sign = sw >= 74 ? { x: zoneL + Math.max(0, (room - sw) / 2), y: H - strip + 8, w: sw, h: strip - 16 } : null;
+    // callouts never land on the office, where a forward has just set off the
+    // top row: on the strip, between the server and Mute thread, or where
+    // that's too narrow (a phone), up in the HUD's row
+    var cl = root.querySelector(".kit-callouts");
+    if (cl) {
+      var wide = zoneR - zoneL >= 190;
+      cl.style.top = wide ? "auto" : "2px";
+      cl.style.bottom = wide ? Math.max(4, Math.round(strip / 2 - 17)) + "px" : "auto";
+      cl.style.left = (wide ? zoneL : 6) + "px";
+      cl.style.right = (wide ? W - zoneR : 6) + "px";
+    }
     A.init(T, L.k * DPR);
     bg = null;
+  }
+  function padLeft() {
+    var rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    return W - rem * (PAD_REM + PAD_GAP + 0.2);
   }
 
   function origin(d) { return { x: L.ox + d.col * L.px, y: L.oy + d.row * L.py }; }
@@ -347,7 +419,13 @@
   function handSpot(d) { return at(d, 57, 30); }
   function serverMouth() { return A.serverFace(L.server.x, L.server.y, L.server.w, L.server.h).mouth; }
 
+  // The desk under a click or a tap. A speech bubble counts as its speaker,
+  // because people click the words.
   function deskAt(px, py) {
+    for (var i = bubbleHits.length - 1; i >= 0; i--) {
+      var h = bubbleHits[i], b = h.box;
+      if (h.desk.state === "typing" && px >= b.x - 3 && px <= b.x + b.w + 3 && py >= b.y - 3 && py <= b.y + b.h + 3) return h.desk;
+    }
     var best = null, bd = 1e9;
     G.desks.forEach(function (d) {
       var c = at(d, 46, 33);
@@ -364,7 +442,7 @@
 
   // Desks the notice card is sitting on: nobody starts typing under it
   var briefBox = null, briefAge = 99;
-  function underBrief(d) {
+  function briefOn() {
     if (briefAge > 0.5) {
       briefAge = 0;
       briefBox = null;
@@ -374,7 +452,10 @@
         briefBox = { l: r.left - base.left, t: r.top - base.top, r: r.right - base.left, b: r.bottom - base.top };
       }
     }
-    if (!briefBox) return false;
+    return !!briefBox;
+  }
+  function underBrief(d) {
+    if (!briefOn()) return false;
     var a = at(d, 10, 0), b = at(d, 90, 64);
     return a.x < briefBox.r && b.x > briefBox.l && a.y < briefBox.b && b.y > briefBox.t;
   }
@@ -446,6 +527,7 @@
   function hit(d, how) {
     if (!d || G.phase !== "play") return;
     hand.press = 1;
+    if (G.slapped > 0) { sfx.nope(); return; }      // hands off, for a moment
     if (d.kind === "ooo") {
       d.flash = 0.5;
       sfx.nope();
@@ -459,9 +541,19 @@
       return;
     }
     if (d.state !== "typing") {
-      // nothing to stop: a glare, and no harm done
+      // nothing to stop: a glare, and no harm done. Poke a few people in a row
+      // who aren't typing, though (mashing the keys), and they slap your hand away.
       sfx.tap();
       if (d.state === "idle") { d.gaze = { x: 0, y: 0.1, t: 0.9 }; if (Math.random() < 0.15) say1(d, pick(GLARES)); }
+      G.pokes = G.pokes.filter(function (t) { return G.time - t < POKE_TIME; });
+      G.pokes.push(G.time);
+      if (G.pokes.length >= POKES) {
+        G.pokes = [];
+        G.slapped = SLAP;
+        d.gaze = { x: 0, y: 0.1, t: SLAP };
+        addStamp(d, "Hands off", SLAP);
+        sfx.nope();
+      }
       return;
     }
     if (d.hits > 1) {
@@ -501,6 +593,7 @@
     dropBubble(d);
     if (how === "mute") { if (Math.random() < 0.25) say1(d, pick(MUTED)); }
     else if (how === "intern") { if (Math.random() < 0.3) say1(d, "Who are you."); }
+    else if (d.look.id === "party" && !G.birthday && Math.random() < 0.6) { G.birthday = true; say1(d, BIRTHDAY); }
     else if (Math.random() < 0.3) say1(d, pick(GRUMBLES));
     sfx.stop(close);
     if (how !== "intern" && mult() > m0) {
@@ -517,11 +610,16 @@
     d.t = 0;
     d.gaze = { x: 0, y: 0.1, t: 1 };
     dropBubble(d);
-    launch({ from: d, to: "server", load: LOAD[d.kind], spread: d.kind === "boss" ? BOSS_SPREAD : run.mods.spread,
+    var bossSpread = Math.round(lerp(BOSS_SPREAD[0], BOSS_SPREAD[1], G.time / info().time));
+    launch({ from: d, to: "server", load: LOAD[d.kind], spread: d.kind === "boss" ? bossSpread : run.mods.spread,
              kind: d.kind, dur: 0.6 });
     sfx.send();
     if (d.kind === "boss") {
+      // high importance: a fan of red envelopes, and the whole office turns to look
       sfx.boss();
+      say("High importance", 2);
+      for (var k = 0; k < 4; k++) launch({ from: d, to: "server", kind: "boss", dur: 0.5 + k * 0.07, deco: true, lift: 0.35 + k * 0.45 });
+      lookAt(d, 1.8);
       run.learned.boss = true;
       return;
     }
@@ -541,10 +639,21 @@
     }
   }
 
-  // Envelopes in the air: desk to server, server to desk
+  // Envelopes in the air: desk to server, server to desk. deco: just for show
+  // (the assistant's fan). lift: how high the arc goes, 1 as usual.
   function launch(o) {
     G.flights.push({ from: o.from, to: o.to, t: 0, dur: o.dur || 0.55, load: o.load || 0, spread: o.spread || 0,
-                     kind: o.kind || "", rot: (Math.random() - 0.5) * 0.6, intern: o.intern || null });
+                     kind: o.kind || "", rot: (Math.random() - 0.5) * 0.6, intern: o.intern || null,
+                     deco: !!o.deco, lift: o.lift || 1 });
+  }
+  // Everyone who isn't busy turns to look at d
+  function lookAt(d, t) {
+    var b = at(d, 40, 30);
+    G.desks.forEach(function (o) {
+      if (o === d || o.state !== "idle" || o.kind === "ooo") return;
+      var a = at(o, 40, 30), len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      o.gaze = { x: (b.x - a.x) / len, y: (b.y - a.y) / len, t: t };
+    });
   }
   function endpoint(p, f) {
     if (p === "server") return serverMouth();
@@ -555,6 +664,7 @@
 
   function land(f) {
     if (G.phase !== "play") return;
+    if (f.deco) { G.gulp = 0.35; return; }
     run.load += f.load;
     G.lastLand = G.time;
     G.gulp = 0.35;
@@ -564,22 +674,17 @@
     if (share >= 0.7 && G.groaned < 2) { G.groaned = 2; say("Server: groaning", 2); sfx.groan(); }
     else if (share >= 0.5 && G.groaned < 1) { G.groaned = 1; sfx.groan(); }
     if (!f.spread) return;
-    // it lands in everyone's inbox
+    // it lands in everyone's inbox, and they look at whoever sent it
     var sender = f.from && f.from.i != null ? f.from : null;
-    G.desks.forEach(function (d) {
-      if (d !== sender && d.kind !== "ooo") d.mail = 1;
-      if (d !== sender && d.state === "idle" && sender) {
-        var a = at(d, 40, 30), b = at(sender, 40, 30), len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-        d.gaze = { x: (b.x - a.x) / len, y: (b.y - a.y) / len, t: 1.2 };
-      }
-    });
+    G.desks.forEach(function (d) { if (d !== sender && d.kind !== "ooo") d.mail = 1; });
+    if (sender) lookAt(sender, f.kind === "boss" ? 1.8 : 1.2);
     sfx.mail();
     // and sets off more
     for (var s = 0; s < f.spread; s++) {
       var d = pickIdle();
       if (!d) break;
       d.incoming = true;
-      launch({ from: "server", to: d, dur: 0.42 + s * 0.08, kind: "down" });
+      launch({ from: "server", to: d, dur: 0.42 + s * 0.08, kind: f.kind === "boss" ? "boss" : "down" });
     }
     // the out of office answers everything
     if (f.kind !== "ooo") {
@@ -632,9 +737,11 @@
         b.t = 0;
         b.stateT = 0;
         b.dur = 2.6;
-        b.line = pick(LINES.boss);
+        G.bossSent++;
+        b.line = G.bossSent === 2 ? BOSS_JOKE : pick(LINES.boss.filter(function (l) { return l !== BOSS_JOKE || G.bossSent > 2; }));
         say1(b, b.line, true);
-        G.bossWait = lerp(8, 5.5, G.time / info().time);
+        lookAt(b, 1.4);      // the office turns round
+        G.bossWait = lerp(BOSS_GAP[0], BOSS_GAP[1], G.time / info().time);
       }
     }
   }
@@ -644,9 +751,8 @@
     var it = G.intern;
     if (!it || G.phase !== "play") return;
     // waiting in the strip, clear of the server and the sign, until needed
-    var home = { x: L.sign ? Math.min(L.sign.x + L.sign.w + 34, L.mute.x - L.mute.r - 30) : (L.server.x + L.server.w + W * 0.72) / 2,
-                 y: H - L.strip * 0.32 };
-    var aim = it.target ? at(it.target, 24, 30) : home;    // the left of their head; yours goes on the right
+    var home = L.internHome;
+    var aim = it.target ? at(it.target, 20, 30) : home;    // the left of their head; yours goes on the right
     it.x += (aim.x - it.x) * Math.min(1, dt * 7);
     it.y += (aim.y - it.y) * Math.min(1, dt * 7);
     if (it.target) {
@@ -671,10 +777,12 @@
       return;
     }
     if (G.internWait <= 0) {
+      // the next most urgent: the most urgent is yours, and two hands on one desk helps nobody
       G.internWait = 4.2;
       var typing = G.desks.filter(function (d) { return stoppable(d) && d.state === "typing"; });
       typing.sort(function (a, b) { return b.t - a.t; });
-      if (typing[0]) { it.target = typing[0]; it.t = 0; }
+      var pickT = typing[1] || typing[0];
+      if (pickT) { it.target = pickT; it.t = 0; }
     }
   }
 
@@ -730,10 +838,11 @@
     });
   }
 
-  // Three of IT's suggestions you haven't taken, from the run's seed
+  // Three of IT's suggestions you haven't taken, from the run's seed. Nothing
+  // about Mute thread before anyone has seen it (it arrives in stage 2).
   function offer() {
     var rnd = N.seeded(shell.seed + 7000 + 1000 * run.stage);
-    var pool = OFFERS.filter(function (o) { return run.taken.indexOf(o.id) < 0; });
+    var pool = OFFERS.filter(function (o) { return run.taken.indexOf(o.id) < 0 && !(run.stage === 0 && o.mute); });
     var out = [];
     while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
     return out;
@@ -761,7 +870,9 @@
     shake(1);
     say("Server: melted", 3);
     sfx.melt();
-    // the office has never been happier
+    // the lights go, the server has its say, and the office has never been happier
+    G.lights = 1;
+    G.serverSays = { text: pick(SERVER_LAST), t: 0 };
     var folk = shuffle(G.desks.filter(function (d) { return d.kind !== "ooo"; }), Math.random);
     var lines = shuffle(CHEERS.slice(), Math.random);
     folk.slice(0, 2).forEach(function (d, n) { G.bubbles.push(bub(d, lines[n], 3)); });
@@ -775,23 +886,24 @@
     var stamp = ["Approved", "Pending review", "Not approved", "Rejected"][rank - 1];
     var score = Math.round(run.score);
     var rec = shell.record(score);
-    // short, so it all fits a phone's square screen
+    var outText = run.out === 1 ? "1 reply got out" : run.out + " replies got out";
+    // four at most, so they sit on one row on a phone (when it melted is in the heading)
     var stats = [
       { label: "Score", value: fmt(score) },
-      home ? { label: "Stopped", value: String(run.stopped) } : { label: "Melted", value: run.meltAt },
       { label: "Got out", value: String(run.out) },
-      { label: rec.isNew ? (shell.daily ? "New best today" : "New best") : (shell.daily ? "Best today" : "Best"),
+      { label: rec.isNew ? (shell.daily ? "New best today" : "New best") : (shell.daily ? "Today's best" : "Best"),
         value: fmt(rec.best || 0), highlight: rec.isNew }
     ];
     if (shell.daily) stats.unshift({ label: "Run", value: shell.today });
+    else stats.splice(1, 0, { label: "Stopped", value: String(run.stopped) });
     shell.finish({
       place: rank,
       total: 4,
       stamp: stamp,
-      heading: home ? "Home at 17:00." : "Server melted.",
+      heading: home ? "Home at 17:00." : "Server melted at " + run.meltAt + ".",
       line: RESULT_LINES[rank - 1],
       stats: stats,
-      share: fmt(score) + " points, " + (home ? "home by 17:00" : "server melted at " + run.meltAt),
+      share: fmt(score) + " points, " + (home ? "home by 17:00" : "server melted at " + run.meltAt) + ", " + outText,
       delay: home ? 2200 : 2600
     });
   }
@@ -807,6 +919,7 @@
       G.time += dt;
       controls(input, dt);
       if (AUTOPILOT) autopilot(dt);
+      if (DEBUG && window.__replyAll && window.__replyAll.onTick) window.__replyAll.onTick(dt);   // test players
       spawnTick(dt);
       if (G.bursts.length && G.time >= G.bursts[0][0]) burst(G.bursts.shift()[1]);
       bossTick(dt);
@@ -908,6 +1021,9 @@
     if (G.gulp > 0) G.gulp -= dt;
     if (hand.show > 0) hand.show -= dt;
     if (G.intern && G.intern.oops > 0) G.intern.oops -= dt;
+    if (G.slapped > 0) G.slapped -= dt;
+    if (G.lights > 0) G.lights = Math.max(0, G.lights - dt / 1.1);
+    if (G.serverSays) G.serverSays.t += dt;
   }
 
   function addStamp(d, text, life) {
@@ -965,11 +1081,22 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Controls: arrows or WASD move the cursor a desk at a time, Space stops
-  // that desk, E or Shift mutes a thread. Clicks and taps go straight to the
-  // desk under them (see the pointer listeners at the bottom).
+  // Controls: each desk has its own key (KEY_ROWS), and pressing it stops
+  // whoever sits there. The arrows move a cursor instead, jumping to whoever
+  // is typing, and Enter stops them. Space mutes a thread. Clicks and taps go
+  // straight to the desk under them (see the pointer listeners at the bottom).
   // ---------------------------------------------------------------------------
   function controls(input, dt) {
+    for (var kb = 0; kb < 16; kb++) {
+      var name = "k" + kb;
+      if (input[name] && !prev[name] && !AUTOPILOT) {
+        var at0 = deskAtCell(kb % 4, Math.floor(kb / 4));
+        pointerMode = "keys";
+        if (at0) { cursor = at0.i; hit(at0, "key"); }
+        else sfx.nope();
+      }
+      prev[name] = input[name];
+    }
     var sy = input.stick ? input.stick.y : 0;
     var dirs = [["left", -1, 0, input.left], ["right", 1, 0, input.right],
                 ["up", 0, -1, input.up || sy < -0.55], ["down", 0, 1, input.down || sy > 0.55]];
@@ -1050,7 +1177,7 @@
     if ((run.learned.stops || 0) < 2) {
       var first = typing.filter(stoppable).sort(function (a, b) { return b.t - a.t; })[0];
       if (first) {
-        var word = touching() ? "Tap" : pointerMode === "keys" && !AUTOPILOT && run.learned.keys ? "Space" : "Click";
+        var word = touching() ? "Tap" : capsOn() && run.learned.keys ? "Press " + keyName(first) : "Click";
         G.hint = { desk: first, word: word };
         return;
       }
@@ -1063,8 +1190,9 @@
       var r = muteRow();
       var inRow = typing.filter(function (d) { return d.row === r && stoppable(d); }).length;
       if (inRow >= 2) {
-        if (touching()) G.hint = { pad: true, word: "Mute" };
-        else G.hint = { mute: true, word: "Press E" };
+        // (not while the notice card is up: on a phone it sits over the button)
+        if (touching()) { if (!briefOn()) G.hint = { pad: true, word: "Mute" }; }
+        else G.hint = { mute: true, word: "Press Space" };
         return;
       }
     }
@@ -1075,11 +1203,12 @@
     var st = info(), touch = touching();
     var text;
     if (run.stage === 0) {
-      text = "Someone has replied all. Anyone with a bar over their head is writing back: " +
-        (touch ? "tap them" : "click them, or use the arrow keys and Space,") + " before it fills. Every reply that gets out sets off two more.";
+      text = "Anyone with a bar over their head is replying too. " +
+        (touch ? "Tap them before it fills." : "Click them before it fills, or press the key on their desk.") +
+        " Every reply that gets out sets off two more.";
     } else if (run.stage === 1) {
       text = "The +1 crowd reply from their phones, twice as fast. New: Mute thread " +
-        (touch ? "(the Mute button)" : "(E or Shift)") + " stops the row in red brackets, then recharges.";
+        (touch ? "(the Mute button)" : "(Space)") + " stops the row in red brackets, then recharges.";
     } else if (run.stage === 2) {
       text = "A red flag means a long email: stop it twice. Out of office desks can't be stopped, and auto-reply to every reply that gets out.";
     } else {
@@ -1096,20 +1225,22 @@
     shell.hud.innerHTML =
       '<div class="kit-hud-tl">' +
         '<p class="kit-stat"><small>Stage</small><span data-stage>1/4</span></p>' +
-        '<p class="kit-mono" data-clock>09:00 / 11:00</p>' +
+        // on a phone, just the time: the stage's end would run into the pause button
+        '<p class="kit-mono"><span data-clock>09:00</span><span data-minor data-ends> / 11:00</span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big"><span data-score>0</span><small data-mult></small></p>' +
       '</div>';
     hudEls = {};
-    ["stage", "clock", "score", "mult"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
+    ["stage", "clock", "ends", "score", "mult"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
   }
   function setText(node, text) { if (node && node.textContent !== text) node.textContent = text; }
   function paintHud() {
     if (!hudEls || !run) return;
     setText(hudEls.stage, (run.stage + 1) + "/4");
     var endH = 11 + run.stage * 2;
-    setText(hudEls.clock, clockText() + " / " + endH + ":00");
+    setText(hudEls.clock, clockText());
+    setText(hudEls.ends, " / " + endH + ":00");
     setText(hudEls.score, fmt(run.score));
     setText(hudEls.mult, mult() > 1 ? "x" + mult() : "");
     if (shell.padFill && info().mute) shell.padFill("mute", 1 - G.muteWait / (MUTE_CD * run.mods.muteCd));
@@ -1128,7 +1259,9 @@
     bg = null;
   }
 
-  // The floor and the back wall, cached
+  // The floor and the back wall, cached. No see-through greys (DESIGN.md,
+  // section 7): the carpet is sparse paper dots, and the lines are the ash
+  // used for rules on black.
   function buildBg() {
     var cv = document.createElement("canvas");
     cv.width = Math.round(W * DPR);
@@ -1137,35 +1270,23 @@
     c.scale(DPR, DPR);
     c.fillStyle = T.ink;
     c.fillRect(0, 0, W, H);
-    // carpet tiles: a faint halftone, every other tile
-    var tile = Math.max(26, L.k * 40);
-    c.save();
+    // carpet tiles: a sparse halftone, every other tile
+    var tile = Math.max(26, L.k * 40), dot = 1 / DPR;
     c.fillStyle = T.paper;
     for (var ty = L.top; ty < H; ty += tile) {
       for (var tx = 0; tx < W; tx += tile) {
         if (((tx / tile) + (ty / tile)) % 2 < 1) continue;
-        for (var dy = 3; dy < tile; dy += 7) {
-          for (var dx = 3 + (dy % 14 ? 3.5 : 0); dx < tile; dx += 7) {
-            c.globalAlpha = 0.14;
-            c.fillRect(tx + dx, ty + dy, 1, 1);
-          }
+        for (var dy = 3; dy < tile; dy += 9) {
+          for (var dx = 3 + (dy % 18 ? 4.5 : 0); dx < tile; dx += 9) c.fillRect(tx + dx, ty + dy, dot, dot);
         }
       }
     }
-    c.restore();
     // the back wall
     var wallH = Math.max(0, L.oy - 6);
-    if (wallH > 10) {
-      c.fillStyle = T.paper;
-      c.globalAlpha = 0.3;
-      c.fillRect(0, wallH, W, 1.5);
-      c.globalAlpha = 1;
-    }
+    c.fillStyle = T.ash;
+    if (wallH > 10) c.fillRect(0, wallH, W, 1.5);
     // the strip's edge
-    c.fillStyle = T.paper;
-    c.globalAlpha = 0.25;
-    c.fillRect(0, H - L.strip, W, 1);
-    c.globalAlpha = 1;
+    c.fillRect(0, H - L.strip, W, 1.5);
     return cv;
   }
 
@@ -1173,8 +1294,10 @@
     if (!ctx || !G || !run) return;
     var st = shell.state();
     if (!hudEls) { buildHud(); paintHud(); }
-    // the HUD settles during the countdown; after that it only changes on a resize
+    // the HUD settles during the countdown; after that it only changes on a
+    // resize, or when someone picks up a laptop's touch screen
     if (st === "countdown" && ++layoutAge > 10) { layoutAge = 0; layout(false); }
+    else if (L.touch !== padsOn()) layout(true);
     if (st !== "playing" && root.style.cursor) root.style.cursor = "";
     if (!G.briefed && (st === "countdown" || st === "playing")) { G.briefed = true; notice(); }
     if (!bg) bg = buildBg();
@@ -1206,12 +1329,43 @@
     // the cursor
     if (G.phase === "play" && (st === "playing" || st === "countdown")) drawCursor(c);
     if (G.intern) drawIntern(c);
+    drawLights(c);
     var arrowBox = drawHint(c, true);
     drawBubbles(c, arrowBox);
+    drawServerSays(c);
     drawHint(c, false);
     drawPops(c);
     if ((st === "playing" || st === "countdown") && G.phase === "play") drawHand(c);
     tickHum();
+  }
+
+  // When the server melts the lights go: they flicker twice and come back
+  // (with reduced motion they just dip once)
+  function drawLights(c) {
+    if (!(G.lights > 0)) return;
+    var k = 1 - G.lights, a;
+    if (shell.reduceMotion) a = Math.sin(k * Math.PI) * 0.35;
+    else a = k < 0.12 ? 0.7 : k < 0.25 ? 0.1 : k < 0.4 ? 0.62 : (1 - k) * 0.4;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    c.globalAlpha = a;
+    c.fillStyle = T.ink;
+    c.fillRect(0, 0, W, H - L.strip);
+    c.globalAlpha = 1;
+  }
+
+  // The server's last words, in a bubble over its face
+  function drawServerSays(c) {
+    var s = G.serverSays;
+    if (!s || s.t > 2.6) return;
+    var size = bubbleSize();
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    c.font = size + "px " + T.display;
+    var line = s.text.toUpperCase(), pad = size * 0.55;
+    var bw = A.textWidth(c, line, size) + pad * 2, bh = size * 1.02 + pad * 1.15;
+    var face = A.serverFace(L.server.x, L.server.y, L.server.w, L.server.h);
+    var box = { x: clamp(face.x - bw * 0.2, 4, W - bw - 4), y: L.server.y - bh - size * 0.8, w: bw, h: bh };
+    var pop = shell.reduceMotion ? 1 : clamp(s.t * 8, 0, 1);
+    A.bubble(c, box, { x: face.x, y: L.server.y + 2 }, [line], size, Math.min(pop, clamp((2.6 - s.t) * 3, 0, 1)), false);
   }
 
   // A desk at rest looks the same every frame, so it's drawn once and kept
@@ -1275,6 +1429,7 @@
     }
     if (d.state === "typing") drawBar(c, d);
     if (d.kind === "ooo") drawOooSign(c, d, sx, sy);
+    if (capsOn()) drawKeyCap(c, d, sx, sy);
     if (d.dark > 0) {
       c.setTransform(DPR, 0, 0, DPR, 0, 0);
       c.globalAlpha = d.dark * 0.6;
@@ -1390,19 +1545,18 @@
     c.moveTo(10, 10); c.lineTo(22, -2);
     c.moveTo(14, 16); c.lineTo(30, 0);
     c.moveTo(78, 70); c.lineTo(92, 56);
-    c.lineWidth = 1.4;
+    c.lineWidth = 1;
     c.strokeStyle = T.paper;
-    c.globalAlpha = 0.6;
     c.stroke();
     c.restore();
   }
 
   function drawOooSign(c, d, sx, sy) {
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    var size = clamp(L.k * 8.5, 9, 14);
+    var size = clamp(L.k * 8.5, 12, 14);
     var p = at(d, 40, 41);
     c.font = size + "px " + T.display;
-    var w1 = c.measureText("OUT OF").width, w2 = c.measureText("OFFICE").width;
+    var w1 = A.textWidth(c, "OUT OF", size), w2 = A.textWidth(c, "OFFICE", size);
     var w = Math.max(w1, w2) + size * 1.1, h = size * 2.5;
     var wob = d.flash > 0 && !shell.reduceMotion ? Math.sin(d.flash * 40) * 0.08 : 0;
     c.save();
@@ -1413,9 +1567,30 @@
     c.fillStyle = T.ink;
     c.textAlign = "center";
     c.textBaseline = "middle";
-    c.fillText("OUT OF", 0, -size * 0.5);
-    c.fillText("OFFICE", 0, size * 0.55);
+    A.text(c, "OUT OF", 0, -size * 0.5, size);
+    A.text(c, "OFFICE", 0, size * 0.55, size);
     c.restore();
+  }
+
+  // On a keyboard, every desk wears its key on the front, lit up while
+  // someone there is typing
+  function capsOn() { return !AUTOPILOT && !touching() && pointerMode === "keys" && G.phase === "play"; }
+  function drawKeyCap(c, d, sx, sy) {
+    var name = keyName(d);
+    if (!name) return;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    var s = Math.round(clamp(L.k * 12, 19, 25)), p = at(d, 12, 69);
+    var x = p.x + sx - s / 2, y = p.y + sy - s / 2;
+    var live = d.state === "typing" && stoppable(d);
+    A.rr(c, x, y + 2.5, s, s - 1, 4);
+    A.fill(c, T.ink, 1.6, T.ink);
+    A.rr(c, x, y, s, s - 1, 4);
+    A.fill(c, live ? T.accent : T.paper, 1.6, T.ink);
+    c.font = Math.round(s * 0.62) + "px " + T.display;
+    c.fillStyle = T.ink;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(name, x + s / 2, y + s / 2 + s * 0.02);
   }
 
   function drawStrip(c) {
@@ -1434,7 +1609,7 @@
     if (!touching() && info().mute) {
       var m = L.mute;
       var share2 = 1 - G.muteWait / (MUTE_CD * run.mods.muteCd);
-      A.muteButton(c, m.x, m.y, m.r, share2, G.muteWait <= 0, "E", hand.press > 0.5 && G.lastMuteAt && performance.now() - G.lastMuteAt < 200);
+      A.muteButton(c, m.x, m.y, m.r, share2, G.muteWait <= 0, "Space", hand.press > 0.5 && G.lastMuteAt && performance.now() - G.lastMuteAt < 200);
     }
   }
 
@@ -1455,7 +1630,7 @@
     G.flights.forEach(function (f) {
       var a = endpoint(f.from, f), b = endpoint(f.to, f);
       var k = f.t < 0.5 ? 2 * f.t * f.t : 1 - Math.pow(-2 * f.t + 2, 2) / 2;
-      var lift = Math.min(80, Math.hypot(b.x - a.x, b.y - a.y) * 0.25);
+      var lift = Math.min(80, Math.hypot(b.x - a.x, b.y - a.y) * 0.25) * f.lift;
       var x = a.x + (b.x - a.x) * k, y = a.y + (b.y - a.y) * k - Math.sin(k * Math.PI) * lift;
       var k2 = Math.max(0, k - 0.08);
       var px = a.x + (b.x - a.x) * k2, py = a.y + (b.y - a.y) * k2 - Math.sin(k2 * Math.PI) * lift;
@@ -1474,7 +1649,7 @@
 
   function drawStamps(c) {
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    var size = clamp(L.k * 9, 10, 16);
+    var size = clamp(L.k * 9, 12, 16);
     G.stamps.forEach(function (s) {
       var k = s.t / s.life;
       var grow = shell.reduceMotion ? 1 : s.t < 0.12 ? 1.7 - (s.t / 0.12) * 0.75 : s.t < 0.2 ? 0.95 + (s.t - 0.12) / 0.08 * 0.05 : 1;
@@ -1485,7 +1660,7 @@
 
   function drawPops(c) {
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    var size = clamp(L.k * 9, 11, 16);
+    var size = clamp(L.k * 9, 12, 16);
     c.font = size + "px " + T.display;
     c.textAlign = "center";
     c.textBaseline = "middle";
@@ -1552,7 +1727,7 @@
     A.hand(c, 0, 0, size, 0);
     c.restore();
     // a name badge, so you know who it is
-    var fs = clamp(L.k * 7.5, 10, 13);
+    var fs = clamp(L.k * 7.5, 12, 14);
     c.font = fs + "px " + T.display;
     var w = c.measureText("INTERN").width + fs * 0.9, h = fs * 1.45;
     var bx = it.x - size * 0.62 - w / 2, by = it.y - size * 0.95 - h / 2;
@@ -1588,7 +1763,7 @@
     }
     if (measureOnly) return { x: x - size * 2, y: y - size * 1.9, w: size * 4, h: size * 1.9 };
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    A.arrow(c, clamp(x, size * 1.6, W - size * 1.6), y - bob, h.word, size);
+    A.arrow(c, clamp(x, size * 1.6, W - size * 1.6), y - bob, h.word, size, "down", W - 4);
     return null;
   }
 
@@ -1604,66 +1779,93 @@
       var r = el.getBoundingClientRect();
       if (r.width) hudCache.push({ x: r.left - base.left, y: 0, w: r.width, h: r.bottom - base.top });
     });
+    // and the touch button, which sits over the canvas
+    var pad = padsOn() && info().mute && root.querySelector('.kit-pad[data-key="mute"]');
+    var pr = pad && pad.getBoundingClientRect();
+    if (pr && pr.width) hudCache.push({ x: pr.left - base.left, y: pr.top - base.top, w: pr.width, h: pr.height });
     return hudCache;
   }
   function overlaps(a, b, gap) {
     return a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
   }
+  // At most two lines, split where they come out most even
   function wrap(text, max) {
-    var words = text.toUpperCase().split(" "), lines = [""];
-    words.forEach(function (w) {
-      var tryLine = lines[lines.length - 1] ? lines[lines.length - 1] + " " + w : w;
-      if (tryLine.length > max && lines[lines.length - 1] && lines.length < 2) lines.push(w);
-      else lines[lines.length - 1] = tryLine;
-    });
-    return lines;
+    var words = text.toUpperCase().split(" ");
+    if (text.length <= max || words.length < 2) return [words.join(" ")];
+    var best = null;
+    for (var i = 1; i < words.length; i++) {
+      var a = words.slice(0, i).join(" "), b = words.slice(i).join(" ");
+      var worst = Math.max(a.length, b.length);
+      if (!best || worst < best.worst) best = { worst: worst, lines: [a, b] };
+    }
+    return best.lines;
+  }
+  // 12px at the least; bigger in the clip frame, so it reads on a phone held upright
+  function bubbleSize() { return N.flags.clip ? clamp(L.k * 12.5, 14, 20) : clamp(L.k * 9.5, 12, 15); }
+  // A face, in screen pixels: no bubble sits on one if it can help it, and
+  // never on the CEO's assistant's
+  function faceBox(d, wide) {
+    var a = at(d, wide ? 21 : 25, wide ? 11 : 17), b = at(d, wide ? 59 : 55, wide ? 48 : 46);
+    return { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y, desk: d };
   }
   function drawBubbles(c, arrowBox) {
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    var size = clamp(L.k * 9.5, 11, 15);
-    c.font = size + "px " + T.display;
+    var size = bubbleSize();
     var placed = hudBoxes().slice();
     if (arrowBox) placed.push(arrowBox);
-    // keep clear of everyone's bars
-    var bars = [];
+    // keep clear of everyone's bars and faces
+    var bars = [], faces = [], bossFace = null;
     G.desks.forEach(function (d) {
+      if (d.kind !== "ooo") faces.push(faceBox(d));
+      if (d.kind === "boss") bossFace = faceBox(d, true);
       if (d.state !== "typing") return;
       var a = at(d, 16, -3), b = at(d, 64, 8);
       bars.push({ x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y, desk: d });
     });
+    var hud = hudBoxes();
+    bubbleHits = [];
     G.bubbles.forEach(function (b) {
       var d = b.desk;
-      var lines = wrap(b.text, 16);
+      var fs = b.boss ? Math.round(size * 1.08) : size;
+      c.font = fs + "px " + T.display;
+      var lines = wrap(b.text, b.boss ? 24 : 16);
       var tw = 0;
-      lines.forEach(function (l) { tw = Math.max(tw, c.measureText(l).width); });
-      var pad = size * 0.55, lh = size * 1.02;
+      lines.forEach(function (l) { tw = Math.max(tw, A.textWidth(c, l, fs)); });
+      var pad = fs * 0.55, lh = fs * 1.02;
       var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.15;
       var head = at(d, 40, d.kind === "ooo" ? 36 : 18);
       var o = origin(d);
+      var up = o.y - 3 - bh - fs * 0.65;
       var tries = [
-        { x: head.x - bw / 2, y: o.y - 3 - bh - size * 0.65 },                      // above
+        { x: head.x - bw / 2, y: up },                                               // above
+        { x: head.x - bw * 0.2, y: up },                                             // above, to the right
+        { x: head.x - bw * 0.8, y: up },                                             // above, to the left
         { x: o.x + 60 * L.k, y: o.y + 22 * L.k - bh / 2 },                           // to the right
         { x: o.x + 20 * L.k - bw, y: o.y + 22 * L.k - bh / 2 },                      // to the left
         { x: head.x - bw / 2, y: o.y + 66 * L.k }                                    // below
       ];
-      // the first spot that's clear of everything; failing that, clear of other
-      // bubbles; failing that, at least clear of the HUD
-      var box = null, hud = hudBoxes();
-      var h0 = at(d, 25, 15), h1 = at(d, 55, 43), own = { x: h0.x, y: h0.y, w: h1.x - h0.x, h: h1.y - h0.y };
-      for (var pass = 0; pass < 3 && !box; pass++) {
+      // the first spot that's clear of everything; then let it sit on other
+      // people's faces, then their bars, then other bubbles. Never on the HUD,
+      // the speaker's own face, or the CEO's assistant's.
+      var box = null;
+      var hard = [faceBox(d, true)];
+      if (bossFace && bossFace.desk !== d) hard.push(bossFace);
+      for (var pass = 0; pass < 4 && !box; pass++) {
         for (var i = 0; i < tries.length && !box; i++) {
           var t = { x: clamp(tries[i].x, 4, W - bw - 4), y: clamp(tries[i].y, 4, H - bh - 4), w: bw, h: bh };
-          if (hud.some(function (p) { return overlaps(t, p, 3); }) || overlaps(t, own, 0)) continue;
-          if (pass < 2 && placed.some(function (p) { return overlaps(t, p, 3); })) continue;
-          if (pass < 1 && bars.some(function (p) { return p.desk !== d && overlaps(t, p, 1); })) continue;
+          if (hud.some(function (p) { return overlaps(t, p, 3); }) || hard.some(function (p) { return overlaps(t, p, 0); })) continue;
+          if (pass < 3 && placed.some(function (p) { return overlaps(t, p, 3); })) continue;
+          if (pass < 2 && bars.some(function (p) { return p.desk !== d && overlaps(t, p, 1); })) continue;
+          if (pass < 1 && faces.some(function (p) { return p.desk !== d && overlaps(t, p, 0); })) continue;
           box = t;
         }
       }
-      if (!box) box = { x: clamp(tries[3].x, 4, W - bw - 4), y: clamp(tries[3].y, 4, H - bh - 4), w: bw, h: bh };
+      if (!box) box = { x: clamp(tries[5].x, 4, W - bw - 4), y: clamp(tries[5].y, 4, H - bh - 4), w: bw, h: bh };
       placed.push(box);
+      bubbleHits.push({ box: box, desk: d });
       var pop = shell.reduceMotion ? 1 : clamp(b.t * 8, 0, 1);
       var fade = b.typing ? 1 : clamp((b.life - b.t) * 3, 0, 1);
-      A.bubble(c, box, at(d, 40, d.kind === "ooo" ? 40 : 22), lines, size, Math.min(pop, fade), b.boss);
+      A.bubble(c, box, at(d, 40, d.kind === "ooo" ? 40 : 22), lines, fs, Math.min(pop, fade), b.boss);
     });
   }
 
@@ -1786,8 +1988,12 @@
     root.style.cursor = shell.state() === "playing" && pointerMode === "mouse" && mouse.on && !AUTOPILOT ? "none" : "";
   });
   root.addEventListener("pointerleave", function () { mouse.on = false; root.style.cursor = ""; });
+  // Any of the desk keys, the arrows or Enter: back to the keyboard (Space,
+  // for Mute thread, works alongside a mouse, so it leaves the mouse be)
+  var KEYBOARD = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "NumpadEnter"].concat(
+    KEY_ROWS.reduce(function (all, row) { return all.concat(row); }, []));
   document.addEventListener("keydown", function (e) {
-    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "KeyW", "KeyA", "KeyS", "KeyD", "Space"].indexOf(e.code) >= 0 && run) {
+    if (KEYBOARD.indexOf(e.code) >= 0 && run && !(e.metaKey || e.ctrlKey || e.altKey)) {
       run.learned.keys = true;
       if (pointerMode === "mouse") { pointerMode = "keys"; root.style.cursor = ""; }
     }
@@ -1805,16 +2011,21 @@
     note: "Someone has replied all to the whole company. Stop the replies before the server melts. Home at 17:00.",
     pitch: "Someone has replied all to the whole company. Now everyone is replying all to say stop replying all.",
     hints: {
-      keys: "Click anyone about to reply, or jump to them with the arrow keys and press Space. E or Shift mutes a row. P to pause.",
+      keys: "Click anyone about to reply, or press the key on their desk. Space mutes a row. P to pause.",
       touch: "Tap anyone about to reply. Mute thread on the right."
     },
     againLabel: "Start another day",
     daily: true,
     smallCallouts: true,
-    keys: {
-      up: ["ArrowUp", "KeyW"], down: ["ArrowDown", "KeyS"], left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"],
-      action: ["Space"], mute: ["KeyE", "ShiftLeft", "ShiftRight"]
-    },
+    // no WASD here: those keys belong to desks (KEY_ROWS). Space is Mute
+    // thread, so a thumb can reach it while the fingers are on the desks.
+    keys: (function () {
+      var k = blockKeys();
+      k.up = ["ArrowUp"]; k.down = ["ArrowDown"]; k.left = ["ArrowLeft"]; k.right = ["ArrowRight"];
+      k.action = ["Enter", "NumpadEnter"];
+      k.mute = ["Space"];
+      return k;
+    })(),
     pad: { action: [0, 2, 7], mute: [1, 3, 6] },
     touch: [{ key: "mute", label: "Mute thread", icon: "Mute", side: "right" }],
     reset: reset,
@@ -1845,6 +2056,10 @@
         });
       },
       mute: function () { return { ready: G.muteWait <= 0 && info().mute, row: muteRow(), x: L.mute.x, y: L.mute.y }; },
+      // the key for desk i (a KeyboardEvent code), and Mute thread's
+      keyFor: function (i) { var d = G.desks[i]; return KEY_ROWS[d.row][d.col]; },
+      muteKey: function () { return "Space"; },
+      bubbles: function () { var r = root.getBoundingClientRect(); return bubbleHits.map(function (h) { return { i: h.desk.i, x: r.left + h.box.x + h.box.w / 2, y: r.top + h.box.y + h.box.h / 2, typing: h.desk.state === "typing" }; }); },
       state: function () { return shell.state(); },
       score: function () {
         return { stage: run.stage + 1, clock: clockText(), score: Math.round(run.score), stopped: run.stopped, out: run.out,
