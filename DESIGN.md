@@ -290,7 +290,39 @@ To be written when the game is built.
 
 ### Unexpected Item
 
-To be written when the game is built.
+A self-checkout. Four shops (a basket, a trolley, the big shop, Christmas Eve), each with its own closing time. The machine is the comedian: it accuses, apologises and accuses again. The shopper is never the joke; you only ever see their hand.
+
+**Characters**
+- **Till 4** (Bev calls it Dennis). A checkout-green kiosk with a thick ink outline and halftone down its right side, a paper screen in a black bezel, a lamp on top and a speaker grille on the right, where its speech bubbles come from. Its face is drawn on the screen in ink: oval eyes with small pupils that follow the next barcode, furious eyebrows, a frown. No chin and no body: it's a machine. The face is its suspicion meter: calm, watching (one brow up, one eye narrowed), angry (both eyes narrowed), alarm (the screen flashes red, eyes wide, mouth open), sorry (brows up, small mouth), puzzled (for fruit). A strip along the bottom of the screen always says what it wants right now ("Scan your item", "Please wait", "Remove the item"), and a five-light gauge under the screen spells out the suspicion. It wears a Santa hat on Christmas Eve.
+- **Bev**, the one assistant for every till. A house cut-out cartoon, seen from the waist up behind the counter: a green polo, a red lanyard with a paper card, a name badge, a headset with a little green microphone, scraped-back hair and a bun with a pencil through it (the bun is how you know her from behind). Heavy lids, weary-furious brows, a mug of tea with steam. She walks over slowly, swipes her card with her eyes shut and her head turned away ("without looking"), and leaves quickly. She turns back if you fix it yourself. Her conviction: the machines are her colleagues, and Dennis is the worst of them ("Dennis thinks everyone's a thief. Even me."). She talks about the machine, never about you.
+- **The queue**, Christmas Eve only: two cut-out shoppers behind you, one in a Santa hat and a red coat, one in a green bobble hat with a moustache. They look at you and tut in the house register ("Scan it, you lemon.", "It's a sprout, not a bomb.", always naming something loose that's really on your belt), or at Dennis.
+- **You**: a paper mitten in a red sleeve, coming in from the right. Nothing else.
+- On a narrow screen Bev and the queue are drawn smaller and further in, so nobody stands half off the edge.
+
+**The shopping** is drawn in the four inks with a paper barcode patch on each item, cached as bitmaps (`sprites.js`). Loose fruit has no barcode and comes in sets of four lookalikes, some of them jokes: a sad lime, an apple with a bite out of it, a stone, a nervous sprout. The bitten apple and the stone are only ever wrong answers: what's on the scale is always something a shop would sell you. Invented, never branded.
+
+**One rule for each action.** Scan works only while a barcode is on the red line; red brackets (as in Thonglets) mark a barcode while it can be scanned. Bag works only while the scale says OK; touching the bag while it says Wait is always an unexpected item. The exceptions are said out loud: loose fruit stops at the line and the till asks, and age checks need Bev.
+
+**The false alarm.** The joke is in the rules: the machine accuses people who have done nothing wrong. In the basket it always does, once, after the second thing has gone in and the scale has said OK, so everyone meets the accusation and learns the ritual while it's calm. That one is the machine's own mistake and costs nothing but time. After that its suspicion decides: every time the scale says OK it may call an unexpected item anyway, never while no more than one light is lit, likelier with every light after that, and on the spot when all five are. Suspicion lingers. Mistimed scans, things going round again and wrong fruit raise it, perfect scans are what bring it down, and on Christmas Eve it rises by itself. Every accusation stops the till until it's fixed, breaks the streak and costs that shop's clean bonus.
+
+**The ritual.** Every accusation is fixed the same way: lift the bag, put it back, each time the scale says OK. Rush it and the machine accuses you again. Or wait for Bev.
+
+**The ladder.** Approved: every shop paid for, at least 17,500 points, and accused no more than the once everyone is. Pending review: every shop paid for. Not approved: a later shop shut on you. Rejected: the basket beat you. A shop's own stamp, between shops, goes by the accusations you're charged with.
+
+**Ways of shopping.** Each one helps and costs, and none is best for everyone: a loyalty card scores a tenth more but every shop starts with the machine suspicious; your own bags settle the scale twice as fast but each thing you put in looks suspicious; waving at the camera calms it, for fewer points; holding it very still widens the red line but speeds the belt and leaves perfect as narrow as ever; coming back when it's quieter gives seconds that don't score.
+
+**Stamp words and callouts**: Unexpected item, Item: expected, Approval needed, Approved. Didn't look, Sorted. Didn't look, Guessed: lemon (whatever it guessed), Charged as lemon, Lime: confirmed, Round again, Heavy item, Five in a row, Twelve in a row. Suspicious, Paid, Paid. Reluctantly. The game's stamp is Approval needed.
+
+**Only this game**
+- Callouts land under the belt (`unexpected-item.css`, placed by the game for each screen shape), clear of the till's face, its instruction strip and the scale's display, which are what you're reading when one lands. A look-up result's stamp waits until the card has gone. The arrow that points at the bag comes in from the side with its word underneath, and doesn't rise with the bag, so it never lands on what's in your hand. Its words match how you're playing ("Tap Bag", "Press B", "Click it").
+- The belt waits for the stage's notice to go (it covers the belt on a phone), and the shop's clock starts when the belt does.
+- Canvas text is never under 12px. A label that can't be that big on a phone is left out there (the till's name plate, the print on the bag, the Round again sign, the Bagging area label beside the Scan button), and the look-up card fades in rather than growing, so its words never shrink. On a narrow screen Dennis's bubble starts at the edge of his screen so his lines fit in two.
+- Today's run deals each shop from its own seeded streams (its list, the gaps on the belt, the order of the fruit pictures, the ways of shopping offered after it), all drawn from `shell.random` at the start. An item going round again or a different choice never changes what the next shop deals.
+- The look-up screen is a paper card with the game's colour along the top: the question ("Lime, lemon, lime or lime."), a clock, what's on the scale in a dashed frame, and four numbered pictures (a row of four, or two by two on phones). With a mouse or keys it sits under the belt, so you can see the till looking puzzled; on a touch screen it sits over the top, clear of the buttons. The machine's guesses are always wrong.
+- The till's voice, Bev's and the queue's are blips, one a syllable, so "Unexpected item in the bagging area" has its real rhythm.
+- The scale's display (OK in green, Wait in red and flashing, plus a needle) is also the Bag button's cooldown on touch screens.
+- The receipt grows out of the till with everything you bag, and the basket or trolley on the floor empties as you go.
+- When the shop shuts, paper shutters come down out of an ink box along the top (so the HUD stays on black), with a red edge and a red Closed sign hung on them. No stamp: the sign is the moment.
 
 ### Reply All
 
