@@ -389,13 +389,14 @@
     var pool = shuffle(POOLS[s.pool].slice(), r);
     for (var i = 0; list.length < s.count; i++) list.push({ id: pool[i % pool.length] });
     shuffle(list, r);
-    // age checks come early (Bev needs a head start)
+    // age checks come early, in the first half (Bev needs a head start)
     var n = list.length;
-    function special(spec) { return !!spec.fruit || !!(spec.id && S.ITEMS[spec.id].age); }
+    function aged(spec) { return !!(spec.id && S.ITEMS[spec.id].age); }
+    function special(spec) { return !!spec.fruit || aged(spec); }
     function swap(a, b) { var t = list[a]; list[a] = list[b]; list[b] = t; }
-    list.forEach(function (spec, k) {
-      if (spec.id && S.ITEMS[spec.id].age && k > n * 0.55) swap(k, 1 + Math.floor(r() * Math.floor(n * 0.45)));
-    });
+    var early = list.filter(aged);
+    list = list.filter(function (spec) { return !aged(spec); });
+    early.forEach(function (spec) { list.splice(1 + Math.floor(r() * Math.floor(n * 0.45)), 0, spec); });
     // the first thing is always plain, so the first scan is just a scan
     if (special(list[0])) {
       for (var q = 1; q < n; q++) if (!special(list[q])) { swap(0, q); break; }
