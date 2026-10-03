@@ -1616,7 +1616,7 @@
     var s = L.server;
     var melt = G.phase === "melt" ? clamp(G.endT / 1.1, 0, 1) : 0;
     var jig = 0;
-    var share = run.load / cap();
+    var share = Math.min(1, run.load / cap());
     if (!shell.reduceMotion && share > 0.7 && G.phase === "play") jig = (Math.random() - 0.5) * (share - 0.7) * 6;
     c.save();
     c.translate(jig, 0);
