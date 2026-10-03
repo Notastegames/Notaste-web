@@ -127,7 +127,7 @@
     { name: "A trolley", count: 10, belt: 12.5, gap: [12, 22], time: 60, walk: 5, pool: "trolley",
       sets: ["lime", "onion", "apple", "potato", "banana"], fruit: 3, age: [], heavy: [],
       brief: "Loose fruit has no barcode. The belt stops and the till asks what it is: pick the matching picture before it guesses.",
-      clear: "Every lime accounted for. The machine has kept a note about the lime.",
+      clear: "Every {fruit} accounted for. The machine has kept a note about the {fruit}.",
       hello: "Hello again. I remember you." },
     { name: "The big shop", count: 13, belt: 14.5, gap: [10, 20], time: 70, walk: 6, pool: "big",
       sets: ["lime", "onion", "apple", "potato", "banana"], fruit: 2, age: ["wine", "scissors", "candle"], heavy: ["rice", "bleach"],
@@ -349,7 +349,7 @@
     sus = stage === 3 ? 25 : 0;
     susCalled = false;
     streak = 0; scanLock = 0; approvals = 0; approvalNames = [];
-    st = { accused: 0, done: 0, perfect: 0, score: 0, byobDone: false, heavySaid: false, tenSaid: false, turkeySaid: false };
+    st = { dealt: pending.slice(), accused: 0, done: 0, perfect: 0, score: 0, byobDone: false, heavySaid: false, tenSaid: false, turkeySaid: false };
     bubbles = []; floats = []; fx = [];
     queue = s.xmas ? [{ hat: "santa", coat: T.red, t: 0, shout: 0 }, { hat: "bobble", coat: T.paper, t: 0, shout: 0, tache: true }] : [];
     shutter = 0; clearT = 0; endT = 0; sorryT = 0;
@@ -1049,7 +1049,8 @@
       stamp: stamp,
       tilt: stage % 2 ? 4 : -4,
       heading: ["Basket: paid for.", "Trolley: paid for.", "Big shop: paid for."][stage],
-      line: info().clear,
+      // the trolley names a fruit you actually bought
+      line: info().clear.replace(/\{fruit\}/g, (st.dealt.filter(function (p) { return p.fruit; })[0] || { fruit: "lime" }).fruit),
       stats: stats,
       ask: "Stage " + (next + 1) + ": " + STAGES[next].name + ". How are you shopping.",
       choices: offers.map(function (c) { return { label: c.label, detail: c.detail }; })
