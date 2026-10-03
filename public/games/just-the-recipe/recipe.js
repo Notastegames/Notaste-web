@@ -1681,7 +1681,7 @@
     CA.rrect(c, x, y, w, h, 1);
     c.clip();
     // the chef, mid-sentence
-    CA.chef(c, cx - 6, y + 12.5, 5.2, { mood: Math.floor(clock * 6) % 2 ? "shout" : "glare", look: [clamp((hand.x - cx) / 20, -1, 1), -0.6] });
+    CA.chef(c, cx - 5, y + 14.6, 5.2, { mood: Math.floor(clock * 6) % 2 ? "shout" : "glare", look: [clamp((hand.x - cx) / 20, -1, 1), -0.6] });
     CA.dish(c, "soup", cx + 9, y + 17, 4.2);
     c.restore();
     // the play bar, in red, as is traditional
