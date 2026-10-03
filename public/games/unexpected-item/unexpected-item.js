@@ -2105,7 +2105,7 @@
     c.font = size + "px " + T.display;
     var pad = size * (L.narrow ? 0.42 : 0.5);
     var gap = L.narrow ? 4 : size * 0.7;
-    var maxW = a.side === "right" ? Math.min(W - a.x - gap - (L.narrow ? 4 : 14), size * 15) : Math.min(size * 13, W * (L.narrow ? 0.62 : 0.46));
+    var maxW = a.side === "right" ? Math.min(W - a.x - gap - (L.narrow ? 4 : 14), size * 15) : Math.min(size * 13, L.narrow ? Math.max(W * 0.52, Math.min(W * 0.62, 160)) : W * 0.46);
     maxW = Math.max(maxW, size * 6);
     var bt = { a: a, size: size, pad: pad, gap: gap, lines: wrapAll(c, text.toUpperCase(), maxW - pad * 2) };
     if (bt.lines.length > 2 && who === "dennis" && L.narrow && !inset) return bubbleText(c, who, text, true);
