@@ -111,7 +111,7 @@
       quick: 0, stubborn: 0, ooo: 0, boss: false,
       clear: "Your team has gone quiet. They've booked a meeting to discuss the email." },
     { name: "The department", desks: 12, time: 32, spawn: [1.1, 0.75], dur: [3.3, 2.8], busy: 6,
-      bursts: [[9, 3], [18, 4], [27, 4]],
+      bursts: [[8, 3], [16, 4], [23, 3], [29, 4]],
       quick: 3, stubborn: 0, ooo: 0, boss: false, mute: true,
       clear: "The department has gone to lunch. They're discussing the thread in the queue." },
     { name: "The whole company", desks: 16, time: 36, spawn: [1.2, 0.85], dur: [3.3, 2.8], busy: 7,
@@ -395,19 +395,28 @@
     var room = zoneR - internW - zoneL;
     var sw = Math.min(150, room);
     L.sign = sw >= 74 ? { x: zoneL + Math.max(0, (room - sw) / 2), y: H - strip + 8, w: sw, h: strip - 16 } : null;
-    // callouts never land on the office, where a forward has just set off the
-    // top row: on the strip, between the server and Mute thread, or where
-    // that's too narrow (a phone), up in the HUD's row
-    var cl = root.querySelector(".kit-callouts");
-    if (cl) {
-      var wide = zoneR - zoneL >= 190;
-      cl.style.top = wide ? "auto" : "2px";
-      cl.style.bottom = wide ? Math.max(4, Math.round(strip / 2 - 17)) + "px" : "auto";
-      cl.style.left = (wide ? zoneL : 6) + "px";
-      cl.style.right = (wide ? W - zoneR : 6) + "px";
-    }
+    L.zone = { l: zoneL, r: zoneR };
+    L.callouts = "";
+    placeCallouts();
     A.init(T, L.k * DPR);
     bg = null;
+  }
+
+  // Callouts never land on the office, where a forward has just set off the
+  // top row: they go on the strip, between the server and Mute thread, or
+  // where that's too narrow (a phone) or the notice card is on it, up in the
+  // HUD's row
+  function placeCallouts() {
+    var cl = root.querySelector(".kit-callouts");
+    if (!cl || !L.zone) return;
+    var low = L.zone.r - L.zone.l >= 190 && !briefOn();
+    var key = low ? "low" : "high";
+    if (L.callouts === key) return;
+    L.callouts = key;
+    cl.style.top = low ? "auto" : "2px";
+    cl.style.bottom = low ? Math.max(4, Math.round(L.strip / 2 - 17)) + "px" : "auto";
+    cl.style.left = (low ? L.zone.l : 6) + "px";
+    cl.style.right = (low ? W - L.zone.r : 6) + "px";
   }
   function padLeft() {
     var rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -887,12 +896,12 @@
     var score = Math.round(run.score);
     var rec = shell.record(score);
     var outText = run.out === 1 ? "1 reply got out" : run.out + " replies got out";
-    // four at most, so they sit on one row on a phone (when it melted is in the heading)
+    // four at most, and short, so they sit on one row on a phone (when it
+    // melted is in the heading; a new best is in the accent)
     var stats = [
       { label: "Score", value: fmt(score) },
-      { label: "Got out", value: String(run.out) },
-      { label: rec.isNew ? (shell.daily ? "New best today" : "New best") : (shell.daily ? "Today's best" : "Best"),
-        value: fmt(rec.best || 0), highlight: rec.isNew }
+      { label: "Out", value: String(run.out) },
+      { label: rec.isNew ? "New best" : shell.daily ? "Today's best" : "Best", value: fmt(rec.best || 0), highlight: rec.isNew }
     ];
     if (shell.daily) stats.unshift({ label: "Run", value: shell.today });
     else stats.splice(1, 0, { label: "Stopped", value: String(run.stopped) });
@@ -1065,6 +1074,7 @@
     if (now - calloutAt < 1.6 && priority <= calloutPri) return;
     calloutAt = now;
     calloutPri = priority;
+    placeCallouts();
     shell.callout(text, { sound: priority >= 2 });
   }
 
