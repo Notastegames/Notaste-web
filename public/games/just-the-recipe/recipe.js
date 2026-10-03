@@ -788,7 +788,7 @@
       value: rec.best ? N.fmtTime(rec.best) : "None yet", highlight: rec.isNew
     });
     if (shell.daily) stats.unshift({ label: "Run", value: shell.today });
-    var where = G.def.name.toLowerCase();
+    var where = ["starter", "main course", "pudding"][G.n];
     shell.finish({
       place: rank + 1,
       total: 4,
@@ -1188,14 +1188,19 @@
     var top = G.scroll - HY - 6, bottom = G.scroll - HY + VH + 6;
     drawMargins(c, top, bottom);
     drawTrail(c, top, bottom);
+    wordsPath = new Path2D();
     for (var i = 0; i < G.items.length; i++) {
       var it = G.items[i];
       if (it.y > bottom) break;
       if (it.y + Math.max(it.h, it.full || 0) < top || it.dead) continue;
       drawItem(c, it);
     }
+    // nothing else on the page overlaps the words, so they go on last
+    c.fillStyle = T.paper;
+    c.fill(wordsPath);
 
     screenSpace(c, sx, sy);
+    if (G.jump && !shell.reduceMotion) drawRush(c);
     drawSideAds(c);
     drawVideo(c);
     drawPopups(c);
@@ -1274,6 +1279,16 @@
     c.textBaseline = "top";
     wrap(c, head.toUpperCase(), w - 3).slice(0, 3).forEach(function (l, i) { text(c, l, x + w / 2, y + 2.4 + i * s * 1.02); });
     c.restore();
+  }
+
+  // ---------- Jump to recipe: white speed lines rushing up the page ----------
+  function drawRush(c) {
+    for (var k = 0; k < 9; k++) {
+      var x = (k * 37 + 11) % 100;
+      var y = VH + 20 - ((clock * 260 + k * 53) % (VH + 40));
+      CA.seg(c, [[x, y], [x, y + 16]], 1.4, T.ink);
+      CA.seg(c, [[x, y], [x, y + 16]], 0.7, T.paper);
+    }
   }
 
   // ---------- what you read: a highlighter trail through the words ----------
@@ -1377,9 +1392,11 @@
     return out;
   }
 
+  // The words of the life story go into one path, filled once a frame
+  var wordsPath = null;
   function drawText(c, row, b) {
-    c.fillStyle = T.paper;
-    bars(row, b).forEach(function (w) { c.fillRect(w[0], row.y + w[1], w[2], 1.25); });
+    var list = bars(row, b);
+    for (var i = 0; i < list.length; i++) wordsPath.rect(list[i][0], row.y + list[i][1], list[i][2], 1.25);
   }
 
   function drawQuote(c, row, b) {
@@ -1786,7 +1803,9 @@
     c.textBaseline = "middle";
     var s = p.kind === "confirm" ? null : closeSpan({ cx: cx, w: w, kind: p.kind });
     if (p.kind === "news") {
-      fitText(c, "Don't miss a recipe", x + (w - 9) / 2 + 1, y + 4.1, w - 12, 3.6, "center", T.ink);
+      font(c, 3.6);
+      var title = textW(c, "DON'T MISS A RECIPE") * 12 / Math.max(12, 3.6 * U) <= w - 12 ? "Don't miss a recipe" : "Don't go";
+      fitText(c, title, x + (w - 9) / 2 + 1, y + 4.1, w - 12, 3.6, "center", T.ink);
       CA.rrect(c, x + 3, y + 11, w - 6, 5.6, 0.6);
       c.fillStyle = T.paper;
       c.fill();
@@ -2081,6 +2100,10 @@
       hand: function () { return hand; },
       state: function () { return shell.state(); },
       view: function () { return { U: U, HY: HY, VH: VH, OX: OX, W: W, H: H }; },
+      // for scripted test scenes
+      press: function () { press(); },
+      setX: function (x) { hand.x = x; },
+      choose: function (k) { CHOICES[k].apply(run.mods); run.picked.push(k); startCourse(G.n); },
       // what the autopilot would do now, for test players that use real input
       advice: function () {
         if (!G || shell.state() !== "playing" || G.over) return null;

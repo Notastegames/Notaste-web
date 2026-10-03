@@ -42,17 +42,19 @@
         t.arc(p[0], p[1], n * (big ? 0.27 : 0.24), 0, Math.PI * 2);
         t.fill();
       });
-      e = pats[key] = { tile: tile, pat: null, sc: 0, c: null };
+      e = pats[key] = { tile: tile, by: {}, c: null, n: 0 };
     }
-    var sc = c.getTransform ? Math.hypot(c.getTransform().a, c.getTransform().b) : 1;
-    if (!e.pat || e.sc !== sc || e.c !== c) {
-      e.pat = c.createPattern(e.tile, "repeat");
+    var m = c.getTransform ? c.getTransform() : null;
+    var sc = m ? Math.round(Math.hypot(m.a, m.b) * 100) / 100 : 1;
+    if (e.c !== c || e.n > 12) { e.by = {}; e.c = c; e.n = 0; }
+    var pat = e.by[sc];
+    if (!pat) {
+      pat = e.by[sc] = c.createPattern(e.tile, "repeat");
+      e.n++;
       // undo the drawing scale, so the dots are the same size at any zoom
-      if (e.pat.setTransform && window.DOMMatrix) e.pat.setTransform(new DOMMatrix([1 / sc, 0, 0, 1 / sc, 0, 0]));
-      e.sc = sc;
-      e.c = c;
+      if (pat.setTransform && window.DOMMatrix) pat.setTransform(new DOMMatrix([1 / sc, 0, 0, 1 / sc, 0, 0]));
     }
-    return e.pat;
+    return pat;
   }
 
   function lw(w) { return Math.max(MIN, w); }
