@@ -1072,7 +1072,7 @@
     if (fh > 1) { rr(c, tx + 2, ty + th - 2 - fh, tw - 4, fh, (tw - 4) / 2); c.fill(); }
     // the name plate, then the rack, blinking faster as it fills up
     var rx0 = bx + w * 0.47, rx1 = tx - 6;
-    var size = Math.max(9, Math.min(15, h * 0.2));
+    var size = Math.max(12, Math.min(15, h * 0.2));
     c.font = size + "px " + T.display;
     rr(c, rx0, by + 6, rx1 - rx0, size * 1.35, 2);
     fill(c, T.paper);
@@ -1184,24 +1184,29 @@
   }
 
   // "Days since the last reply all": a paper sign. The number is always 0.
+  // It needs SIGN_MIN pixels across for its words at 12px.
+  var SIGN_MIN = 86;
   function sign(c, x, y, w, h) {
     c.save();
     rr(c, x, y, w, h, 3);
     fill(c, T.paper, 2.2);
-    var small = Math.max(9, Math.min(13, h * 0.2));
+    var small = Math.max(12, Math.min(13, h * 0.2));
     c.font = small + "px " + T.display;
     c.fillStyle = T.ink;
     c.textAlign = "left";
     c.textBaseline = "top";
-    text(c, "DAYS SINCE", x + 7, y + 6, small);
-    text(c, "THE LAST", x + 7, y + 6 + small * 1.05, small);
-    text(c, "REPLY ALL", x + 7, y + 6 + small * 2.1, small);
-    var big = Math.min(h * 0.72, w * 0.36);
+    var col = Math.max(textWidth(c, "DAYS SINCE", small), textWidth(c, "REPLY ALL", small));
+    var top = y + (h - small * 3.1) / 2;
+    text(c, "DAYS SINCE", x + 6, top, small);
+    text(c, "THE LAST", x + 6, top + small * 1.05, small);
+    text(c, "REPLY ALL", x + 6, top + small * 2.1, small);
+    // the 0 as big as the room to the right of the words allows
+    var big = Math.max(small, Math.min(h * 0.72, w * 0.36, (w - col - 17) / 0.45));
     c.font = big + "px " + T.display;
     c.textAlign = "right";
     c.textBaseline = "middle";
     c.fillStyle = T.red;
-    c.fillText("0", x + w - 8, y + h / 2 + big * 0.06);
+    c.fillText("0", x + w - 6, y + h / 2 + big * 0.06);
     c.restore();
   }
 
@@ -1278,6 +1283,7 @@
     server: server,
     serverFace: serverFace,
     sign: sign,
+    SIGN_MIN: SIGN_MIN,
     muteButton: muteButton,
     rr: rr,
     fill: fill,

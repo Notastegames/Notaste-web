@@ -5,8 +5,8 @@
 // An open-plan office, seen from the front: a grid of desks, a cut-out office
 // worker at each. Workers get the itch: a bar fills over their head while
 // they type, and a speech bubble says what ("Please remove me from this
-// list", "+1", "Per my last email"). Click or tap them, or move the cursor
-// with the arrows and press Space, before the bar fills and they hit Send.
+// list", "+1", "Per my last email"). Click or tap them, or press the key on
+// their desk (KEY_ROWS), before the bar fills and they hit Send.
 // Every reply that gets out flies to the server, fills its load gauge, and
 // lands in everyone's inbox, which sets off two more desks. Miss one, get two.
 // The server drains slowly; fill it and it melts, and the run is over.
@@ -19,7 +19,7 @@
 // notice (shell.brief) before Go:
 //   1. Your team (09:00): nine desks. Just the itch, the bar and the click.
 //   2. The department (11:00): twelve desks. The +1 crowd, who reply from
-//      their phones twice as fast. And Mute thread (E or Shift, or the Mute
+//      their phones twice as fast. And Mute thread (Space, or the Mute
 //      button): stops the busiest row at once, marked in red brackets, then
 //      recharges.
 //   3. The whole company (13:00): sixteen desks. Long emails (a red flag on
@@ -28,7 +28,8 @@
 //      that gets out.
 //   4. The CEO's assistant (15:00): a glass corner office. The assistant
 //      can't be stopped and every few seconds, very sadly, asks everyone to
-//      stop replying all. To everyone. That sets off four desks at once.
+//      stop replying all. To everyone. That sets off three desks at once,
+//      then four.
 //      Hold on until 17:00.
 // Between stages (shell.interlude) IT offer three fixes, each with a cost:
 // turn the server off and on again, a bigger server, etiquette training,
@@ -106,15 +107,15 @@
   // long a reply takes to type. busy: no new ones start while this many are
   // typing. bursts: [when, how many]: the thread gets forwarded.
   var STAGES = [
-    { name: "Your team", desks: 9, time: 28, spawn: [1.8, 1.2], dur: [3.8, 3.1], busy: 3,
+    { name: "Your team", desks: 9, time: 28, spawn: [1.8, 1.1], dur: [3.8, 3.0], busy: 4,
       bursts: [[12, 2], [21, 3]],
       quick: 0, stubborn: 0, ooo: 0, boss: false,
       clear: "Your team has gone quiet. They've booked a meeting to discuss the email." },
-    { name: "The department", desks: 12, time: 32, spawn: [1.1, 0.75], dur: [3.3, 2.8], busy: 6,
+    { name: "The department", desks: 12, time: 32, spawn: [1.0, 0.7], dur: [3.2, 2.7], busy: 6,
       bursts: [[8, 3], [16, 4], [23, 3], [29, 4]],
       quick: 3, stubborn: 0, ooo: 0, boss: false, mute: true,
       clear: "The department has gone to lunch. They're discussing the thread in the queue." },
-    { name: "The whole company", desks: 16, time: 36, spawn: [1.2, 0.85], dur: [3.3, 2.8], busy: 7,
+    { name: "The whole company", desks: 16, time: 36, spawn: [1.1, 0.8], dur: [3.2, 2.7], busy: 7,
       bursts: [[9, 3], [20, 4], [30, 4]],
       quick: 3, stubborn: 3, ooo: 2, boss: false, mute: true,
       clear: "Everyone has had their say. Someone has printed the thread." },
@@ -386,7 +387,8 @@
     // the right, and the sign and the intern's spot in between
     var sh = strip - 12;
     L.strip = strip;
-    L.server = { x: 10, y: H - strip + 6, w: Math.round(Math.min(W * 0.44, sh * 2.9, 250)), h: sh };
+    // (a little narrower on a phone, so the sign fits beside it)
+    L.server = { x: 10, y: H - strip + 6, w: Math.round(Math.min(W * (W < 420 ? 0.39 : 0.44), sh * 2.9, 250)), h: sh };
     L.mute = { x: W - 14 - Math.min(30, strip * 0.4), y: H - strip / 2 - 2, r: Math.min(30, strip * 0.4) };
     var zoneL = L.server.x + L.server.w + 12;
     var zoneR = (touch ? padLeft() : L.mute.x - L.mute.r) - 12;
@@ -394,7 +396,7 @@
     L.internHome = { x: run.mods.intern ? zoneR - 6 : (zoneL + zoneR) / 2, y: H - strip * 0.32 };
     var room = zoneR - internW - zoneL;
     var sw = Math.min(150, room);
-    L.sign = sw >= 74 ? { x: zoneL + Math.max(0, (room - sw) / 2), y: H - strip + 8, w: sw, h: strip - 16 } : null;
+    L.sign = sw >= A.SIGN_MIN ? { x: zoneL + Math.max(0, (room - sw) / 2), y: H - strip + 8, w: sw, h: strip - 16 } : null;
     L.zone = { l: zoneL, r: zoneR };
     L.callouts = "";
     placeCallouts();
@@ -1631,7 +1633,7 @@
       var a = at(first, 0, 30), b = at(lastD, 100, 30);
       var reveal = shell.reduceMotion ? 1 : clamp(tp.t / 0.25, 0, 1);
       var alpha = shell.reduceMotion ? clamp(tp.t * 6, 0, 1) * clamp((1.2 - tp.t) * 4, 0, 1) : clamp((1.2 - tp.t) * 4, 0, 1);
-      A.tape(c, a.x, b.x, a.y, Math.max(16, 14 * L.k), reveal, alpha, "Muted");
+      A.tape(c, a.x, b.x, a.y, Math.max(20, 14 * L.k), reveal, alpha, "Muted");
     });
   }
 
@@ -1823,6 +1825,7 @@
     var size = bubbleSize();
     var placed = hudBoxes().slice();
     if (arrowBox) placed.push(arrowBox);
+    placed.push({ x: L.server.x, y: L.server.y, w: L.server.w, h: L.server.h });   // the server's face too
     // keep clear of everyone's bars and faces
     var bars = [], faces = [], bossFace = null;
     G.desks.forEach(function (d) {
