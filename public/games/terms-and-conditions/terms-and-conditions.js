@@ -799,7 +799,10 @@
   function popupRect() {
     var v = L.view;
     var w = Math.min(v.w - L.pad * 2, L.fs * 19), h = L.fs * 8.4;
-    return { x: v.x + (v.w - w) / 2, y: v.y + v.h * 0.36 - h / 2, w: w, h: h };
+    // on narrow screens, above the speech bubbles that rise from the bottom
+    var top = v.h * 0.36 - h / 2;
+    if (L.mode !== "wide") top = Math.max(L.pad * 0.5, Math.min(top, v.h * 0.56 - h));
+    return { x: v.x + (v.w - w) / 2, y: v.y + top, w: w, h: h };
   }
 
   // ---------- Legal's edits ----------
@@ -1991,7 +1994,7 @@
 
   // Bubbles over the speaker's head. In the corners they lean inwards.
   function drawBubbles(c) {
-    var placed = [];
+    var placed = [], pr = popup ? popupRect() : null;
     bubbles.forEach(function (b) {
       var who = b.who === "legal" ? castPose("legal") : castPose("mascot");
       var headTop = b.who === "legal" ? who.y - 140 * who.s : who.y - 112 * who.s;
@@ -2025,6 +2028,8 @@
         if (bx < o.x + o.w + 4 && bx + bw + 4 > o.x && by < o.y + o.h + 4 && by + bh + 4 > o.y) by = o.y - bh - 8;
       }
       placed.push({ x: bx, y: by, w: bw, h: bh });
+      // a pop-up has the floor: a bubble that would cover it waits until it's gone
+      if (pr && bx < pr.x + pr.w && bx + bw > pr.x && by < pr.y + pr.h && by + bh + size > pr.y) return;
       var tailX = clamp(ax, bx + 14, bx + bw - 14);
       var pop = calm() ? 1 : clamp(b.t * 9, 0, 1);
       c.globalAlpha = Math.min(pop, clamp((b.life - b.t) * 4, 0, 1));
