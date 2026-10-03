@@ -456,6 +456,8 @@
                "Agreed. No takebacks.", "Lovely. Next."],
       pen: ["I'll take that pen.", "Pen. Now.", "Give me that, you absolute weapon."],
       amend: ["Small change.", "Tiny edit. Ignore me.", "Just one word.", "Nothing to see here."],
+      sting: ["You read to the end. Who does that.", "That was a perfectly good start to a sentence.", "Nobody gets to the end."],
+      small: ["Nobody reads the small print.", "That footnote was private.", "You read the asterisk. Rude."],
       amendCaught: ["I was only tidying.", "That was a typo. Legally.", "Overruled. By you. Somehow."],
       streak: ["Stop reading.", "Somebody stop them.", "Are you a lawyer.", "This is very unusual."],
       accept: ["Pleasure.", "All binding.", "That's a yes."],

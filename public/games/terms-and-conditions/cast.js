@@ -120,7 +120,8 @@
     var k = s * DPR, anim = o.anim || 0;
     var look = o.look || { x: 0.6, y: 0.2 };
     c.save();
-    c.translate(x, y);
+    // breathing, heavily
+    c.translate(x, y + (o.calm ? 0 : Math.sin(anim * 1.9) * 1.2 * s));
     c.scale(s, s);
 
     // the suit: shoulders and a round body, pinstripes, a paper edge on the ink

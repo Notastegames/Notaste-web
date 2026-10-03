@@ -689,7 +689,7 @@
     pops.push({ text: "+" + points + (mult > 1 ? " x" + mult : ""), x: L.view.x + L.view.w * 0.62, y: b.top + b.h * 0.3, t: 0 });
     splat(b);
     hitch = 0.22;
-    if (!calm()) shake = Math.max(shake, 0.5);
+    if (!calm()) { shake = Math.max(shake, 0.5); pull = Math.max(pull, 5); }
     sfx.strike(mult);
     var s = Math.floor(run.streak);
     if (s !== before && (s === 5 || s === 10 || s === 15)) {
@@ -697,6 +697,8 @@
       say("legal", pick(C.lines.legal.streak), true);
     } else if (b.type === "amend") {
       say("legal", pick(C.lines.legal.amendCaught), true);
+    } else if ((b.type === "sting" || b.type === "small") && Math.random() < 0.75) {
+      say("legal", pick(C.lines.legal[b.type]), true);
     } else if (Math.random() < 0.55) {
       if (Math.random() < 0.62) say("legal", pick(C.lines.legal.caught));
       else say("mascot", pick(C.lines.mascot.caught));
@@ -1142,7 +1144,10 @@
       return;
     }
     // a flick keeps it going for a moment
-    if (d.v > 150 && performance.now() - d.t < 120) fling = Math.min(1200, d.v);
+    if (d.v > 150 && performance.now() - d.t < 120) {
+      fling = Math.min(1200, d.v);
+      sfx.flick(fling);
+    }
   }
   root.addEventListener("pointerup", lift);
   root.addEventListener("pointercancel", lift);
@@ -1277,6 +1282,7 @@
   var S = N.sound;
   var sfx = {
     tick: function () { S.tone(1500, 0.025, { vol: 0.03 }); },
+    flick: function (v) { S.noise(0.18 + v / 4000, { type: "bandpass", freq: 1800, q: 0.7, vol: 0.05 + v / 12000 }); },
     strike: function (mult) {
       S.noise(0.09, { type: "bandpass", freq: 2600, q: 1.6, vol: 0.22 });
       S.noise(0.08, { type: "bandpass", freq: 3400, q: 1.6, vol: 0.18, delay: 0.07 });
@@ -1755,10 +1761,15 @@
     CAST.roundRect(c, a.x, a.y, a.w, a.h, 8);
     c.fillStyle = T.accent;
     c.fill();
-    c.lineWidth = keyMode && sel === ACCEPT ? 4 : 2.6;
+    c.lineWidth = 2.6;
     c.strokeStyle = T.ink;
     c.stroke();
-    if (pulse && !keyMode) {
+    if (keyMode && sel === ACCEPT) {
+      // the keys' focus: a ring round it
+      CAST.roundRect(c, a.x - 5, a.y - 5, a.w + 10, a.h + 10, 12);
+      c.lineWidth = 2.6;
+      c.stroke();
+    } else if (pulse && !keyMode) {
       c.globalAlpha = 0.5 * pulse;
       CAST.roundRect(c, a.x - 4, a.y - 4, a.w + 8, a.h + 8, 11);
       c.lineWidth = 2;
@@ -1881,7 +1892,7 @@
     if (arm) look = { x: 0.9, y: -0.3 };
     else if (L.mode !== "wide") look = { x: 0.6, y: -0.6 };
     CAST.legal(c, lp.x, lp.y, lp.s, {
-      face: arm ? "smug" : face, anim: clock, look: look, reach: reach,
+      face: arm ? "smug" : face, anim: clock, look: look, reach: reach, calm: calm(),
       fist: !reach && lb && face === "shout" && pen <= 0, pen: pen > 0 && !reach
     });
     var mb = speaking("mascot");
@@ -2078,6 +2089,7 @@
       },
       block: function (i) { var b = doc[i]; return { type: b.type, state: b.state, text: b.text }; },
       armOut: function () { return !!arm && arm.phase === "write"; },
+      popupUp: function () { return !!popup; },
       // how long this app's terms take to scroll, and how long a line is on screen
       pace: function () {
         var st = STAGES[stage], v = scrollSpeed() / (1 + st.ramp * clamp(scroll / Math.max(1, docH - L.view.h), 0, 1));
