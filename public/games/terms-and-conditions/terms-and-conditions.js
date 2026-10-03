@@ -120,7 +120,7 @@
 
   // The results ladder: what it takes and what it says
   var RANKS = [
-    { stamp: "Approved", line: "You read every word. The company has flagged your account as unusual." },
+    { stamp: "Approved", line: "You read the terms. The company has flagged your account as unusual." },
     { stamp: "Pending review", line: "You caught most of it. The rest is binding, and your fridge has been told." },
     { stamp: "Not approved", line: "You read some of it. They read all of you." },
     { stamp: "Rejected", line: "You agreed to nearly everything. Everyone does. That's the business model." }
@@ -631,7 +631,9 @@
         phaseClock = 0;
         speed = 0;
         sfx.ding();
-        if (keyMode && (sel < 0 || !isClause(doc[sel]) || doc[sel].state !== "open")) sel = ACCEPT;
+        // on keys, the highlight goes to the button that matters (Up goes back
+        // to the clauses), and a press in the same instant does nothing
+        if (keyMode) { sel = ACCEPT; jumped = clock; }
       }
       // pop-ups, part way through
       var progress = scroll / Math.max(1, docH - L.view.h);
@@ -1031,7 +1033,8 @@
       else if (sel >= 0) shell.announce(doc[sel].num + ". " + (doc[sel].amended ? amendedText(doc[sel]) : doc[sel].text) + (doc[sel].foot ? " " + doc[sel].foot : ""));
     }
     if (pressed.action) {
-      if (sel === ACCEPT) acceptAll(false);
+      if (sel === ACCEPT && clock - jumped < 0.3) sfx.tick();
+      else if (sel === ACCEPT) acceptAll(false);
       else if (sel === DECLINE) decline();
       // the highlight has just moved by itself (its clause scrolled away):
       // a press this quick was meant for the old one, so it strikes nothing
