@@ -162,7 +162,7 @@
       brief: "Scissors, candles and cooking wine need Bev's approval: scan them and carry on, you can't pay until she's been. The red line is narrower now.",
       clear: "The candle has been approved. Nobody looked at the candle.",
       hello: "Welcome back. Your file is open." },
-    { name: "Christmas Eve", count: 15, belt: 16, gap: [9, 18], time: 42, walk: 7, pool: "xmas", edge: true, xmas: true,
+    { name: "Christmas Eve", count: 15, belt: 16, gap: [9, 18], time: 40, walk: 7, pool: "xmas", edge: true, xmas: true,
       sets: ["sprout", "potato", "apple"], fruit: 2, age: ["crackers", "candle"], heavy: ["turkey"],
       brief: "The machine is on edge: its suspicion rises on its own, and only perfect scans calm it down. The shop shuts early.",
       clear: "",
@@ -173,7 +173,7 @@
   // and none of them the best for everyone.
   var CHOICES = [
     { id: "bags", label: "Bring your own bags", detail: "The scale settles twice as fast, even when you're accused. Everything you put in looks a bit suspicious.",
-      apply: function (m) { m.settle *= 0.5; m.bagSus += 4; } },
+      apply: function (m) { m.settle *= 0.5; m.bagSus += 2; } },
     { id: "card", label: "Use a loyalty card", detail: "Every item scores a tenth more. It knows who you are, so it starts every shop suspicious.",
       apply: function (m) { m.points *= 1.1; m.susStart = 45; } },
     { id: "bev", label: "Make eye contact with Bev", detail: "Bev comes over twice as fast. Then she has a chat.",
@@ -1156,7 +1156,8 @@
       tilt: stage % 2 ? 4 : -4,
       heading: ["Basket: paid for.", "Trolley: paid for.", "Big shop: paid for."][stage],
       // the trolley names a fruit you actually bought
-      line: info().clear.replace(/\{fruit\}/g, (st.dealt.filter(function (p) { return p.fruit; })[0] || { fruit: "lime" }).fruit),
+      line: stage === 0 && run.falseAlarms && !st.fault ? "One basket, one false alarm. The machine has opened a file on you." :
+        info().clear.replace(/\{fruit\}/g, (st.dealt.filter(function (p) { return p.fruit; })[0] || { fruit: "lime" }).fruit),
       stats: stats,
       ask: "Stage " + (next + 1) + ": " + STAGES[next].name + ". How are you shopping.",
       choices: offers.map(function (c) { return { label: c.label, detail: c.detail }; })
