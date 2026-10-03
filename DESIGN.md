@@ -108,7 +108,7 @@ Parody content that imitates a real interface (the fake social posts in "Reject 
 | Body | The device's own UI font (`--body`) | Paragraphs, links, small print. |
 | Mono | The device's monospace (`--mono`, game pages) | Timers and boot logs, where digits must not jump about. |
 
-- Notaste Display is our own face, drawn from the logo's letterforms. It lives at `public/fonts/notaste-display.woff` and is rebuilt with `tools/build_font.py`. It covers A–Z, a–z, 0–9, common punctuation, £, curly quotes, en dash and ellipsis. Anything outside that falls back to Impact, so keep display text inside that set.
+- Notaste Display is our own face, drawn from the logo's letterforms. It lives at `public/fonts/notaste-display.woff` and is rebuilt with `tools/build_font.py`. It covers A–Z, a–z, 0–9, common punctuation, £, curly quotes, en dash and ellipsis. Its space is about a quarter of an em, wide enough that small words in a speech bubble don't run together. Anything outside that falls back to Impact, so keep display text inside that set.
 - No other web fonts. No Google Fonts, no font services, no third-party requests of any kind.
 - Type scale: `--step--1` (0.875rem), `--step-0` (1.0625rem body), `--step-1` (1.25rem), `--step-2` (section headings), `--step-3` (the hero). Game titles use the sizes in `games/game.css`.
 - Display text is tight: line-height about 0.86–0.95.
