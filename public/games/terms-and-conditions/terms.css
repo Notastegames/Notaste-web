@@ -1,0 +1,25 @@
+/*
+  Terms and Conditions: the few things the kit doesn't already style.
+  Loads after /games/kit/kit.css on this page only.
+*/
+
+/* Your rights, top left: a pip each, filled while you still have it */
+.tc-rights { display: flex; align-items: center; }
+.tc-pips { display: inline-flex; gap: 0.22rem; margin-left: 0.1rem; }
+.tc-pip {
+  width: 0.62rem;
+  height: 0.62rem;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  box-shadow: 0 1px 0 #000;
+}
+.tc-pip.is-on { background: var(--accent); border-color: var(--accent); }
+
+/* phones: small enough to stay clear of the pause button */
+@media (max-width: 39.99rem) {
+  .tc-pips { gap: 0.14rem; }
+  .tc-pip { width: 0.5rem; height: 0.5rem; border-width: 1.5px; }
+}
+
+/* No touch buttons in this game (you tap the clauses), so the notice can sit low */
+#game-root.kit-touching .kit-brief { bottom: 0.9rem; }
