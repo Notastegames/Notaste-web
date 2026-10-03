@@ -59,7 +59,7 @@
 // shuts before you've paid, the run is over.
 //
 // THE LADDER (DESIGN.md, section 6). Approved: every shop paid for and at
-// least 15,500 points. Pending review: you reached Christmas Eve. Not
+// least 15,000 points. Pending review: you reached Christmas Eve. Not
 // approved: you got as far as the trolley or the big shop. Rejected: the
 // basket beat you.
 //
@@ -96,7 +96,7 @@
   var SUS_PERFECT = 10, SUS_GOOD = 3, SUS_AFTER = 35;
   var TIME_BONUS = 20, CLEAN_BONUS = 500;
   var K = 1.25;               // the shopping is drawn this much bigger than sprites.js draws it
-  var APPROVED = 15500;
+  var APPROVED = 15000;
 
   // What goes in which trolley. No real brands anywhere.
   var POOLS = {
@@ -124,17 +124,17 @@
       brief: "Scan each item as its barcode crosses the red line. Then bag it, but only when the scale says OK.",
       clear: "One basket. The machine has opened a file on you.",
       hello: "Welcome. Please scan your first item. I'm watching." },
-    { name: "A trolley", count: 10, belt: 12.5, gap: [12, 22], time: 70, walk: 5, pool: "trolley",
+    { name: "A trolley", count: 10, belt: 12.5, gap: [12, 22], time: 60, walk: 5, pool: "trolley",
       sets: ["lime", "onion", "apple", "potato", "banana"], fruit: 3, age: [], heavy: [],
       brief: "Loose fruit has no barcode. The belt stops and the till asks what it is: pick the matching picture before it guesses.",
       clear: "Every lime accounted for. The machine has kept a note about the lime.",
       hello: "Hello again. I remember you." },
-    { name: "The big shop", count: 13, belt: 14.5, gap: [10, 20], time: 80, walk: 6, pool: "big",
+    { name: "The big shop", count: 13, belt: 14.5, gap: [10, 20], time: 70, walk: 6, pool: "big",
       sets: ["lime", "onion", "apple", "potato", "banana"], fruit: 2, age: ["wine", "scissors", "candle"], heavy: ["rice", "bleach"],
       brief: "Scissors, candles and cooking wine need Bev's approval. Scan them and carry on: you can't pay until she's been.",
       clear: "The candle has been approved. Nobody looked at the candle.",
       hello: "Welcome back. Your file is open." },
-    { name: "Christmas Eve", count: 15, belt: 16, gap: [9, 18], time: 70, walk: 7, pool: "xmas", edge: true, xmas: true,
+    { name: "Christmas Eve", count: 15, belt: 16, gap: [9, 18], time: 55, walk: 7, pool: "xmas", edge: true, xmas: true,
       sets: ["sprout", "potato", "apple"], fruit: 2, age: ["crackers", "candle"], heavy: ["turkey"],
       brief: "The machine is on edge: suspicion rises on its own, and perfect scans calm it down. The shop shuts early.",
       clear: "",
@@ -550,8 +550,9 @@
 
     scanLock = Math.max(0, scanLock - dt);
 
-    // bring your own bags: the machine doesn't trust them
-    if (mods.byob && !st.byobDone && clock > 1.2) { st.byobDone = true; accuse("byob"); }
+    // bring your own bags: the machine doesn't trust them (once the notice
+    // has gone, so you can see which bag it means)
+    if (mods.byob && !st.byobDone && clock > 3.9) { st.byobDone = true; accuse("byob"); }
 
     var wasFrozen = !!frozen;
     if (frozen) tickFrozen(dt, p);
@@ -1076,6 +1077,7 @@
     if (phase !== "play") return;
     phase = "over";
     dennis(SAY.shut, true);
+    paintHud();
     sfx.shutter();
     shell.callout("Shop: shut", { ms: 1400 });
     end("shut");
@@ -1120,9 +1122,9 @@
       return out;
     }
     if (look) {
-      if (!look.result && look.t > auto.think) {
-        // once a run it dithers and lets the machine guess
-        if (stage === 1 && !auto.guessed) { if (look.t > look.limit - 0.1) auto.guessed = true; return out; }
+      // once a run (the trolley's first fruit) it dithers and lets the machine guess
+      if (look.dither == null) { look.dither = stage === 1 && !auto.guessed; if (look.dither) auto.guessed = true; }
+      if (!look.result && !look.dither && look.t > auto.think) {
         out.pick = look.answer;
         auto.cool = 0.3;
       }
@@ -2040,7 +2042,8 @@
     c.stroke();
     c.restore();
     var size = Math.max(3, 12 / U);
-    if (dir === "right") S.text(c, word, -3, -3.6, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
+    // a side arrow keeps its word underneath, clear of the callouts under the till
+    if (dir === "right") S.text(c, word, 1.6, 3.4, size, { align: "right", base: "top", colour: T.paper, stroke: size * 0.32 });
     else S.text(c, word, 0, -5.2, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
     c.restore();
   }
@@ -2180,7 +2183,7 @@
     drawLookup(c);
     var placed = [];
     var h = hint();
-    if (h) placed.push(h.dir === "right" ? { x: (h.x - 16) * U, y: (h.y - 9) * U, w: 22 * U, h: 12 * U } : { x: (h.x - 9) * U, y: (h.y - 9) * U, w: 18 * U, h: 11 * U });
+    if (h) placed.push(h.dir === "right" ? { x: (h.x - 24) * U, y: (h.y - 4) * U, w: 26 * U, h: 12 * U } : { x: (h.x - 9) * U, y: (h.y - 9) * U, w: 18 * U, h: 11 * U });
     bubbles.forEach(function (b) { drawBubble(c, b, placed); });
     if (h) {
       c.setTransform(DPR * U, 0, 0, DPR * U, 0, 0);
@@ -2255,6 +2258,7 @@
       shut: function () { timeLeft = 0.01; },
       dealt: function () { return dlog.slice(); },
       idle: function (secs) { if (auto) auto.cool = secs; },
+      bagAt: function () { return { x: L.bagX * U, y: (L.belt - L.bagH / 2) * U }; },
       // everything a test needs to play by the rules, in one snapshot
       peek: function () {
         return {
