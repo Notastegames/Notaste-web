@@ -104,7 +104,7 @@
   var VIDEO_LIFE = 11;           // seconds before it gives up
   var MANAGE_WAIT = 1.7;         // loading your preferences
   var TAB_TIME = 1.8;            // the new tab an advert opens
-  var LADDER = [1, 1.2, 1.5];       // time against par: approved, pending review, not approved, then rejected
+  var LADDER = [1, 1.2, 1.5];    // time against par: approved, pending review, not approved, then rejected
 
   // Between courses: something good, something bad, in that order
   var CHOICES = {
@@ -127,12 +127,12 @@
     { line: "Dinner is very late. You know a lot about the author's kitchen tiles." },
     { line: "By the time you reached the pudding, it was breakfast." }
   ];
-  // Between courses, by how that page went
+  // Between courses, by how that page went (pudding has the results screen instead)
   var CLEARED = [
-    ["Soup located. Nan's childhood went largely unread.", "Lasagne located. Italy can wait.", ""],
-    ["Soup located. You know about the tiles now.", "Lasagne located. You've seen the oven.", ""],
-    ["Soup located. It's gone cold.", "Lasagne located. The kids have had toast.", ""],
-    ["Soup located, eventually. The soup has been informed.", "Lasagne located. It's tomorrow.", ""]
+    ["Soup located. Nan's childhood went largely unread.", "Lasagne located. Italy can wait."],
+    ["Soup located. You know about the tiles now.", "Lasagne located. You've seen the oven."],
+    ["Soup located. It's gone cold.", "Lasagne located. The kids have had toast."],
+    ["Soup located, eventually. The soup has been informed.", "Lasagne located. It's tomorrow."]
   ];
 
   // ---------------------------------------------------------------------------
@@ -142,7 +142,7 @@
   var W = 1, H = 1, DPR = 1, U = 1, OX = 0, VH = 100, VW = 100, HY = 45, MARGIN = 0;
   var run = null;       // the whole meal
   var G = null;         // the page you're on
-  var hand = { x: 50, kv: 0, press: 0, squash: 0, tilt: 0, wob: 0 };
+  var hand = { x: 50, kv: 0, press: 0, squash: 0, tilt: 0 };
   var prevAct = false, autoCd = 0;
   var bubbles = [], fx = [], shake = 0, clock = 0;
   var hint = null, noticed = false, hudEls = null, talkWait = 0, mumble = 0, jingle = 0;
