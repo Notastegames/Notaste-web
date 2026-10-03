@@ -424,16 +424,6 @@
       c.fillRect(-w / 2 + 0.3, -h * 0.5 - 1.2, w - 0.6, 3.6);
       ink(c, 0.35); c.strokeRect(-w / 2 + 0.3, -h * 0.5 - 1.2, w - 0.6, 3.6);
     } },
-    glue: { name: "Superglue", w: 7, h: 10, age: true, bar: { x: 0.5, y: 2, w: 3.4 }, draw: function (c, w, h) {
-      var card = rr(-w / 2, -h, w, h, 0.5);
-      solid(c, card, T.red);
-      solid(c, ell(0, -h + 1, 0.9, 0.5), T.ink, 0.2);
-      var tube = new Path2D();
-      tube.moveTo(-1.4, -4); tube.lineTo(1.4, -4); tube.lineTo(1.1, -h + 4); tube.lineTo(0.4, -h + 2.6);
-      tube.lineTo(-0.4, -h + 2.6); tube.lineTo(-1.1, -h + 4); tube.closePath();
-      solid(c, tube, T.paper, 0.4);
-      solid(c, rr(-1.6, -4.2, 3.2, 0.9, 0.2), T.accent, 0.3);
-    } },
     turkey: { name: "Turkey", w: 16, h: 10, heavy: true, bar: { x: 0.74, y: 1.3, w: 3.8 }, draw: function (c, w, h) {
       [-1, 1].forEach(function (s) {
         var leg = new Path2D();
@@ -944,7 +934,7 @@
   // headset, and a bun with a pencil through it (from behind, the bun is how
   // you know it's her). She walks slowly and never looks at what she approves.
   // o: { phase, walking, reach 0..1 (the card arm out to the right), look,
-  //      shut, shout, mug, xmas, face (1 right, -1 left) }
+  //      shut, shout, mug, xmas, face (1 right, -1 left), badge (her name on it) }
   function bev(c, x, y, o) {
     var R = 8.2;
     var bob = o.walking ? Math.abs(Math.sin(o.phase)) * 0.9 : 0;
@@ -972,8 +962,8 @@
     line(c, [[-2.4, -18.6], [cardX - 0.6, cardY - 1.6]], 0.9, T.red);
     line(c, [[2.4, -18.6], [cardX + 0.6, cardY - 1.6]], 0.9, T.red);
     // name badge: BEV
-    solid(c, rr(-8, -13.4, 4.6, 2.4, 0.3), T.paper, 0.4);
-    if (SCALE > 3) text(c, "Bev", -5.7, -12, 1.9);
+    solid(c, rr(-8.6, -13.9, 5.8, 3, 0.3), T.paper, 0.4);
+    if (o.badge) text(c, "Bev", -5.7, -12.3, 2.4);
     if (o.reach) {
       // the card arm, out to the till, without looking
       var arm = new Path2D();
