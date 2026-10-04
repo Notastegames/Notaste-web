@@ -1,0 +1,8 @@
+/*
+  Unexpected Item: the one thing this game does differently on the page.
+  The till's face is the comedian, its screen says what it wants, and the
+  scale says OK or Wait, so in-game stamps land under the belt, clear of all
+  three. The game sets --ui-callouts to just under the belt for each screen
+  shape. Everything else is the kit's (games/kit/kit.css).
+*/
+body[data-game="unexpected-item"] .kit-callouts { inset: var(--ui-callouts, 76%) 0 auto; }
