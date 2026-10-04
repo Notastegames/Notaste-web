@@ -390,6 +390,8 @@
   //                              today (or { label: "Today's race" } to name it)
   //     modes: [{ key, label }], other ways to start, under Press start
   //     pitch: "...",            one line about the game, for the clip frame (?clip)
+  //     fullOnTouch: true,       on a touch screen, go full-window when a round starts
+  //                              (for a game that needs the whole height of a phone)
   //     smallCallouts: true,     smaller in-game stamps, for a busy field
   //     reset(shell),            a fresh round: put everything on the start line
   //     update(dt, input, shell), every frame while playing (and after the finish)
@@ -591,6 +593,7 @@
     [interStamp, interHeading, interLine, interStats, interAsk, interChoices].forEach(function (n) { interPanel.appendChild(n); });
     root.appendChild(interPanel);
     var interPick = null;
+    var autoPick = 0;
 
     var live = el("p", "kit-sr");
     live.setAttribute("aria-live", "polite");
@@ -731,6 +734,7 @@
       sound.unlock();
       started = true;
       newRound();
+      if (game.fullOnTouch && coarse && !isFull() && !flags.clip) enterFull();
       game.reset(shell);
       resize();
       setState("intro");
@@ -803,6 +807,10 @@
           setState("interlude");
           sound.stamp(0.15);
           buttons[0].focus({ preventScroll: true });
+          // the autopilot (and so a clip being filmed) picks for itself after a moment
+          if (flags.autopilot) {
+            autoPick = window.setTimeout(function () { pickChoice(Math.floor(Math.random() * buttons.length)); }, 2600);
+          }
           announce((opts.heading || "") + " " + (opts.ask || "") + " " + choices.map(function (c) { return c.label + (c.detail ? ": " + c.detail : "") + "."; }).join(" "));
         }, opts.delay != null ? opts.delay : 1200);
       });
@@ -817,6 +825,7 @@
       countTimers.forEach(window.clearTimeout);
       countTimers = [];
       window.clearTimeout(finishTimer);
+      window.clearTimeout(autoPick);
     }
 
     // 3, 2, 1, Go. Each one a stamp with a beep.
