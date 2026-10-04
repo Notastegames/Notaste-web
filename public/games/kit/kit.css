@@ -7,6 +7,9 @@
 */
 
 #game-root.kit {
+  /* sized by the screen, so the kit's layout can follow the screen rather
+     than the window: phones, fullscreen and the clip frame all fit */
+  container: kit / size;
   outline: none;
   touch-action: none;
   user-select: none;
@@ -16,7 +19,8 @@
 
 /* let the page scroll normally until the game starts */
 #game-root.kit[data-kit="title"],
-#game-root.kit[data-kit="interlude"] { touch-action: auto; }
+#game-root.kit[data-kit="interlude"],
+#game-root.kit[data-kit="results"] { touch-action: auto; }   /* a short screen can scroll its panel */
 
 .kit-canvas {
   position: absolute;
@@ -236,7 +240,7 @@
   z-index: 3;
   display: grid;
   place-items: start center;
-  padding-top: 7%;
+  padding-top: max(7%, 3.2rem);   /* clear of the pause, sound and fullscreen buttons */
   pointer-events: none;
 }
 
@@ -272,7 +276,7 @@
   .kit-brief { transform: translate(-50%, 8px); }
   .kit-brief.is-on { transform: translate(-50%, 0); }
 }
-#game-root.kit-touching .kit-brief { bottom: 5.4rem; }
+#game-root.kit-touching:has(.kit-pad) .kit-brief { bottom: 5.4rem; }   /* only lifted over touch buttons */
 #game-root:not([data-kit="playing"]):not([data-kit="countdown"]):not([data-kit="paused"]) .kit-brief { display: none; }
 .kit-brief-title {
   margin: 0;
@@ -291,6 +295,10 @@
   z-index: 5;
   display: none;
   align-content: center;
+  align-content: safe center;   /* too tall for the screen: scroll, don't lose the stamp off the top */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
   justify-items: center;
   gap: 0.9rem;
   padding: 1.25rem;
@@ -313,7 +321,7 @@
 .kit-title-name {
   margin: 0;
   font-family: var(--display);
-  font-size: clamp(2.6rem, 6vw + 1rem, 5.25rem);
+  font-size: clamp(2.4rem, 12cqw, 5.25rem);   /* by the screen's width, so it fits a clip frame too */
   line-height: 0.88;
   text-transform: uppercase;
   text-shadow: 0 3px 0 #000, 0 0 24px rgba(0, 0, 0, 0.8);
@@ -456,8 +464,8 @@
 .kit-choice-detail { color: var(--smoke); font-size: 0.78rem; line-height: 1.35; }
 .kit-mode { margin-top: -0.2rem; }
 
-/* Phones: the screen is square and small, so everything tightens */
-@media (max-width: 39.99rem) {
+/* Small screens (a phone, the clip frame, a short fullscreen): everything tightens */
+@container kit (max-width: 440px) or (max-height: 420px) {
   .kit-panel { gap: 0.6rem; padding: 1rem; }
   .kit-panel .stamp-label { font-size: 1.45rem; }
   .kit-heading { margin-top: 0.25rem; font-size: 1.6rem; }
@@ -485,6 +493,20 @@
   .kit-hud-tr { right: 0.6rem; }
   .kit-bar { top: 0.45rem; gap: 0.25rem; }
   .kit-icon { width: 2.05rem; height: 2.05rem; }
+}
+
+/* A very short screen (a small phone): tighter again */
+@container kit (max-height: 360px) {
+  .kit-panel { gap: 0.45rem; padding: 0.6rem 0.75rem; }
+  .kit-panel .stamp-label { font-size: 1.2rem; }
+  .kit-heading { margin-top: 0; font-size: 1.35rem; }
+  .kit-line { font-size: 0.76rem; line-height: 1.35; }
+  .kit-stats { gap: 0.2rem 0.9rem; }
+  .kit-stats dt { font-size: 0.62rem; }
+  .kit-stats dd { font-size: 0.82rem; }
+  .kit-actions { gap: 0.45rem 0.8rem; margin-top: 0; }
+  .kit-actions .btn { font-size: 1rem; padding: 0.55rem 0.9rem 0.45rem; }
+  .kit-quiet { padding: 0.4rem 0.7rem; }
 }
 
 /* ---------- Fullscreen ---------- */
