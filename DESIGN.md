@@ -108,7 +108,7 @@ Parody content that imitates a real interface (the fake social posts in "Reject 
 | Body | The device's own UI font (`--body`) | Paragraphs, links, small print. |
 | Mono | The device's monospace (`--mono`, game pages) | Timers and boot logs, where digits must not jump about. |
 
-- Notaste Display is our own face, drawn from the logo's letterforms. It lives at `public/fonts/notaste-display.woff` and is rebuilt with `tools/build_font.py`. It covers A–Z, a–z, 0–9, common punctuation, £, curly quotes, en dash and ellipsis. Anything outside that falls back to Impact, so keep display text inside that set.
+- Notaste Display is our own face, drawn from the logo's letterforms. It lives at `public/fonts/notaste-display.woff` and is rebuilt with `tools/build_font.py`. It covers A–Z, a–z, 0–9, common punctuation, £, curly quotes, en dash and ellipsis. Its space is about a quarter of an em, wide enough that small words in a speech bubble don't run together. Anything outside that falls back to Impact, so keep display text inside that set.
 - No other web fonts. No Google Fonts, no font services, no third-party requests of any kind.
 - Type scale: `--step--1` (0.875rem), `--step-0` (1.0625rem body), `--step-1` (1.25rem), `--step-2` (section headings), `--step-3` (the hero). Game titles use the sizes in `games/game.css`.
 - Display text is tight: line-height about 0.86–0.95.
@@ -243,7 +243,7 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 
 **Behaviour.**
 - Pause automatically when the tab is hidden or the window loses focus.
-- Fullscreen button on every game. Phones that can't do real fullscreen get a full-window version.
+- Fullscreen button on every game. Phones that can't do real fullscreen get a full-window version. A game that needs the whole height of a phone (a reading game) can go full-window by itself when a round starts on a touch screen (`fullOnTouch`); the button takes it back out.
 - Save only bests and settings, in the browser's local storage, under `notaste.<slug>.<name>` (`shell.record` does this). No accounts, no tracking, no cookies.
 
 **Autopilot and clips.** Every game drives itself when `Notaste.flags.autopilot` is on, well enough to reach the results screen: the play-through (`tools/playtest.mjs`) depends on it. `?autopilot` turns it on, and `&speed=4` runs it four times as fast. `?clip` is for filming social clips: a 9:16 frame with the logo at the top, the game's screen at 4:5 in the middle, and the title (with its accent bar), the pitch and "Free at notastegames.com" underneath. The autopilot plays, the pause, sound and fullscreen buttons are hidden, the game doesn't pause when the screen recorder takes the focus, and Enter starts it.
@@ -286,7 +286,35 @@ Each game's own rules: its characters, its stamp words and callouts, and anythin
 
 ### Slop Cannon
 
-To be written when the game is built.
+A content farm's cannon fires AI slop at a giant phone's feed. Only real people's posts pay, and slop on slop costs you, which is the joke: the platform pays you to ruin someone's tea, and the slop needs real people to feed on. The people posting are never the joke; the slop and the system that rewards it are.
+
+**The room.** Black, with ash halftone on the back wall and grey server racks humming behind (ash outlines, a few slime and red lights). The cannon stands bottom left: a black barrel with a paper edge, a red band and a paper halftone shine, on a carriage with one big paper-rimmed wheel and a red hub. A hose runs to it from the vat behind, a black drum marked "Slop" in red on a paper label, slime spilling over the top; a lump of slime runs down the hose while it reloads. On the wall above the vat, a paper sign: "Days since a fact check", over a big number that counts up a day a second and goes back to a red 0 whenever a fact check bounces a shot.
+
+**The phone** stands on the floor on the right, its top somewhere above the screen: black, a thick paper edge, side buttons, a home bar. The app's header runs across the top under the score, and the posts slide beneath it.
+
+**The posts** are paper cards: an avatar and a name, a picture, a caption, likes top right (a heart and a number that counts up). Real posts have a cut-out head for an avatar (section 7, calm until slopped, then furious and looking at the cannon, one thing each: a perm, three hairs, a cap, a bun, specs, a beanie, a fringe, a tache) and an ordinary picture drawn in ink: tea, a blurry cat, a shed, a 90th birthday cake, a carrot, a car park sunset, a dog, a found glove on the railings, a deckchair. Slop pages have a slime avatar with a melting smiley, a sickly slime-halftone picture with the slop in the middle, and a slime border. A slopped post gets a solid slime splat with drips, the slop thing stuck in it, the slime border, a rewritten caption ("Tea tonight." becomes "Type yes if you'd eat this.") and thousands of likes. The feed turns green as you go. Trending posts carry a red "Trending" tag. A fact check is a paper card with a magnifying glass, a red double-bordered "Context added" stamp, grey halftone lines of context and "Read by 0 people".
+
+**The slop** is a wobbling slime blob with an ink edge and a paper shine, carrying one of four things drawn in ink and paper: a hand with eight fingers (a palm, a mitten thumb out to the side and seven fingers fanned up), a melting dog, a soldier carved from bread (a loaf in a helmet, saluting) and a melting smiley. It leaves drips, splashes in slime droplets, and leaves slime puddles on the floor.
+
+**Characters.**
+- **The Gaffer** runs the farm and stands behind the cannon: the section 7 cut-out in a paper shirt, black trousers pulled up high (paper halftone and a paper edge, so they read on the black floor), a red tie and a clipboard, with a slime-green eyeshade (a band and a brim). He watches the feed and turns to the player to shout, a fist in the air. He insults your aim, never you: "That's the floor, you plonker", "That's already slop, you lemon", "Fire, you absolute weapon". If a bounce lands on him he wears it for a while ("Nobody saw that").
+- **The Moderator** hangs off the phone's left edge in a window cleaner's cradle (a paper board marked "Mod", ropes up out of sight), the cut-out with tired, furious eyes, a red lanyard and pass, holding a very small net on a long pole. He's sympathetic and understaffed: "There's just me", "There were forty of us in March", "Back in forty minutes". After three catches he goes up and away, and an "On lunch" sign hangs where he was.
+- **The people posting** speak from their avatars when slopped, about their post, in the house register: "That was my tea", "Tigger has four legs", "That was my holiday, you pillock", "I'm telling my nan".
+
+**Stamps and callouts:** Gone viral, Context added, Trend: hijacked, Slop on slop, Moderated, Moderated. Again, Moderator: on lunch, Cannon: slopped, Bots: deployed, Nobody saw it, Target: met, Target: missed, Nobody can tell, Close enough. Routine ones (Slop on slop, Nobody saw it) land once a stage.
+
+**What only it does.**
+- **Hold to charge.** While held, the point where the shot will land climbs the phone at a steady speed and comes back down, so the brackets rest on each post as long at any angle. A dotted arc shows the shot, red brackets mark the post it will land on by the time it arrives (the feed keeps moving), a slime halftone ghost of the blob shows where on that post, and a tag on the post says what it's worth: "+150", or in red "Bounces" for a fact check, "-25" for slop, and "Breaks chain" for slop when there's a chain to lose. All of it stays on the phone's screen. Let go a moment after the brackets leave a real post and the shot still goes to it: the brackets you saw are the shot you get. Before it's charging, four dots show where the barrel points.
+- **One rule per action.** Firing is the only action. Real posts slopped in a row make the chain (x1.25 a post, up to x3) and every fourth goes viral, spreading slop to the posts either side with a slime zigzag. A shot that only gets slop costs 25 (the platform downranks duplicate content) and breaks it; if your own splash gets to a real post first, the shot that was aimed at it costs nothing. A miss, a bounce or a catch breaks it too. A splash near the line between two posts gets both.
+- **Fact checks always bounce,** straight back onto the barrel (jammed for a second and a half) or onto the Gaffer.
+- **The Moderator** drifts towards where you're aiming, slowly, lunges at a shot in flight at half that speed, and only the hoop of his net catches. His net never comes lower than the cannon's mouth, so a flat shot can always go under him, and on a square screen, where his net hangs close to the cannon, he moves slower.
+- **Reactions pour in:** red hearts and slime comment chips float off slopped posts, and every chip is a bot's ("Bot", "Nice post. Visit my page", "Wow. Link in bio"): the people scrolling past are never shown falling for it.
+- **The new caption** pops up big over a post when it's slopped ("Type yes if you'd eat this."), for a couple of seconds, so the joke reads on a phone.
+- **Stage notices** are two short lines that go up with the countdown and come down just after Go. Filming a clip, only the stage's name shows, and it's gone by Go.
+- **The finale:** when the final push ends, slime floods the phone's screen from the bottom.
+- **Results** say how it went against the target in a few words ("Over by 611.", "Short by 340."), with the share of the feed that ended up slop in the numbers.
+
+**The cover** is drawn with the game's own art: the Gaffer shouting "More. Faster. Worse." behind the cannon and the vat, a shot landing on Sandra's tea while she shouts "That was my tea.", the Moderator dangling his tiny net over it from his cradle, bots in the comments, and the feed turning green. The middle stays dark so the title screen's words read over it.
 
 ### Unexpected Item
 
