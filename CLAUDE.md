@@ -23,6 +23,7 @@ Free satirical browser games at notastegames.com. Plain static site in `public/`
 | --- | --- |
 | `DESIGN.md` | Design and voice rules |
 | `ROADMAP.md` | What's being built next, in order, and what "polished" means |
+| `docs/phase3/` | Working notes for the Phase 3 games: how helpers are briefed, reviews in progress, designs not yet built |
 | `public/index.html`, `public/main.js`, `public/styles.css` | Homepage and shared site styles |
 | `public/games/game.css`, `public/games/game.js` | Shared game page layout, cabinet, "More games", share button, placeholder boot |
 | `public/games/kit/` | Shared game kit used by every playable game |
