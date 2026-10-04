@@ -8,8 +8,8 @@ Last updated: 2 October 2026.
 
 ## Where we are
 
-- **Playable:** Thonglets (seven stages, Judgement Day, a daily run) and Heavy Traffic (still labelled an early prototype).
-- **Placeholder:** Slop Cannon, next out of the door.
+- **Playable (5):** Thonglets, Heavy Traffic (still labelled an early prototype), Slop Cannon, Reply All and Unexpected Item.
+- **In progress:** Terms and Conditions, Just the Recipe and Hold Music (see "Resume here" in Phase 3).
 - **Built:** the shared game kit (with today's run, Share result and a clip mode for filming), the starter game, the automatic play-through, `DESIGN.md`, per-game share images, a privacy note, and the preview-then-approve process.
 - **Not yet:** the socials (accounts partly set up, not linked yet), a shop link, and a homepage that works with more than three games.
 
@@ -62,18 +62,46 @@ Eight new games and a polish pass on Heavy Traffic, so the site has ten. The bri
 
 | # | Game | Type | Accent | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Thonglets | God game | lilac | Done |
-| 2 | Heavy Traffic | Kart racing | teal | Polish pass in batch 3 |
-| 3 | Slop Cannon | Arcade artillery | slime | Batch 1 |
-| 4 | Unexpected Item | Timing | checkout green | Batch 1 |
-| 5 | Reply All | Whack-a-mole | sky | Batch 1 |
-| 6 | Terms and Conditions | Spot it | peach | Batch 2 |
-| 7 | Just the Recipe | Vertical dodger | rust | Batch 2 |
-| 8 | Hold Music | Rhythm and memory | magenta | Batch 2 |
-| 9 | On Mute | Multitasking | violet | Batch 3 |
-| 10 | Scrubbed | Lander physics | orange | Batch 3 |
+| 1 | Thonglets | God game | lilac | Live |
+| 2 | Heavy Traffic | Kart racing | teal | Live; polish pass in batch 3, not started |
+| 3 | Slop Cannon | Arcade artillery | slime | Live (#14) |
+| 4 | Unexpected Item | Timing | checkout green | Live (#16) |
+| 5 | Reply All | Whack-a-mole | sky | Live (#15) |
+| 6 | Terms and Conditions | Spot it | peach | Built, reviewed, fixes done; final check left |
+| 7 | Just the Recipe | Vertical dodger | rust | Built; review half done |
+| 8 | Hold Music | Rhythm and memory | magenta | Designed; build not started |
+| 9 | On Mute | Multitasking | violet | Batch 3, not started |
+| 10 | Scrubbed | Lander physics | orange | Batch 3, not started |
 
 All fifteen accents (these and the edgier five) are in `DESIGN.md` section 3.
+
+### Resume here
+
+Paused on 3 October 2026 at the owner's request; picking up after the usage limit resets. Do these in order.
+
+1. **The owner's notes first.** Any notes on the three games that went live on 4 October (Slop Cannon, Reply All, Unexpected Item) become fixes on a fresh `claude/game-<slug>` branch from `main`, before new work.
+2. **Turn the check-in back on.** The routine "Notaste Phase 3 check-in" (every two hours) restarts stopped helpers. Run three helpers at a time: four hit the usage limit.
+3. **Terms and Conditions** (`claude/game-terms-and-conditions`, at 4fa032f): the review's fixes are done and its play-through passes.
+    - Merge `main` in: the kit fixes it was written against are now live.
+    - Check that `fullOnTouch` takes a phone round full-window, and that `terms.css` doesn't shrink panels a second time on top of the kit's small-screen rules.
+    - Look over its phone screenshots, run the full `node tools/playtest.mjs`, then publish a preview and open a pull request for the owner.
+4. **Just the Recipe** (`claude/game-just-the-recipe`, at 4ce3fe6): built.
+    - Finish the review from `docs/phase3/just-the-recipe-review-so-far.md`, which lists what it hasn't covered yet.
+    - A fixer then works through the whole review, then a final check, a preview and a pull request.
+5. **Hold Music:** nothing built yet. A builder builds it from `docs/phase3/hold-music-design.md`, then review, fixes, a preview and a pull request.
+6. **Batch 3:** On Mute, Scrubbed, and the Heavy Traffic polish pass, through the same steps.
+7. **As each game merges:**
+    - Bring the branch up to date with `main`; the `GAMES` line, poster and sitemap line usually conflict, so keep every game.
+    - Run the full play-through.
+    - Add the game's stamp words to `DESIGN.md` section 6, and update the table above.
+
+Helpers are briefed with `docs/phase3/builder-rules.md` (builders and fixers) and `docs/phase3/reviewer-rules.md` (reviewers), plus the game's brief below.
+
+Loose ends:
+- The homepage's own share image (`public/og-image.png`) still shows the old Slop Cannon art.
+- A few share images are heavy (Slop Cannon's is 593KB).
+- Two reviews asked for a kit option to place callouts somewhere other than the middle of the screen.
+- Thonglets' autopilot sometimes fails an early stage in the play-through. That's chance, not a fault.
 
 ### How it runs
 
