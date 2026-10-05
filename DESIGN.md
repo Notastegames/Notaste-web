@@ -415,9 +415,9 @@ Four video calls back to back and a spreadsheet that needs doing. The joke is me
 - While you're live your name tag turns violet (red near the end), says "Live", has a ring round its mic and a "Mute again" tag under it.
 - With the camera off your tile goes under a dot screen with a "Camera off" tag, so you can still see the cat leave, and a bar runs down for how long they'll wait to see you again once it's gone.
 - When you're asked to share your screen, hazard tape reading "Everyone can see this" runs across the top of the sheet, the sheet's edge goes red, and everyone looks down at it.
-- New email slides in as a paper card at the sheet's corner (who from, the subject: "Can we jump on a call?"). The inbox is a count with ten slots; the last two are red.
+- New email takes over the sheet's title bar for a moment: an envelope, who from and the subject ("Graham: Can we jump on a call?"). The inbox is a count with ten slots (beside your tile on a phone, in the title bar otherwise); the last two are red.
 - A wrong box: the title bar says "(not responding)", the box says #N/A in red, the row's frame goes red and a spinner turns. The font has no equals sign, so the boxes that are already full hold words ("Not mine", "Ask Graham", "Ages ago"), never formulas.
-- Stamps land on your tile for what you did (Nodded, Yep, Keen, Muted, Hidden, Missed, Heard, Volunteered, Forgiven) and on the sheet for each one saved (Saved, Saved. Shared). The kit's callouts land between the call and the work.
+- Stamps land on your tile for what you did (Nodded, Yep, Keen, Muted, Hidden, Missed, Heard, Volunteered, Forgiven) and on the sheet's title bar for each one saved (Saved, Saved. Shared), clear of the rows you're reading. The kit's callouts land between the call and the work.
 - Speech is a blip a syllable, each person at their own pitch. A two-note "hm" when you're named, a rising note when you're asked, a creak and a meow for the cat, the dishwasher's rumble rising while you're live, and a three-note chime as everyone leaves the call.
 - The notice goes up over the call, not the work: nobody has said anything yet, and the sheet is ready.
 

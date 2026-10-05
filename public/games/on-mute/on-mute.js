@@ -569,12 +569,17 @@
     L.tileW = tw2; L.tileH = th2;
   }
 
-  // The notice goes over the call (nobody's said anything yet), and the
-  // stamps land between the call and the work, clear of your tile's badge
+  // The notice goes over the call (nobody's said anything yet), under where
+  // the countdown's stamps land; the callouts land between the call and the
+  // work, clear of your tile's badge
   function placeKitBits() {
     var brief = root.querySelector(".kit-brief");
     if (brief) {
-      brief.style.top = Math.round(L.call.y + 6) + "px";
+      // the countdown: 7% (or 3.2rem) down, in a stamp sized by the page (kit.css)
+      var rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      var font = clamp(window.innerWidth * 0.03 + 1.1 * rem, 2 * rem, 3.6 * rem);
+      var countBottom = Math.max(H * 0.07, 3.2 * rem) + font * 1.9;
+      brief.style.top = Math.round(Math.max(L.call.y + 6, Math.min(countBottom + 4, H * 0.45))) + "px";
       brief.style.bottom = "auto";
     }
     var cl = root.querySelector(".kit-callouts");
@@ -638,9 +643,10 @@
     var pts = Math.round(PTS.sheet * run.mods.sheetPts);
     run.score += pts;
     G.sheetFlash = 1;
-    var s = L.sheet;
-    G.stamps.push({ x: s.x + s.w * 0.5, y: s.y + s.h * 0.55, text: G.share ? "Saved. Shared" : "Saved", t: 0, life: 0.8, tilt: (Math.random() - 0.5) * 0.2, big: true });
-    if (pts) G.pops.push({ x: s.x + s.w * 0.5, y: s.y + s.h * 0.35, text: "+" + pts, t: 0 });
+    // the stamp lands on the title bar, clear of the rows you're reading
+    var g = sheetGeom(), s = g.s;
+    G.stamps.push({ x: s.x + s.w * 0.62, y: s.y + g.tb * 0.75, text: G.share ? "Saved. Shared" : "Saved", t: 0, life: 0.8, tilt: (Math.random() - 0.5) * 0.2, big: true });
+    if (pts) G.pops.push({ x: s.x + s.w * 0.62, y: s.y + g.tb + g.fb * 0.5, text: "+" + pts, t: 0 });
     // and an email answered: it flies out of the inbox
     if (run.inbox > 0) {
       run.inbox--;
@@ -1400,8 +1406,8 @@
     shell.hud.innerHTML =
       '<div class="kit-hud-tl">' +
         '<p class="kit-stat"><small>Meeting</small><span data-stage>1/4</span></p>' +
-        '<p class="kit-mono" data-clock>09:00</p>' +
-        '<p class="kit-stat om-rep" data-rep><small>Reputation</small><span class="om-pips">' + pips + '</span></p>' +
+        '<p class="om-line"><span class="kit-mono" data-clock>09:00</span>' +
+        '<span class="kit-stat om-rep" data-rep><small>Reputation</small><span class="om-pips">' + pips + '</span></span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big"><span data-score>0</span><small data-mult></small></p>' +
@@ -1473,7 +1479,6 @@
     drawSheet(c, now);
     drawShareBanner(c);
     drawFlights(c);
-    drawToasts(c);
     drawStamps(c);
     drawPops(c);
     var arrowBox = hintBox();
@@ -1519,9 +1524,11 @@
     c.lineWidth = talking ? 3.5 : 1.5;
     c.strokeStyle = talking ? T.accent : T.ash;
     c.stroke();
-    nameTag(c, x + 4, y + h - 4, t.p.name, !!G.speaking[t.id], Math.min(w - 8, 220), t.p.special === "bot");
-    if (t.p.special === "frozen" && w > 90) chip(c, x + w - 4, y + 4, "Poor connection", "right");
-    if (t.p.special === "bot" && w > 70) chip(c, x + w - 4, y + 4, "Recording", "right", T.red);
+    // a tile too small for a name tag gets just its mic
+    if (w >= 84 && h >= 52) nameTag(c, x + 4, y + h - 4, t.p.name, !!G.speaking[t.id], Math.min(w - 8, 220), t.p.special === "bot");
+    else micTag(c, x + 3, y + h - 3, !!G.speaking[t.id]);
+    if (t.p.special === "frozen" && w > 130) chip(c, x + w - 4, y + 4, "Poor connection", "right");
+    if (t.p.special === "bot" && w > 100) chip(c, x + w - 4, y + 4, "Recording", "right", T.red);
   }
 
   function faceFor(t, now) {
@@ -1580,6 +1587,13 @@
     A.text(c, label, x + (icon ? icon + size * 0.75 : size * 0.45), y - h / 2 + size * 0.06, size);
     c.restore();
     return { x: x, y: y - h, w: w, h: h, icon: icon ? { x: x + size * 0.45 + icon / 2, y: y - h / 2, r: icon * 0.75 } : null };
+  }
+  function micTag(c, x, y, live) {
+    var s = 18;
+    A.rr(c, x, y - s, s, s, 3);
+    c.fillStyle = T.ink;
+    c.fill();
+    A.micIcon(c, x + s / 2, y - s / 2, 13, live, live ? T.accent : T.paper);
   }
   function tagSize() { return N.flags.clip ? 13 : W < 480 ? 12 : clamp(Math.round(L.tileH * 0.085), 12, 15); }
 
@@ -1656,8 +1670,9 @@
     if (G.suds > 0) shakeD = 1;
     if (shell.reduceMotion) shakeD = Math.min(shakeD, 0.001) ? 0.001 : 0;
     A.yourRoom(c, ww, { door: door, shake: live || G.suds > 0 ? Math.max(0.3, shakeD) : 0, suds: G.suds > 0 ? clamp(G.suds, 0, 1) : 0, t: shell.reduceMotion ? 0 : now });
-    // the cat, behind you until it gets to the desk
-    var catFront = cat && (cat.phase === "desk" || cat.phase === "leave");
+    // the cat's eyes in the doorway are behind you; once it's out of the
+    // door it's coming towards the camera, so it's in front
+    var catFront = cat && (cat.phase === "walk" || cat.phase === "desk" || cat.phase === "leave");
     if (cat && !catFront) drawCat(c, cat, ww, now);
     var f = yourFace(now);
     c.save();
@@ -1713,9 +1728,10 @@
       var a = clamp((cat.t / (cat.walk * 0.32) - 0.35) * 2.5, 0, 1);
       if (a > 0) { c.globalAlpha = a; A.catEyes(c, dx, 64, 0.9, Math.sin(now * 3) > 0.97); c.globalAlpha = 1; }
     } else if (cat.phase === "walk") {
-      // from the door, across the kitchen floor, towards the camera, getting bigger
+      // out of the door and towards the camera, beside you, getting bigger
       var p = clamp(cat.t2 / (cat.walk * 0.68), 0, 1);
-      var x = lerp(dx, 14, p), y = lerp(86, 96, p), s = lerp(0.62, 1.2, p * p);
+      var edge = ww / 2 - 20;
+      var x = lerp(dx, Math.max(edge, 40), p), y = lerp(84, 97, p), s = lerp(0.62, 1.15, p * p);
       A.cat(c, x, y, s, "walk", t, -1);
     } else if (cat.phase === "desk" || cat.phase === "leave") {
       var off = cat.phase === "leave" ? clamp(cat.t4 / 0.8, 0, 1) : 0;
@@ -1869,13 +1885,14 @@
   // ---------------------------------------------------------------------------
   function sheetGeom() {
     var s = L.sheet;
-    var tb = Math.round(clamp(s.h * 0.13, 24, 32));
-    var fb = Math.round(clamp(s.h * 0.11, 22, 28));
-    var hb = Math.round(clamp(s.h * 0.07, 14, 18));
+    var small = s.h < 200;
+    var tb = Math.round(clamp(s.h * 0.13, 20, 32));
+    var fb = Math.round(clamp(s.h * 0.11, 18, 28));
+    var hb = small ? 0 : Math.round(clamp(s.h * 0.07, 14, 18));     // column letters, when there's room
     var gut = Math.round(clamp(s.w * 0.06, 22, 34));
     var top = s.y + tb + fb + hb;
     var area = s.y + s.h - top - 2;
-    var show = 4 + run.mods.ahead;
+    var show = (small ? 3 : 4) + run.mods.ahead;
     var rh = Math.max(24, area / (show + 1));
     var colW = (s.w - gut - 4) / 2;
     return { s: s, tb: tb, fb: fb, hb: hb, gut: gut, top: top, area: area, rh: rh, colW: colW,
@@ -1919,7 +1936,18 @@
     c.rect(s.x, s.y, s.w - inboxW - 10, g.tb);
     c.clip();
     c.fillStyle = T.ink;
-    A.text(c, title, s.x + 10, s.y + g.tb / 2 + size * 0.06, size);
+    // new mail takes over the title bar for a moment: who from, and what about
+    var mail = G.toasts.length && G.stall <= 0 ? G.toasts[G.toasts.length - 1] : null;
+    if (mail && mail.t < 2.2) {
+      var ew = size * 1.3;
+      c.fillStyle = T.paper;
+      c.fillRect(s.x, s.y, s.w - inboxW - 10, g.tb - 0.75);
+      A.envelope(c, s.x + 10 + ew / 2, s.y + g.tb / 2, ew, 0);
+      c.fillStyle = T.ink;
+      A.text(c, (mail.from + ": " + mail.subject).toUpperCase(), s.x + 18 + ew, s.y + g.tb / 2 + size * 0.06, size);
+    } else {
+      A.text(c, title, s.x + 10, s.y + g.tb / 2 + size * 0.06, size);
+    }
     c.restore();
     // formula bar: what's on the clipboard
     var fy = s.y + g.tb;
@@ -1937,18 +1965,20 @@
     A.text(c, info().clip.toUpperCase(), s.x + 18 + pw, fy + g.fb / 2 + size * 0.06, size);
     // column headers
     var hy = fy + g.fb;
-    c.fillStyle = T.paper;
-    c.fillRect(s.x, hy, s.w, g.hb);
-    c.fillStyle = A.shadeLight(c);
-    c.fillRect(s.x, hy, s.w, g.hb);
-    c.font = Math.max(12, g.hb - 3) + "px " + T.display;
-    c.fillStyle = T.ink;
-    c.textAlign = "center";
-    c.fillText("A", s.x + g.gut + 2 + g.colW / 2, hy + g.hb / 2 + 1);
-    c.fillText("B", s.x + g.gut + 2 + g.colW * 1.5, hy + g.hb / 2 + 1);
-    c.beginPath();
-    c.moveTo(s.x, hy + g.hb); c.lineTo(s.x + s.w, hy + g.hb);
-    A.stroke(c, 1.5, T.ink);
+    if (g.hb) {
+      c.fillStyle = T.paper;
+      c.fillRect(s.x, hy, s.w, g.hb);
+      c.fillStyle = A.shadeLight(c);
+      c.fillRect(s.x, hy, s.w, g.hb);
+      c.font = Math.max(12, g.hb - 3) + "px " + T.display;
+      c.fillStyle = T.ink;
+      c.textAlign = "center";
+      c.fillText("A", s.x + g.gut + 2 + g.colW / 2, hy + g.hb / 2 + 1);
+      c.fillText("B", s.x + g.gut + 2 + g.colW * 1.5, hy + g.hb / 2 + 1);
+      c.beginPath();
+      c.moveTo(s.x, hy + g.hb); c.lineTo(s.x + s.w, hy + g.hb);
+      A.stroke(c, 1.5, T.ink);
+    }
     // the rows: one done, the one you're on, the ones coming
     c.save();
     c.beginPath();
@@ -2084,38 +2114,9 @@
     });
   }
 
-  // New mail: a little card that slides in at the corner of the sheet
-  function drawToasts(c) {
-    if (!G.toasts.length) return;
-    var t = G.toasts[G.toasts.length - 1];
-    var s = L.sheet, size = 12;
-    c.font = size + "px " + T.display;
-    var line1 = t.from.toUpperCase(), line2 = t.subject.toUpperCase();
-    var w = Math.min(s.w * 0.62, Math.max(A.textWidth(c, line1, size), A.textWidth(c, line2, size)) + size * 1.6);
-    var h = size * 3;
-    var inK = shell.reduceMotion ? 1 : clamp(t.t * 6, 0, 1), outK = clamp((2.4 - t.t) * 4, 0, 1);
-    var x = s.x + s.w - w - 8 + (1 - inK) * 30, y = s.y + s.h - h - 8;
-    c.globalAlpha = Math.min(inK, outK);
-    A.rr(c, x, y, w, h, 4);
-    A.fill(c, T.paper, 2.4, T.ink);
-    c.fillStyle = T.accent;
-    c.fillRect(x + 1.2, y + 1.2, 5, h - 2.4);
-    c.save();
-    c.beginPath();
-    c.rect(x + 8, y, w - 12, h);
-    c.clip();
-    c.fillStyle = T.ink;
-    c.textAlign = "left";
-    c.textBaseline = "middle";
-    A.text(c, line1, x + size * 1, y + h * 0.32, size);
-    A.text(c, line2, x + size * 1, y + h * 0.7, size);
-    c.restore();
-    c.globalAlpha = 1;
-  }
-
   function drawStamps(c) {
     G.stamps.forEach(function (s) {
-      var size = s.big ? clamp(L.sheet.h * 0.09, 16, 26) : clamp(L.you.h * 0.1, 13, 20);
+      var size = s.big ? clamp(L.sheet.h * 0.07, 14, 20) : clamp(L.you.h * 0.1, 13, 20);
       var k = s.t / s.life;
       var grow = shell.reduceMotion ? 1 : s.t < 0.12 ? 1.7 - (s.t / 0.12) * 0.75 : s.t < 0.2 ? 0.95 + (s.t - 0.12) / 0.08 * 0.05 : 1;
       var alpha = shell.reduceMotion ? Math.min(1, s.t * 10) * Math.min(1, (1 - k) * 4) : Math.min(1, (1 - k) * 4);

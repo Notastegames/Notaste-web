@@ -3,8 +3,11 @@
   Loads after /games/kit/kit.css on this page only.
 */
 
-/* Reputation, top left: a pip each, filled while you still have it */
-.om-rep { display: flex; align-items: center; }
+/* The meeting's clock and your reputation share a line, top left */
+.om-line { display: flex; align-items: center; gap: 0.6rem; }
+
+/* Reputation: a pip each, filled while you still have it */
+.om-rep { display: flex; align-items: center; font-size: 0.85rem; }
 .om-pips { display: inline-flex; gap: 0.22rem; margin-left: 0.1rem; }
 .om-pip {
   width: 0.62rem;
