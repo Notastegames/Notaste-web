@@ -385,7 +385,47 @@ To be written when the game is built.
 
 ### On Mute
 
-To be written when the game is built.
+Four video calls back to back and a spreadsheet that needs doing. The joke is meeting culture: the stand-up that runs over, the all-hands, the meeting that could have been an email, the notetaker nobody invited, and our own habit of saying "Yep." to everything. The people stuck in the meetings are never the joke. The people, the company and the call software are all invented.
+
+**The screen.** Two halves. At the top, the call: a grid of video tiles on black, one person each in front of their room, the speaker framed in violet, an ink name tag with a mic in each tile's bottom corner. At the bottom, your actual job: a spreadsheet window (a violet title bar with the sheet's name, a "Paste:" bar saying what's on the clipboard, column letters, row numbers in a halftone gutter). Your own tile, the self-view, sits right beside the sheet, because everything you have to react to shows up on it: a glance from the work lands on it. On keyboards and mice the call's three buttons are drawn under your tile with their keys on them (Space, C, N, or the words for a mouse); on touch screens they're the kit's buttons, five in a row along the bottom: paste left and paste right in the corners, Nod, Mic and Cam between them. A phone goes full-window (`fullOnTouch`) and stacks it: the call, then your tile with the inbox beside it, then the sheet, then the buttons.
+
+**The people** are the house cut-outs, head and shoulders, one thing each, and all of them turn to look at your tile when you're on the spot.
+- **Sam**, you: bed hair that won't go down, a shirt and a red tie (business on top). Your eyes are on the sheet, looking at whichever box is next, and come up to the camera when someone wants you. You nod twice, and you say "Yep." to everything.
+- **Graham**, the host: glasses, a side parting, a violet shirt, a bookshelf and a plant behind him.
+- **Priya**: a headset with a violet microphone, keen.
+- **Dave**: frozen mid-blink, with blocks of his face missing and a "Poor connection" tag. He never says anything.
+- **Gaz**: his camera's on the desk pointing up, so it's a ceiling light, a red cap from underneath, nostrils and a lot of chin.
+- **Linda**: a red perm and her lunch, which she eats on camera.
+- **Pam**: a bun with a red pencil through it. People ask Pam things. They aren't for you.
+- **Keith (train)**: a flat cap and a tache on a red train seat, the countryside going past, and now and then a tunnel.
+- **Bernard**: his camera is about four inches from his forehead.
+- **Mo (walking)**: a sweatband and trees going past, the picture bouncing.
+- **Rupert (Head of Vision)**: a quiff and a black polo neck in front of a canvas print of a mountain. He runs the all-hands.
+- **The notetaker**: a little robot on black with a red "Recording" tag. Its summary of each meeting is the joke between meetings ("Sam said yep three times. Two action points, all Sam's.").
+- **Dialled in**: a phone handset on black. Plus Femi (big headphones), Hannah (a party hat nobody has mentioned) and Rob (a bow tie) at the all-hands.
+
+**Your kitchen** is behind you: the dishwasher on the left (it shakes, with motion lines, while your mic is live, and suds pour out of it when they hear it) and a door on the right, which is where the cat comes in.
+
+**The cat** is black, with paper eyes, a paper edge, a white tip on its tail and opinions. The door creaks open and its eyes appear in the gap; it walks across the kitchen getting bigger; then it jumps up in front of the camera, facing away: a round black back, ears, the tail straight up, two back paws, two curves and a line, nothing more.
+
+**One rule per action.** Nod (N) at your name. Answer questions out loud: unmute (Space) and you say "Yep.", then mute again. Camera off (C) for the cat, and only for the cat. Do any of them when nobody asked and you've volunteered: one more email. Nodding at a question just gets "We can't hear a nod, Sam." Questions to everyone, and Pam's, aren't for you. The sheet: paste into the empty box, left or right; a box with something in it stops the sheet responding.
+
+**What only it does.**
+- Everything that wants you shows on your tile: a violet frame, everyone's eyes, and a badge in its corner with a ring that runs down (violet, red near the end). The badge says SAM for your name and is a question mark for a question. Bubbles that are for you have a violet outline and your name underlined in violet. When they're going round the room, a "You're next" tag comes up a turn before yours.
+- While you're live your name tag turns violet (red near the end), says "Live", has a ring round its mic and a "Mute again" tag under it.
+- With the camera off your tile goes under a dot screen with a "Camera off" tag, so you can still see the cat leave, and a bar runs down for how long they'll wait to see you again once it's gone.
+- When you're asked to share your screen, hazard tape reading "Everyone can see this" runs across the top of the sheet, the sheet's edge goes red, and everyone looks down at it.
+- New email slides in as a paper card at the sheet's corner (who from, the subject: "Can we jump on a call?"). The inbox is a count with ten slots; the last two are red.
+- A wrong box: the title bar says "(not responding)", the box says #N/A in red, the row's frame goes red and a spinner turns. The font has no equals sign, so the boxes that are already full hold words ("Not mine", "Ask Graham", "Ages ago"), never formulas.
+- Stamps land on your tile for what you did (Nodded, Yep, Keen, Muted, Hidden, Missed, Heard, Volunteered, Forgiven) and on the sheet for each one saved (Saved, Saved. Shared). The kit's callouts land between the call and the work.
+- Speech is a blip a syllable, each person at their own pitch. A two-note "hm" when you're named, a rising note when you're asked, a creak and a meow for the cat, the dishwasher's rumble rising while you're live, and a three-note chime as everyone leaves the call.
+- The notice goes up over the call, not the work: nobody has said anything yet, and the sheet is ready.
+
+**Stamp words and callouts:** You're on mute (the game's stamp), Nodded, Yep, Keen, Muted, Hidden, Missed, Heard, Unread, Seen, Volunteered, Forgiven, Saved, Saved. Shared, Cat: seen, Host muted you, Inbox: full, Inbox zero, Not responding, Screen: shared, Overrunning, Removed from the meeting, Streak: x2 (to x4).
+
+**Between meetings** the notetaker's summary, and three ways to get through the next one, each with a cost: Have an opinion, Headphones, Second monitor, Close the door, Blur your background, Out of office on, Bad connection, Keyboard shortcuts. Nothing about the cat is offered before you've met it.
+
+**The ladder.** Approved: all four meetings, four or five reputation, and at least 22,000. Pending review: all four meetings. Not approved: removed from the all-hands or the last meeting. Rejected: removed from the stand-up or the team meeting.
 
 ### Scrubbed
 

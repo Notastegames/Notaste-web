@@ -92,7 +92,7 @@
 // the day.
 //
 // THE LADDER (results stamp)
-//   Approved        all four meetings, 4 or 5 reputation, at least 16,000
+//   Approved        all four meetings, 4 or 5 reputation, at least 22,000
 //   Pending review  all four meetings
 //   Not approved    removed from the all-hands or the last meeting
 //   Rejected        removed from the stand-up or the team meeting
@@ -141,7 +141,7 @@
   var CHASE_GAP = 6;            // at most one "did you see my email" this often
   var VOLUNTEER_GAP = 1.2;      // a second wrong nod this soon is the same nod
   var KEEN = 0.8;
-  var APPROVED = 20000;
+  var APPROVED = 22000;
   var PTS = { box: 10, sheet: 50, nod: 50, yep: 75, keen: 25, muted: 25, hidden: 100, camBack: 25, survive: 1000 };
   var T0 = 3.6;                 // the first thing anyone says to you, after Go (the notice is up until then)
 
@@ -170,7 +170,7 @@
     { id: "email", name: "This could have been an email", start: 16 * 60, mins: 30, time: 40, overrun: 6,
       cast: ["graham", "priya", "keith", "bernard", "mo", "notes"], host: "graham",
       you: ["name", "ask", "share", "name", "ask", "name", "ask"], cats: 3, gap: 2.9,
-      nameWin: 1.7, askWin: 2.0, grace: 1.6, catTime: 2.5, email: [3.8, 3.2],
+      nameWin: 1.8, askWin: 2.1, grace: 1.7, catTime: 2.5, email: [4.0, 3.4],
       clip: "N/A", talk: "email" }
   ];
   var LAST = STAGES.length - 1;
@@ -336,8 +336,8 @@
     var you = st.you.slice();
     var fixed = you.filter(function (k) { return k === "round" || k === "share"; });
     var loose = shuffle(you.filter(function (k) { return k === "name" || k === "ask"; }), rnd);
-    // keep the first one gentle: a name, with time to read the badge
-    loose.sort(function (a, b) { return 0; });
+    // the day's first is the gentlest: your name, with time to read the badge
+    if (run.stage === 0 && loose[0] !== "name") { var at1 = loose.indexOf("name"); loose[at1] = loose[0]; loose[0] = "name"; }
     var slots = [];
     loose.forEach(function (k) { slots.push(k); });
     // the long ones go in the middle
@@ -453,7 +453,7 @@
       cam: { on: true, off: 0 },
       cat: null,
       stall: 0, wrongBox: -1, stamps: [], pops: [], bubbles: [], toasts: [], flights: [], fx: [],
-      speaking: {}, gaze: null, tiles: [], volunteerAt: -9, chaseAt: -99,
+      speaking: {}, gaze: null, tiles: [], volunteerAt: -9, chaseAt: -99, closedAt: -9,
       missed: 0, forgiven: 0, stageYeps: 0, stageNods: 0, stageVolunteered: 0, stageBoxes: 0, stageSheets: 0,
       briefed: false, hint: null, nod: 0, yepT: 0, flash: 0, seen: 0, lastPaste: 0, sheetFlash: 0
     };
@@ -740,6 +740,7 @@
   function handled(o, how) {
     o.state = "done";
     G.open = null;
+    G.closedAt = G.time;
     var pts = 0, label = "";
     if (how === "nod") { pts = Math.round(PTS.nod * run.mods.nodPts); label = "Nodded"; run.nods++; G.stageNods++; run.learned.nod = true; }
     else {
@@ -763,6 +764,7 @@
   function missed(o) {
     o.state = "missed";
     G.open = null;
+    G.closedAt = G.time;
     var line = o.kind === "name" ? pick(MISS_NAME) : pick(MISS_ASK);
     if (o.kind === "round") line = "Let's skip Sam.";
     if (o.kind === "share") line = "I'll share it myself.";
@@ -798,12 +800,13 @@
     for (var i = 0; i < G.beats.length; i++) {
       var b = G.beats[i];
       if (b.done || b.t > G.time) continue;
-      // while you're sharing, nothing else is asked of you; and one thing at a time
-      if ((b.kind === "name" || b.kind === "ask" || b.kind === "cat" || b.kind === "round" || b.kind === "share") && (G.share || G.open || G.round)) {
-        if (b.kind === "cat" && !G.share && !G.round && G.cat == null) { /* the cat waits for nobody */ }
-        else { b.t = G.time + 0.6; continue; }
-      }
-      if (b.kind === "cat" && G.cat) { b.t = G.time + 0.6; continue; }
+      // one thing at a time for you, with a breath between; nothing else
+      // while you're sharing or they're going round. The cat waits for the
+      // share and the round, and in the team meeting for whatever's open.
+      var mine = b.kind === "name" || b.kind === "ask" || b.kind === "round" || b.kind === "share";
+      var busy = mine && (G.share || G.open || G.round || G.time - G.closedAt < 0.9);
+      if (b.kind === "cat") busy = G.share || G.round || G.cat || (run.stage < 2 && G.open);
+      if (busy) { b.t = G.time + 0.3; continue; }
       b.done = true;
       fire(b);
     }

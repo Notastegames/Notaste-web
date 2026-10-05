@@ -1364,7 +1364,7 @@
     c.closePath();
     fill(c, T.paper, 2);
     c.restore();
-    var fs = Math.max(12, 13 / s) ;
+    var fs = Math.max(12, 16 / s);
     c.font = fs + "px " + T.display;
     c.textAlign = dir === "left" ? "left" : dir === "right" ? "right" : "center";
     c.textBaseline = dir === "up" ? "top" : "bottom";
