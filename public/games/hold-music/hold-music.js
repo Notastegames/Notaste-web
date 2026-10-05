@@ -1104,69 +1104,180 @@
 
   // ---------------------------------------------------------------------------
   // Layout: where everything sits, in world units (100 across the shorter
-  // side). Square on phones, 4:3 on desktop, 4:5 in the clip frame.
+  // side). Three shapes:
+  //   wide (desktop, 4:3 and wider): you on the left, the phone on the right,
+  //     the note and the bubbles on the wall above, and the cord hanging
+  //     across the room between you.
+  //   tall (a phone, full-window): the note and the clock at the top, you in
+  //     the middle, the phone at the bottom right where your thumbs are, and
+  //     the cord hooking round from the phone up to the handset at your ear.
+  //   square (a phone in the page, the clip frame): the phone on the right,
+  //     you on the left, the note and the bubbles above.
+  // On hold the notes of the tune ride the cord from the phone to a ring at
+  // your handset, so the cord is the lane: Lay.lane is its path.
   // ---------------------------------------------------------------------------
   function layout() {
-    var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches && !N.flags.clip;
+    var clip = N.flags.clip;
+    var coarse = !clip && !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
     var narrow = window.matchMedia && window.matchMedia("(max-width: 39.99rem)").matches;
-    var tall = WH > WW * 1.1, wide = WW > WH * 1.15;
+    var wide = WW > WH * 1.15, tall = !wide && WH > 150;
     Lay.tmin = 12 / U;
     Lay.touch = coarse;
-    Lay.shape = tall ? "tall" : wide ? "wide" : "square";
+    Lay.shape = wide ? "wide" : tall ? "tall" : "square";
     // the HUD's top left block (the call and your patience)
-    Lay.top = (N.flags.clip ? 64 : narrow ? 46 : 72) / U;
-    // the keypad: keys 56px on a touch screen, unless that would push the
-    // phone up under the pause buttons and the score (a 320px phone gets
-    // about 50px)
+    Lay.top = (clip ? 64 : narrow ? 46 : 72) / U;
+    if (wide) layWide(); else if (tall) layTall(coarse); else laySquare(coarse, clip);
+    var y = Lay.you, R = y.R, f = y.flip ? -1 : 1;
+    Lay.hatTop = y.y - R * 3.85;
+    Lay.mouth = { x: y.x + f * R * 0.15, y: y.y - R * 2.05 + R * 0.62 };
+    // where the cord leaves the handset: at your ear, or on the table on speaker
+    Lay.earCord = { x: y.x + f * R * 1.02, y: y.y - R * 0.6 };
+    Lay.flat = { x: y.x + f * R * 1.35, y: y.y + (Lay.tableTop ? R * 0.42 : -R * 0.12) };
+    Lay.flatCord = { x: Lay.flat.x + f * R * 0.95, y: Lay.flat.y + R * 0.05 };
+    Lay.noteR = clamp(Lay.shape === "tall" ? 3.1 : 2.5, 13 / U, 24 / U);
+    Lay.lane = lanePath(Lay.earCord);
+    Lay.laneFlat = lanePath(Lay.flatCord);
+    // callouts land on the keypad: it's never needed when one lands (after a
+    // wrong number, a dropped call, on hold or cut off), and it keeps them off
+    // your face, the note, the cord and the bubbles
+    var k = Lay.keys;
+    root.style.setProperty("--hm-callouts-left", Math.round(k.x * U) + "px");
+    root.style.setProperty("--hm-callouts-right", Math.round((WW - k.x - k.w) * U) + "px");
+    root.style.setProperty("--hm-callouts-top", Math.round((k.y + k.h * 0.32) * U) + "px");
+  }
+
+  // The phone: keys kk across with gaps, pad around, a screen lcdH high,
+  // `right` in from the right edge and `bottom` up from the bottom
+  function phoneAt(kk, gap, pad, lcdH, star, right, bottom) {
+    var gridW = 3 * kk + 2 * gap, gridH = 3 * kk + 2 * gap + (star ? kk * 0.6 + gap : 0);
+    var pw = gridW + 2 * pad, phH = pad + lcdH + pad + gridH + pad;
+    var px = WW - pw - right, py = WH - phH - bottom;
+    Lay.phone = { x: px, y: py, w: pw, h: phH, pad: pad };
+    Lay.lcd = { x: px + pad, y: py + pad, w: gridW, h: lcdH };
+    Lay.keys = { x: px + pad, y: py + pad + lcdH + pad, w: gridW, h: gridH, kk: kk, gap: gap, star: star };
+    Lay.jack = { x: px + 0.2, y: py + pad + lcdH * 0.75 };
+  }
+
+  function layWide() {
+    var kk = 10;
+    phoneAt(kk, kk * 0.08, Math.max(2, kk * 0.16), 14, true, 4, 2.5);
+    var p = Lay.phone;
+    Lay.table = 82;
+    Lay.tableTop = false;
+    var R = clamp(Math.min(WW * 0.11, (p.x - 8) * 0.2), 12, 17);
+    var yx = Math.max(R * 1.6 + 8, WW * 0.21);
+    Lay.you = { x: yx, y: Lay.table, R: R, flip: false };
+    var hy = Lay.table - R * 2.05;
+    Lay.clock = { x: Math.max(7, yx - R * 1.75), y: Lay.top + 17, r: 5.5 };
+    Lay.note = { x: yx + R * 1.3, y: Lay.top + 1, w: Math.min(48, p.x - yx - R * 1.3 - 4) };
+    // the phone's bubble over the phone, yours beside your head
+    Lay.bubble = { x: p.x - 4, y: Lay.top + 0.5, right: WW - 2, bottom: p.y - 4, side: "down" };
+    Lay.youBubble = { x: yx + R * 1.2, y: hy - R * 0.95, right: p.x - 4, bottom: hy + R * 0.25, side: "left" };
+    Lay.portrait = { x: yx + R * 1.75, y: Lay.top + 1.5, w: Math.min(36, p.x - yx - R * 1.75 - 7) };
+    Lay.portrait.h = Math.min(Lay.portrait.w * 1.22, Lay.table - 8 - Lay.portrait.y);
+    Lay.agentBubble = { x: Lay.portrait.x + Lay.portrait.w + 2.5, y: Lay.top + 0.5, right: WW - 2, bottom: p.y - 4, side: "left" };
+    Lay.mug = { x: Math.max(5.5, yx - R * 1.95), y: Lay.table + R * 0.12, k: R * 0.16 };
+  }
+
+  function layTall(coarse) {
+    var kk = coarse ? Math.max(56 / U + 0.25, 12) : 13;
+    phoneAt(kk, 1, 1.7, 17, false, 2, 1.5);
+    var p = Lay.phone;
+    Lay.table = p.y - 5;
+    Lay.tableTop = true;
+    // the note at the top left, then you as big as the room allows
+    var R = clamp((Lay.table - Lay.top - 36) / 3.95, 11, 22);
+    var yx = R * 1.62 + 1.5;
+    Lay.you = { x: yx, y: Lay.table, R: R, flip: true };
+    var hy = Lay.table - R * 2.05;
+    Lay.clock = { x: WW - 9.5, y: Lay.top + 8.5, r: 6 };
+    Lay.note = { x: 3, y: Lay.top + 1.5, w: Math.min(58, WW - 26) };
+    // a column of bubbles on the right: yours by your head, the phone's over the phone
+    var col = yx + R * 0.9;
+    Lay.youBubble = { x: col, y: Lay.top + 18, right: WW - 2, bottom: hy - R * 0.1, side: "left" };
+    Lay.bubble = { x: Math.min(col, WW - 46), y: hy - R * 0.2, right: WW - 2, bottom: p.y - 4, side: "down" };
+    Lay.portrait = { x: Math.min(col + 1, WW - 44), y: Lay.top + 17 };
+    Lay.portrait.w = WW - 3 - Lay.portrait.x;
+    Lay.portrait.h = Math.min(Lay.portrait.w * 1.3, p.y - 22 - Lay.portrait.y);
+    Lay.agentBubble = { x: 2, y: Lay.top + 1, right: Lay.portrait.x - 2, bottom: Lay.top + 40, side: "right" };
+    Lay.mug = { x: WW - 9, y: Lay.table + 0.4, k: Math.min(R * 0.15, 3.2) };
+  }
+
+  function laySquare(coarse, clip) {
     var gap = coarse ? 1 : 0, pad = coarse ? 1.7 : 0;
-    var lcdH = Math.max(tall ? 16 : 14, 46 / U);
-    var kk = coarse ? Math.max(56 / U + 0.25, 12) : wide ? 11 : tall ? 13.5 : 10.5;
+    var lcdH = Math.max(14, 46 / U);
+    var kk = coarse ? Math.max(56 / U + 0.25, 12) : clip ? 11.5 : 10.5;
     if (coarse) {
+      // 56px keys, unless that would push the phone up under the score
       var room = WH - 46 / U - 2.8 - 1.2 - 3 * pad - lcdH - 2 * gap;
       kk = Math.max(Math.min(kk, room / 3), 44 / U);
     } else {
       gap = kk * 0.08; pad = Math.max(2, kk * 0.16);
     }
-    var star = !coarse;
-    var gridW = 3 * kk + 2 * gap, gridH = 3 * kk + 2 * gap + (star ? kk * 0.6 + gap : 0);
-    var pw = gridW + 2 * pad, phH = pad + lcdH + pad + gridH + pad;
-    var px = WW - pw - (wide ? 5 : 1.5), py = WH - phH - (coarse ? 1.2 : 2.4);
-    Lay.phone = { x: px, y: py, w: pw, h: phH, pad: pad };
-    Lay.lcd = { x: px + pad, y: py + pad, w: gridW, h: lcdH };
-    Lay.keys = { x: px + pad, y: py + pad + lcdH + pad, w: gridW, h: gridH, kk: kk, gap: gap, star: star };
-    // the phone stands on the table
-    Lay.table = py + phH - 3;
-    // you, behind the table on the left, as big as the space allows
-    var cw = px - 1;
-    var R = wide ? clamp(Math.min(cw * 0.18, WH * 0.15), 9, 15) : tall ? clamp(cw * 0.3, 8, 16) : clamp(cw * 0.26, 8, 11);
-    Lay.you = { x: cw * (wide ? 0.42 : tall ? 0.46 : 0.42), y: Lay.table, R: R };
-    var hatTop = Lay.table - R * 3.75;
-    Lay.hatTop = hatTop;
-    if (wide) {
-      Lay.note = { x: Lay.you.x + R * 0.9, y: Lay.top + 1, w: Math.min(44, px - Lay.you.x - R * 0.9 - 4) };
-      Lay.bubble = { x: Math.max(Lay.note.x + 14, px - 30), y: Lay.top + 0.5, right: WW - 2, bottom: py - 5, side: "down" };
-      Lay.youBubble = { x: 2, y: Lay.top + 1, right: Lay.you.x + R * 0.6, bottom: hatTop - 1.5 };
-      Lay.clock = { x: Math.max(9, Lay.you.x - R * 1.9), y: Lay.top + 13, r: 6.5 };
-    } else if (tall) {
-      Lay.note = { x: 3, y: Lay.top + 1.5, w: Math.min(46, px - 4) };
-      Lay.bubble = { x: Math.min(px - 22, 34), y: Lay.top + 1.5, right: WW - 2, bottom: py - 5, side: "down" };
-      Lay.youBubble = null;
-      Lay.clock = { x: 9, y: Math.max(Lay.top + 34, hatTop - 9), r: 6 };
-    } else {
-      // a square phone screen: the note top left, the bubble under it
-      Lay.note = { x: 1.6, y: Lay.top + 0.5, w: px - 2.6 };
-      Lay.bubble = { x: 1.2, y: 0, right: px + pad - 1.2, bottom: hatTop - 0.5, side: "right" };
-      Lay.youBubble = null;
-      Lay.clock = null;
-    }
-    Lay.mug = { x: Math.max(5.5, Lay.you.x - R * 2.15), y: Lay.table + R * 0.12, k: R * 0.16 };
-    // callouts land on your side, clear of the phone, the note and the bubbles:
-    // on the wall between you and the phone on a wide screen, over you otherwise
-    var cl = wide ? Lay.you.x + R * 1.5 : 0, ct = wide ? WH * 0.5 : tall ? WH * 0.38 : hatTop + R * 1.2;
-    root.style.setProperty("--hm-callouts-left", Math.round(cl * U) + "px");
-    root.style.setProperty("--hm-callouts-right", Math.round((WW - px + 1) * U) + "px");
-    root.style.setProperty("--hm-callouts-top", Math.round(ct * U) + "px");
+    phoneAt(kk, gap, pad, lcdH, !coarse, 1.5, coarse ? 1.2 : 2.4);
+    var p = Lay.phone;
+    Lay.table = p.y + p.h - 3;
+    Lay.tableTop = false;
+    var cw = p.x - 1;
+    var R = clamp(cw * 0.27, 8, WH > 112 ? 14 : 11.5);
+    var yx = Math.max(cw * 0.4, R * 1.4 + 1);
+    Lay.you = { x: yx, y: Lay.table, R: R, flip: false };
+    var hatTop = Lay.table - R * 3.85;
+    Lay.clock = WH > 112 ? { x: 9, y: Lay.top + 40, r: 5.5 } : null;
+    Lay.note = { x: 1.6, y: Lay.top + 0.5, w: p.x - 2.6 };
+    // the phone's bubble under the note, yours just above your hat
+    Lay.bubble = { x: 1.2, y: 0, right: p.x + p.pad - 1.2, bottom: hatTop - 0.5, side: "right" };
+    Lay.youBubble = { x: 1.2, y: Lay.top + 22, right: p.x - 1.5, bottom: hatTop - 1, side: "down" };
+    Lay.portrait = { x: 2, y: Lay.top + 1, w: Math.min(30, p.x - 5) };
+    Lay.portrait.h = Math.min(Lay.portrait.w * 1.25, hatTop - 2 - Lay.portrait.y);
+    Lay.agentBubble = null;
+    Lay.mug = { x: Math.max(5.5, yx - R * 2.15), y: Lay.table + R * 0.12, k: R * 0.16 };
   }
+
+  // The cord's path from the phone to the handset, as points, with the
+  // distance along it from the handset end (where the ring is)
+  function lanePath(end) {
+    var j = Lay.jack, sh = Lay.shape;
+    var dx = j.x - end.x, P1, P2;
+    if (sh === "tall") {
+      // out of the phone's side, down round the table and up to your ear
+      P1 = [j.x - 14, j.y + 36];
+      P2 = [end.x - 12, end.y + 46];
+    } else {
+      // hanging across the room
+      var sag = sh === "wide" ? 26 : 16;
+      P1 = [j.x - dx * 0.3, j.y + sag];
+      P2 = [end.x + dx * 0.32, end.y + sag * 0.75];
+    }
+    var pts = [], P0 = [j.x, j.y], P3 = [end.x, end.y];
+    for (var i = 0; i <= 64; i++) {
+      var t = i / 64, u = 1 - t;
+      pts.push([u * u * u * P0[0] + 3 * u * u * t * P1[0] + 3 * u * t * t * P2[0] + t * t * t * P3[0],
+                u * u * u * P0[1] + 3 * u * u * t * P1[1] + 3 * u * t * t * P2[1] + t * t * t * P3[1]]);
+    }
+    // keep it off the bottom edge
+    pts.forEach(function (q) { q[1] = Math.min(q[1], WH - 2.5); });
+    var cum = [0];
+    for (var k = pts.length - 2; k >= 0; k--) cum.unshift(cum[0] + Math.hypot(pts[k + 1][0] - pts[k][0], pts[k + 1][1] - pts[k][1]));
+    return { pts: pts, cum: cum, len: cum[0], end: end };
+  }
+
+  // A point on the lane `s` along it from the ring (0) towards the phone
+  function laneAt(lane, s) {
+    var pts = lane.pts, cum = lane.cum, n = pts.length;
+    if (s <= 0) return { x: pts[n - 1][0], y: pts[n - 1][1] };
+    if (s >= lane.len) return { x: pts[0][0], y: pts[0][1] };
+    var i = n - 1;
+    while (i > 0 && cum[i - 1] < s) i--;
+    // cum falls from the phone end (index 0) to 0 at the ring
+    var a = cum[i], b = cum[i - 1] != null ? cum[i - 1] : a, k = b > a ? (s - a) / (b - a) : 0;
+    var p0 = pts[i], p1 = pts[Math.max(0, i - 1)];
+    return { x: p0[0] + (p1[0] - p0[0]) * k, y: p0[1] + (p1[1] - p0[1]) * k };
+  }
+
+  function lane() { return mods && mods.speaker ? Lay.laneFlat : Lay.lane; }
+  // seconds of notes the lane shows: about 180 pixels a second, so quavers keep apart
+  function laneAhead() { return clamp(lane().len * U / 180, 1.5, 2.6); }
 
   // ---------------------------------------------------------------------------
   // Drawing (DESIGN.md, section 7)
@@ -1210,15 +1321,23 @@
 
   function buildFront() {
     var b = newCanvas(), c = b.c;
-    // the table: a paper edge, its front in halftone
     c.fillStyle = T.ink;
     c.fillRect(-1, Lay.table, WW + 2, WH);
-    c.fillStyle = D.dots(c, T.ash, 1.1);
-    c.fillRect(-1, Lay.table + 2.4, WW + 2, WH);
-    D.ink(c, 0.8, T.paper);
-    c.beginPath(); c.moveTo(-1, Lay.table); c.lineTo(WW + 1, Lay.table); c.stroke();
-    D.ink(c, 0.4, T.paper);
-    c.beginPath(); c.moveTo(-1, Lay.table + 2.2); c.lineTo(WW + 1, Lay.table + 2.2); c.stroke();
+    if (Lay.tableTop) {
+      // the table top runs from its back edge to the bottom of the screen
+      c.fillStyle = D.dots(c, T.ash, 1.6);
+      c.fillRect(-1, Lay.table + 1, WW + 2, WH);
+      D.ink(c, 0.8, T.paper);
+      c.beginPath(); c.moveTo(-1, Lay.table); c.lineTo(WW + 1, Lay.table); c.stroke();
+    } else {
+      // a paper edge, its front in halftone
+      c.fillStyle = D.dots(c, T.ash, 1.1);
+      c.fillRect(-1, Lay.table + 2.4, WW + 2, WH);
+      D.ink(c, 0.8, T.paper);
+      c.beginPath(); c.moveTo(-1, Lay.table); c.lineTo(WW + 1, Lay.table); c.stroke();
+      D.ink(c, 0.4, T.paper);
+      c.beginPath(); c.moveTo(-1, Lay.table + 2.2); c.lineTo(WW + 1, Lay.table + 2.2); c.stroke();
+    }
     D.phoneBody(c, Lay.phone);
     front = b.cv;
   }
@@ -1241,24 +1360,27 @@
     c.drawImage(back, sx * DPR, sy * DPR);
     c.setTransform(DPR * U, 0, 0, DPR * U, sx * DPR, sy * DPR);
     if (Lay.clock) D.clock(c, Lay.clock.x, Lay.clock.y, Lay.clock.r, clockMin);
-    drawNote(c, v, h);
+    var agentOn = portraitOn(v, h);
+    if (!agentOn || Lay.shape !== "square") drawNote(c, v, h);
     var me = drawYou(c, v, h);
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.drawImage(front, sx * DPR, sy * DPR);
     c.setTransform(DPR * U, 0, 0, DPR * U, sx * DPR, sy * DPR);
     D.mug(c, Lay.mug.x, Lay.mug.y, Lay.mug.k, mods && mods.kettle ? 1 : 0, shell.reduceMotion ? 0 : animT);
-    // your other mitten, on the table, drumming along
-    D.mitten(c, me.rest.x, me.rest.y - react.drum * Lay.you.R * 0.12, me.rest.r, T.paper, false);
-    // the cord, from the handset to the phone
-    D.cord(c, me.cord.x, me.cord.y, Lay.phone.x + 0.6, Lay.phone.y + Lay.phone.h * 0.8, Math.max(0.5, Lay.you.R * 0.055), Lay.you.R * 0.3);
+    drawHands(c, me, v, h);
+    // the cord, from the phone to the handset
+    var ln = me.flat ? Lay.laneFlat : Lay.lane;
+    D.cordAlong(c, ln.pts, Math.max(0.5, Lay.you.R * 0.05));
     drawLcd(c, v, h);
     if (padOn(v)) drawPad(c, v, h);
     else drawKeys(c, v, h);
+    if (v.kind === "hold") drawLane(c, v, h, ln);
+    if (agentOn) drawPortrait(c, v, h, agentOn);
     drawFloats(c);
     // words, in screen pixels, so they stay readable on a phone
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     var placed = [];
-    drawBubbles(c, v, h, placed);
+    drawBubbles(c, v, h, placed, agentOn);
     var hn = hint(v, h);
     if (hn) {
       c.setTransform(DPR * U, 0, 0, DPR * U, 0, 0);
@@ -1271,31 +1393,189 @@
   }
 
   // ---------- You ----------
+  // On hold you play along: your head nods on every beat, the bobble on
+  // your hat bounces a moment behind it, your free mitten drums whenever you
+  // tap, a missed note gets a puff of steam, and being cut off gets the lot.
+  function beatPhase(v, h) {
+    if (v.kind !== "hold" || !v.bars) return null;
+    if (h >= v.countAt && h < v.barsAt) return ((h - v.countAt) / v.b0) % 1;
+    var bar = currentBar(v, h);
+    if (bar && h < bar.end) return ((h - bar.t) / bar.b) % 1;
+    return null;
+  }
+
   function drawYou(c, v, h) {
     var y = Lay.you, R = y.R;
-    var bob = 0;
-    if (v.kind === "hold" && !shell.reduceMotion && v.bars && v.bars.length && h >= v.barsAt) {
-      var bar = currentBar(v, h);
-      if (bar) { var ph01 = ((h - bar.t) / bar.b) % 1; bob = Math.max(0, 1 - ph01 * 4) * R * 0.07; }
+    var calm = shell.reduceMotion;
+    var ph01 = calm ? null : beatPhase(v, h);
+    var bob = 0, bobble = 0;
+    if (ph01 != null) {
+      bob = Math.max(0, 1 - ph01 * 3.2) * R * 0.06;
+      // the bobble lags the nod: thrown up just after the beat, back by the next
+      bobble = Math.sin(Math.min(1, ph01 * 1.6) * Math.PI) * 0.22;
     }
+    if (!calm && react.cut > 0) bobble = Math.max(bobble, react.cut * 0.5);
     // look at the note while a question is read, at the phone otherwise
-    var look = 0.8, up = 0.1;
+    var look = y.flip ? -0.2 : 0.8, up = 0.1;
     var reading = v.kind === "level" && v.items && (h < v.items[0].end + 0.4);
     if (reading) {
       look = clamp((Lay.note.x + (Lay.note.dw || 20) / 2 - y.x) / (R * 2), -1, 1);
       up = 0.9;
+    } else if (v.kind === "agent" && Lay.portrait) {
+      look = clamp((Lay.portrait.x + Lay.portrait.w / 2 - y.x) / (R * 2), -1, 1);
+      up = 0.5;
+    } else if (v.kind === "hold" && h >= v.countAt) {
+      // watching the notes come along the cord
+      var ring = lane().end;
+      look = clamp((ring.x - y.x) / (R * 1.5) + (y.flip ? 0 : 0.5), -1, 1);
+      up = -0.4;
     }
     var q = v.kind === "hold" ? (v.queue0 || 9) : 9;
+    var speaker = mods && mods.speaker && (v.kind === "hold" || (v.kind === "dial" && v.after === "hold"));
+    var slam = v.kind === "hung";
     var o = {
-      look: look, up: up, bob: bob,
+      look: look, up: up, bob: bob, bobble: bobble, flip: y.flip,
       shout: react.shout > 0 ? Math.min(1, react.shout * 2) : 0,
       brows: v.kind === "agent" ? 0.55 : 1,
-      lids: v.kind === "hold" && !react.shout && q > 3 && h > (v.barsAt || 0) + 2,
-      drum: react.drum,
+      lids: v.kind === "hold" && !react.shout && q > 3 && h > (v.barsAt || 0) + 4,
       sweat: run.patience <= 1, sweatT: react.sweatT,
-      steam: react.steam > 0 ? Math.min(1, react.steam) : 0, steamT: shell.reduceMotion ? 0.3 : animT
+      steam: react.steam > 0 ? Math.min(1, react.steam) : 0,
+      puff: react.puff > 0 ? Math.min(1, react.puff * 2) : 0,
+      steamT: calm ? 0.3 : animT,
+      cut: calm ? 0 : react.cut,
+      handset: speaker || slam ? "table" : "ear"
     };
-    return D.you(c, y.x, y.y, R, o);
+    var me = D.you(c, y.x, y.y, R, o);
+    me.flat = speaker || slam;
+    me.slam = slam;
+    return me;
+  }
+
+  // your free mitten (two on speaker), and the handset when it's on the table
+  function drawHands(c, me, v, h) {
+    var y = Lay.you, R = y.R;
+    var calm = shell.reduceMotion;
+    var hit = react.drum, lift = 0;
+    if (!calm) {
+      // up between taps, down hard on each one
+      var ph01 = beatPhase(v, h);
+      lift = hit > 0 ? 0 : ph01 != null ? R * 0.28 * Math.sin(ph01 * Math.PI) : 0;
+    }
+    var r = me.rest;
+    D.mitten(c, r.x, r.y - lift, r.r, T.paper, !y.flip);
+    if (hit > 0.35 && !calm) D.burst(c, r.x, r.y, r.r * 1.35, r.r * 2.1, Math.max(0.25, R * 0.04), 5, -Math.PI * 0.9);
+    if (me.flat) {
+      D.handsetFlat(c, Lay.flat.x, Lay.flat.y, R, y.flip, me.slam && !calm && (h - v.t0) < 0.8);
+      if (me.rest2 && !me.slam) {
+        var r2 = me.rest2;
+        D.mitten(c, r2.x, r2.y - (calm ? 0 : lift * 0.6), r2.r, T.paper, y.flip);
+      }
+    }
+  }
+
+  // ---------- The lane: the tune's notes, riding the cord to your ear ----------
+  function drawLane(c, v, h, ln) {
+    var R = Lay.you.R, nr = Lay.noteR;
+    var ahead = laneAhead(), span = ln.len;
+    var ring = ln.end, calm = shell.reduceMotion;
+    var ph01 = beatPhase(v, h);
+    // the ring at the handset: magenta, with a paper edge; it swells on the beat
+    var rr = nr * 1.75 * (calm || ph01 == null ? 1 : 1 + 0.08 * Math.max(0, 1 - ph01 * 4));
+    var flash = floats.length && !floats[floats.length - 1].key && floats[floats.length - 1].t < 0.16 ? floats[floats.length - 1].kind : null;
+    D.solid(c, D.ell(ring.x, ring.y, rr, rr), flash === "perfect" || flash === "close" ? T.paper : T.accent, Math.max(0.35, nr * 0.24), T.ink);
+    D.ink(c, Math.max(0.3, nr * 0.16), T.ink);
+    c.beginPath(); c.arc(ring.x, ring.y, rr * 0.55, 0, Math.PI * 2); c.stroke();
+    // the count-in: ghost notes
+    if (h < v.barsAt + 0.2) {
+      for (var ci = 0; ci < 4; ci++) {
+        var ct = v.countAt + ci * v.b0, s0 = (ct - h) / ahead * span;
+        if (s0 < -0.5 || s0 > span) continue;
+        var cp = laneAt(ln, s0);
+        D.ink(c, Math.max(0.3, nr * 0.22), T.paper);
+        c.beginPath(); c.arc(cp.x, cp.y, nr * 0.9, 0, Math.PI * 2); c.stroke();
+      }
+    }
+    // bar lines: a paper tick across the cord at each bar
+    (v.bars || []).forEach(function (b) {
+      var s = (b.t - h) / ahead * span;
+      if (s < nr || s > span) return;
+      var p0 = laneAt(ln, s), p1 = laneAt(ln, s + 1);
+      var nx = -(p1.y - p0.y), ny = p1.x - p0.x, nl = Math.hypot(nx, ny) || 1;
+      nx /= nl; ny /= nl;
+      D.line(c, [[p0.x - nx * nr * 1.6, p0.y - ny * nr * 1.6], [p0.x + nx * nr * 1.6, p0.y + ny * nr * 1.6]], Math.max(0.3, nr * 0.2), T.paper);
+    });
+    // the notes, last first, so the next one is on top
+    for (var i = v.notes.length - 1; i >= 0; i--) {
+      var n = v.notes[i];
+      var s = (n.t - h) / ahead * span;
+      if (s > span + nr) continue;
+      if (n.state === 1 || n.state === 2) {
+        // hit: a burst at the ring
+        var k = clamp((h - n.hitAt) / 0.28, 0, 1);
+        if (k >= 1) continue;
+        if (calm) {
+          c.save(); c.globalAlpha = 1 - k;
+          D.burst(c, ring.x, ring.y, rr * 1.2, rr * 1.8, Math.max(0.3, nr * 0.22), 8, 0.2);
+          c.restore();
+        } else D.burst(c, ring.x, ring.y, rr * (1.1 + k), rr * (1.6 + k * 1.4), Math.max(0.3, nr * 0.22), 8, 0.2);
+        continue;
+      }
+      if (n.state === 4) continue;
+      if (n.state === 3) {
+        // missed: it drops off the cord
+        var m = clamp((h - (n.missAt || h)) / 0.6, 0, 1);
+        if (m >= 1) continue;
+        var mp = laneAt(ln, Math.max(0, s));
+        c.save();
+        c.globalAlpha = 1 - m;
+        var fall = calm ? 0 : m * m * nr * 9;
+        D.musicNote(c, mp.x, mp.y + fall, nr * 0.85, "crotchet", T.paper);
+        D.line(c, [[mp.x - nr, mp.y + fall - nr], [mp.x + nr, mp.y + fall + nr]], Math.max(0.4, nr * 0.32), T.red);
+        D.line(c, [[mp.x + nr, mp.y + fall - nr], [mp.x - nr, mp.y + fall + nr]], Math.max(0.4, nr * 0.32), T.red);
+        c.restore();
+        continue;
+      }
+      if (s < -nr * 2) continue;
+      var p = laneAt(ln, Math.max(0, s));
+      var kind = n.len <= 0.5 ? "quaver" : n.len >= 1.5 ? "minim" : "crotchet";
+      D.musicNote(c, p.x, p.y, nr * (n.beat === 0 ? 1.08 : 0.94), kind, T.paper);
+    }
+  }
+
+  // ---------- The agent, in a frame on the wall ----------
+  function portraitOn(v, h) {
+    if (!Lay.portrait) return null;
+    if (v.kind === "agent") return { k: clamp((h - v.t0) / 0.32, 0, 1), dead: 0 };
+    if (v.kind === "dead") return h < v.toneAt + 0.6 ? { k: 1, dead: clamp((h - v.t0) / 0.15, 0, 1) } : null;
+    return null;
+  }
+
+  function drawPortrait(c, v, h, on) {
+    var P = Lay.portrait, a = info().agent;
+    var k = on.k, calm = shell.reduceMotion;
+    var w = P.w, ph = P.h;
+    c.save();
+    if (calm) c.globalAlpha = k;
+    else {
+      // it pops onto the wall, with a little overshoot
+      var s = k < 1 ? 0.6 + 0.48 * Math.sin(k * Math.PI * 0.62) : 1;
+      c.translate(P.x + w / 2, P.y + ph / 2);
+      c.scale(s, s);
+      c.translate(-(P.x + w / 2), -(P.y + ph / 2));
+    }
+    var talking = talkingNow(h);
+    var mouth = talking && talking.who === "agent" ? Math.abs(Math.sin(h * 20)) : 0;
+    var look = a.look === "none" ? "none" : a.look;
+    var out = D.agentCutout(c, P.x, P.y, w, ph, { look: look, mouth: mouth, tilt: Lay.shape === "tall" ? 0.03 : -0.035, dead: on.dead, staticT: calm ? 0 : h });
+    // a name plate under the frame
+    var label = on.dead ? "Line: dead" : (a.name ? a.name + ", " : "") + info().dept;
+    var size = Math.max(Lay.tmin, Math.min(w * 0.12, 4.2));
+    var tw = D.measure(c, label, size) + size * 1.2;
+    var plate = D.rr(P.x + w / 2 - tw / 2, P.y + ph - size * 0.7, tw, size * 1.5, size * 0.2);
+    D.solid(c, plate, T.paper, Math.max(0.35, size * 0.12));
+    D.text(c, label, P.x + w / 2, P.y + ph + size * 0.06, size, { colour: on.dead ? T.red : T.ink });
+    c.restore();
+    Lay.portraitMouth = out.mouth;
   }
 
   // ---------- The sticky note ----------
@@ -1502,112 +1782,63 @@
   // ---------- The beat pad, on hold ----------
   function padRect() { var k = Lay.keys; return { x: k.x, y: k.y, w: k.w, h: k.h }; }
 
+  // The keypad goes dark on hold: four lamps for the beats of the bar, and
+  // what's going on in words. Tapping anywhere is a tap on the beat.
   function drawPad(c, v, h) {
     var r = padRect();
     var path = D.rr(r.x, r.y, r.w, r.h, 2);
     D.solid(c, path, T.ink, 0.8, T.paper);
-    var s = Math.max(Lay.tmin, 3);
+    var s = Math.max(Lay.tmin, Math.min(r.w * 0.1, 4.2));
     var bar = v.kind === "hold" ? currentBar(v, h) : null;
-    // four lamps: the beats of the bar
-    var lampY = r.y + r.h * 0.14, lampR = Math.min(r.w * 0.06, r.h * 0.07);
+    var lampY = r.y + r.h * 0.3, lampR = Math.min(r.w * 0.085, r.h * 0.12);
     var beatNow = -1, beatT = 0;
     if (v.kind === "hold") {
       if (h >= v.countAt && h < v.barsAt) { beatNow = Math.floor((h - v.countAt) / v.b0); beatT = ((h - v.countAt) / v.b0) % 1; }
       else if (bar && h < bar.end) { beatNow = Math.floor((h - bar.t) / bar.b); beatT = ((h - bar.t) / bar.b) % 1; }
     }
     for (var i = 0; i < 4; i++) {
-      var lx = r.x + r.w * (0.2 + i * 0.2);
+      var lx = r.x + r.w * (0.17 + i * 0.22);
       var lit = i === beatNow && beatT < 0.5;
-      D.solid(c, D.ell(lx, lampY, lampR, lampR), lit ? T.accent : T.ink, 0.45, T.paper);
-      if (lit && !shell.reduceMotion) {
-        D.ink(c, 0.3, T.paper);
-        for (var a = 0; a < 6; a++) {
-          var an = a * Math.PI / 3;
-          c.beginPath(); c.moveTo(lx + Math.cos(an) * lampR * 1.4, lampY + Math.sin(an) * lampR * 1.4); c.lineTo(lx + Math.cos(an) * lampR * 1.9, lampY + Math.sin(an) * lampR * 1.9); c.stroke();
-        }
-      }
+      D.solid(c, D.ell(lx, lampY, lampR, lampR), lit ? T.accent : T.ink, Math.max(0.4, lampR * 0.16), T.paper);
+      if (lit && !shell.reduceMotion) D.burst(c, lx, lampY, lampR * 1.35, lampR * 1.8, Math.max(0.25, lampR * 0.1), 6, 0);
     }
-    // the lane: notes run in from the right to the ring
-    var laneY = r.y + r.h * 0.5, tx = r.x + r.w * 0.2, end = r.x + r.w - 2;
-    var ahead = 1.5;                        // seconds of notes shown
-    var span = end - tx;
-    D.ink(c, 0.35, T.paper);
-    c.beginPath(); c.moveTo(r.x + 2, laneY); c.lineTo(end, laneY); c.stroke();
-    var ring = Math.min(r.h * 0.13, r.w * 0.09);
-    var flash = floats.length && floats[floats.length - 1].t < 0.15 ? floats[floats.length - 1].kind : null;
-    D.solid(c, D.ell(tx, laneY, ring, ring), flash === "perfect" || flash === "close" ? T.accent : T.ink, 0.7, T.paper);
-    D.ink(c, 0.35, T.paper);
-    c.beginPath(); c.arc(tx, laneY, ring * 0.55, 0, Math.PI * 2); c.stroke();
-    if (v.kind === "hold") {
-      // the count-in, as ghost notes
-      if (h < v.barsAt + 0.2) {
-        for (var ci = 0; ci < 4; ci++) {
-          var ct = v.countAt + ci * v.b0, cx = tx + (ct - h) / ahead * span;
-          if (cx < r.x + 1 || cx > end) continue;
-          D.ink(c, 0.35, T.paper);
-          c.beginPath(); c.arc(cx, laneY, ring * 0.45, 0, Math.PI * 2); c.stroke();
-        }
-      }
-      v.notes.forEach(function (n) {
-        var x = tx + (n.t - h) / ahead * span;
-        if (x > end + 1 || x < r.x - 2) return;
-        if (n.state === 1 || n.state === 2) {
-          var k = clamp((h - n.hitAt) / 0.25, 0, 1);
-          if (k >= 1) return;
-          D.ink(c, 0.35, T.paper);
-          for (var a2 = 0; a2 < 6; a2++) {
-            var an2 = a2 * Math.PI / 3 + 0.3;
-            c.beginPath(); c.moveTo(tx + Math.cos(an2) * ring * (1 + k), laneY + Math.sin(an2) * ring * (1 + k)); c.lineTo(tx + Math.cos(an2) * ring * (1.4 + k * 1.4), laneY + Math.sin(an2) * ring * (1.4 + k * 1.4)); c.stroke();
-          }
-          return;
-        }
-        if (n.state === 3) {
-          D.line(c, [[x - ring * 0.4, laneY - ring * 0.4], [x + ring * 0.4, laneY + ring * 0.4]], 0.6, T.red);
-          D.line(c, [[x + ring * 0.4, laneY - ring * 0.4], [x - ring * 0.4, laneY + ring * 0.4]], 0.6, T.red);
-          return;
-        }
-        if (n.state === 4) return;
-        var down = n.beat % 1 === 0 && n.beat === 0;
-        D.solid(c, D.ell(x, laneY, ring * (down ? 0.6 : 0.5), ring * (down ? 0.6 : 0.5)), T.paper, 0.5);
-      });
-      // bar lines
-      (v.bars || []).forEach(function (b) {
-        var x = tx + (b.t - h) / ahead * span;
-        if (x < r.x + 1 || x > end) return;
-        D.ink(c, 0.25, T.paper);
-        c.beginPath(); c.moveTo(x, laneY - ring * 1.1); c.lineTo(x, laneY + ring * 1.1); c.stroke();
-      });
-    }
-    // underneath: what's going on, in words
+    // what's going on, in words
     var word = "";
     if (v.kind === "dial") word = h < v.dialAt ? "Cut off" : "Redialling";
-    else if (h < v.countAt) word = "Please hold";
-    else if (h < v.barsAt) word = String(Math.min(4, Math.floor((h - v.countAt) / v.b0) + 1));
+    else if (h < v.barsAt) word = String(Math.min(4, Math.max(1, Math.floor((h - v.countAt) / v.b0) + 1)));
     else if (bar && bar.first && h < bar.t + bar.b * 4) word = "Fast version";
     else if (bar && bar.last) word = "You're next";
-    if (word) D.text(c, word, r.x + r.w / 2, r.y + r.h * 0.83, s * (word.length < 3 ? 1.6 : 1), { colour: T.paper });
+    else if (mods && mods.speaker) word = "On speaker";
+    else word = Lay.touch ? "Tap anywhere" : "On hold";
+    D.text(c, word, r.x + r.w / 2, r.y + r.h * 0.66, s * (word.length < 3 ? 1.9 : 1.05), { colour: word.length < 3 || word === "Fast version" ? T.accent : T.paper });
   }
 
   // ---------- Floating words ----------
-  // over the beat pad, one at a time
+  // by the ring, one at a time
   function laneFloat(kind, text, life) {
     floats = floats.filter(function (f) { return f.key; });
     floats.push({ kind: kind, text: text, t: 0, life: life });
   }
 
   function drawFloats(c) {
-    var r = padRect();
+    var ring = lane().end, nr = Lay.noteR;
     floats.forEach(function (f) {
-      var k = f.t / f.life, size = Math.max(Lay.tmin, 3.2);
+      var k = f.t / f.life, size = Math.max(Lay.tmin, nr * 1.25);
       var x, y;
       if (f.key) {
         var kr = keyRects().filter(function (q) { return q.key === f.key; })[0];
         if (!kr) return;
         x = kr.x + kr.w / 2; y = kr.y - 1;
-      } else { x = r.x + r.w * 0.2; y = r.y + r.h * 0.36; }
+      } else {
+        // above the ring, on the phone's side of it
+        x = ring.x + (Lay.you.flip ? nr * 2.4 : -nr * 0.5);
+        y = ring.y - nr * 2.4;
+      }
       c.save();
       c.globalAlpha = 1 - k * k;
-      D.text(c, f.text, x, y - k * 3, size, { base: "bottom", stroke: size * 0.3,
+      // with reduced motion the words fade where they are
+      var rise = shell.reduceMotion ? 0 : k * 3;
+      D.text(c, f.text, x, y - rise, size, { base: "bottom", stroke: size * 0.3, align: f.key ? "center" : Lay.you.flip ? "left" : "center",
         colour: f.kind === "miss" || f.kind === "stray" ? T.red : f.kind === "perfect" || f.kind === "good" ? T.accent : T.paper });
       c.restore();
     });
@@ -1624,38 +1855,57 @@
     return lines;
   }
 
-  function drawBubbles(c, v, h, placed) {
-    // the phone's bubble: whoever's on the line
+  // The phone's bubble (whoever's on the line), the agent's from their frame,
+  // and yours, each in its own place on every shape of screen
+  function drawBubbles(c, v, h, placed, agentOn) {
     var cur = null;
     for (var i = talks.length - 1; i >= 0; i--) {
       var tk = talks[i];
       if (h >= tk.t && h < tk.end + 0.5) { cur = tk; break; }
     }
-    if (cur) {
-      var b = Lay.bubble;
-      var top = b.side === "right" ? Lay.note.y + (Lay.note.h || 0) + 2.4 : b.y;
-      if (b.side === "right" && (v.kind === "hold" || v.kind === "agent")) top = Lay.note.y + (Lay.note.h || 0) + 2.4;
-      var bx0 = b.side === "down" && Lay.note.dw ? Math.max(b.x, Lay.note.x + Lay.note.dw + 2) : b.x;
-      var box = { x: bx0 * U, y: top * U, w: (b.right - bx0) * U, bottom: b.bottom * U };
-      var anchor = { x: (Lay.lcd.x + 1) * U, y: (Lay.lcd.y + Lay.lcd.h * 0.5) * U };
-      if (b.side === "down") anchor = { x: (Lay.lcd.x + Lay.lcd.w * 0.3) * U, y: (Lay.phone.y - 3.2) * U };
-      var fade = clamp((cur.end + 0.5 - h) * 4, 0, 1);
-      bubble(c, cur.text.toUpperCase(), box, anchor, b.side, Math.min(fade, shell.reduceMotion ? 1 : clamp((h - cur.t) * 9, 0, 1)), cur.who === "dept", placed);
+    var mine = react.said && react.saidT < 2.4;
+    // yours first, so the phone's makes way
+    if (mine) {
+      var yb = Lay.youBubble;
+      var top = yb.y;
+      if (Lay.shape === "square") top = Math.max(yb.y, Lay.note.y + (Lay.note.h || 0) + 2);
+      if (Lay.shape === "wide") top = Math.max(yb.y, Lay.note.y + (Lay.note.h || 0) + 1.5);
+      var anchor = yb.side === "down" ? { x: (Lay.you.x + Lay.you.R * 0.3) * U, y: (Lay.hatTop + Lay.you.R * 0.5) * U }
+                                      : { x: (Lay.mouth.x + (Lay.you.flip ? -1 : 1) * Lay.you.R * 0.45) * U, y: Lay.mouth.y * U };
+      bubble(c, react.said.toUpperCase(), { x: yb.x * U, y: top * U, w: (yb.right - yb.x) * U, bottom: yb.bottom * U }, anchor, yb.side,
+        clamp((2.4 - react.saidT) * 4, 0, 1) * (shell.reduceMotion ? 1 : clamp(react.saidT * 9, 0, 1)), false, placed);
     }
-    // what you say back: in your own bubble where there's room for one,
-    // otherwise in the phone's space while the phone isn't talking
-    if (react.said && react.saidT < 2.2 && (Lay.youBubble || !cur)) {
-      var R = Lay.you.R;
-      var yb = Lay.youBubble || { x: Lay.bubble.x, y: Lay.bubble.side === "right" ? Lay.note.y + (Lay.note.h || 0) + 2.4 : Lay.bubble.y,
-                                   right: Lay.bubble.side === "right" ? Lay.bubble.right : Math.min(Lay.phone.x - 2, WW - 2), bottom: Lay.hatTop - 1.5 };
-      var yAnchor = { x: (Lay.you.x - R * 0.3) * U, y: (Lay.hatTop + R * 0.4) * U };
-      bubble(c, react.said.toUpperCase(), { x: yb.x * U, y: yb.y * U, w: (yb.right - yb.x) * U, bottom: yb.bottom * U }, yAnchor, "down",
-        clamp((2.2 - react.saidT) * 4, 0, 1) * (shell.reduceMotion ? 1 : clamp(react.saidT * 9, 0, 1)), false, placed);
+    if (!cur) return;
+    var fade = clamp((cur.end + 0.5 - h) * 4, 0, 1);
+    var alpha = Math.min(fade, shell.reduceMotion ? 1 : clamp((h - cur.t) * 9, 0, 1));
+    var text = cur.text.toUpperCase();
+    if (cur.who === "agent" && agentOn && Lay.portraitMouth) {
+      // the agent speaks from their frame
+      var P = Lay.portrait;
+      if (Lay.agentBubble) {
+        var ab = Lay.agentBubble;
+        bubble(c, text, { x: ab.x * U, y: ab.y * U, w: (ab.right - ab.x) * U, bottom: ab.bottom * U },
+          { x: (ab.side === "left" ? P.x + P.w - 1 : P.x + 1) * U, y: (P.y + P.h * 0.4) * U }, ab.side, alpha, false, placed);
+      } else {
+        // square: under the frame, on the wall
+        bubble(c, text, { x: (P.x + P.w + 2) * U, y: (P.y + 2) * U, w: (Lay.phone.x - P.x - P.w - 3) * U, bottom: (Lay.hatTop - 1) * U },
+          { x: (P.x + P.w - 1) * U, y: (P.y + P.h * 0.4) * U }, "left", alpha, false, placed);
+      }
+      return;
     }
+    var b = Lay.bubble;
+    var btop = b.side === "right" ? Lay.note.y + (Lay.note.h || 0) + 2.4 : b.y;
+    var bx0 = b.x;
+    if (Lay.shape === "wide" && Lay.note.dw) bx0 = Math.max(b.x, Lay.note.x + Lay.note.dw + 2);
+    var box = { x: bx0 * U, y: btop * U, w: (b.right - bx0) * U, bottom: b.bottom * U };
+    var anc = { x: (Lay.lcd.x + 1) * U, y: (Lay.lcd.y + Lay.lcd.h * 0.5) * U };
+    if (b.side === "down") anc = { x: (Lay.lcd.x + Lay.lcd.w * 0.3) * U, y: (Lay.phone.y - 3.2) * U };
+    bubble(c, text, box, anc, b.side, alpha, cur.who === "dept", placed);
   }
 
   // A speech bubble: paper, a thick ink outline, a tail to the speaker
-  // (DESIGN.md, section 7). box: the room it has, in CSS pixels.
+  // (DESIGN.md, section 7). box: the room it has, in CSS pixels. side: where
+  // the tail comes out ("down", "right" or "left").
   function bubble(c, text, box, anchor, side, alpha, dashed, placed) {
     var size = N.flags.clip ? clamp(U * 3.6, 12, U * 4.2) : clamp(U * 3.3, 12, 20);
     var lines;
@@ -1674,28 +1924,36 @@
       bx = box.x + Math.max(0, (box.w - bw) / 2);
       by = box.y;
       if (box.bottom && by + bh > box.bottom) by = Math.max(box.y - (by + bh - box.bottom), box.y - size);
+    } else if (side === "left") {
+      bx = box.x;
+      by = clamp(anchor.y - bh * 0.6, box.y, Math.max(box.y, (box.bottom || anchor.y) - bh));
     } else {
       bx = clamp(anchor.x - bw * 0.35, box.x, box.x + box.w - bw);
       by = Math.max(box.y, (box.bottom || anchor.y) - bh);
     }
     for (var k = 0; k < placed.length; k++) {
       var o = placed[k];
-      if (bx < o.x + o.w + 4 && bx + bw + 4 > o.x && by < o.y + o.h + 4 && by + bh + 4 > o.y) by = o.y + o.h + 6;
+      if (bx < o.x + o.w + 4 && bx + bw + 4 > o.x && by < o.y + o.h + 4 && by + bh + 4 > o.y) {
+        // below the other one if it fits, otherwise above it
+        if (o.y + o.h + 6 + bh <= (box.bottom || 1e9) + bh * 0.5) by = o.y + o.h + 6;
+        else by = o.y - bh - 6;
+      }
     }
     placed.push({ x: bx, y: by, w: bw, h: bh });
     c.save();
     c.globalAlpha = alpha;
     var r = Math.min(9, bh / 2);
     c.beginPath();
-    if (side === "right") {
+    if (side === "right" || side === "left") {
       var ty = clamp(anchor.y, by + r + 4, by + bh - r - 4);
+      var ex = side === "right" ? bx + bw : bx;
+      var tipX = side === "right" ? Math.max(anchor.x, bx + bw + 6) : Math.min(anchor.x, bx - 6);
       c.moveTo(bx + r, by);
       c.arcTo(bx + bw, by, bx + bw, by + bh, r);
-      c.lineTo(bx + bw, ty - 5);
-      c.lineTo(Math.max(anchor.x, bx + bw + 6), anchor.y);
-      c.lineTo(bx + bw, ty + 5);
+      if (side === "right") { c.lineTo(ex, ty - 5); c.lineTo(tipX, anchor.y); c.lineTo(ex, ty + 5); }
       c.arcTo(bx + bw, by + bh, bx, by + bh, r);
       c.arcTo(bx, by + bh, bx, by, r);
+      if (side === "left") { c.lineTo(ex, ty + 5); c.lineTo(tipX, anchor.y); c.lineTo(ex, ty - 5); }
       c.arcTo(bx, by, bx + bw, by, r);
     } else {
       var tx = clamp(anchor.x, bx + 14, bx + bw - 14);
@@ -1729,9 +1987,9 @@
     if (shell.state() !== "playing") return null;
     var how = touching() ? "touch" : lastMode || "keys";
     if (call === 0 && v.kind === "hold" && learned.beat < 6 && h >= v.countAt) {
-      var r = padRect();
-      return { x: r.x + r.w * 0.2, y: r.y + r.h * 0.5 + Math.min(r.h * 0.13, r.w * 0.09) + 1.2, dir: "up",
-               word: N.flags.clip ? "Tap on the beat" : how === "touch" ? "Tap anywhere on the beat" : how === "mouse" ? "Click on the beat" : how === "pad" ? "Press on the beat" : "Space on the beat", left: true };
+      var ring = lane().end, nr = Lay.noteR;
+      return { x: ring.x, y: ring.y + nr * 1.9 + 0.8, dir: "up", left: true,
+               word: N.flags.clip ? "Tap on the beat" : how === "touch" ? "Tap anywhere on the beat" : how === "mouse" ? "Click on the beat" : how === "pad" ? "Press on the beat" : "Space on the beat" };
     }
     if (call === 0 && v.kind === "level" && !learned.menu) {
       var lv = levelOf(v), right = null;
@@ -1764,8 +2022,10 @@
     D.ink(c, 0.55);
     c.stroke();
     c.restore();
+    // the word goes where there's room: towards the middle of the screen
+    var toLeft = left && x > WW * 0.6;
     if (dir === "right") D.text(c, word, -5.2, 0, size, { align: "right", colour: T.paper, stroke: size * 0.32 });
-    else if (dir === "up" && left) D.text(c, word, 4, 2.6, size, { align: "left", colour: T.paper, stroke: size * 0.32 });
+    else if (dir === "up" && left) D.text(c, word, toLeft ? -4 : 4, 2.6, size, { align: toLeft ? "right" : "left", colour: T.paper, stroke: size * 0.32 });
     else if (dir === "up") D.text(c, word, 0, 5.6, size, { base: "top", colour: T.paper, stroke: size * 0.32 });
     else D.text(c, word, 0, -5.2, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
     c.restore();
