@@ -118,13 +118,13 @@
   // Tuning
   // ---------------------------------------------------------------------------
   var RH = 13, RK = RH / 86;     // the rocket's height; art.js draws it 86 tall
-  var THRUST = 21;               // the engine's push, along the rocket
-  var TURN = 1.9;                // radians a second, leaning
+  var THRUST = 18;               // the engine's push, along the rocket
+  var TURN = 1.6;                // radians a second, leaning
   var TURN_EASE = 14;            // how quickly leaning gets up to speed
   var MAX_TILT = 1.2;
   var FUEL = 8;                  // seconds of full thrust a booster
   var SPOOL = 0.07;              // seconds for the engine to light or go out
-  var SAFE_VY = 5, SAFE_VX = 3, SAFE_TILT = 0.21;
+  var SAFE_VY = 6, SAFE_VX = 4, SAFE_TILT = 0.3;
   var SOFT = 1.0;                // under this it's feather light
   var CROSS_R = 6;               // cross points run out this far from the cross
   var PTS = { land: 400, soft: 250, cross: 300, fuel: 250 };
@@ -136,19 +136,19 @@
 
   var STAGES = [
     { id: "barge", name: "The barge", boosters: 2, scene: "sea", deck: 34, barge: "Told you so",
-      wind: 0, gust: 0, swell: 0.18, roll: 0.008, period: 4.2, g: 9, drag: 0.12,
+      wind: 0, gust: 0, swell: 0.18, roll: 0.008, period: 4.2, g: 7.5, drag: 0.12,
       start: { h: [62, 70], dx: [10, 20], vx: 3, vy: [7, 10], tilt: 0.12 } },
     { id: "weather", name: "Weather", boosters: 2, scene: "sea", deck: 28, barge: "Trust me",
-      wind: 6.5, gust: 5, swell: 0.3, roll: 0.012, period: 4, g: 9, drag: 0.12,
+      wind: 6.5, gust: 5, swell: 0.3, roll: 0.012, period: 4, g: 7.5, drag: 0.12,
       start: { h: [66, 76], dx: [12, 24], vx: 4, vy: [8, 12], tilt: 0.18 } },
     { id: "swell", name: "Swell", boosters: 2, scene: "sea", deck: 24, barge: "Cost saving",
-      wind: 4, gust: 3.5, swell: 1.25, roll: 0.07, period: 3.4, g: 9, drag: 0.12,
+      wind: 4, gust: 3.5, swell: 1.25, roll: 0.07, period: 3.4, g: 7.5, drag: 0.12,
       start: { h: [66, 76], dx: [12, 24], vx: 4, vy: [8, 12], tilt: 0.18 } },
     { id: "party", name: "Launch party", boosters: 1, scene: "party",
-      wind: 2.5, gust: 2, swell: 0, roll: 0, period: 4, g: 9, drag: 0.12,
+      wind: 2.5, gust: 2, swell: 0, roll: 0, period: 4, g: 7.5, drag: 0.12,
       start: { h: [70, 78], dx: [16, 24], vx: 4, vy: [8, 11], tilt: 0.18 } },
     { id: "mars", name: "Mars", boosters: 1, scene: "mars", mult: 2, fuel: 0.9,
-      wind: 0, gust: 0, swell: 0, roll: 0, period: 4, g: 3.6, drag: 0.025,
+      wind: 0, gust: 0, swell: 0, roll: 0, period: 4, g: 3, drag: 0.025,
       start: { h: [86, 96], dx: [30, 38], vx: [7, 10], vy: [4, 6], tilt: 0.3, inbound: true } }
   ];
   var LAST = STAGES.length - 1;
@@ -535,6 +535,8 @@
   function touch(p, below, which) {
     var r = rk, m = run.mods;
     var mid = under(r.x, clock);
+    if (DEBUG) (run.log = run.log || []).push({ s: run.stage, b: st.booster, kind: below.kind, which: which, impact: +(-(r.vy - below.vy)).toFixed(2),
+      side: +Math.abs(r.vx).toFixed(2), lean: +Math.abs(r.a + below.angle).toFixed(3), x: +r.x.toFixed(2), legs: +r.legs.toFixed(2), fuel: +r.fuel.toFixed(2) });
     if (below.kind === "sea" || below.kind === "pool") return outcome(below.kind === "pool" ? "pool" : "splash", below);
     if (below.kind === "marquee") { st.lit = true; return outcome("marquee", below); }
     if (below.kind === "cake") { st.cake = false; return outcome("cake", below); }
@@ -823,8 +825,9 @@
       hint = { at: "rocket", word: mode === "touch" ? "Lean: arrows" : mode === "mouse" ? "Point to lean" : "Lean: left, right" };
       return;
     }
-    if (i === 0 && b === 0 && h < 50 && !said.landed) { hint = { at: "cross", word: "Land here" }; return; }
+    if (i === 0 && b === 0 && h < 50 && h > 14 && !said.landed) { hint = { at: "cross", word: "Land here" }; return; }
     if (i === 1 && b === 0 && clock < 3.5) { hint = { at: "sock", word: "Wind" }; return; }
+    if (h < 14) return;
     if (i === 2 && b === 0 && clock < 3.5) { hint = { at: "cross", word: "It moves" }; return; }
     if (i === 3 && clock < 3.5) { hint = { at: "cross", word: "Land here" }; return; }
     if (i === 4 && clock < 3.5) { hint = { at: "cross", word: "The pad" }; return; }
@@ -1077,7 +1080,7 @@
     var wind = stage().wind ? windAt(clock, 60) : 0;
     if (Math.abs(wind) > 1 && Math.random() < dt * Math.abs(wind) * 1.6 && streaks.length < 40) {
       var vw = W / cam.z, vh = H / cam.z;
-      streaks.push({ x: cam.x + (wind > 0 ? -0.6 : 0.6) * vw + rand(-0.1, 0.1) * vw, y: cam.y + rand(-0.4, 0.45) * vh, t: 0, life: rand(1, 1.8), v: wind * rand(1.6, 2.4) });
+      streaks.push({ x: cam.x + rand(-0.6, 0.5) * vw * (wind > 0 ? 1 : -1), y: cam.y + rand(-0.3, 0.45) * vh, t: 0, life: rand(0.8, 1.5), v: wind * rand(1.6, 2.4) });
     }
     streaks = streaks.filter(function (s) { s.t += dt; s.x += s.v * dt; return s.t < s.life; });
   }
@@ -1426,19 +1429,20 @@
 
   function drawParty(c) {
     var v = view(), P = A.PARTY;
-    // his house behind: a black block with lit windows
-    var hx0 = -38, hx1 = 18, hy = -15;
+    // his house, set back behind the lawn: long, low, glass along the front
+    var hx0 = -8, hx1 = 20, hy = -9.5;
     c.fillStyle = T.ink;
     c.fillRect(hx0, hy, hx1 - hx0, -hy);
+    c.fillStyle = A.dots(c, T.paper, 0.9);
+    c.fillRect(hx0, hy, hx1 - hx0, 1.2);
     A.ink(c, A.thick(0.12, 1), T.paper);
     c.strokeRect(hx0, hy, hx1 - hx0, -hy);
-    for (var wx = hx0 + 2; wx < hx1 - 2; wx += 4) {
-      for (var wy = hy + 2; wy < -3; wy += 4.5) {
-        var lit = ((wx * 7 + wy * 3) | 0) % 3 !== 0;
-        c.fillStyle = lit ? T.accent : T.ink;
-        c.fillRect(wx, wy, 2, 2.6);
-        c.strokeRect(wx, wy, 2, 2.6);
-      }
+    c.strokeRect(hx0 - 1, hy - 0.6, hx1 - hx0 + 2, 0.6);
+    for (var wx = hx0 + 1.2; wx < hx1 - 1.5; wx += 3.4) {
+      var lit = ((wx * 7) | 0) % 3 === 0;
+      c.fillStyle = lit ? T.accent : T.ink;
+      c.fillRect(wx, hy + 2.4, 2.6, 4.6);
+      c.strokeRect(wx, hy + 2.4, 2.6, 4.6);
     }
     A.lawn(c, v.x0 - 2, v.x1 + 2, v.y1 + 2);
     A.party(c, { t: vis, lit: st.lit, cake: st.cake });
@@ -1464,15 +1468,22 @@
 
   function drawMars(c) {
     var v = view();
-    // far hills
-    c.fillStyle = T.red;
+    // far hills: dark, red halftone on black, so the ground in front reads as near
+    c.fillStyle = T.ink;
     c.beginPath();
     c.moveTo(v.x0 - 2, -2);
     for (var x = Math.floor(v.x0 / 4) * 4 - 4; x < v.x1 + 4; x += 4) c.lineTo(x, -6 - 3 * Math.abs(Math.sin(x * 0.07 + 1)) - 2 * Math.sin(x * 0.19));
     c.lineTo(v.x1 + 2, -2);
     c.closePath();
     c.fill();
-    c.save(); c.clip(); c.fillStyle = A.dots(c, T.ink, 0.5); c.fillRect(v.x0 - 2, -16, v.x1 - v.x0 + 4, 16); c.restore();
+    c.save(); c.clip(); c.fillStyle = A.dots(c, T.red, 0.6); c.fillRect(v.x0 - 2, -16, v.x1 - v.x0 + 4, 16); c.restore();
+    A.ink(c, A.thick(0.1, 1), T.red);
+    c.beginPath();
+    for (var x2 = Math.floor(v.x0 / 4) * 4 - 4; x2 < v.x1 + 4; x2 += 4) {
+      var hy2 = -6 - 3 * Math.abs(Math.sin(x2 * 0.07 + 1)) - 2 * Math.sin(x2 * 0.19);
+      if (x2 === Math.floor(v.x0 / 4) * 4 - 4) c.moveTo(x2, hy2); else c.lineTo(x2, hy2);
+    }
+    c.stroke();
     A.mars(c, st.mars, v.x0 - 2, v.x1 + 2, v.y1 + 2);
     A.flag(c, -13, -marsY(st.mars.ground, -13));
     A.sign(c, -16.5, -marsY(st.mars.ground, -16.5), 6.2);
@@ -1811,7 +1822,7 @@
       party: "His own lawn. Land on the cross, not the marquee or the pool. Balloons give you a shove.",
       mars: "A third of the gravity and no air to slow you, coming in sideways. Worth double. Nobody is watching."
     }[s.id];
-    shell.brief({ title: title, text: text, ms: go + 2200 });
+    shell.brief({ title: title, text: text, ms: go + 1100 });
   }
 
   // ---------------------------------------------------------------------------
