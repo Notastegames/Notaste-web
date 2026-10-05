@@ -165,12 +165,11 @@
 
   // ---------------------------------------------------------------------------
   // You: the house cut-out, in a magenta bobble hat, the handset at your
-  // right ear, your other mitten on the table. Seen from the front, so the
-  // phone is on your left (the screen's right).
-  // x, y: where your body meets the table. R: the head's radius.
-  // o: { look, up, shout, brows, bob, drum (0..1, the free mitten coming
-  //      down), sweat, hold (the handset's at your ear), steam }
-  // Returns where the handset's cord comes out, in world units.
+  // right ear (the screen's right, towards the phone), sat behind the table.
+  // x, y: the middle of the table's edge in front of you. R: the head's radius.
+  // o: { look, up, shout, brows, lids, bob, sweat, sweatT, steam, steamT }
+  // Returns where the cord leaves the handset, and where your other mitten
+  // rests on the table (drawn by the caller, after the table).
   // ---------------------------------------------------------------------------
   function you(c, x, y, R, o) {
     o = o || {};
@@ -178,21 +177,20 @@
     var bob = o.bob || 0;
     c.save();
     c.translate(x, y);
-    // the body, a jumper: paper, halftone down its far side
-    var body = ell(0, R * 0.2, R * 1.3, R * 1.2);
+    // the body, a jumper: paper, halftone down its far side, a magenta stripe
+    var body = ell(0, -R * 0.15, R * 1.32, R * 1.25);
     solid(c, body, T.paper, lw);
-    shade(c, body, ell(R * 0.95, R * 0.5, R * 0.9, R * 1.3), R * 0.09);
-    ink(c, lw);
-    c.stroke(body);
-    // a stripe across the jumper, in the hat's colour
+    shade(c, body, ell(-R * 0.95, R * 0.1, R * 0.8, R * 1.4), R * 0.09);
     c.save();
     c.clip(body);
     c.fillStyle = T.accent;
-    c.fillRect(-R * 1.5, -R * 0.42, R * 3, R * 0.26);
+    c.fillRect(-R * 1.5, -R * 0.62, R * 3, R * 0.28);
     ink(c, lw * 0.6);
-    c.strokeRect(-R * 1.5, -R * 0.42, R * 3, R * 0.26);
+    c.strokeRect(-R * 1.5, -R * 0.62, R * 3, R * 0.28);
     c.restore();
-    var hy = -R * 1.72 + bob;
+    ink(c, lw);
+    c.stroke(body);
+    var hy = -R * 2.05 + bob;
     // the head
     var head = ell(0, hy, R, R * 0.97);
     solid(c, head, T.paper, lw);
@@ -208,11 +206,11 @@
     face(c, 0, hy + R * 0.12, R, { look: o.look, up: o.up, shout: o.shout, brows: o.brows, lids: o.lids });
     // sweat, when patience is short
     if (o.sweat) {
-      var sx = -R * 0.86, sy = hy - R * 0.2 + (o.sweatT || 0) * R * 0.5;
+      var sx = -R * 0.84, sy = hy - R * 0.25 + (o.sweatT || 0) * R * 0.45;
       var drop = new Path2D();
-      drop.moveTo(sx, sy - R * 0.22);
-      drop.quadraticCurveTo(sx + R * 0.14, sy, sx, sy + R * 0.08);
-      drop.quadraticCurveTo(sx - R * 0.14, sy, sx, sy - R * 0.22);
+      drop.moveTo(sx, sy - R * 0.24);
+      drop.quadraticCurveTo(sx + R * 0.15, sy, sx, sy + R * 0.09);
+      drop.quadraticCurveTo(sx - R * 0.15, sy, sx, sy - R * 0.24);
       solid(c, drop, T.paper, lw * 0.5);
     }
     // the bobble hat, pulled down to the eyebrows
@@ -222,31 +220,29 @@
       c.save();
       c.globalAlpha = Math.min(1, o.steam);
       [-1, 1].forEach(function (s) {
-        var ex = s * R * 1.12, ey = hy + R * 0.05;
+        var ex = s * R * 1.08, ey = hy + R * 0.05;
         for (var i = 0; i < 3; i++) {
           var k = ((o.steamT || 0) * 1.6 + i / 3) % 1;
+          var px = ex + s * (R * 0.25 + k * R * 0.45), py = ey - R * 0.2 - k * R * 0.7, pr = R * (0.13 + k * 0.12);
           c.fillStyle = T.accent;
-          c.beginPath(); c.arc(ex + s * (R * 0.2 + k * R * 0.5) + R * 0.05, ey - k * R * 0.6 + R * 0.05, R * (0.12 + k * 0.12), 0, 7); c.fill();
+          c.beginPath(); c.arc(px + R * 0.05, py + R * 0.05, pr, 0, 7); c.fill();
           c.fillStyle = T.paper;
-          c.beginPath(); c.arc(ex + s * (R * 0.2 + k * R * 0.5), ey - k * R * 0.6, R * (0.12 + k * 0.12), 0, 7); c.fill();
+          c.beginPath(); c.arc(px, py, pr, 0, 7); c.fill();
         }
       });
       c.restore();
     }
-    // the free mitten, on the table, drumming
-    var dx = -R * 1.05, dy = R * 0.15 - (1 - (o.drum || 0)) * R * 0.0 + (o.drum || 0) * R * 0.08 - (o.lift || 0) * R * 0.3;
-    mitten(c, dx, dy, R * 0.34, T.paper, false);
-    // the handset at your right ear (the screen's right), and the arm holding it
-    var hx = R * 1.02, hsy = hy + R * 0.12;
+    // the handset at your ear, and the arm holding it
+    var hx = R * 1.0, hsy = hy - R * 0.05;
     var arm = new Path2D();
-    arm.moveTo(R * 0.95, -R * 0.1);
-    arm.quadraticCurveTo(R * 1.75, -R * 0.4, R * 1.38, hsy + R * 0.62);
-    ink(c, R * 0.42); c.stroke(arm);
-    ink(c, R * 0.26, T.paper); c.stroke(arm);
-    var cord = handset(c, hx, hsy, R * 0.95);
-    mitten(c, R * 1.4, hsy + R * 0.55, R * 0.32, T.paper, true);
+    arm.moveTo(R * 0.9, -R * 0.7);
+    arm.quadraticCurveTo(R * 1.95, -R * 0.75, R * 1.5, hsy + R * 0.82);
+    ink(c, R * 0.46); c.stroke(arm);
+    ink(c, R * 0.28, T.paper); c.stroke(arm);
+    var cord = handset(c, hx, hsy, R);
+    mitten(c, R * 1.46, hsy + R * 0.7, R * 0.32, T.paper, true);
     c.restore();
-    return { x: x + cord.x, y: y + cord.y };
+    return { cord: { x: x + cord.x, y: y + cord.y }, rest: { x: x - R * 0.95, y: y - R * 0.12, r: R * 0.34 } };
   }
 
   // A bobble hat in the game's colour: stripes, a paper bobble, a turn-up
@@ -268,23 +264,27 @@
     ink(c, R * 0.09); c.stroke(band);
   }
 
-  // A handset held upright: the earpiece at (x, y), the mouthpiece below.
-  // Returns where its cord starts, relative to the caller's origin.
+  // A handset held to the ear: the earpiece at (x, y), its handle bowing
+  // out, the mouthpiece by the chin. k: the head's radius.
+  // Returns where its cord starts.
   function handset(c, x, y, k) {
-    var p = new Path2D();
-    p.moveTo(x - k * 0.18, y - k * 0.42);
-    p.quadraticCurveTo(x + k * 0.5, y - k * 0.5, x + k * 0.46, y - k * 0.12);
-    p.lineTo(x + k * 0.36, y + k * 1.0);
-    p.quadraticCurveTo(x + k * 0.4, y + k * 1.36, x - k * 0.12, y + k * 1.36);
-    p.quadraticCurveTo(x - k * 0.28, y + k * 1.2, x - k * 0.12, y + k * 1.05);
-    p.lineTo(x + k * 0.06, y + k * 0.98);
-    p.lineTo(x + k * 0.12, y + k * 0.02);
-    p.quadraticCurveTo(x - k * 0.2, y - k * 0.04, x - k * 0.18, y - k * 0.42);
-    p.closePath();
-    solid(c, p, T.paper, k * 0.1);
-    shade(c, p, rr(x + k * 0.18, y - k, k, k * 3, 0), k * 0.08);
-    ink(c, k * 0.1); c.stroke(p);
-    return { x: x + k * 0.1, y: y + k * 1.34 };
+    var handle = new Path2D();
+    handle.moveTo(x + k * 0.12, y - k * 0.05);
+    handle.quadraticCurveTo(x + k * 0.78, y + k * 0.55, x + k * 0.08, y + k * 1.2);
+    ink(c, k * 0.46); c.stroke(handle);
+    ink(c, k * 0.27, T.paper); c.stroke(handle);
+    c.save();
+    c.clip(handle);
+    c.restore();
+    var ear = ell(x - k * 0.02, y - k * 0.05, k * 0.2, k * 0.34, -0.25);
+    solid(c, ear, T.paper, k * 0.09);
+    shade(c, ear, rr(x + k * 0.02, y - k * 0.5, k, k, 0), k * 0.06);
+    ink(c, k * 0.09); c.stroke(ear);
+    var mouth = ell(x - k * 0.04, y + k * 1.22, k * 0.19, k * 0.3, 0.35);
+    solid(c, mouth, T.paper, k * 0.09);
+    shade(c, mouth, rr(x, y + k * 0.8, k, k, 0), k * 0.06);
+    ink(c, k * 0.09); c.stroke(mouth);
+    return { x: x + k * 0.02, y: y + k * 1.5 };
   }
 
   // The curly cord, from (x0, y0) to (x1, y1), sagging between

@@ -89,16 +89,17 @@
   // Tuning
   // ---------------------------------------------------------------------------
   var CENTRE = 0.015;          // taps are judged against the note plus this
-  var PERFECT = 0.075;         // either side of it: perfect
-  var CLOSE = 0.15;            // close: this, or...
+  var PERFECT = 0.06;          // either side of it: perfect
+  var CLOSE = 0.14;            // close: this, or...
   var CLOSE_BEATS = 0.3;       // ...this much of a beat, if that's shorter
   var SPEAKER = 0.04;          // on speaker, both windows are this much wider
   var PATIENCE = 3, PATIENCE_MAX = 5;
   var SIGNAL = 4;              // bars of signal
-  var RESTORE = 4;             // hits in a row to win a bar back
+  var RESTORE = 3;             // hits in a row to win a bar back
+  var DOUBLE = 0.12;           // a second tap this soon after a hit is ignored
   var CUT_QUEUE = 3;           // places added to the queue when you're cut off
   var AHEAD = 0.2;             // the next part of a call is queued this soon
-  var PTS = { menu: 100, retry: 50, perfect: 20, close: 10, streak: 50, every: 8, call: 200, patience: 100 };
+  var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100 };
   var APPROVED = 4300, PENDING = 3400;
   var DIAL = "08004655";       // the number you dial (it's not a real one)
 
@@ -134,30 +135,30 @@
   var PATS = { q: [0, 1, 2, 3], a3: [0, 1, 2, 2.5, 3], a1: [0, 1, 1.5, 2, 3], a4: [0, 1, 2, 3, 3.5], r4: [0, 1, 2], r3: [0, 1, 3] };
 
   var CALLS = [
-    { dept: "Billing", menuBpm: 92, hold: [92], key: [0, 0], fastAt: null, queue: 5, cats: ["topic"], opts: 4,
+    { dept: "Billing", menuBpm: 96, hold: [92], key: [0, 0], fastAt: null, queue: 4, cats: ["topic"], opts: 4,
       lock: false, scatter: false, flip: false, vo: false,
       pats: { please: ["q", "q", "q", "q", "q", "q", "q", "q"] },
       welcome: "Thank you for calling A Company.",
-      agent: { name: "Sam", look: "glasses", lines: ["Billing, Sam speaking. Sorry about the wait.", "Oh. That's not billing. That's a fault.", "I'll put you through to Faults. They're lovely."] },
-      brief: "Find your problem on the note. When the menu reads it out, press its number. On hold, tap on the beat to stay on the line.",
+      agent: { name: "Sam", look: "glasses", lines: ["Billing, Sam speaking. Oh. That's not billing, that's a fault.", "I'll put you through to Faults. They're lovely."] },
+      brief: "Find your problem on the note. When the menu reads it out, press its number. On hold, tap on the beat to keep your signal up.",
       done: "Sam was lovely. Sam couldn't help. Sam has put you through to Faults." },
-    { dept: "Faults", menuBpm: 100, hold: [100], key: [0, 0], fastAt: null, queue: 6, cats: ["place", "light"], opts: 4,
+    { dept: "Faults", menuBpm: 104, hold: [100], key: [0, 0], fastAt: null, queue: 5, cats: ["place", "light"], opts: 4,
       lock: true, scatter: false, flip: false, vo: true,
       pats: { please: ["q", "q", "q", "q", "q", "q", "q", "q"] },
       welcome: "Welcome back to A Company. We missed you.",
-      agent: { name: "Jo", look: "bun", lines: ["Faults, Jo speaking. I can see it from here.", "I'm not allowed to fix it until it's a complaint.", "I'll put you through to Complaints. Sorry."] },
-      brief: "The keypad now stays locked until every option has been read, so remember your number. Announcements turn the music down. Keep tapping.",
+      agent: { name: "Jo", look: "bun", lines: ["Faults, Jo speaking. I can see the fault from here.", "I can't touch it until it's a complaint. Putting you through."] },
+      brief: "The keypad now stays locked until every option has been read, so remember your number. On hold, lose all your signal and you're cut off.",
       done: "Jo can see the fault from her desk. Jo is not allowed to touch it." },
-    { dept: "Complaints", menuBpm: 108, hold: [104, 120], key: [0, 2], fastAt: 3, queue: 8, cats: ["since", "topic", "tried"], opts: 5,
+    { dept: "Complaints", menuBpm: 112, hold: [104, 120], key: [0, 2], fastAt: 3, queue: 6, cats: ["since", "topic"], opts: 5,
       lock: true, scatter: true, flip: false, vo: true,
-      pats: { please: ["q", "q", "q", "q", "q", "q", "q", "r4"], fast: ["q", "a3", "q", "r4", "q", "a1", "q", "r4"] },
+      pats: { please: ["q", "q", "q", "q", "q", "q", "q", "q"], fast: ["a3", "q", "r4", "a1", "q", "r4", "a3", "q"] },
       welcome: "Please listen carefully, as our options have changed.",
-      agent: { name: "Dee", look: "perm", lines: ["Complaints, Dee speaking. You sound fed up.", "Honestly, I'd leave. I'm not allowed to say that.", "I'll put you through to Cancellations. Good luck."] },
+      agent: { name: "Dee", look: "perm", lines: ["Complaints, Dee speaking. Honestly, I'd leave.", "I'm not allowed to say that. Putting you through to Cancellations."] },
       brief: "Our options have changed: the numbers come in any order. Halfway through the hold the fast version starts, with extra notes and gaps.",
-      done: "Dee agrees with you completely. Dee has been told not to." },
-    { dept: "Cancellations", menuBpm: 116, hold: [112, 132], key: [0, 3], fastAt: 3, queue: 8, cats: ["tried", "light", "place"], opts: 5,
+      done: "Dee agrees with you completely. Dee has been asked not to." },
+    { dept: "Cancellations", menuBpm: 120, hold: [112, 132], key: [0, 3], fastAt: 3, queue: 6, cats: ["tried", "light", "place"], opts: 5,
       lock: true, scatter: true, flip: true, vo: true,
-      pats: { please: ["q", "a3", "q", "r4", "q", "a1", "q", "r4"], fast: ["a3", "a1", "a4", "r4", "a1", "a3", "r3", "r4"] },
+      pats: { please: ["q", "a3", "r4", "q", "a1", "q", "r4", "q"], fast: ["a1", "a4", "r3", "a3", "a1", "r4", "a3", "q"] },
       welcome: "Thank you for calling A Company. Again.",
       agent: { name: "", look: "none", lines: ["Hello, you're through to Cancellations. My name is"] },
       brief: "The options come the other way round now: the thing first, then its number. The fast version is faster.",
@@ -186,7 +187,7 @@
     "Your call is still important to us. Slightly less.",
     "Holding is free. So is giving up."
   ];
-  var VO_BARS = [1, 5];
+  var VO_BARS = [1, 4];
 
   // What you say to the phone. Always about the phone.
   var YOU = {
@@ -233,7 +234,7 @@
   var react = { shout: 0, steam: 0, drum: 0, lift: 0, bob: 0, said: null, saidT: 0, sweatT: 0 };
   var shake = 0, clockMin = 540, clockT = 0, animT = 0;
   var learned = { beat: 0, menu: false }, briefed = -1;
-  var hudEls = null, back = null, bot = null;
+  var hudEls = null, back = null, front = null, bot = null;
   var lastMode = "";
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -302,7 +303,8 @@
   function startCall() {
     mods = nextMods;
     nextMods = freshMods();
-    st = { transfers: 0, drops: 0, cutoffs: 0, hits: 0, notes: 0, menuFirst: 0, levels: 0, vo: 0 };
+    st = { transfers: 0, drops: 0, cutoffs: 0, hits: 0, notes: 0, menuFirst: 0, levels: 0, vo: 0,
+           value: 0, hold: 0, clean: true, lastHit: -9 };
     talks = []; floats = []; presses = [];
     ph = { kind: "start", t0: 0 };
     prevPh = null;
@@ -330,6 +332,13 @@
     return prevPh && ph.t0 > h ? prevPh : ph;
   }
 
+  // stop whatever's being said, and what was still to come
+  function hush() {
+    var h = Line.heard();
+    Line.cancel("voice");
+    talks = talks.filter(function (tk) { return tk.t <= h; });
+    talks.forEach(function (tk) { if (tk.end > h) tk.end = h; });
+  }
   function talk(t, end, who, text) {
     talks.push({ t: t, end: end, who: who, text: text });
     if (talks.length > 16) talks.shift();
@@ -365,13 +374,15 @@
         t += 1.35;
       }
       p.dialAt = t;
-      DIAL.split("").forEach(function (d, i) {
-        Line.sched(t + i * 0.1, function (a) { Line.inst.dtmf(a, d, 0.075, "fx", 0.06); }, "fx");
-      });
-      t += DIAL.length * 0.1 + 0.15;
+      if (!p.through) {
+        DIAL.split("").forEach(function (d, i) {
+          Line.sched(t + i * 0.075, function (a) { Line.inst.dtmf(a, d, 0.06, "fx", 0.06); }, "fx");
+        });
+        t += DIAL.length * 0.075 + 0.12;
+      }
       p.ringAt = t;
       Line.sched(t, function (a) { Line.inst.ring(a, "fx"); }, "fx");
-      t += 1.3;
+      t += 1.15;
       p.pickAt = t;
       Line.sched(t, function (a) { Line.inst.click(a, "fx"); Line.bedOn(); }, "fx");
       p.end = t + 0.25;
@@ -384,9 +395,10 @@
 
     welcome: function (p) {
       var b = menuBeat();
-      speak(p.t0, 3.6 * b, "voice", info().welcome);
-      metronome(p.t0, 4, b);
-      p.end = p.t0 + 4 * b;
+      var beats = call === 0 ? 4 : 3;
+      speak(p.t0, (beats - 0.4) * b, "voice", info().welcome);
+      metronome(p.t0, beats, b);
+      p.end = p.t0 + beats * b;
       p.next = function (t1) {
         if (mods.skip && plan[call].levels.length > 1) {
           // pressed 0 a lot: the first question goes by
@@ -444,8 +456,9 @@
 
     thanks: function (p) {
       var b = menuBeat();
-      speak(p.t0, 1.6 * b, "voice", pick(THANKS));
-      p.end = p.t0 + 2 * b;
+      if (p.li + 1 >= plan[call].levels.length) st.value = PTS.hold / plannedNotes(queueLength());
+      speak(p.t0, 1.2 * b, "voice", pick(THANKS));
+      p.end = p.t0 + 1.5 * b;
       p.next = function (t1) {
         if (p.li + 1 < plan[call].levels.length) go("level", t1, { li: p.li + 1 });
         else go("hold", t1, { queue: queueLength(), reconnect: false });
@@ -490,13 +503,17 @@
     // Through to someone. Lovely, sympathetic, and no help at all.
     agent: function (p) {
       var c = info(), t = p.t0 + 0.35;
+      if (st.clean) {
+        run.score += PTS.clean;
+        p.clean = true;
+        setTimeout(function () { if (shell.state() === "playing") shell.callout("Clean line", { tilt: -4 }); }, 250);
+      }
       Line.sched(p.t0, function (a) { Line.inst.click(a, "fx"); }, "fx");
       Line.cancel("music");
       p.lines = [];
       c.agent.lines.forEach(function (line, i) {
         var n = line.split(" ").length;
-        var span = 0.55 + n * 0.21;
-        if (call === 3) span = 0.4 + n * 0.19;
+        var span = 0.45 + n * 0.18;
         speak(t, span, "agent", line);
         p.lines.push({ t: t, end: t + span });
         t += span + (i < c.agent.lines.length - 1 ? 0.45 : 0.2);
@@ -510,7 +527,7 @@
 
     // Cancellations: the line goes dead, and the menu starts again
     dead: function (p) {
-      Line.cancel("voice");
+      hush();
       Line.sched(p.t0, function (a) { Line.inst.click(a, "fx"); Line.inst.staticHit(a, 0.5, "fx"); }, "fx");
       p.toneAt = p.t0 + 1.6;
       Line.sched(p.toneAt, function (a) { Line.inst.dial(a, 1.4, "fx"); }, "fx");
@@ -525,12 +542,23 @@
     },
 
     hung: function (p) {
-      Line.cancel("music"); Line.cancel("beat"); Line.cancel("voice");
+      Line.cancel("music"); Line.cancel("beat"); hush();
       Line.sched(p.t0, function (a) { Line.inst.click(a, "fx"); }, "fx");
       p.end = p.t0 + 1.1;
       p.next = function () { p.done = true; Line.bedOff(); finish(false); };
     }
   };
+
+  // how many notes a hold of this many bars plays, from the top
+  function plannedNotes(bars) {
+    var c = info(), n = 0;
+    for (var i = 0; i < bars; i++) {
+      var fast = c.fastAt != null && i >= c.fastAt;
+      var tune = fast ? "fast" : "please", ti = fast ? (i - c.fastAt) % 8 : i % 8;
+      n += PATS[c.pats[tune][ti]].length;
+    }
+    return n;
+  }
 
   function queueLength() {
     var q = info().queue + mods.queue;
@@ -555,7 +583,7 @@
     // call 1: only what you've heard so far
     if (!c.lock && !repeat && (opt ? hp < opt.heard1 : hp < p.unlock)) { refuse(); return; }
     if (!/^[1-9]$/.test(d)) { refuse("Not an option"); return; }
-    Line.cancel("voice");
+    hush();
     run.menuLevels += p.retry ? 0 : 1;
     if (opt && opt.right) {
       var first = !p.retry && !repeat;
@@ -601,7 +629,7 @@
     if (run.patience > 0) return false;
     run.hungUp = true;
     youSay("hang");
-    Line.cancel("music"); Line.cancel("beat"); Line.cancel("voice");
+    Line.cancel("music"); Line.cancel("beat"); hush();
     setTimeout(function () { shell.callout("Hung up", { tilt: -6, ms: 1800 }); }, 700);
     go("hung", Line.now() + 0.4);
     return true;
@@ -663,17 +691,17 @@
       var w = windows(best.b), perfect = bestD <= w.perfect;
       best.state = perfect ? 1 : 2;
       best.hitAt = t;
+      st.lastHit = t;
       run.hits++; st.hits++;
       if (perfect) run.perfects++;
-      var pts = (perfect ? PTS.perfect : PTS.close) * (mods.speaker ? 0.5 : 1);
+      // each note is worth a share of the hold's 600, half if it's only close
+      var pts = Math.min(Math.round(st.value * (perfect ? 1 : 0.5) * (mods.speaker ? 0.5 : 1)), PTS.hold - st.hold);
+      st.hold += pts;
       run.score += pts;
       run.streak++;
       run.best = Math.max(run.best, run.streak);
-      if (run.streak % PTS.every === 0) {
-        run.score += PTS.streak;
-        if (run.streak === 8 || run.streak === 16 || run.streak === 32 || run.streak === 64) {
-          shell.callout(run.streak === 8 ? "Eight in a row" : run.streak === 16 ? "Sixteen in a row" : run.streak === 32 ? "Thirty-two in a row" : "Still holding", { tilt: 4, sound: false });
-        }
+      if (run.streak === 16 || run.streak === 32 || run.streak === 64) {
+        shell.callout(run.streak === 16 ? "Sixteen in a row" : run.streak === 32 ? "Thirty-two in a row" : "Still holding", { tilt: 4, sound: false });
       }
       learned.beat++;
       hitRun++;
@@ -682,11 +710,14 @@
       floats.push({ kind: perfect ? "perfect" : "close", text: perfect ? "Perfect" : "Close", t: 0, life: 0.6 });
       return;
     }
+    // a nervous second tap straight after a hit doesn't count against you
+    if (t - st.lastHit < DOUBLE) return;
     // a stray tap: costs a bar of signal, once in each gap between notes
     var gap = 0;
     while (gap < p.notes.length && p.notes[gap].t + CENTRE < t) gap++;
     floats.push({ kind: "stray", text: "Off beat", t: 0, life: 0.6 });
     run.streak = 0;
+    st.clean = false;
     hitRun = 0;
     if (gap === strayGap) return;
     strayGap = gap;
@@ -702,6 +733,7 @@
       run.streak = 0;
       hitRun = 0;
       floats.push({ kind: "miss", text: "Missed", t: 0, life: 0.7 });
+      st.clean = false;
       soundNow(function (a) { Line.inst.miss(a, "fx"); });
       if (loseSignal()) return;
     }
@@ -709,7 +741,11 @@
 
   // a bar of signal gone: true if that was the last, and you're cut off
   function loseSignal() {
-    signal = Math.max(0, signal - 1);
+    signal = Math.max(call === 0 ? 1 : 0, signal - 1);
+    if (signal === 1 && !st.weakSaid) {
+      st.weakSaid = true;
+      shell.callout("Signal: weak", { tilt: 5, sound: false });
+    }
     if (signal > 0) return false;
     cutOff();
     return true;
@@ -722,7 +758,8 @@
     // the notes nobody got to don't count against you
     p.notes.forEach(function (n) { if (!n.state) n.state = 4; });
     run.cutoffs++; st.cutoffs++;
-    Line.cancel("music"); Line.cancel("beat"); Line.cancel("voice");
+    st.clean = false;
+    Line.cancel("music"); Line.cancel("beat"); hush();
     soundNow(function (a) { Line.inst.staticHit(a, 0.45, "fx"); Line.inst.click(a, "fx"); });
     shell.callout("Cut off", { tilt: -5 });
     youSay("cut");
@@ -829,7 +866,7 @@
     Line.advance(dt);
     var now = Line.now(), h = Line.heard();
     if (ph.kind === "start") {
-      go("dial", now + 0.1, { after: "welcome" });
+      go("dial", now + 0.1, { after: "welcome", through: call > 0 });
     }
     if (AUTOPILOT || bot) autopilot(h);
     // presses, in the order they happened
@@ -915,6 +952,18 @@
         if (n.auto > 0 && !n.autoDone && h >= n.auto) { n.autoDone = true; presses.push({ kind: "beat", t: n.auto, via: "auto" }); }
         if (n.extra && !n.extraDone && h >= n.extra) { n.extraDone = true; presses.push({ kind: "beat", t: n.extra, via: "auto" }); }
       });
+      if (prof.restTap) {
+        p.bars.forEach(function (bar) {
+          if (bar.rests == null) {
+            bar.rests = [];
+            for (var q = 0; q < 4; q++) {
+              var on = p.notes.some(function (n) { return n.bar === bar.i && n.beat === q && Math.abs(n.t - (bar.t + q * bar.b)) < 0.01; });
+              if (!on && Math.random() < prof.restTap) bar.rests.push({ t: bar.t + q * bar.b + CENTRE + gauss() * (prof.sigma || 0.03) });
+            }
+          }
+          bar.rests.forEach(function (r) { if (!r.done && h >= r.t) { r.done = true; presses.push({ kind: "beat", t: r.t, via: "auto" }); } });
+        });
+      }
     }
   }
 
@@ -957,55 +1006,54 @@
   // ---------------------------------------------------------------------------
   function layout() {
     var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches && !N.flags.clip;
-    var phone = window.matchMedia && window.matchMedia("(max-width: 39.99rem)").matches;
+    var narrow = window.matchMedia && window.matchMedia("(max-width: 39.99rem)").matches;
     var tall = WH > WW * 1.1, wide = WW > WH * 1.15;
     Lay.tmin = 12 / U;
     Lay.touch = coarse;
-    var hudPx = N.flags.clip ? 70 : phone ? 64 : 84;
-    Lay.top = hudPx / U;
+    Lay.shape = tall ? "tall" : wide ? "wide" : "square";
+    // the HUD's top left block (the call and your patience)
+    Lay.top = (N.flags.clip ? 64 : narrow ? 46 : 72) / U;
     // the keypad: keys at least 56px on a touch screen
-    var kk = coarse ? Math.max(56 / U + 0.6, 12) : wide ? 11.5 : 11;
-    var gap = kk * 0.1, pad = Math.max(2.2, kk * 0.2);
+    var kk = coarse ? Math.max(56 / U + 0.4, 12) : wide ? 11 : tall ? 13.5 : 10.5;
+    var gap = kk * 0.08, pad = Math.max(2, kk * 0.16);
     var star = !coarse;
-    var gridW = 3 * kk + 2 * gap, gridH = 3 * kk + 2 * gap + (star ? kk * 0.62 + gap : 0);
-    var lcdH = Math.max(14, 46 / U);
+    var gridW = 3 * kk + 2 * gap, gridH = 3 * kk + 2 * gap + (star ? kk * 0.6 + gap : 0);
+    var lcdH = Math.max(tall ? 16 : 14, 46 / U);
     var pw = gridW + 2 * pad, phH = pad + lcdH + pad + gridH + pad;
-    var margin = wide ? 5 : 1.6;
-    var px = WW - pw - margin, py = WH - phH - (coarse ? 1.2 : 2.2);
+    var px = WW - pw - (wide ? 5 : 1.5), py = WH - phH - (coarse ? 1.2 : 2.4);
     Lay.phone = { x: px, y: py, w: pw, h: phH };
     Lay.lcd = { x: px + pad, y: py + pad, w: gridW, h: lcdH };
     Lay.keys = { x: px + pad, y: py + pad + lcdH + pad, w: gridW, h: gridH, kk: kk, gap: gap, star: star };
-    // the table runs under everything
-    Lay.table = WH - (tall ? 12 : wide ? 9 : 7);
-    // you, bottom left, as big as the space allows
-    var left = px - 2;
-    var R = clamp(Math.min(left * 0.26, (WH - Lay.top) * 0.13), 8, 16);
-    if (wide) R = clamp(Math.min(left * 0.2, WH * 0.15), 9, 16);
-    Lay.you = { x: Math.max(R * 1.5, left * (wide ? 0.4 : 0.48)), y: Lay.table + R * 0.1, R: R };
-    var headTop = Lay.you.y - R * 1.72 - R * 1.6;
-    // the sticky note, and where the bubbles go
+    // the phone stands on the table
+    Lay.table = py + phH - 3;
+    // you, behind the table on the left, as big as the space allows
+    var cw = px - 1;
+    var R = wide ? clamp(Math.min(cw * 0.18, WH * 0.15), 9, 15) : tall ? clamp(cw * 0.28, 8, 14.5) : clamp(cw * 0.26, 8, 11);
+    Lay.you = { x: cw * (wide ? 0.42 : tall ? 0.46 : 0.42), y: Lay.table, R: R };
+    var hatTop = Lay.table - R * 3.75;
+    Lay.hatTop = hatTop;
     if (wide) {
-      Lay.note = { x: Lay.you.x + R * 1.7, y: Lay.top + 4, w: Math.min(34, px - Lay.you.x - R * 1.7 - 5) };
-      Lay.bubble = { x: px - 22, y: Lay.top, w: WW - (px - 22) - 2, bottom: py - 4.5, side: "down" };
-      Lay.youBubble = { x: 2, y: Lay.top + 2, w: Lay.you.x + R * 1.2, bottom: headTop - 2 };
-      Lay.clock = { x: Math.max(8, Lay.you.x - R * 1.7), y: Lay.top + 5, r: 5.5 };
+      Lay.note = { x: Lay.you.x + R * 0.9, y: Lay.top + 1, w: Math.min(44, px - Lay.you.x - R * 0.9 - 4) };
+      Lay.bubble = { x: Math.max(Lay.note.x + 14, px - 30), y: Lay.top + 0.5, right: WW - 2, bottom: py - 5, side: "down" };
+      Lay.youBubble = { x: 2, y: Lay.top + 1, right: Lay.you.x + R * 0.6, bottom: hatTop - 1.5 };
+      Lay.clock = { x: Math.max(9, Lay.you.x - R * 1.9), y: Lay.top + 13, r: 6.5 };
     } else if (tall) {
-      Lay.note = { x: 3, y: Lay.top + 2, w: Math.min(42, px - 6) };
-      Lay.bubble = { x: Math.max(2, px - 30), y: Lay.top + 2, w: WW - Math.max(2, px - 30) - 2, bottom: py - 4.5, side: "down" };
+      Lay.note = { x: 3, y: Lay.top + 1.5, w: Math.min(46, px - 4) };
+      Lay.bubble = { x: Math.min(px - 22, 34), y: Lay.top + 1.5, right: WW - 2, bottom: py - 5, side: "down" };
       Lay.youBubble = null;
-      Lay.clock = null;
+      Lay.clock = { x: 9, y: Math.max(Lay.top + 32, hatTop - 11), r: 6 };
     } else {
       // a square phone screen: the note top left, the bubble under it
       Lay.note = { x: 2, y: Lay.top + 0.5, w: px - 4 };
-      Lay.bubble = { x: 1.5, y: 0, w: px - 3.5, bottom: headTop - 0.5, side: "right" };
+      Lay.bubble = { x: 1.5, y: 0, right: px - 2.5, bottom: hatTop - 0.5, side: "right" };
       Lay.youBubble = null;
       Lay.clock = null;
     }
-    Lay.mug = { x: Math.max(4.5, Lay.you.x - R * 2.1), y: Lay.table + 0.2, k: R * 0.17 };
+    Lay.mug = { x: Math.max(5.5, Lay.you.x - R * 2.15), y: Lay.table + R * 0.12, k: R * 0.16 };
     // callouts land over your side of the table, clear of the phone
     root.style.setProperty("--hm-callouts-left", "0px");
     root.style.setProperty("--hm-callouts-right", Math.round((WW - px + 1) * U) + "px");
-    root.style.setProperty("--hm-callouts-top", Math.round((wide ? WH * 0.42 : tall ? WH * 0.42 : WH * 0.5) * U) + "px");
+    root.style.setProperty("--hm-callouts-top", Math.round((tall ? WH * 0.36 : wide ? WH * 0.34 : WH * 0.52) * U) + "px");
   }
 
   // ---------------------------------------------------------------------------
@@ -1018,7 +1066,7 @@
     ctx = (shell ? shell.canvas : root.querySelector("canvas")).getContext("2d");
     layout();
     D.init(T || N.tokens(root), U * DPR);
-    back = null;
+    back = null; front = null;
   }
 
   function newCanvas() {
@@ -1030,20 +1078,26 @@
     return { cv: cv, c: c };
   }
 
-  // The room, the table and the phone's body: drawn once per size
+  // The room behind you, and the table and the phone's body in front of
+  // you: each drawn once per size
   function buildBack() {
     var b = newCanvas(), c = b.c;
     c.fillStyle = T.ink;
     c.fillRect(0, 0, WW, WH);
     // wallpaper: rows of faint halftone diamonds
     c.fillStyle = D.dots(c, T.ash, 1.3);
-    for (var y = -2; y < Lay.table; y += 9) {
-      for (var x = (y / 9) % 2 ? 0 : 4.5; x < WW; x += 9) {
+    for (var y = -2, row = 0; y < Lay.table; y += 9, row++) {
+      for (var x = row % 2 ? 0 : 4.5; x < WW + 3; x += 9) {
         c.beginPath();
         c.moveTo(x, y); c.lineTo(x + 2.4, y + 2.4); c.lineTo(x, y + 4.8); c.lineTo(x - 2.4, y + 2.4); c.closePath();
         c.fill();
       }
     }
+    back = b.cv;
+  }
+
+  function buildFront() {
+    var b = newCanvas(), c = b.c;
     // the table: a paper edge, its front in halftone
     c.fillStyle = T.ink;
     c.fillRect(-1, Lay.table, WW + 2, WH);
@@ -1054,7 +1108,7 @@
     D.ink(c, 0.4, T.paper);
     c.beginPath(); c.moveTo(-1, Lay.table + 2.2); c.lineTo(WW + 1, Lay.table + 2.2); c.stroke();
     D.phoneBody(c, Lay.phone);
-    back = b.cv;
+    front = b.cv;
   }
 
   function render() {
@@ -1066,6 +1120,7 @@
       shell.brief({ title: "Call " + (call + 1) + ": " + info().dept, text: info().brief, ms: call === 0 ? 7000 : 6200 });
     }
     if (!back) buildBack();
+    if (!front) buildFront();
     var c = ctx, h = Line.heard(), v = vis();
     var sx = 0, sy = 0;
     if (shake > 0 && !shell.reduceMotion) { sx = (Math.random() - 0.5) * 6 * shake; sy = (Math.random() - 0.5) * 6 * shake; }
@@ -1074,8 +1129,15 @@
     c.setTransform(DPR * U, 0, 0, DPR * U, sx * DPR, sy * DPR);
     if (Lay.clock) D.clock(c, Lay.clock.x, Lay.clock.y, Lay.clock.r, clockMin);
     drawNote(c, v, h);
+    var me = drawYou(c, v, h);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.drawImage(front, sx * DPR, sy * DPR);
+    c.setTransform(DPR * U, 0, 0, DPR * U, sx * DPR, sy * DPR);
     D.mug(c, Lay.mug.x, Lay.mug.y, Lay.mug.k, mods && mods.kettle ? 1 : 0, shell.reduceMotion ? 0 : animT);
-    drawYou(c, v, h);
+    // your other mitten, on the table, drumming along
+    D.mitten(c, me.rest.x, me.rest.y - react.drum * Lay.you.R * 0.12, me.rest.r, T.paper, false);
+    // the cord, from the handset to the phone
+    D.cord(c, me.cord.x, me.cord.y, Lay.phone.x + 0.6, Lay.phone.y + Lay.phone.h * 0.8, Math.max(0.5, Lay.you.R * 0.055), Lay.you.R * 0.3);
     drawLcd(c, v, h);
     if (padOn(v)) drawPad(c, v, h);
     else drawKeys(c, v, h);
@@ -1120,9 +1182,7 @@
       sweat: run.patience <= 1, sweatT: react.sweatT,
       steam: react.steam > 0 ? Math.min(1, react.steam) : 0, steamT: shell.reduceMotion ? 0.3 : animT
     };
-    var end = D.you(c, y.x, y.y, R, o);
-    // the cord, from the handset to the phone
-    D.cord(c, end.x, end.y, Lay.phone.x + 0.6, Lay.phone.y + Lay.phone.h * 0.82, Math.max(0.55, R * 0.06), R * 0.5);
+    return D.you(c, y.x, y.y, R, o);
   }
 
   // ---------- The sticky note ----------
@@ -1135,7 +1195,7 @@
   }
 
   function drawNote(c, v, h) {
-    var n = Lay.note, size = Math.max(Lay.tmin, 3.1), lh = size * 1.18;
+    var n = Lay.note, size = Lay.shape === "square" ? Math.max(13 / U, 3.1) : Math.max(Lay.tmin, 4.2), lh = size * 1.18;
     var lines = noteLines();
     var title = "My problem";
     var tw = D.measure(c, title, size * 0.9);
@@ -1449,7 +1509,7 @@
       var b = Lay.bubble;
       var top = b.side === "right" ? Lay.note.y + (Lay.note.h || 0) + 2.4 : b.y;
       if (b.side === "right" && (v.kind === "hold" || v.kind === "agent")) top = Lay.note.y + (Lay.note.h || 0) + 2.4;
-      var box = { x: b.x * U, y: top * U, w: b.w * U, bottom: b.bottom * U };
+      var box = { x: b.x * U, y: top * U, w: (b.right - b.x) * U, bottom: b.bottom * U };
       var anchor = { x: (Lay.lcd.x + 1) * U, y: (Lay.lcd.y + Lay.lcd.h * 0.5) * U };
       if (b.side === "down") anchor = { x: (Lay.lcd.x + Lay.lcd.w * 0.3) * U, y: (Lay.phone.y - 3.2) * U };
       var fade = clamp((cur.end + 0.5 - h) * 4, 0, 1);
@@ -1458,8 +1518,8 @@
     // what you say back, where there's room for it
     if (react.said && react.saidT < 2.2 && Lay.youBubble) {
       var yb = Lay.youBubble, R = Lay.you.R;
-      var yAnchor = { x: (Lay.you.x + R * 0.3) * U, y: (Lay.you.y - R * 3.3) * U };
-      bubble(c, react.said.toUpperCase(), { x: yb.x * U, y: yb.y * U, w: yb.w * U, bottom: yb.bottom * U }, yAnchor, "down",
+      var yAnchor = { x: (Lay.you.x - R * 0.3) * U, y: (Lay.hatTop + R * 0.4) * U };
+      bubble(c, react.said.toUpperCase(), { x: yb.x * U, y: yb.y * U, w: (yb.right - yb.x) * U, bottom: yb.bottom * U }, yAnchor, "down",
         clamp((2.2 - react.saidT) * 4, 0, 1) * (shell.reduceMotion ? 1 : clamp(react.saidT * 9, 0, 1)), false, placed);
     }
   }
@@ -1543,7 +1603,7 @@
       lv.options.forEach(function (o) { if (o.right) right = o; });
       if (right && h >= right.heard1 + 0.6) {
         var kr = keyRects().filter(function (q) { return q.key === String(right.n); })[0];
-        return { x: kr.x + kr.w / 2, y: kr.y - 0.5, word: how === "touch" ? "Tap " + right.n : how === "mouse" ? "Click " + right.n : "Press " + right.n };
+        return { x: Lay.keys.x - 0.6, y: kr.y + kr.h / 2, word: how === "touch" ? "Tap " + right.n : how === "mouse" ? "Click " + right.n : "Press " + right.n, dir: "right" };
       }
       if (h < (v.items[1] ? v.items[1].t : 0)) {
         return { x: Lay.note.x + Math.min(Lay.note.dw || 20, 26) * 0.5, y: Lay.note.y + (Lay.note.h || 12) + 1.2, word: "Your problem", dir: "up" };
@@ -1554,10 +1614,13 @@
 
   function drawArrow(c, x, y, word, dir) {
     var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(animT * 4)) * -1.4;
-    var up = dir === "up";
+    var size = Math.max(3, Lay.tmin);
     c.save();
-    c.translate(x, y + (up ? -bob : bob));
-    if (up) c.scale(1, -1);
+    if (dir === "right") c.translate(x + bob, y);
+    else c.translate(x, y + (dir === "up" ? -bob : bob));
+    c.save();
+    if (dir === "right") c.rotate(-Math.PI / 2);
+    if (dir === "up") c.scale(1, -1);
     c.beginPath();
     c.moveTo(-1.4, -4.4); c.lineTo(1.4, -4.4); c.lineTo(1.4, -1.8); c.lineTo(3, -1.8); c.lineTo(0, 1.4); c.lineTo(-3, -1.8); c.lineTo(-1.4, -1.8);
     c.closePath();
@@ -1566,9 +1629,10 @@
     D.ink(c, 0.55);
     c.stroke();
     c.restore();
-    var size = Math.max(3, Lay.tmin);
-    if (up) D.text(c, word, x, y - bob + 5.6, size, { base: "top", colour: T.paper, stroke: size * 0.32 });
-    else D.text(c, word, x, y + bob - 5.2, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
+    if (dir === "right") D.text(c, word, -5.2, 0, size, { align: "right", colour: T.paper, stroke: size * 0.32 });
+    else if (dir === "up") D.text(c, word, 0, 5.6, size, { base: "top", colour: T.paper, stroke: size * 0.32 });
+    else D.text(c, word, 0, -5.2, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
+    c.restore();
   }
 
   // ---------------------------------------------------------------------------
@@ -1638,7 +1702,7 @@
   });
 
   if (document.fonts && document.fonts.load) {
-    document.fonts.load("12px " + T.display).then(function () { back = null; });
+    document.fonts.load("12px " + T.display).then(function () { back = null; front = null; });
   }
 
   if (DEBUG) {
