@@ -34,7 +34,7 @@
 // into a ring; tap as each one gets there. The signal has four bars: a
 // missed note costs one, a stray tap costs one (once per gap between notes),
 // and four hits in a row win one back. Lose all four and you're cut off:
-// a dial tone, a redial, and three more places in the queue.
+// a dial tone, a redial, and two more places in the queue.
 //
 // PATIENCE. Three to start, five at most. A wrong number, a dropped call or
 // a cut-off each cost one. Run out and you hang up, and the round ends.
@@ -96,7 +96,7 @@
   var PATIENCE = 3, PATIENCE_MAX = 5;
   var SIGNAL = 4;              // bars of signal
   var RESTORE = 3;             // hits in a row to win a bar back
-  var CUT_QUEUE = 3;           // places added to the queue when you're cut off
+  var CUT_QUEUE = 2;           // places added to the queue when you're cut off
   var AHEAD = 0.2;             // the next part of a call is queued this soon
   var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100 };
   var APPROVED = 4300, PENDING = 3400;
@@ -368,16 +368,18 @@
       var t = p.t0;
       if (p.redial) {
         Line.sched(t, function (a) { Line.inst.click(a, "fx"); }, "fx");
-        Line.sched(t + 0.15, function (a) { Line.inst.dial(a, 1.05, "fx"); }, "fx");
+        Line.sched(t + 0.15, function (a) { Line.inst.dial(a, 0.7, "fx"); }, "fx");
         p.toneAt = t + 0.15;
-        t += 1.35;
+        t += 0.95;
       }
       p.dialAt = t;
       if (!p.through) {
+        // a redial is the redial button: the same number, faster
+        var gap = p.redial ? 0.045 : 0.075;
         DIAL.split("").forEach(function (d, i) {
-          Line.sched(t + i * 0.075, function (a) { Line.inst.dtmf(a, d, 0.06, "fx", 0.06); }, "fx");
+          Line.sched(t + i * gap, function (a) { Line.inst.dtmf(a, d, gap * 0.8, "fx", 0.06); }, "fx");
         });
-        t += DIAL.length * 0.075 + 0.12;
+        t += DIAL.length * gap + 0.12;
       }
       p.ringAt = t;
       Line.sched(t, function (a) { Line.inst.ring(a, "fx"); }, "fx");
@@ -967,7 +969,7 @@
       p.notes.forEach(function (n) {
         if (n.auto == null) {
           if (Math.random() < prof.lapse) n.auto = -1;
-          else n.auto = n.t + CENTRE + prof.bias + (prof.sigma ? gauss() * prof.sigma : (Math.random() * 2 - 1) * prof.spread);
+          else n.auto = n.t + CENTRE + prof.bias + (prof.sigma ? gauss() * prof.sigma : (Math.random() * 2 - 1) * (prof.spread || 0));
           // a nervous extra tap in the gap after this note
           if (prof.stray && Math.random() < prof.stray) n.extra = n.t + n.b * (0.45 + Math.random() * 0.15);
         }
@@ -1299,7 +1301,7 @@
       if (v.redial && h < v.dialAt) {
         D.text(c, v.after === "hold" ? "Line lost" : "Dropped", l.x + l.w / 2, py, s * 1.25);
       } else if (h < v.ringAt) {
-        var typed = DIAL.slice(0, clamp(Math.floor((h - v.dialAt) / 0.1) + 1, 0, DIAL.length));
+        var typed = DIAL.slice(0, clamp(Math.floor((h - v.dialAt) / (v.redial ? 0.045 : 0.075)) + 1, 0, DIAL.length));
         D.text(c, "Dialling", l.x + l.w / 2, l.y + s * 0.95, s * 0.9);
         D.text(c, typed, l.x + l.w / 2, py + s * 0.7, s * 1.5, { font: "monospace", upper: false });
       } else {

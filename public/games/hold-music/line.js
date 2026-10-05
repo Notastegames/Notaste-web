@@ -193,7 +193,7 @@
     var music = c.createGain(), beat = c.createGain(), voice = c.createGain(), fx = c.createGain();
     music.gain.value = 1; beat.gain.value = 1; voice.gain.value = 1; fx.gain.value = 1;
     var musicVol = c.createGain();
-    musicVol.gain.value = 0.55;
+    musicVol.gain.value = 0.85;
     music.connect(musicVol); musicVol.connect(lineIn);
     beat.connect(lineIn); voice.connect(lineIn); fx.connect(lineIn);
     // the slow wow on the lead: one wobble, shared by every note
@@ -324,8 +324,8 @@
     // the UK ringing tone: 400 and 450Hz, two short rings
     ring: function (t, group) {
       [0, 0.6].forEach(function (d) {
-        note(t + d, "sine", 400, 0.4, 0.07, "fx", group, { attack: 0.01, release: 0.02 });
-        note(t + d, "sine", 450, 0.4, 0.07, "fx", group, { attack: 0.01, release: 0.02 });
+        note(t + d, "sine", 400, 0.4, 0.05, "fx", group, { attack: 0.01, release: 0.02 });
+        note(t + d, "sine", 450, 0.4, 0.05, "fx", group, { attack: 0.01, release: 0.02 });
       });
     },
     // the dial tone: 350 and 440Hz
