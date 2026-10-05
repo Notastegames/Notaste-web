@@ -33,7 +33,8 @@
 */
 #game-root .kit-touch { justify-content: center; gap: 0.5rem; padding: 0 0.6rem 0.6rem; }
 #game-root .kit-touch-side { display: contents; }
-#game-root .kit-pad { pointer-events: auto; width: 3.75rem; height: 3.75rem; }
+/* never under 56px: the gaps give way instead (DESIGN.md, section 10) */
+#game-root .kit-pad { pointer-events: auto; width: 3.75rem; height: 3.75rem; flex-shrink: 0; }
 #game-root .kit-pad[data-key="left"],
 #game-root .kit-pad[data-key="right"] { width: 4.25rem; height: 4.25rem; }
 /* the corners push out, so the call's three sit together in the middle */
@@ -53,11 +54,25 @@
 #game-root .kit-pad.om-call .kit-pad-face { border-color: var(--accent); border-width: 3px; }
 
 @container kit (max-width: 360px) {
-  #game-root .kit-touch { padding: 0 0.4rem 0.45rem; }
+  #game-root .kit-touch { gap: 0.25rem; padding: 0 0.35rem 0.45rem; }
   #game-root .kit-pad,
   #game-root .kit-pad[data-key="left"],
   #game-root .kit-pad[data-key="right"] { width: 3.5rem; height: 3.5rem; }
 }
+/*
+  A phone in the page (out of full-window) under 310px: five 56px buttons
+  don't fit, so the paste buttons go. Tapping a box pastes into it, and the
+  touch hint says so.
+*/
+@container kit (max-width: 309px) {
+  #game-root .kit-pad[data-key="left"],
+  #game-root .kit-pad[data-key="right"] { display: none; }
+  #game-root .kit-pad[data-key="nod"] { margin-left: auto; }
+  #game-root .kit-pad[data-key="cam"] { margin-right: auto; }
+}
+
+/* Callouts land in a lane of their own, sized by the game to fit it */
+#game-root .kit-callouts .stamp-label { font-size: var(--om-callout, 0.9rem); }
 
 /*
   The kit fits its panels to the screen (kit.css, @container kit). Its

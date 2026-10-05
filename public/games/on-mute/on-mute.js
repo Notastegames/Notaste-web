@@ -264,8 +264,8 @@
 
   // The spreadsheet
   // (Notaste Display has no equals sign, so no formulas: what's already in a box is words)
-  var FILLED = ["Done", "Dave", "Ongoing", "Ask Graham", "Not mine", "See above", "Q4", "Pending", "Yes", "Nobody",
-                "Parked", "Maybe", "Tuesday", "Pam", "Sorted", "As before", "Blue", "Who", "Ages ago", "Later", "Gaz", "£40"];
+  var FILLED = ["Dave", "Ongoing", "Ask Graham", "Not mine", "See above", "Q4", "Pending", "Yes", "Nobody",
+                "Parked", "Maybe", "Tuesday", "Sorted", "As before", "Blue", "Who", "Ages ago", "Later", "Gaz", "£40"];
   var SHEETS = ["Stand-up actions", "Q3 final v7", "Copy of budget (2)", "Tracker for the tracker", "Who's bringing what",
                 "Holiday rota", "Sheet1", "Do not edit", "Actions (old)", "Meeting notes FINAL", "Risks and issues",
                 "Lessons learned", "Desk moves", "Fridge rota", "Projects (live)", "Projects (dead)", "Notes for the notes"];
@@ -426,7 +426,7 @@
     var lastSide = 0, run2 = 0, nextSkip = 9 + Math.floor(rr() * 4);
     for (var n = 0; n < 700; n++) {
       if (st.twist && n === nextSkip) {
-        rows.push({ empty: -1, skip: st.twist, text: st.twist === "pam" ? "Done" : "Do not edit", state: "todo" });
+        rows.push({ empty: -1, skip: st.twist, state: "todo" });
         nextSkip = n + 8 + Math.floor(rr() * 6);
         continue;
       }
@@ -656,11 +656,19 @@
       L.side = { x: m + youW + 8, y: midY, w: W - m * 2 - youW - 8, h: L.tools ? youH - L.tools.h - 6 : youH };
       var sy = midY + youH + 8;
       L.sheet = { x: m, y: sy, w: W - m * 2, h: bottom - sy };
+      // the callouts land in the inbox column, under the count, where it's empty
+      var used = sideUsed();
+      L.lane = { x: L.side.x, y: L.side.y + used + 2, w: L.side.w, h: L.side.h - used - 2 };
+      if (L.lane.h < 26) L.lane = { x: L.sheet.x, y: L.sheet.y - 2, w: L.sheet.w, h: 26 };
     } else {
+      // the callouts get a lane of their own between the call and the work
+      // (a phone in the page has no room for one: they land on the sheet's title bar)
+      var cramped = L.mode === "square" && avail < 300;
+      var lane = L.mode === "wide" ? 40 : cramped ? 8 : 30;
       var callFrac = L.mode === "wide" ? 0.47 : 0.43;
-      var ch = Math.round(avail * callFrac);
+      var ch = Math.round((avail - lane + 8) * callFrac);
       L.call = { x: m, y: top, w: W - m * 2, h: ch };
-      var by = top + ch + 8, bh = bottom - by;
+      var by = top + ch + lane, bh = bottom - by;
       var sideW = Math.round(clamp(W * (L.mode === "wide" ? 0.36 : 0.4), 120, 420));
       L.sheet = { x: m, y: by, w: W - m * 3 - sideW, h: bh };
       var sx = L.sheet.x + L.sheet.w + m;
@@ -670,6 +678,7 @@
       L.you = { x: sx + (sideW - yw) / 2, y: by, w: yw, h: yh };
       L.tools = touch ? null : { x: sx, y: by + yh + 6, w: sideW, h: toolsH };
       L.side = null;
+      L.lane = cramped ? { x: L.sheet.x, y: by - 2, w: L.sheet.w, h: 26 } : { x: L.sheet.x, y: top + ch + 2, w: L.sheet.w, h: lane - 4 };
     }
     // the call's grid
     fitGrid();
@@ -678,8 +687,44 @@
     bg = null;
   }
 
+  // A square screen (a phone in the page) has no room for twelve faces: it
+  // shows five, the host and whoever's spoken lately, and a "+7 others" tile,
+  // the way call software does.
+  var CROWD = 6;
+  function crowded() { return L.mode === "square" && G.tiles.length > CROWD; }
+  function shownTiles() {
+    if (!crowded()) { G.tiles.forEach(function (t) { t.hidden = false; }); return G.tiles; }
+    if (!G.vis) {
+      var host = tileOf(info().host);
+      G.vis = [host].concat(G.tiles.filter(function (t) { return t !== host; }).slice(0, CROWD - 2));
+    }
+    G.tiles.forEach(function (t) { t.hidden = G.vis.indexOf(t) < 0; });
+    G.others = G.others || { id: "others", p: { id: "others", name: "", room: "none", special: "others" }, i: CROWD, dark: 0 };
+    G.others.n = G.tiles.length - G.vis.length;
+    return G.vis.concat([G.others]);
+  }
+  // Someone hidden speaks (or is spoken to): they take the place of whoever's
+  // been quiet longest, never the host's
+  function bringIn(t) {
+    if (!t || !crowded() || !t.hidden || !G.vis) return;
+    var slot = -1, oldest = Infinity;
+    for (var i = 1; i < G.vis.length; i++) {
+      var v = G.vis[i];
+      if (G.speaking[v.id]) continue;
+      var at = v.lastSpoke || -1;
+      if (at < oldest) { oldest = at; slot = i; }
+    }
+    if (slot < 0) slot = G.vis.length - 1;
+    var out = G.vis[slot];
+    G.vis[slot] = t;
+    t.x = out.x; t.y = out.y; t.w = out.w; t.h = out.h;
+    t.hidden = false;
+    out.hidden = true;
+  }
+
   function fitGrid() {
-    var n = G.tiles.length, c = L.call;
+    var shown = shownTiles();
+    var n = shown.length, c = L.call;
     var best = null, gap = Math.max(4, Math.round(Math.min(W, H) * 0.012));
     for (var cols = 1; cols <= n; cols++) {
       var rows = Math.ceil(n / cols);
@@ -695,7 +740,7 @@
     var tw2 = Math.floor(best.tw), th2 = Math.floor(best.th);
     var gw = best.cols * tw2 + (best.cols - 1) * gap, gh = best.rows * th2 + (best.rows - 1) * gap;
     var ox = c.x + (c.w - gw) / 2, oy = c.y + (c.h - gh) / 2;
-    G.tiles.forEach(function (t, i) {
+    shown.forEach(function (t, i) {
       var row = Math.floor(i / best.cols), col = i % best.cols;
       var inRow = row === best.rows - 1 ? n - row * best.cols : best.cols;
       var rowOx = c.x + (c.w - (inRow * tw2 + (inRow - 1) * gap)) / 2;
@@ -719,12 +764,18 @@
       brief.style.top = Math.round(Math.max(L.call.y + 6, Math.min(countBottom + 4, H * 0.45))) + "px";
       brief.style.bottom = "auto";
     }
+    // the callouts: in their lane, sized to fit it (and its width, for the
+    // longest of them), never over a face, a name tag or the rows
     var cl = root.querySelector(".kit-callouts");
-    if (cl) {
-      cl.style.top = Math.round(L.call.y + L.call.h - 30) + "px";
+    if (cl && L.lane) {
+      var ln = L.lane;
+      var f = clamp(Math.min((Math.min(ln.h, 40) - 10) / 1.83, (ln.w - 12) / 11.5), 12, 16);
+      var h = f * 1.83 + 6;
+      cl.style.setProperty("--om-callout", f.toFixed(1) + "px");
+      cl.style.top = Math.round(ln.y + Math.max(0, (Math.min(ln.h, 48) - h) / 2)) + "px";
       cl.style.bottom = "auto";
-      cl.style.left = Math.round(L.call.x) + "px";
-      cl.style.right = Math.round(W - L.call.x - L.call.w) + "px";
+      cl.style.left = Math.round(ln.x) + "px";
+      cl.style.right = Math.round(W - ln.x - ln.w) + "px";
     }
   }
 
@@ -798,7 +849,7 @@
     // the stamp lands on the title bar, clear of the rows you're reading
     var g = sheetGeom(), s = g.s;
     G.stamps.push({ x: s.x + s.w * 0.62, y: s.y + g.tb * 0.75, text: G.share ? "Saved. Shared" : "Saved", t: 0, life: 0.8, tilt: (Math.random() - 0.5) * 0.2, big: true });
-    if (pts) G.pops.push({ x: s.x + s.w * 0.62, y: s.y + g.tb + g.fb * 0.5, text: "+" + pts, t: 0 });
+    if (pts) G.pops.push({ x: s.x + s.w - 34, y: s.y + g.tb + g.fb * 0.5 + 4, text: "+" + pts, t: 0 });
     // and an email answered: it flies out of the inbox
     if (run.inbox > 0) {
       run.inbox--;
@@ -1500,12 +1551,15 @@
   function stampSize() { return clamp(L.you.h * 0.1, 13, 20); }
   function popAtYou(text) {
     var y = L.you, rad = badgeRadius(y);
+    if (y.w < 170) return;
     G.pops.push({ x: y.x + y.w - rad - 8, y: y.y + rad + 8 + (G.open ? rad * 2 + 16 : 0), text: text, t: 0 });
   }
 
   // Someone says something: a bubble from their tile, and their mouth moves
   function speak(who, text, life, toYou) {
     if (!who || !text) return;
+    var st0 = tileOf(who);
+    if (st0) { bringIn(st0); st0.lastSpoke = G.time; }
     G.bubbles = G.bubbles.filter(function (b) { return b.who !== who; });
     var max = W < 480 ? 2 : 3;
     while (G.bubbles.filter(function (b) { return b.who !== "you"; }).length >= max) {
@@ -1526,7 +1580,7 @@
     return null;
   }
   function lookAtYou(t) { G.gaze = { target: "you", t: t }; }
-  function lookAtTile(tile, t) { G.gaze = { target: tile, t: t }; }
+  function lookAtTile(tile, t) { bringIn(tile); G.gaze = { target: tile, t: t }; }
 
   // Callouts: one at a time, the important ones win. Routine ones (the
   // streak, inbox zero, not responding) land once a meeting.
@@ -1540,7 +1594,8 @@
     calloutAt = now;
     calloutPri = priority;
     placeKitBits();
-    shell.callout(text, { sound: priority >= 2 });
+    // a small tilt (never straight), so the stamp stays in its lane
+    shell.callout(text, { sound: priority >= 2, tilt: (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 1.5) });
   }
 
   function shake(amount) {
@@ -1751,7 +1806,8 @@
     if (shakeAmt > 0) { sx = (Math.random() - 0.5) * 7 * shakeAmt; sy = (Math.random() - 0.5) * 7 * shakeAmt; }
     c.setTransform(DPR, 0, 0, DPR, sx * DPR, sy * DPR);
     var now = G.time + G.endT;
-    G.tiles.forEach(function (t) { drawTile(c, t, now); });
+    G.tiles.forEach(function (t) { if (!t.hidden) drawTile(c, t, now); });
+    if (crowded() && G.others) drawOthers(c, G.others);
     drawYou(c, now);
     if (L.tools) drawTools(c);
     if (L.side) drawSide(c);
@@ -1781,7 +1837,7 @@
     c.translate(x + w / 2, y);
     c.scale(k, k);
     var f = faceFor(t, now);
-    A.person(c, t.p, f, now, w / k);
+    A.person(c, t.p, f, shell.reduceMotion ? 0 : now, w / k);
     c.restore();
     if (t.dark > 0) {
       c.fillStyle = T.ink;
@@ -1804,10 +1860,34 @@
     c.strokeStyle = talking ? T.accent : T.ash;
     c.stroke();
     // a tile too small for a name tag gets just its mic
+    // a small tile gets just its mic, and a very small one nothing
     if (w >= 84 && h >= 52) nameTag(c, x + 4, y + h - 4, t.p.name, !!G.speaking[t.id], Math.min(w - 8, 220), t.p.special === "bot");
-    else micTag(c, x + 3, y + h - 3, !!G.speaking[t.id]);
+    else if (h >= 60 && w >= 60) micTag(c, x + 3, y + h - 3, !!G.speaking[t.id]);
     if (t.p.special === "frozen" && w > 130) chip(c, x + w - 4, y + 4, "Poor connection", "right");
     if (t.p.special === "bot" && w > 100) chip(c, x + w - 4, y + 4, "Recording", "right", T.red);
+  }
+
+  // The rest of the all-hands, on a square screen
+  function drawOthers(c, t) {
+    A.rr(c, t.x, t.y, t.w, t.h, 6);
+    c.fillStyle = T.ink;
+    c.fill();
+    c.lineWidth = 1.5;
+    c.strokeStyle = T.ash;
+    c.stroke();
+    var size = clamp(Math.round(t.h * 0.22), 12, 18);
+    c.font = size + "px " + T.display;
+    c.fillStyle = T.paper;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    A.text(c, "+" + t.n, t.x + t.w / 2, t.y + t.h / 2 - size * 0.55, size);
+    A.text(c, "OTHERS", t.x + t.w / 2, t.y + t.h / 2 + size * 0.6, size);
+    if (t.dark > 0) {
+      c.globalAlpha = t.dark;
+      A.rr(c, t.x, t.y, t.w, t.h, 6);
+      c.fill();
+      c.globalAlpha = 1;
+    }
   }
 
   function faceFor(t, now) {
@@ -2133,9 +2213,9 @@
     var n = 3, gap = 8;
     var bw = (r.w - gap * (n - 1)) / n;
     return [
-      { key: "mic", label: G.mic.live ? "Mute" : "Unmute", keyName: "Space" },
-      { key: "cam", label: G.cam.on ? "Camera" : "Camera", keyName: "C" },
-      { key: "nod", label: "Nod", keyName: "N" }
+      { key: "mic", label: G.mic.live ? "Mute" : "Unmute", keyName: "Space or Up", short: "Space" },
+      { key: "cam", label: "Camera", keyName: "C" },
+      { key: "nod", label: "Nod", keyName: "N or Down", short: "N" }
     ].map(function (b, i) { b.x = r.x + i * (bw + gap); b.y = r.y; b.w = bw; b.h = r.h; return b; });
   }
   function drawTools(c) {
@@ -2161,23 +2241,32 @@
       c.fillStyle = T.paper;
       c.textAlign = "center";
       c.textBaseline = "middle";
-      var label = showKeys ? b.keyName.toUpperCase() : b.label.toUpperCase();
+      var label = (showKeys ? b.keyName : b.label).toUpperCase();
+      if (showKeys && b.short && A.textWidth(c, label, size) > b.w - 10) label = b.short.toUpperCase();
       A.text(c, label, ix, b.y + b.h - size * 0.85, size);
     });
   }
 
   // Tall screens: the inbox beside your tile
+  // the inbox's count and slots, at the top of the column; the rest of the
+  // column is where the callouts land
+  function sideMetrics() {
+    var size = W < 480 ? 12 : 13;
+    var big = Math.round(clamp(L.side.h * 0.3, 22, 40));
+    return { size: size, big: big, used: size * 1.6 + big + 4 + 9 + 4 };
+  }
+  function sideUsed() { return sideMetrics().used; }
   function drawSide(c) {
     var r = L.side;
     if (!r || r.h < 30) return;
-    var size = W < 480 ? 12 : 13;
+    var sm = sideMetrics(), size = sm.size;
     c.font = size + "px " + T.display;
     c.fillStyle = T.smoke;
     c.textAlign = "left";
     c.textBaseline = "top";
     A.text(c, "INBOX", r.x + 2, r.y + 2, size);
     var full = run.inbox >= INBOX_MAX - 2;
-    var big = Math.round(clamp(r.h * 0.42, 22, 44));
+    var big = sm.big;
     c.font = big + "px " + T.display;
     c.fillStyle = full && Math.floor(G.time * 3) % 2 ? T.red : T.paper;
     c.fillText(String(run.inbox), r.x + 2, r.y + size * 1.4);
@@ -2424,14 +2513,21 @@
       c.lineWidth = 1.5;
       c.strokeStyle = wrong ? T.red : T.ink;
       c.strokeRect(x - w / 2, y - h / 2, w, h);
-      if (lock) {
+      var px = x - w / 2 + 5 + lw * 0.4, py = y + size * 0.12, pw = size * 0.62;
+      if (lock === "lock") {
         // a padlock
-        var px = x - w / 2 + 5 + lw * 0.4, py = y + size * 0.12, pw = size * 0.62;
         c.beginPath();
         c.arc(px, py - pw * 0.42, pw * 0.3, Math.PI, 0);
         A.stroke(c, 1.6, T.ink);
         c.fillStyle = T.ink;
         c.fillRect(px - pw / 2, py - pw * 0.4, pw, pw * 0.72);
+      } else if (lock) {
+        // a tick
+        c.beginPath();
+        c.moveTo(px - pw * 0.5, py - pw * 0.05);
+        c.lineTo(px - pw * 0.12, py + pw * 0.3);
+        c.lineTo(px + pw * 0.5, py - pw * 0.55);
+        A.stroke(c, 2, T.accent);
       }
       c.fillStyle = wrong ? T.red : T.ink;
       c.textAlign = "left";
@@ -2441,12 +2537,8 @@
     c.beginPath();
     c.rect(a.x, ry, g.colW * 2, g.rh);
     c.clip();
-    if (row.skip === "pam") {
-      label("DONE", a.x + a.w / 2, ry + g.rh / 2, a.w - 8);
-      label("PAM", b.x + b.w / 2, ry + g.rh / 2, b.w - 8);
-    } else {
-      label("DO NOT EDIT", a.x + g.colW, ry + g.rh / 2, g.colW * 2 - 8, true);
-    }
+    if (row.skip === "pam") label("DONE BY PAM", a.x + g.colW, ry + g.rh / 2, g.colW * 2 - 8, "tick");
+    else label("DO NOT EDIT", a.x + g.colW, ry + g.rh / 2, g.colW * 2 - 8, "lock");
     c.restore();
   }
 
@@ -2759,8 +2851,8 @@
     note: "Four meetings back to back, and a spreadsheet that needs doing. Camera on. Mic off.",
     pitch: "Four meetings, one spreadsheet and a cat. Nod when you hear your name.",
     hints: {
-      keys: "Arrows or A and D paste left and right. N to nod, Space to unmute and mute, C for the camera. P to pause.",
-      touch: "Tap the empty box. Nod, Mic and Cam are along the bottom."
+      keys: "Left and Right (or A and D) paste. Up or Space to unmute and mute, Down or N to nod, C for the camera. P to pause.",
+      touch: "Tap the empty box to paste. Nod, Mic and Cam are along the bottom."
     },
     againLabel: "Rejoin the meeting",
     daily: true,
