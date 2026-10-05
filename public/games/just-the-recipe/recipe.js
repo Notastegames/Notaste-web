@@ -112,7 +112,9 @@
   var VIDEO_LIFE = 11;           // seconds before it gives up
   var MANAGE_WAIT = 1.7;         // loading your preferences
   var TAB_TIME = 1.8;            // the new tab an advert opens
-  var LADDER = [1, 1.2, 1.5];    // time against par: approved, pending review, not approved, then rejected
+  // time against par: approved (1:48 for the meal, earned on a good run), then
+  // pending review (to about 2:13), not approved (to about 2:46), then rejected
+  var LADDER = [1, 1.23, 1.54];
 
   // Between courses: something good, something bad, in that order
   var CHOICES = {

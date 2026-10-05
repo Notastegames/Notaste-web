@@ -74,7 +74,7 @@
     {
       key: "pudding", name: "Pudding", dish: "A very simple sponge", food: "Sponge",
       sub: "Four ingredients. Seven thousand words.",
-      speed: 29, gap: [22, 28], shift: 48, par: 46, limit: 125, art: "sponge",
+      speed: 29, gap: [22, 28], shift: 48, par: 43, limit: 125, art: "sponge",
       plan: [
         { t: "story", rows: 4 },
         { t: "video" },
