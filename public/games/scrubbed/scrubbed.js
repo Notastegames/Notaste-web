@@ -12,41 +12,47 @@
 // THE CONTROLS. Thrust (Up, W, Space, the Thrust button, a held mouse
 // button, A or the right trigger) pushes along the rocket. Left and right
 // (arrows, A and D, the arrow buttons, the stick) lean it, at a steady rate,
-// and it stays where you leave it. With a mouse the nose points at the
-// pointer instead. Thrust is all or nothing, so you feather it.
+// and it stays where you leave it. With a mouse it leans towards the
+// pointer instead, more the further the pointer is to one side. Thrust is
+// all or nothing, so you feather it.
 //
 // THE PHYSICS. World units, about a metre and a half each: the rocket is 13
-// tall. Gravity 9 a second a second (Mars 3.6). The engine pushes 21 along
+// tall. Gravity 7.5 a second a second (Mars 3). The engine pushes 18 along
 // the rocket's axis, so it can hover with room to spare and stops a fall in
-// a couple of seconds, but not instantly. Leaning turns at 1.9 radians a
-// second (about a quarter turn a second), eased in over a few hundredths so
-// a tap makes a small lean; it stops at 69 degrees. Air drag is light (0.12
-// a second sideways), so a sideways drift keeps going until you lean the
-// other way: that's the skill. Wind pushes through that same drag, harder
-// higher up, in gusts. Each booster has eight seconds of full thrust.
-// Every booster starts high (80 to 115 up), off to one side, falling and
-// drifting, so the first second is about catching it. Learnable in ten
-// seconds (hold to slow, lean to move, let go to fall), skilful after that:
-// a good landing falls most of the way and burns late, comes in straight
-// over the cross, and keeps fuel back.
+// a couple of seconds, but not instantly. Leaning turns at 1.6 radians a
+// second (about 90 degrees), eased in over a few hundredths so a tap makes
+// a small lean; it stops at 69 degrees. Air drag is light (0.12 a second
+// sideways), so a sideways drift keeps going until you lean the other way:
+// that's the skill. Wind pushes through that same drag, harder higher up,
+// in gusts. Each booster has eight seconds of full thrust. Every booster
+// starts high (60 to 95 up), off to one side, falling and drifting, so the
+// first second is about catching it. Learnable in ten seconds (hold to
+// slow, lean to move, let go to fall), skilful after that: a good landing
+// falls most of the way and burns late, comes in straight over the cross,
+// and keeps fuel back. Slower than real rockets on purpose: people react in
+// a quarter of a second, and the numbers were set against test players who
+// do (see THE LADDER).
 //
 // LANDING AND CRASHING. The legs come down below 28 up. A landing is the
 // legs touching a flat bit (the deck, the lawn, the pad) going down no
-// faster than 5 (relative to the deck, which moves in a swell), sideways no
-// faster than 3, within 12 degrees of the deck's own lean, and with both
+// faster than 6 (relative to the deck, which moves in a swell), sideways no
+// faster than 4, within 17 degrees of the deck's own lean, and with both
 // feet on it. Anything else: a crash. Too hard, too fast sideways or too
-// leant on the deck is a fire. Off the deck is the sea. A foot over the
-// edge tips it in. On Mars there's no air, so no fire: a dent. Every crash
-// is over quickly: a burst, a fire, his line, and the next booster is on
-// its way in two seconds (press thrust to skip the last of it).
+// leant on the deck is a fire. Off the deck is the sea. A gentle landing
+// with a foot over the edge stands for a moment, then tips over. On Mars
+// there's no air, so no fire: a dent. Every crash is over quickly: a burst,
+// a fire, his line, and the next booster is on its way in two seconds
+// (press thrust to skip the last of it).
 //
 // THE CAMERA. It frames the rocket and the whole landing area together
 // (barge, his boat, the windsock), with the HUD clear above and the touch
-// buttons clear below, and eases in as the rocket comes down: far out at
-// the top of a descent, close in at the bottom. On a square phone the
-// scene sits low with the sky above it; on a touch screen the round goes
-// full-window (a tall descent wants the height), and in the 4:5 clip frame
-// the extra height becomes sky. The landing area never leaves the screen.
+// buttons clear below. It keeps a box that grows at once when a booster
+// comes in high and shrinks smoothly as it comes down, so it eases in, and
+// the scene always stands on the bottom of the free space. On a square
+// phone the scene sits low with the sky above it; on a touch screen the
+// round goes full-window (a tall descent wants the height), and in the 4:5
+// clip frame the extra height becomes sky. While the notice is up the scene
+// stands on top of it.
 //
 // THE STAGES. Eight boosters over five stages, each new thing with a notice:
 //   1. The barge (two boosters). A big barge called Told You So, calm sea.
@@ -124,6 +130,7 @@
   var MAX_TILT = 1.2;
   var FUEL = 8;                  // seconds of full thrust a booster
   var SPOOL = 0.07;              // seconds for the engine to light or go out
+  var MOUSE_REACH = 0.25;        // the pointer this far to the side (a share of the screen) leans it 45 degrees
   var SAFE_VY = 6, SAFE_VX = 4, SAFE_TILT = 0.3;
   var SOFT = 1.0;                // under this it's feather light
   var CROSS_R = 6;               // cross points run out this far from the cross
@@ -387,6 +394,7 @@
     phase = "fly";
     beatT = 0;
     wreck = null;
+    timers = [];
     receipt = null;
     cam.snap = cam.snap || st.booster === 0;
     auto = { t: 0, out: { up: false, steer: 0 }, bias: p.bias * (AUTO ? 1 : 0),
@@ -477,12 +485,11 @@
     var m = run.mods;
     if (AUTO) return { up: auto.out.up, rate: auto.out.steer * TURN * m.turn };
     var up = input.up || input.action || held;
-    // a mouse points the nose at the pointer
+    // a mouse: the rocket leans towards the pointer, more the further it is to one side
     if (input.mode === "mouse" && input.aim.on && !input.left && !input.right) {
       lastMode = "mouse";
       var p = toScreen(rk.x, rk.y + RH * 0.55);
-      var dx = input.aim.x - p.x, dy = Math.max(p.y - input.aim.y, Math.min(W, H) * 0.22);
-      var want = clamp(Math.atan2(dx, dy), -0.95, 0.95);
+      var want = clamp(Math.atan2(input.aim.x - p.x, Math.min(W, H) * MOUSE_REACH), -0.95, 0.95);
       return { up: up, rate: clamp((want - rk.a) * 9, -TURN * m.turn, TURN * m.turn), aimed: true };
     }
     if (input.mode === "touch") lastMode = "touch"; else if (input.mode === "pad") lastMode = "pad"; else if (input.left || input.right || input.up) lastMode = "keys";
@@ -757,6 +764,7 @@
           splash(nx, far.y, 1);
           r.gone = true;
           rk.state = far.kind === "pool" ? "pool" : "splash";
+          rk.sink = 0;
           if (far.kind === "pool") shell.callout(CALL.pool, { ms: 1200 });
         } else explode(r.onX + r.tipDir * 2, u2.y, stage().scene === "mars");
       }
@@ -947,7 +955,7 @@
       { label: "Score", value: fmt(score) },
       { label: "Landed", value: run.landed + " of " + TOTAL }
     ];
-    if (run.closest != null) stats.push({ label: "Closest", value: (run.closest * 1.5).toFixed(1) + "m from the cross" });
+    if (run.closest != null) stats.push({ label: "Closest to the cross", value: (run.closest * 1.5).toFixed(1) + "m" });
     stats.push({ label: rec.isNew ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
                  value: fmt(rec.isNew ? score : rec.best || 0), highlight: rec.isNew });
     if (run.daily) stats.unshift({ label: "Run", value: shell.today });
@@ -1853,7 +1861,7 @@
     tilt: -6,
     note: "Eight reusable rockets, five stages, one barge that keeps getting smaller. He'll call it a success either way.",
     hints: {
-      keys: "Up, W or Space to thrust. Left and right, or A and D, to lean. Or point with the mouse and hold the button. P to pause.",
+      keys: "Up, W or Space to thrust. Left and right, or A and D, to lean. Or hold the mouse button to thrust, and it leans towards the pointer. P to pause.",
       touch: "Hold Thrust on the right. Lean with the arrows on the left."
     },
     againLabel: "Fly again",
@@ -1896,7 +1904,7 @@
           h: rk.y - u.y, hCross: rk.y - cu.y, surfVy: cu.vy, surfAngle: cu.angle, cross: crossX(),
           g: s.g, drag: s.drag, push: THRUST * m.thrust, turn: TURN * m.turn, wind: windAt(clock, rk.y - u.y) * m.windK,
           safeVy: SAFE_VY * m.safeVy, safeTilt: SAFE_TILT * m.safeTilt, scene: s.scene, deck: s.deck || 18,
-          screen: { x: sp.x, y: sp.y, w: W, h: H }, score: run.score, landed: run.landed, flown: run.flown
+          screen: { x: sp.x, y: sp.y, w: W, h: H }, reach: MOUSE_REACH, tag: tag && tag.word, score: run.score, landed: run.landed, flown: run.flown
         };
       }
     };

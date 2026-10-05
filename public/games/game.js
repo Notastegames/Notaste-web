@@ -15,7 +15,8 @@
     { slug: "heavy-traffic", title: "Heavy Traffic", accent: "#4f9e9a", stamp: "Not approved",   pitch: "Kart racing. Large drivers, tiny cars. Physics has given up.", status: "Early prototype. Playable now." },
     { slug: "slop-cannon",   title: "Slop Cannon",   accent: "#b3bf2a", stamp: "Pending review", pitch: "Fire endless AI slop into a feed. Nobody is checking.", status: "Playable now. Three stages and a final push." },
     { slug: "reply-all",     title: "Reply All",     accent: "#4fa3e0", stamp: "Not sent",       pitch: "Someone has replied all to the whole company. Now everyone is replying all to say stop replying all.", status: "Playable now." },
-    { slug: "unexpected-item", title: "Unexpected Item", accent: "#4e9a55", stamp: "Approval needed", pitch: "Scan your own shopping. The machine thinks you're stealing it.", status: "Playable now." }
+    { slug: "unexpected-item", title: "Unexpected Item", accent: "#4e9a55", stamp: "Approval needed", pitch: "Scan your own shopping. The machine thinks you're stealing it.", status: "Playable now." },
+    { slug: "scrubbed",      title: "Scrubbed",      accent: "#e8892b", stamp: "Good data",      pitch: "Land a billionaire's reusable rocket on a barge. He'll call it a success either way.", status: "Playable now. Five stages, eight rockets." }
   ];
 
   var current = document.body.getAttribute("data-game");
