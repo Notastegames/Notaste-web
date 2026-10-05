@@ -83,10 +83,12 @@
 // for how close to the cross, and up to 250 for fuel left. Mars doubles it.
 // A crash: nothing (250 with the PR team).
 //
-// THE LADDER (calibrated against test players with human reaction times).
-// Approved: seven or more of the eight landed, Mars among them, and at
-// least 8,000 points. Pending review: five landed. Not approved: two.
-// Rejected: fewer.
+// THE LADDER (calibrated against test players with human reaction times:
+// see the numbers at the end of this comment). Approved: seven or more of
+// the eight landed, Mars among them, and at least 8,000 points: soft,
+// central, thrifty landings all round. Pending review: five landed. Not
+// approved: at least one. Rejected: nothing landed ("Every rocket is now
+// data.").
 //
 // TODAY'S RUN. Everything that decides the run comes from shell.random at
 // the start of each stage, from that stage's own stream: where each booster
@@ -1324,8 +1326,8 @@
     drawTag(c, placed);
     drawLive(c, placed);
     var arrow = drawHint(c, placed);
-    bubbles.forEach(function (b) { drawBubble(c, b, placed); });
     drawReceipt(c, placed);
+    bubbles.forEach(function (b) { drawBubble(c, b, placed); });
     if (arrow) arrow();
   }
 
@@ -1823,7 +1825,7 @@
       yy += lh;
     }
     c.fillRect(x + size * 0.5, yy + 1, w - size, 1.5);
-    c.textAlign = "left"; c.fillText("TOTAL", x + size * 0.6, yy + lh * 0.6);
+    c.textAlign = "left"; c.fillText("Total".toUpperCase(), x + size * 0.6, yy + lh * 0.6);
     c.textAlign = "right"; c.fillText("+" + fmt(receipt.total), x + w - size * 0.6, yy + lh * 0.6);
     c.globalAlpha = 1;
     placed.push({ x: x, y: y, w: w, h: h });
