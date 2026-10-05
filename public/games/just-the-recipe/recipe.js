@@ -791,7 +791,6 @@
       heading: G.def.food + " found in " + N.fmtTime(t * 1000) + ".",
       line: CLEARED[rank][G.n],
       stats: [
-        { label: "Page", value: N.fmtTime(t * 1000) },
         { label: "Life story skipped", value: pct(skipped) },
         { label: "So far", value: N.fmtTime(run.time * 1000) }
       ],
@@ -1211,9 +1210,10 @@
   // the page you've already read: never on the hand or on what's coming
   // (just-the-recipe.css reads --jtr-callouts).
   function placeCallouts() {
-    var top = 4;
-    boxes = null;
-    hudBoxes().forEach(function (r) { top = Math.max(top, r.bottom); });
+    // only the pause bar is above them: the HUD's corners are off to the sides
+    var top = 8, bar = root.querySelector(".kit-bar");
+    var r = bar && bar.getBoundingClientRect(), base = root.getBoundingClientRect();
+    if (r && r.height) top = r.bottom - base.top;
     var fist = (HY - 23) * U;
     var y = Math.max(top + 6, Math.min((top + fist) / 2 - 22, fist - 50));
     root.style.setProperty("--jtr-callouts", Math.round(y) + "px");
@@ -2148,7 +2148,9 @@
     lines.forEach(function (l) { tw = Math.max(tw, c.measureText(l).width); });
     var pad = size * 0.5, lh = size * 1.02;
     var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.3;
-    var spot = placeBubble(clamp(ax - bw / 2, 4, W - bw - 4), ay - bh - size * 0.7, bw, bh, placed);
+    // ...and never on the speaker's own face, just under where it points
+    var face = { x: ax - 6 * U, y: ay + 1, w: 12 * U, h: 11 * U };
+    var spot = placeBubble(clamp(ax - bw / 2, 4, W - bw - 4), ay - bh - size * 0.7, bw, bh, placed.concat([face]));
     var bx = spot[0], by = spot[1];
     // a photo scrolling up under the HUD takes its bubble with it
     if (b.key === "photo" && by > ay - bh - size * 0.7 + 2) b.life = Math.min(b.life, b.t + 0.3);
