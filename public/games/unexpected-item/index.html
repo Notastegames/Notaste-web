@@ -2,14 +2,17 @@
 <html lang="en-GB">
 <head>
   <!--
-    Slop Cannon. Built on the shared kit like every playable game: the page
-    loads /games/kit/kit.css and kit.js, then art.js (the drawings) and
-    slop-cannon.js (the game). The rules are in DESIGN.md, section 13.
+    Game page for a playable game. To add a game: copy /games/starter/ to
+    /games/<slug>/, rewrite the script as the new game (built with the kit in
+    /games/kit/), change everything marked EDIT on this page, then add one
+    line to GAMES in /games/game.js, a poster on the homepage and a line in
+    the sitemap. The full checklist is at the end of DESIGN.md.
   -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Slop Cannon: Notaste Games</title>
-  <meta name="description" content="Fire AI slop into a feed of real people's dinners. Nobody is checking. A free browser game in poor taste from Notaste Games.">
+  <!-- EDIT: title, description and the og: tags -->
+  <title>Unexpected Item: Notaste Games</title>
+  <meta name="description" content="Scan your own shopping at a self-checkout that thinks you're stealing it. Four shops, one assistant, no staffed till. A free browser game in poor taste from Notaste Games.">
   <meta name="theme-color" content="#000000">
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -21,19 +24,23 @@
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/games/game.css">
   <link rel="stylesheet" href="/games/kit/kit.css">
+  <link rel="stylesheet" href="/games/unexpected-item/unexpected-item.css">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Notaste Games">
-  <meta property="og:title" content="Slop Cannon">
-  <meta property="og:description" content="Fire AI slop into a feed of real people's dinners. Nobody is checking. Free, in your browser.">
-  <meta property="og:url" content="https://notastegames.com/games/slop-cannon/">
-  <meta property="og:image" content="https://notastegames.com/art/og-slop-cannon.png">
+  <meta property="og:title" content="Unexpected Item">
+  <meta property="og:description" content="Scan your own shopping. The machine thinks you're stealing it. Free in your browser.">
+  <meta property="og:url" content="https://notastegames.com/games/unexpected-item/">
+  <meta property="og:image" content="https://notastegames.com/art/og-unexpected-item.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
-<!-- data-game is the slug: it matches the folder name and the GAMES entry. --accent is slime (DESIGN.md, section 3). -->
-<body class="game" data-game="slop-cannon" style="--accent: #b3bf2a">
+<!--
+  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
+  --accent is the game's colour (same as its GAMES entry and its homepage poster).
+-->
+<body class="game" data-game="unexpected-item" style="--accent: #4e9a55">
   <a class="skip" href="#main">Skip to content</a>
 
   <header class="top">
@@ -52,22 +59,24 @@
   <main id="main">
     <div class="game-page wrap">
 
+      <!-- EDIT: title, stamp (and its tilt), state, pitch -->
       <div class="game-head">
-        <h1>Slop Cannon</h1>
+        <h1>Unexpected Item</h1>
         <div class="game-meta">
-          <span class="stamp-label" style="--tilt: -5deg">Pending review</span>
+          <span class="stamp-label" style="--tilt: -4deg">Approval needed</span>
           <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now</p>
         </div>
-        <p class="game-pitch">Fire AI slop into a feed of real people's dinners. The platform pays you for every real post you ruin. Nobody is checking. Nobody was ever going to check.</p>
+        <p class="game-pitch">Scan your own shopping. The machine thinks you're stealing it. There is one assistant for every till in the shop, and she's on her way. Slowly.</p>
       </div>
 
       <section class="cabinet" aria-label="Game screen">
         <div class="screen">
-          <img class="screen-art" src="/art/slop-cannon.svg" alt="" width="800" height="600">
+          <!-- EDIT: cover art path -->
+          <img class="screen-art" src="/art/unexpected-item.svg" alt="" width="800" height="600">
 
-          <!-- The game. /games/kit/kit.js builds the screens in here, slop-cannon.js is the game and art.js draws it. -->
+          <!-- The game. /games/kit/kit.js builds the screens in here, unexpected-item.js is the game. -->
           <div id="game-root">
-            <noscript><p class="kit-noscript">Slop Cannon needs JavaScript switched on. The feed will have to ruin itself.</p></noscript>
+            <noscript><p class="kit-noscript">Unexpected Item needs JavaScript switched on. Please wait for assistance.</p></noscript>
           </div>
         </div>
         <p class="cabinet-strip"><span>Notaste Games</span><span>Free play</span></p>
@@ -75,10 +84,11 @@
 
       <div class="game-info">
         <h2>How to play</h2>
+        <!-- EDIT: two or three short lines -->
         <ul class="how">
-          <li>Aim with the mouse, a finger or the arrow keys. Hold to charge, and let go when the red brackets are on the post you want.</li>
-          <li>Real posts pay. Slop on slop costs you and breaks the chain. Four real posts in a row goes viral. Fact checks bounce it back, and the Moderator has a net.</li>
-          <li>Make each stage's target or the board pulls the funding. Pick an upgrade between stages. Today's run scrolls the same feed past everyone.</li>
+          <li>Scan each item (Space, a click, or the Scan button) as its barcode crosses the red line. Dead centre is a perfect scan. Miss it and it goes round again.</li>
+          <li>Bag it (B, a click on the bag, or the Bag button), but only when the scale says OK. The machine will find an unexpected item in the bagging area anyway, more often the more suspicious it gets: lift the bag and put it back, or wait for Bev. Perfect scans calm it down.</li>
+          <li>Loose fruit has no barcode, so pick the right picture (1 to 4, or tap it) before the machine guesses. Scissors, candles and cooking wine need Bev's approval. Today's run puts the same shopping on the belt for everyone.</li>
         </ul>
         <div class="share">
           <button class="btn-line" id="share" type="button">Share</button>
@@ -109,7 +119,7 @@
 
   <script src="/games/game.js" defer></script>
   <script src="/games/kit/kit.js" defer></script>
-  <script src="/games/slop-cannon/art.js" defer></script>
-  <script src="/games/slop-cannon/slop-cannon.js" defer></script>
+  <script src="/games/unexpected-item/sprites.js" defer></script>
+  <script src="/games/unexpected-item/unexpected-item.js" defer></script>
 </body>
 </html>

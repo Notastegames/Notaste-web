@@ -17,13 +17,14 @@ The site for [notastegames.com](https://notastegames.com): free satirical browse
 | `DESIGN.md` | The design and voice rules every page and game follows |
 | `CLAUDE.md` | Instructions for Claude sessions working on this repo |
 | `ROADMAP.md` | The plan: games in order, site work, socials and merch |
+| `docs/phase3/` | Working notes for the Phase 3 games (not served by the site) |
 | `public/index.html` | Homepage, including the "reject the internet" mini-game |
 | `public/main.js` | The reject game (fake posts, NO button, swipe, N key) and the warning label |
 | `public/styles.css` | Shared styles and colour tokens for every page |
 | `public/games/game.css`, `game.js` | Game page layout, the arcade cabinet, "More games", share button, placeholder screen |
 | `public/games/kit/` | The shared game kit: Notaste intro, title/pause/results screens, countdown, controls, sound, fullscreen, saved bests |
 | `public/games/starter/` | In Tray, the starter game: a whole small game on the kit, kept out of search, copied to start every new game |
-| `public/games/<slug>/` | One folder per game. Heavy Traffic is playable (`race.js` the race, `ground.js` the 3D road, `driver.js` the karts and drivers), and so is Thonglets (`thonglets.js` the game and its stages, `rivals.js` the six rival gods, `sprites.js` the characters); Slop Cannon shows a placeholder |
+| `public/games/<slug>/` | One folder per game. Heavy Traffic is playable (`race.js` the race, `ground.js` the 3D road, `driver.js` the karts and drivers), and so are Thonglets (`thonglets.js` the game and its stages, `rivals.js` the six rival gods, `sprites.js` the characters) and Slop Cannon (`slop-cannon.js` the feed, the shots and the stages, `art.js` the drawings) |
 | `public/art/` | Game cover art (SVG) and per-game share images (`og-<slug>.png`) |
 | `public/brand/` | Logo, square mark and the worn stamp |
 | `public/fonts/notaste-display.woff` | Headline font, built from the logo's letterforms |
@@ -58,7 +59,7 @@ Then open `http://localhost:8787/games/heavy-traffic/`. Every game on the kit ta
 - `?autopilot`: the game plays itself (it drives your kart, plays god, files the paperwork). Add `&speed=4` to run it four times as fast.
 - `?clip`: the 9:16 frame for filming social clips, with the autopilot playing. Press Enter to start, and record the frame.
 
-Heavy Traffic's `?debug` exposes the race as `window.__heavyTraffic`. Thonglets' `?debug` exposes the crowd and the score as `window.__thonglets`, and `&stage=4` starts at stage 4.
+Heavy Traffic's `?debug` exposes the race as `window.__heavyTraffic`. Thonglets' `?debug` exposes the crowd and the score as `window.__thonglets`, and `&stage=4` starts at stage 4. Slop Cannon's `?debug` exposes the round as `window.__slop`, `&stage=3` starts at stage 3 and `&take=bots,fingers` starts with those upgrades.
 
 ## The automatic play-through
 
