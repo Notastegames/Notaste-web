@@ -592,7 +592,7 @@
       stall: 0, wrongBox: -1, stamps: [], pops: [], bubbles: [], toasts: [], flights: [], fx: [], later: [],
       speaking: {}, gaze: null, tiles: [], volunteerAt: -9, chaseAt: -99, closedAt: -9, camNodAt: -9,
       missed: 0, forgiven: 0, stageYeps: 0, stageNods: 0, stageVolunteered: 0, stageBoxes: 0, stageSheets: 0,
-      agreed: [], said: {},
+      agreed: [], said: {}, rowCache: {},
       briefed: false, hint: null, nod: 0, yepT: 0, flash: 0, seen: 0, lastPaste: 0, sheetFlash: 0
     };
     G.tiles = st.cast.map(function (id, i) {
@@ -685,6 +685,7 @@
     placeKitBits();
     A.init(T, DPR);
     bg = null;
+    tagCache = {};
   }
 
   // A square screen (a phone in the page) has no room for twelve faces: it
@@ -717,6 +718,7 @@
     if (slot < 0) slot = G.vis.length - 1;
     var out = G.vis[slot];
     G.vis[slot] = t;
+    bg = null;
     t.x = out.x; t.y = out.y; t.w = out.w; t.h = out.h;
     t.hidden = false;
     out.hidden = true;
@@ -1800,11 +1802,16 @@
     if (!G.briefed && (st === "countdown" || st === "playing")) { G.briefed = true; notice(); }
     var c = ctx;
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    c.fillStyle = T.ink;
-    c.fillRect(0, 0, W, H);
     var sx = 0, sy = 0;
-    if (shakeAmt > 0) { sx = (Math.random() - 0.5) * 7 * shakeAmt; sy = (Math.random() - 0.5) * 7 * shakeAmt; }
+    if (shakeAmt > 0) {
+      sx = (Math.random() - 0.5) * 7 * shakeAmt; sy = (Math.random() - 0.5) * 7 * shakeAmt;
+      c.fillStyle = T.ink;
+      c.fillRect(0, 0, W, H);
+    }
+    if (!bg) buildBg();
     c.setTransform(DPR, 0, 0, DPR, sx * DPR, sy * DPR);
+    // everything that doesn't change is one bitmap; the rest is drawn over it
+    c.drawImage(bg, 0, 0, W, H);
     var now = G.time + G.endT;
     G.tiles.forEach(function (t) { if (!t.hidden) drawTile(c, t, now); });
     if (crowded() && G.others) drawOthers(c, G.others);
@@ -1824,47 +1831,120 @@
     if (G.speaking) Object.keys(G.speaking).forEach(function (k) { G.speaking[k] -= dt || 0; if (G.speaking[k] <= 0) delete G.speaking[k]; });
   }
 
-  // A tile: the room and the person (cached), the face (live), the name tag
-  function drawTile(c, t, now) {
+  // ---------------------------------------------------------------------------
+  // The background: everything that stays put, drawn once into a bitmap (the
+  // tiles' rooms and people, your kitchen and shoulders, the sheet's window),
+  // and drawn again only when the layout or the tiles on show change. On a
+  // phone that's most of the pixels, so each frame is mostly faces and words.
+  // ---------------------------------------------------------------------------
+  var bgCanvas = null;
+  function buildBg() {
+    var cv = bgCanvas || (bgCanvas = document.createElement("canvas"));
+    cv.width = Math.max(1, Math.round(W * DPR));
+    cv.height = Math.max(1, Math.round(H * DPR));
+    var b = cv.getContext("2d");
+    b.setTransform(DPR, 0, 0, DPR, 0, 0);
+    b.fillStyle = T.ink;
+    b.fillRect(0, 0, W, H);
+    G.tiles.forEach(function (t) { if (!t.hidden) drawTileStill(b, t); });
+    if (crowded() && G.others) drawOthers(b, G.others);
+    var r = L.you;
+    b.save();
+    A.rr(b, r.x, r.y, r.w, r.h, 7);
+    b.clip();
+    b.drawImage(A.youSprite("room", r.w, r.h), r.x, r.y, r.w, r.h);
+    b.drawImage(A.youSprite("body", r.w, r.h), r.x, r.y, r.w, r.h);
+    b.restore();
+    drawSheetStill(b);
+    bg = cv;
+  }
+
+  // A tile's still parts: the room and the person (its sprite), its ash
+  // frame and its chips
+  function drawTileStill(c, t) {
     var x = t.x, y = t.y, w = t.w, h = t.h;
     c.save();
     A.rr(c, x, y, w, h, 6);
     c.clip();
-    var sprite = A.tileSprite(t.p, w, h);
-    c.drawImage(sprite, x, y, w, h);
-    var k = h / 100;
+    c.drawImage(A.tileSprite(t.p, w, h), x, y, w, h);
+    c.restore();
+    A.rr(c, x, y, w, h, 6);
+    c.lineWidth = 1.5;
+    c.strokeStyle = T.ash;
+    c.stroke();
+    if (t.p.special === "frozen" && w > 130) chip(c, x + w - 4, y + 4, "Poor connection", "right");
+    if (t.p.special === "bot" && w > 100) chip(c, x + w - 4, y + 4, "Recording", "right", T.red);
+  }
+
+  // A tile, every frame: the face (and whatever else moves: Keith's train,
+  // Mo's trees), the name tag, a violet frame for whoever's talking, and the
+  // dark when they've left
+  function drawTile(c, t, now) {
+    var x = t.x, y = t.y, w = t.w, h = t.h, k = h / 100;
+    var moving = t.p.special === "train" || t.p.special === "walk";
+    if (moving) {
+      c.save();
+      A.rr(c, x, y, w, h, 6);
+      c.clip();
+    }
     c.save();
     c.translate(x + w / 2, y);
     c.scale(k, k);
-    var f = faceFor(t, now);
-    A.person(c, t.p, f, shell.reduceMotion ? 0 : now, w / k);
+    A.person(c, t.p, faceFor(t, now), shell.reduceMotion ? 0 : now, w / k, w, h);
     c.restore();
+    if (moving) {
+      c.restore();
+      A.rr(c, x, y, w, h, 6);
+      c.lineWidth = 1.5;
+      c.strokeStyle = T.ash;
+      c.stroke();
+    }
     if (t.dark > 0) {
-      c.fillStyle = T.ink;
       c.globalAlpha = t.dark;
-      c.fillRect(x, y, w, h);
+      A.rr(c, x, y, w, h, 6);
+      c.fillStyle = T.ink;
+      c.fill();
       c.globalAlpha = 1;
       if (t.dark > 0.8 && w > 80) {
-        c.font = Math.max(12, Math.round(h * 0.11)) + "px " + T.display;
+        var ls = Math.max(12, Math.round(h * 0.11));
+        c.font = ls + "px " + T.display;
         c.fillStyle = T.paper;
         c.textAlign = "center";
         c.textBaseline = "middle";
-        A.text(c, "LEFT", x + w / 2, y + h / 2, Math.max(12, Math.round(h * 0.11)));
+        A.text(c, "LEFT", x + w / 2, y + h / 2, ls);
       }
+      return;
     }
-    c.restore();
     // the frame: violet for whoever's talking
     var talking = !!G.speaking[t.id] || (G.round && G.round.order[G.round.i] && G.round.order[G.round.i].id === t.id);
-    A.rr(c, x, y, w, h, 6);
-    c.lineWidth = talking ? 3.5 : 1.5;
-    c.strokeStyle = talking ? T.accent : T.ash;
-    c.stroke();
-    // a tile too small for a name tag gets just its mic
+    if (talking) {
+      A.rr(c, x, y, w, h, 6);
+      c.lineWidth = 3.5;
+      c.strokeStyle = T.accent;
+      c.stroke();
+    }
     // a small tile gets just its mic, and a very small one nothing
-    if (w >= 84 && h >= 52) nameTag(c, x + 4, y + h - 4, t.p.name, !!G.speaking[t.id], Math.min(w - 8, 220), t.p.special === "bot");
-    else if (h >= 60 && w >= 60) micTag(c, x + 3, y + h - 3, !!G.speaking[t.id]);
-    if (t.p.special === "frozen" && w > 130) chip(c, x + w - 4, y + 4, "Poor connection", "right");
-    if (t.p.special === "bot" && w > 100) chip(c, x + w - 4, y + 4, "Recording", "right", T.red);
+    if (w >= 84 && h >= 52) {
+      var tg = tagSprite(t.p.name, !!G.speaking[t.id], Math.min(w - 8, 220));
+      c.drawImage(tg.cv, x + 4, y + h - 4 - tg.h + 1, tg.w, tg.h);
+    } else if (h >= 60 && w >= 60) micTag(c, x + 3, y + h - 3, !!G.speaking[t.id]);
+  }
+
+  // A name tag as a bitmap (a dozen of them are drawn every frame)
+  var tagCache = {};
+  function tagSprite(name, live, maxW) {
+    var size = tagSize();
+    var key = name + "|" + live + "|" + Math.round(maxW) + "|" + size + "|" + DPR;
+    var hit = tagCache[key];
+    if (hit) return hit;
+    var h = Math.ceil(size * 1.6) + 1, w = Math.ceil(maxW) + 1;
+    var cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(w * DPR));
+    cv.height = Math.max(1, Math.round(h * DPR));
+    var c = cv.getContext("2d");
+    c.scale(DPR, DPR);
+    nameTag(c, 0, h - 1, name, live, maxW, false);
+    return (tagCache[key] = { cv: cv, w: w, h: h });
   }
 
   // The rest of the all-hands, on a square screen
@@ -2018,12 +2098,6 @@
   function drawYou(c, now) {
     var r = L.you, x = r.x, y = r.y, w = r.w, h = r.h;
     var k = h / 100, ww = w / k;
-    c.save();
-    A.rr(c, x, y, w, h, 7);
-    c.clip();
-    c.save();
-    c.translate(x + w / 2, y);
-    c.scale(k, k);
     var cat = G.cat;
     var door = 0;
     if (cat) {
@@ -2035,24 +2109,43 @@
     var shakeD = live ? 0.4 + 0.6 * (1 - G.mic.left / G.mic.max) : 0;
     if (G.suds > 0) shakeD = 1;
     if (shell.reduceMotion) shakeD = Math.min(shakeD, 0.001) ? 0.001 : 0;
-    A.yourRoom(c, ww, { door: door, shake: live || G.suds > 0 ? Math.max(0.3, shakeD) : 0, suds: G.suds > 0 ? clamp(G.suds, 0, 1) : 0, t: shell.reduceMotion ? 0 : now });
+    var shakeOn = live || G.suds > 0;
+    // the kitchen with the door shut and the dishwasher off, and your
+    // shoulders, are in the background; your head and face are bitmaps too.
+    // Only a moving kitchen, the cat and the camera's screen need the
+    // tile's rounded corners to clip to.
+    var still = !door && !shakeOn;
+    var clipped = !still || cat || !G.cam.on;
+    if (clipped) {
+      c.save();
+      A.rr(c, x, y, w, h, 7);
+      c.clip();
+    }
     // the cat's eyes in the doorway are behind you; once it's out of the
     // door it's coming towards the camera, so it's in front
     var catFront = cat && (cat.phase === "walk" || cat.phase === "desk" || cat.phase === "leave");
-    if (cat && !catFront) drawCat(c, cat, ww, now);
-    var f = yourFace(now);
-    c.save();
-    c.translate(0, 0);
-    A.you(c, A.PEOPLE.you, f);
-    c.restore();
-    if (catFront) drawCat(c, cat, ww, now);
-    c.restore();
+    if (!still || (cat && !catFront)) {
+      c.save();
+      c.translate(x + w / 2, y);
+      c.scale(k, k);
+      if (!still) A.yourRoom(c, ww, { door: door, shake: shakeOn ? Math.max(0.3, shakeD) : 0, suds: G.suds > 0 ? clamp(G.suds, 0, 1) : 0, t: shell.reduceMotion ? 0 : now });
+      if (cat && !catFront) drawCat(c, cat, ww, now);
+      c.restore();
+    }
+    A.youFromSprites(c, x, y, w, h, yourFace(now), !still);
+    if (catFront) {
+      c.save();
+      c.translate(x + w / 2, y);
+      c.scale(k, k);
+      drawCat(c, cat, ww, now);
+      c.restore();
+    }
     // the camera's off: only you can see this (dark, but the cat shows through)
     if (!G.cam.on) {
       c.fillStyle = A.dots(c, T.ink, 3.2, 0.56);
       c.fillRect(x, y, w, h);
     }
-    c.restore();
+    if (clipped) c.restore();
     // the frame: violet when they want something from you. Just before (the
     // tell, while everyone turns to look, or when you're next), it's dashed:
     // get ready, not yet.
@@ -2312,57 +2405,49 @@
     return { x: g.s.x + g.gut + 2 + side * g.colW, y: rowY, w: g.colW, h: g.rh };
   }
 
-  function drawSheet(c, now) {
-    var g = sheetGeom(), s = g.s;
-    var size = W < 480 ? 12 : clamp(Math.round(g.rh * 0.36), 12, 17);
-    c.save();
-    // the window
+  function sheetSize(g) { return W < 480 ? 12 : clamp(Math.round(g.rh * 0.36), 12, 17); }
+  // The window's top with its rounded corners (the title bar), and the part
+  // the rows scroll through, with its rounded bottom corners
+  function titlePath(c, s, tb) {
+    var r = 6;
+    c.beginPath();
+    c.moveTo(s.x, s.y + tb);
+    c.lineTo(s.x, s.y + r);
+    c.arcTo(s.x, s.y, s.x + r, s.y, r);
+    c.lineTo(s.x + s.w - r, s.y);
+    c.arcTo(s.x + s.w, s.y, s.x + s.w, s.y + r, r);
+    c.lineTo(s.x + s.w, s.y + tb);
+    c.closePath();
+  }
+  function rowsPath(c, s, top) {
+    var r = 6, b = s.y + s.h;
+    c.beginPath();
+    c.moveTo(s.x, top);
+    c.lineTo(s.x + s.w, top);
+    c.lineTo(s.x + s.w, b - r);
+    c.arcTo(s.x + s.w, b, s.x + s.w - r, b, r);
+    c.lineTo(s.x + r, b);
+    c.arcTo(s.x, b, s.x, b - r, r);
+    c.closePath();
+  }
+
+  // The sheet's still parts, into the background: the window, the clipboard
+  // bar and the column letters
+  function drawSheetStill(c) {
+    var g = sheetGeom(), s = g.s, size = sheetSize(g);
     A.rr(c, s.x, s.y, s.w, s.h, 6);
     c.fillStyle = T.paper;
     c.fill();
-    c.save();
-    A.rr(c, s.x, s.y, s.w, s.h, 6);
-    c.clip();
-    // title bar: the sheet's name, and the inbox
-    c.fillStyle = G.stall > 0 ? T.paper : T.accent;
-    c.fillRect(s.x, s.y, s.w, g.tb);
-    c.beginPath();
-    c.moveTo(s.x, s.y + g.tb); c.lineTo(s.x + s.w, s.y + g.tb);
-    A.stroke(c, 1.5, T.ink);
-    c.fillStyle = T.ink;
-    c.font = size + "px " + T.display;
-    c.textAlign = "left";
-    c.textBaseline = "middle";
-    var title = (G.sheetNames[G.sheetIdx % G.sheetNames.length] + (G.stall > 0 ? " (not responding)" : "")).toUpperCase();
-    var inboxW = L.side && L.side.h >= 30 ? 0 : drawInbox(c, g, size);
-    c.save();
-    c.beginPath();
-    c.rect(s.x, s.y, s.w - inboxW - 10, g.tb);
-    c.clip();
-    c.fillStyle = T.ink;
-    // new mail takes over the title bar for a moment: who from, and what about
-    var mail = G.toasts.length && G.stall <= 0 ? G.toasts[G.toasts.length - 1] : null;
-    if (mail && mail.t < 2.2) {
-      var ew = size * 1.3;
-      c.fillStyle = T.paper;
-      c.fillRect(s.x, s.y, s.w - inboxW - 10, g.tb - 0.75);
-      A.envelope(c, s.x + 10 + ew / 2, s.y + g.tb / 2, ew, 0);
-      c.fillStyle = T.ink;
-      A.text(c, (mail.from + ": " + mail.subject).toUpperCase(), s.x + 18 + ew, s.y + g.tb / 2 + size * 0.06, size);
-    } else {
-      A.text(c, title, s.x + 10, s.y + g.tb / 2 + size * 0.06, size);
-    }
-    c.restore();
     // formula bar: what's on the clipboard
     var fy = s.y + g.tb;
-    c.fillStyle = T.paper;
-    c.fillRect(s.x, fy, s.w, g.fb);
     c.beginPath();
     c.moveTo(s.x, fy + g.fb); c.lineTo(s.x + s.w, fy + g.fb);
     c.moveTo(s.x, fy); c.lineTo(s.x + s.w, fy);
     A.stroke(c, 1.5, T.ink);
     c.font = size + "px " + T.display;
     c.fillStyle = T.ink;
+    c.textAlign = "left";
+    c.textBaseline = "middle";
     A.text(c, "PASTE:", s.x + 10, fy + g.fb / 2 + size * 0.06, size);
     var pw = A.textWidth(c, "PASTE:", size);
     c.fillStyle = T.accent;
@@ -2370,10 +2455,8 @@
     // column headers
     var hy = fy + g.fb;
     if (g.hb) {
-      c.fillStyle = T.paper;
-      c.fillRect(s.x, hy, s.w, g.hb);
       c.fillStyle = A.shadeLight(c);
-      c.fillRect(s.x, hy, s.w, g.hb);
+      c.fillRect(s.x + 1.5, hy, s.w - 3, g.hb);
       c.font = Math.max(12, g.hb - 3) + "px " + T.display;
       c.fillStyle = T.ink;
       c.textAlign = "center";
@@ -2382,11 +2465,51 @@
       c.beginPath();
       c.moveTo(s.x, hy + g.hb); c.lineTo(s.x + s.w, hy + g.hb);
       A.stroke(c, 1.5, T.ink);
+      c.beginPath();
+      c.moveTo(s.x + g.gut, hy); c.lineTo(s.x + g.gut, hy + g.hb);
+      A.stroke(c, 1.5, T.ink);
     }
-    // the rows: one done, the one you're on, the ones coming
+  }
+
+  // The sheet, every frame: the title bar (the sheet's name, new mail, the
+  // inbox), the rows, the selection, and the frame
+  function drawSheet(c, now) {
+    var g = sheetGeom(), s = g.s;
+    var size = sheetSize(g);
+    c.save();
+    // title bar
+    titlePath(c, s, g.tb);
+    c.fillStyle = G.stall > 0 ? T.paper : T.accent;
+    c.fill();
+    c.beginPath();
+    c.moveTo(s.x, s.y + g.tb); c.lineTo(s.x + s.w, s.y + g.tb);
+    A.stroke(c, 1.5, T.ink);
+    c.font = size + "px " + T.display;
+    c.textAlign = "left";
+    c.textBaseline = "middle";
+    var title = (G.sheetNames[G.sheetIdx % G.sheetNames.length] + (G.stall > 0 ? " (not responding)" : "")).toUpperCase();
+    var inboxW = L.side && L.side.h >= 30 ? 0 : drawInbox(c, g, size);
     c.save();
     c.beginPath();
-    c.rect(s.x, g.top, s.w, s.h - (g.top - s.y));
+    c.rect(s.x + 3, s.y + 1.5, s.w - inboxW - 13, g.tb - 2.25);
+    c.clip();
+    // new mail takes over the title bar for a moment: who from, and what about
+    var mail = G.toasts.length && G.stall <= 0 ? G.toasts[G.toasts.length - 1] : null;
+    if (mail && mail.t < 2.2) {
+      var ew = size * 1.3;
+      c.fillStyle = T.paper;
+      c.fillRect(s.x, s.y, s.w - inboxW - 10, g.tb);
+      A.envelope(c, s.x + 10 + ew / 2, s.y + g.tb / 2, ew, 0);
+      c.fillStyle = T.ink;
+      A.text(c, (mail.from + ": " + mail.subject).toUpperCase(), s.x + 18 + ew, s.y + g.tb / 2 + size * 0.06, size);
+    } else {
+      c.fillStyle = T.ink;
+      A.text(c, title, s.x + 10, s.y + g.tb / 2 + size * 0.06, size);
+    }
+    c.restore();
+    // the rows: one done, the one you're on, the ones coming
+    c.save();
+    rowsPath(c, s, g.top);
     c.clip();
     var slide = shell.reduceMotion ? 0 : G.rowAnim * g.rh;
     var first = Math.max(0, G.row - 1);
@@ -2395,13 +2518,9 @@
       if (ry > s.y + s.h) break;
       drawRow(c, g, i, ry, size, now);
     }
+    drawSelection(c, g, g.activeY + slide, now);
     c.restore();
-    // the gutter line
-    c.beginPath();
-    c.moveTo(s.x + g.gut, hy); c.lineTo(s.x + g.gut, s.y + s.h);
-    A.stroke(c, 1.5, T.ink);
     if (G.stall > 0) A.spinner(c, s.x + s.w / 2, g.activeY + g.rh * 1.6, Math.min(16, g.rh * 0.4), now);
-    c.restore();
     A.rr(c, s.x, s.y, s.w, s.h, 6);
     A.stroke(c, 3, G.share ? T.red : T.ink);
     c.restore();
@@ -2418,13 +2537,62 @@
     if (!row) return;
     var s = g.s, active = i === G.row && G.phase === "play";
     var num = ((G.sheetRow + (i - G.row)) % SHEET_ROWS + SHEET_ROWS) % SHEET_ROWS + 1;
+    // the row's cells don't change from one frame to the next: a bitmap,
+    // unless it's the row that's flashing or saying #N/A
+    var flashing = row.state === "done" && i === G.row - 1 && G.pasted > 0.45;
+    var wrong = active && G.stall > 0;
+    if (flashing || wrong) drawCells(c, g, i, ry, size, num, true);
+    else c.drawImage(rowSprite(g, i, size, num), s.x, ry, s.w, g.rh);
     // which sheet the row belongs to: a thick line where a new one starts
     if (num === 1 && i > 0) {
       c.beginPath();
       c.moveTo(s.x, ry); c.lineTo(s.x + s.w, ry);
       A.stroke(c, 3, T.ink);
     }
-    // the gutter: the row number
+  }
+  // The selection: a thick violet frame round the row you're on, and a caret
+  // in the empty box (drawn after the rows, so nothing covers it)
+  function drawSelection(c, g, ry, now) {
+    var row = curRow();
+    if (!row || G.phase !== "play") return;
+    var a = boxRect(g, ry, 0);
+    c.beginPath();
+    c.rect(a.x - 1, ry - 1, g.colW * 2 + 2, g.rh + 2);
+    c.lineWidth = 4;
+    c.strokeStyle = G.stall > 0 ? T.red : T.accent;
+    c.stroke();
+    if (G.stall <= 0 && !row.skip && (shell.reduceMotion || Math.floor(now * 2.4) % 2 === 0)) {
+      var e = boxRect(g, ry, row.empty);
+      c.fillStyle = T.ink;
+      c.fillRect(e.x + 10, e.y + g.rh * 0.24, 2, g.rh * 0.52);
+    }
+  }
+
+  // A row's cells as a bitmap, kept while the row is in view
+  function rowSprite(g, i, size, num) {
+    var row = G.rows[i];
+    var key = row.state + ":" + num + ":" + Math.round(g.s.w) + "x" + Math.round(g.rh) + ":" + size + ":" + DPR;
+    var hit = G.rowCache[i];
+    if (hit && hit.key === key) return hit.cv;
+    var cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(g.s.w * DPR));
+    cv.height = Math.max(1, Math.round(g.rh * DPR));
+    var c = cv.getContext("2d");
+    c.scale(DPR, DPR);
+    c.translate(-g.s.x, 0);
+    drawCells(c, g, i, 0, size, num, false);
+    G.rowCache[i] = { key: key, cv: cv };
+    // and let go of the rows that have scrolled away
+    Object.keys(G.rowCache).forEach(function (n) { if (+n < G.row - 2) delete G.rowCache[n]; });
+    return cv;
+  }
+
+  // The gutter with the row's number, and its two boxes. live: the moving
+  // parts too (the box that's just been pasted into, #N/A)
+  function drawCells(c, g, i, ry, size, num, live) {
+    var row = G.rows[i], s = g.s, active = live && i === G.row && G.phase === "play";
+    c.fillStyle = T.paper;
+    c.fillRect(s.x, ry, s.w, g.rh);
     c.fillStyle = A.shadeLight(c);
     c.fillRect(s.x, ry, g.gut, g.rh);
     c.font = size + "px " + T.display;
@@ -2432,6 +2600,9 @@
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.fillText(String(num), s.x + g.gut / 2, ry + g.rh / 2 + 1);
+    c.beginPath();
+    c.moveTo(s.x + g.gut, ry); c.lineTo(s.x + g.gut, ry + g.rh);
+    A.stroke(c, 1.5, T.ink);
     if (row.skip) drawSkipRow(c, g, row, ry, size, active);
     else for (var side = 0; side < 2; side++) {
       var b = boxRect(g, ry, side);
@@ -2443,7 +2614,7 @@
       c.fill();
       if (!empty) { c.fillStyle = A.shade(c); c.fill(); }
       // the box you've just pasted into flashes violet for a moment (flat, no tint)
-      var flash = done && i === G.row - 1 && G.pasted > 0.45;
+      var flash = live && done && i === G.row - 1 && G.pasted > 0.45;
       if (flash) { c.fillStyle = T.accent; c.fill(); }
       c.lineWidth = 1.2;
       c.strokeStyle = T.ink;
@@ -2469,20 +2640,6 @@
         c.textBaseline = "middle";
         A.text(c, label.toUpperCase(), b.x + 10, b.y + b.h / 2 + size * 0.06, size);
         c.restore();
-      }
-    }
-    if (active) {
-      // the selection: a thick violet frame round the row, and a caret in the empty box
-      var a = boxRect(g, ry, 0);
-      c.beginPath();
-      c.rect(a.x - 1, ry - 1, g.colW * 2 + 2, g.rh + 2);
-      c.lineWidth = 4;
-      c.strokeStyle = G.stall > 0 ? T.red : T.accent;
-      c.stroke();
-      if (G.stall <= 0 && !row.skip && (shell.reduceMotion || Math.floor(now * 2.4) % 2 === 0)) {
-        var e = boxRect(g, ry, row.empty);
-        c.fillStyle = T.ink;
-        c.fillRect(e.x + 10, e.y + g.rh * 0.24, 2, g.rh * 0.52);
       }
     }
   }
@@ -2882,7 +3039,7 @@
   A.init(T, Math.min(2, window.devicePixelRatio || 1));
 
   if (document.fonts && document.fonts.load) {
-    document.fonts.load("12px " + T.display).then(function () { bg = null; });
+    document.fonts.load("12px " + T.display).then(function () { bg = null; tagCache = {}; if (G) G.rowCache = {}; });
   }
 
   if (DEBUG) {
@@ -2892,6 +3049,12 @@
       stage: function () { return G; },
       layout: function () { return L; },
       state: function () { return shell.state(); },
+      // draw n frames now, each flushed to pixels, and say how long it took (ms a frame)
+      bench: function (n) {
+        var t0 = performance.now();
+        for (var i = 0; i < n; i++) { G.time += 1 / 60; render(1 / 60); ctx.getImageData(0, 0, 1, 1); }
+        return (performance.now() - t0) / n;
+      },
       // what a test player can see: the row, the badge, the cat, the mic
       view: function () {
         var r = root.getBoundingClientRect(), g = sheetGeom();

@@ -24,11 +24,11 @@
   var DPR = 1;
 
   function init(tokens, dpr) {
-    if (dpr && dpr !== DPR) { cache = {}; tiles = {}; }
+    if (dpr && dpr !== DPR) { cache = {}; tiles = {}; faces = {}; faceCount = 0; }
     T = tokens;
     DPR = dpr || DPR;
   }
-  function flush() { cache = {}; tiles = {}; }
+  function flush() { cache = {}; tiles = {}; faces = {}; faceCount = 0; }
   function ink(name) { return T[name] || name; }
   function edgeFor(colour) { return colour === T.ink ? T.paper : T.ink; }
 
@@ -1006,8 +1006,9 @@
   // A tile's still parts (the room, the shoulders and the head), kept as a
   // bitmap at this size. Faces, hands and anything that moves are drawn live.
   // ---------------------------------------------------------------------------
-  function tileSprite(p, w, h) {
-    var key = p.id + "-" + w + "x" + h + "-" + DPR;
+  // A bitmap of w x h CSS pixels, drawn in tile units by draw(c, ww), kept
+  function sprite(key, w, h, draw) {
+    key += "-" + w + "x" + h + "-" + DPR;
     var hit = cache[key];
     if (hit) return hit;
     var cv = document.createElement("canvas");
@@ -1018,26 +1019,95 @@
     c.scale(DPR, DPR);
     c.translate(w / 2, 0);
     c.scale(k, k);
-    var ww = w / k;
-    drawRoom(c, p.room, ww);
-    if (!p.special || p.special === "frozen") {
-      drawShoulders(c, p);
-      drawHead(c, p);
-    }
-    hit = cache[key] = cv;
-    return hit;
+    draw(c, w / k);
+    return (cache[key] = cv);
   }
 
-  // A whole tile's person, in tile units (the room has been drawn). f is the
-  // face. Specials draw everything themselves.
-  function person(c, p, f, t, ww) {
+  // A tile's still parts: the room, and the person, or as much of a special
+  // as doesn't move (Gaz's chin, Bernard's forehead, the notetaker's body,
+  // the phone). Faces, and anything else that moves, are drawn live.
+  function tileSprite(p, w, h) {
+    return sprite(p.id, w, h, function (c, ww) {
+      drawRoom(c, p.room, ww);
+      if (!p.special || p.special === "frozen") {
+        drawShoulders(c, p);
+        drawHead(c, p);
+      }
+      if (p.special === "nose") noseStill(c);
+      if (p.special === "forehead") foreheadStill(c);
+      if (p.special === "bot") botStill(c, ww);
+      if (p.special === "phone") phone(c, null, 0, ww);
+    });
+  }
+  // What sits in front of moving scenery: Keith on his seat, Mo
+  function frontSprite(p, w, h) {
+    return sprite(p.id + "-front", w, h, function (c) {
+      if (p.special === "train") seat(c);
+      drawShoulders(c, p);
+      drawHead(c, p);
+    });
+  }
+  // Your tile's still parts: the kitchen (door shut, dishwasher off), your
+  // shoulders, and your head (which moves when you nod)
+  function youSprite(part, w, h) {
+    return sprite("you-" + part, w, h, function (c, ww) {
+      if (part === "room") drawYourRoom(c, ww, {});
+      else if (part === "body") drawShoulders(c, PEOPLE.you);
+      else drawHead(c, PEOPLE.you);
+    });
+  }
+  // Your head and face, from the sprites: f as for you(). body: your
+  // shoulders too (they're already in the background otherwise)
+  function youFromSprites(c, x, y, w, h, f, body) {
+    var k = h / 100;
+    var dip = f.nod ? Math.sin(f.nod * Math.PI * 2) * 7 : 0;
+    var dy = (Math.max(0, dip) + (f.lean || 0)) * k;
+    if (body) c.drawImage(youSprite("body", w, h), x, y, w, h);
+    c.drawImage(youSprite("head", w, h), x, y + dy, w, h);
+    c.save();
+    c.translate(x + w / 2, y + dy);
+    c.scale(k, k);
+    face(c, PEOPLE.you, f, k);
+    c.restore();
+  }
+
+  // A face as a bitmap, for one look: the mood, where they're looking (to an
+  // eighth) and how open the mouth is (to a quarter), at one size. The box
+  // round a face, in tile units, and at most a few hundred kept.
+  var FX = 22, FTOP = HY - 21, FH = 48;
+  var faces = {}, faceCount = 0;
+  function faceSprite(p, f, k) {
+    var gx = Math.round((f.gx || 0) * 8) / 8, gy = Math.round((f.gy || 0) * 8) / 8;
+    var talk = Math.round(Math.abs(f.talk || 0) * 4) / 4;
+    var key = p.id + ":" + (f.mood || "idle") + ":" + gx + ":" + gy + ":" + talk + ":" + k.toFixed(3);
+    var hit = faces[key];
+    if (hit) return hit;
+    if (++faceCount > 600) { faces = {}; faceCount = 1; }
+    var cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.ceil(FX * 2 * k * DPR));
+    cv.height = Math.max(1, Math.ceil(FH * k * DPR));
+    var c = cv.getContext("2d");
+    c.scale(cv.width / (FX * 2), cv.height / FH);
+    c.translate(FX, -FTOP);
+    drawFace(c, p, { mood: f.mood, gx: gx, gy: gy, talk: talk });
+    return (faces[key] = cv);
+  }
+  // Draw a face in tile units (the context scaled by k, the tile's px per unit)
+  function face(c, p, f, k) {
+    if (!k) { drawFace(c, p, f); return; }
+    c.drawImage(faceSprite(p, f, k), -FX, FTOP, FX * 2, FH);
+  }
+
+  // A whole tile's person, in tile units (the tile's sprite has been drawn).
+  // f is the face.
+  function person(c, p, f, t, ww, w, h) {
     if (p.special === "nose") return nose(c, p, f, t);
     if (p.special === "forehead") return forehead(c, p, f, t);
     if (p.special === "bot") return bot(c, f, t, ww);
-    if (p.special === "phone") return phone(c, f, t, ww);
-    if (p.special === "train") return train(c, p, f, t, ww);
-    if (p.special === "walk") return walking(c, p, f, t, ww);
-    drawFace(c, p, f);
+    if (p.special === "phone") return;
+    if (p.special === "train") return train(c, p, f, t, ww, w, h);
+    if (p.special === "walk") return walking(c, p, f, t, ww, w, h);
+    face(c, p, f, h ? h / 100 : 0);
     if (p.sandwich && f.mood === "chew") {
       // lunch, on camera
       c.save();
@@ -1067,9 +1137,11 @@
     });
   }
 
-  // Gaz: the camera is on his desk, pointing up
-  function nose(c, p, f, t) {
-    var cy = 84, r = 48;
+  // Gaz: the camera is on his desk, pointing up. His head, cap, brows,
+  // nostrils and chin stay put (the sprite); his eyes and mouth move.
+  var NOSE_Y = 84, NOSE_R = 48;
+  function noseStill(c) {
+    var cy = NOSE_Y, r = NOSE_R;
     ell(c, 0, cy, r, r * 0.92);
     fill(c, T.paper);
     crescent(c, 0, cy, r, r * 0.92, 0.08);
@@ -1085,8 +1157,6 @@
     [-1, 1].forEach(function (side) {
       ell(c, side * 13, cy - 30, 4.4, 4);
       fill(c, T.paper, 1.8);
-      ell(c, side * 13 + (f.gx || 0) * 1.6, cy - 28.6, 1.7, 1.7);
-      fill(c, T.ink);
     });
     c.beginPath();
     c.moveTo(-4, cy - 37); c.lineTo(-19, cy - 40);
@@ -1097,17 +1167,25 @@
     fill(c, T.ink);
     ell(c, 5.4, cy - 13, 3, 2.2, 0.3);
     fill(c, T.ink);
-    var open = f.mood === "talk" ? 1 + Math.abs(f.talk || 0) * 3.4 : 0;
-    if (open) { ell(c, 0, cy - 1, 7, open); fill(c, T.ink); }
-    else { c.beginPath(); c.moveTo(-8, cy); c.quadraticCurveTo(0, cy - 3.6, 8, cy); stroke(c, 2.2); }
     c.beginPath();
     c.moveTo(-14, cy + 14); c.quadraticCurveTo(0, cy + 19, 14, cy + 14);
     c.moveTo(-18, cy + 24); c.quadraticCurveTo(0, cy + 30, 18, cy + 24);
     stroke(c, 2);
   }
+  function nose(c, p, f, t) {
+    var cy = NOSE_Y;
+    [-1, 1].forEach(function (side) {
+      ell(c, side * 13 + (f.gx || 0) * 1.6, cy - 28.6, 1.7, 1.7);
+      fill(c, T.ink);
+    });
+    var open = f.mood === "talk" ? 1 + Math.abs(f.talk || 0) * 3.4 : 0;
+    if (open) { ell(c, 0, cy - 1, 7, open); fill(c, T.ink); }
+    else { c.beginPath(); c.moveTo(-8, cy); c.quadraticCurveTo(0, cy - 3.6, 8, cy); stroke(c, 2.2); }
+  }
 
-  // Bernard: the camera is about four inches from his forehead
-  function forehead(c, p, f, t) {
+  // Bernard: the camera is about four inches from his forehead. His brows
+  // and eyes move; the rest of him doesn't.
+  function foreheadStill(c) {
     var cy = 132, r = 96;
     ell(c, 0, cy, r, r);
     fill(c, T.paper);
@@ -1125,21 +1203,25 @@
     c.moveTo(-24, 62); c.quadraticCurveTo(0, 58, 24, 62);
     c.moveTo(-18, 70); c.quadraticCurveTo(0, 66, 18, 70);
     stroke(c, 1.8);
+    [-1, 1].forEach(function (side) {
+      ell(c, side * 22, 104, 11, 10);
+      fill(c, T.paper, 2.4);
+    });
+  }
+  function forehead(c, p, f, t) {
     c.beginPath();
     var lift = f.mood === "talk" ? Math.abs(f.talk || 0) * 3 : 0;
     c.moveTo(-6, 88 - lift); c.lineTo(-38, 80 - lift);
     c.moveTo(6, 88 - lift); c.lineTo(38, 80 - lift);
     stroke(c, 6);
     [-1, 1].forEach(function (side) {
-      ell(c, side * 22, 104, 11, 10);
-      fill(c, T.paper, 2.4);
       ell(c, side * 22 + (f.gx || 0) * 4, 100 + (f.gy || 0) * 2, 4, 4);
       fill(c, T.ink);
     });
   }
 
-  // The notetaker: nobody invited it. It's recording.
-  function bot(c, f, t, ww) {
+  // The notetaker: nobody invited it. It's recording. Only its eyes move.
+  function botStill(c, ww) {
     c.fillStyle = T.ink;
     c.fillRect(-ww / 2, 0, ww, 100);
     c.beginPath();
@@ -1151,18 +1233,18 @@
     fill(c, T.paper, 2.4, T.ink);
     rr(c, -18, 33, 36, 18, 3);
     fill(c, T.ink);
-    var blink = Math.sin((t || 0) * 1.7) > 0.96;
-    [-1, 1].forEach(function (side) {
-      c.beginPath();
-      c.rect(side * 8 - 3.4, 38.4, 6.8, blink ? 1.4 : 6.8);
-      c.fillStyle = T.accent;
-      c.fill();
-    });
     c.beginPath();
     c.moveTo(-8, 58); c.lineTo(8, 58);
     stroke(c, 2.2, T.ink);
     rr(c, -16, 64, 32, 14, 3);
     fill(c, T.paper, 2.4, T.ink);
+  }
+  function bot(c, f, t, ww) {
+    var blink = Math.sin((t || 0) * 1.7) > 0.96;
+    c.fillStyle = T.accent;
+    [-1, 1].forEach(function (side) {
+      c.fillRect(side * 8 - 3.4, 38.4, 6.8, blink ? 1.4 : 6.8);
+    });
   }
 
   // Someone who dialled in: a phone, and nothing else
@@ -1183,8 +1265,21 @@
     c.restore();
   }
 
-  // Keith is on a train. The view goes past; now and then, a tunnel.
-  function train(c, p, f, t, ww) {
+  // Keith's seat: red, shaded down the right
+  function seat(c) {
+    rr(c, -44, 30, 88, 80, 16);
+    fill(c, T.red, 2.4);
+    c.save();
+    rr(c, -44, 30, 88, 80, 16);
+    c.clip();
+    c.fillStyle = shade(c);
+    c.fillRect(14, 30, 40, 80);
+    c.restore();
+  }
+
+  // Keith is on a train. The view goes past; now and then, a tunnel. With
+  // w and h (the tile in pixels) he and his seat come from a sprite.
+  function train(c, p, f, t, ww, w, h) {
     var L = -ww / 2, tunnel = f.tunnel || 0;
     c.fillStyle = T.paper;
     c.fillRect(L, 0, ww, 100);
@@ -1206,18 +1301,9 @@
     c.restore();
     rr(c, L + 6, 8, ww - 12, 64, 8);
     stroke(c, 2.4);
-    // the seat
-    rr(c, -44, 30, 88, 80, 16);
-    fill(c, T.red, 2.4);
-    c.save();
-    rr(c, -44, 30, 88, 80, 16);
-    c.clip();
-    c.fillStyle = shade(c);
-    c.fillRect(14, 30, 40, 80);
-    c.restore();
-    drawShoulders(c, p);
-    drawHead(c, p);
-    drawFace(c, p, f);
+    if (w && h) c.drawImage(frontSprite(p, w, h), L, 0, ww, 100);
+    else { seat(c); drawShoulders(c, p); drawHead(c, p); }
+    face(c, p, f, h ? h / 100 : 0);
     if (tunnel > 0) {
       c.globalAlpha *= Math.min(1, tunnel);
       c.fillStyle = T.ink;
@@ -1226,31 +1312,50 @@
     }
   }
 
-  // Mo is walking. The trees go by and the picture bounces.
-  function walking(c, p, f, t, ww) {
+  // A tree going past Mo: a trunk and a crown with paper dots
+  function tree(c, x) {
+    c.beginPath();
+    c.moveTo(x, 100); c.lineTo(x, 50);
+    stroke(c, 3);
+    ell(c, x, 38, 16, 18);
+    fill(c, T.ink, 2, T.ink);
+    c.save();
+    ell(c, x, 38, 16, 18);
+    c.clip();
+    c.fillStyle = dots(c, T.paper, 3.4, 0.22);
+    c.fillRect(x - 18, 18, 36, 40);
+    c.restore();
+  }
+  function treeSprite(h) {
+    var key = "tree-" + h + "-" + DPR;
+    if (cache[key]) return cache[key];
+    var k = h / 100, cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(40 * k * DPR));
+    cv.height = Math.max(1, Math.round(84 * k * DPR));
+    var c = cv.getContext("2d");
+    c.scale(DPR * k, DPR * k);
+    c.translate(20, -16);
+    tree(c, 0);
+    return (cache[key] = cv);
+  }
+
+  // Mo is walking. The trees go by and the picture bounces. With w and h
+  // (the tile in pixels) he and the trees come from sprites.
+  function walking(c, p, f, t, ww, w, h) {
     var L = -ww / 2;
     var bob = Math.abs(Math.sin((t || 0) * 5)) * 3;
     c.fillStyle = T.paper;
     c.fillRect(L, 0, ww, 100);
     var off = ((t || 0) * 30) % 60;
     for (var x = L - 60 + 60 - off; x < ww / 2 + 60; x += 60) {
-      c.beginPath();
-      c.moveTo(x, 100); c.lineTo(x, 50);
-      stroke(c, 3);
-      ell(c, x, 38, 16, 18);
-      fill(c, T.ink, 2, T.ink);
-      c.save();
-      ell(c, x, 38, 16, 18);
-      c.clip();
-      c.fillStyle = dots(c, T.paper, 3.4, 0.22);
-      c.fillRect(x - 18, 18, 36, 40);
-      c.restore();
+      if (h) c.drawImage(treeSprite(h), x - 20, 16, 40, 84);
+      else tree(c, x);
     }
     c.save();
     c.translate(0, bob);
-    drawShoulders(c, p);
-    drawHead(c, p);
-    drawFace(c, p, f);
+    if (w && h) c.drawImage(frontSprite(p, w, h), L, 0, ww, 100);
+    else { drawShoulders(c, p); drawHead(c, p); }
+    face(c, p, f, h ? h / 100 : 0);
     c.restore();
   }
 
@@ -1519,8 +1624,15 @@
     init: init,
     flush: flush,
     tileSprite: tileSprite,
+    youSprite: youSprite,
+    youFromSprites: youFromSprites,
     person: person,
     you: you,
+    noseStill: noseStill,
+    foreheadStill: foreheadStill,
+    botStill: botStill,
+    phone: phone,
+    seat: seat,
     drawRoom: drawRoom,
     drawShoulders: drawShoulders,
     drawHead: drawHead,
