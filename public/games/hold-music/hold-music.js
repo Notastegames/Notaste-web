@@ -1047,7 +1047,7 @@
         if (n.auto == null) {
           if (clip && call === 2 && !run.clipCut && c.fastAt != null && n.bar >= c.fastAt) n.auto = -1;
           else if (Math.random() < prof.lapse) n.auto = -1;
-          else n.auto = n.t + CENTRE + prof.bias + (prof.sigma ? gauss() * prof.sigma : (Math.random() * 2 - 1) * (prof.spread || 0));
+          else n.auto = n.t + CENTRE + (prof.bias || 0) + (prof.sigma ? gauss() * prof.sigma : (Math.random() * 2 - 1) * (prof.spread || 0));
           // a nervous extra tap in the gap after this note
           if (prof.stray && Math.random() < prof.stray) n.extra = n.t + n.b * (0.45 + Math.random() * 0.15);
         }
@@ -1865,6 +1865,7 @@
   if (DEBUG) {
     window.__holdMusic = {
       peek: function () {
+        if (!ph || !run) return { state: shell.state(), kind: "none", call: call, notesAhead: [], heard: 0, now: 0, score: 0, run: {} };
         var p = ph, h = Line.heard();
         var right = null;
         if (p.kind === "level") level().options.forEach(function (o) { if (o.right) right = o; });

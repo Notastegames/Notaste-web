@@ -197,7 +197,7 @@
     }
     clip.curve = curve;
     var out = c.createGain();
-    out.gain.value = 0.3;
+    out.gain.value = 0.22;
     lineIn.connect(hp); hp.connect(lp); lp.connect(clip); clip.connect(out); out.connect(snd.out());
     var music = c.createGain(), beat = c.createGain(), voice = c.createGain(), fx = c.createGain();
     music.gain.value = 1; beat.gain.value = 1; voice.gain.value = 1; fx.gain.value = 1;
