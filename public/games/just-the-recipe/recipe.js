@@ -1114,9 +1114,25 @@
     VW = W / U; VH = H / U;
     OX = (W - 100 * U) / 2;
     MARGIN = (VW - 100) / 2;
-    HY = clamp(VH * 0.4, 44, 64);
+    // the fingertip sits two fifths of the way down, so a tall phone screen
+    // (full-window) sees a little more of what's coming, not all of it
+    HY = clamp(VH * 0.4, 44, 95);
+    placeCallouts();
     ctx = (shell ? shell.canvas : root.querySelector("canvas")).getContext("2d");
     if (T) CA.init(T, U * DPR);
+    boxes = null;
+  }
+
+  // In-game stamps land between the pause bar and the top of the fist, over
+  // the page you've already read: never on the hand or on what's coming
+  // (just-the-recipe.css reads --jtr-callouts).
+  function placeCallouts() {
+    var top = 4;
+    boxes = null;
+    hudBoxes().forEach(function (r) { top = Math.max(top, r.bottom); });
+    var fist = (HY - 23) * U;
+    var y = Math.max(top + 6, Math.min((top + fist) / 2 - 22, fist - 50));
+    root.style.setProperty("--jtr-callouts", Math.round(y) + "px");
     boxes = null;
   }
 
@@ -1179,7 +1195,7 @@
 
   function render() {
     if (!ctx || !G || !run) return;
-    if (!noticed && (shell.state() === "countdown" || shell.state() === "playing")) { noticed = true; notice(); }
+    if (!noticed && (shell.state() === "countdown" || shell.state() === "playing")) { noticed = true; notice(); placeCallouts(); }
     if (!hudEls) { buildHud(); paintHud(); }
     if (!T) return;
     var c = ctx;
@@ -2086,6 +2102,7 @@
     pad: { action: [0, 2] },
     daily: true,
     smallCallouts: true,
+    fullOnTouch: true,
     touch: [{ key: "action", label: "Click", icon: "Click", side: "right" }],
     reset: reset,
     update: function (dt, input) { update(dt, input); },
