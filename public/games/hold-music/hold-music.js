@@ -96,7 +96,6 @@
   var PATIENCE = 3, PATIENCE_MAX = 5;
   var SIGNAL = 4;              // bars of signal
   var RESTORE = 3;             // hits in a row to win a bar back
-  var DOUBLE = 0.12;           // a second tap this soon after a hit is ignored
   var CUT_QUEUE = 3;           // places added to the queue when you're cut off
   var AHEAD = 0.2;             // the next part of a call is queued this soon
   var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100 };
@@ -304,7 +303,7 @@
     mods = nextMods;
     nextMods = freshMods();
     st = { transfers: 0, drops: 0, cutoffs: 0, hits: 0, notes: 0, menuFirst: 0, levels: 0, vo: 0,
-           value: 0, hold: 0, clean: true, lastHit: -9 };
+           value: 0, hold: 0, clean: true };
     talks = []; floats = []; presses = [];
     ph = { kind: "start", t0: 0 };
     prevPh = null;
@@ -678,21 +677,39 @@
     return p.kind === "hold" && p.bars.length && t >= p.barsAt - 0.2 && t <= p.nextT + 0.2;
   }
 
-  function beatTap(t) {
+  // How far either side of a note a tap still counts as meant for it: up
+  // to 0.4 of a beat, never past halfway to the next note, and never less
+  // than its close window
+  function zone(notes, i) {
+    var n = notes[i];
+    var prev = i > 0 ? n.t - notes[i - 1].t : 9, next = i < notes.length - 1 ? notes[i + 1].t - n.t : 9;
+    return Math.max(windows(n.b).close, Math.min(0.4 * n.b, prev / 2, next / 2));
+  }
+
+  // One tap, judged at heard time. The first tap in a note's zone decides
+  // it: in the window it's a hit, outside it's early or late (a miss). More
+  // taps in the same zone are ignored. Only a tap in no note's zone at all
+  // is a stray.
+  var tapLog = [];
+  function beatTap(t, via) {
     react.drum = 1;
     var p = ph;
     if (p.kind !== "hold" || !laneOn(p, t)) return;
-    var best = null, bestD = 1e9;
-    p.notes.forEach(function (n, i) {
-      if (n.state) return;
-      var w = windows(n.b), d = Math.abs(t - (n.t + CENTRE));
-      if (d <= w.close && d < bestD) { best = n; bestD = d; best.i = i; }
-    });
-    if (best) {
-      var w = windows(best.b), perfect = bestD <= w.perfect;
-      best.state = perfect ? 1 : 2;
-      best.hitAt = t;
-      st.lastHit = t;
+    var target = null, td = 1e9;
+    for (var i = 0; i < p.notes.length; i++) {
+      var d = Math.abs(t - (p.notes[i].t + CENTRE));
+      if (d <= zone(p.notes, i) && d < td) { target = p.notes[i]; td = d; }
+    }
+    if (DEBUG) tapLog.push({ call: call, t: +t.toFixed(3), d: target ? +(t - target.t - CENTRE).toFixed(3) : null, via: via });
+    if (target && target.state) return;
+    if (target && td > windows(target.b).close) {
+      missNote(target, t < target.t + CENTRE ? "Early" : "Late");
+      return;
+    }
+    if (target) {
+      var w = windows(target.b), perfect = td <= w.perfect;
+      target.state = perfect ? 1 : 2;
+      target.hitAt = t;
       run.hits++; st.hits++;
       if (perfect) run.perfects++;
       // each note is worth a share of the hold's 600, half if it's only close
@@ -711,8 +728,6 @@
       laneFloat(perfect ? "perfect" : "close", perfect ? "Perfect" : "Close", 0.6);
       return;
     }
-    // a nervous second tap straight after a hit doesn't count against you
-    if (t - st.lastHit < DOUBLE) return;
     // a stray tap: costs a bar of signal, once in each gap between notes
     var gap = 0;
     while (gap < p.notes.length && p.notes[gap].t + CENTRE < t) gap++;
@@ -725,18 +740,24 @@
     loseSignal();
   }
 
+  // a note gone by: missed outright, or tapped too early or too late
+  function missNote(n, how) {
+    n.state = 3;
+    if (DEBUG) tapLog.push({ call: call, miss: +n.t.toFixed(3), how: how || "" });
+    run.notes++; st.notes++;
+    run.streak = 0;
+    hitRun = 0;
+    laneFloat("miss", how || "Missed", 0.7);
+    st.clean = false;
+    soundNow(function (a) { Line.inst.miss(a, "fx"); });
+    return loseSignal();
+  }
+
   function checkMisses(p, h) {
     for (var i = 0; i < p.notes.length; i++) {
       var n = p.notes[i];
       if (n.state || h <= n.t + CENTRE + windows(n.b).close) continue;
-      n.state = 3;
-      run.notes++; st.notes++;
-      run.streak = 0;
-      hitRun = 0;
-      laneFloat("miss", "Missed", 0.7);
-      st.clean = false;
-      soundNow(function (a) { Line.inst.miss(a, "fx"); });
-      if (loseSignal()) return;
+      if (missNote(n)) return;
     }
   }
 
@@ -875,7 +896,7 @@
     while (presses.length) {
       var e = presses.shift();
       if (e.kind === "key") pressKey(e.key, e.t);
-      else if (e.kind === "beat") beatTap(e.t);
+      else if (e.kind === "beat") beatTap(e.t, e.via);
     }
     if (ph.kind === "hold") {
       var p = ph;
@@ -1735,6 +1756,7 @@
         };
       },
       bot: function (profile) { bot = profile; },
+      taps: function () { return tapLog.slice(); },
       longLines: function () {
         var out = [], lines = [];
         CALLS.forEach(function (c) { lines.push(c.welcome); c.agent.lines.forEach(function (l) { lines.push(l); }); });
