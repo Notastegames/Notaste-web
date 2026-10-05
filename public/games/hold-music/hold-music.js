@@ -38,7 +38,7 @@
 // decides it, a hit in the window or a miss (early or late) outside it,
 // and any more are ignored, so a late tap is one mistake, not two. The
 // signal has four bars: a missed note costs one, a stray tap (in no note's
-// zone) costs one, once per gap between notes, and three hits in a row win
+// zone) costs one, once per gap between notes, and two hits in a row win
 // one back. Lose all four and you're cut off: a dial tone, a redial, and two
 // more places in the queue.
 //
@@ -107,7 +107,7 @@
   var SPEAKER = 0.04;          // on speaker, both windows are this much wider
   var PATIENCE = 3, PATIENCE_MAX = 5;
   var SIGNAL = 4;              // bars of signal
-  var RESTORE = 3;             // hits in a row to win a bar back
+  var RESTORE = 2;             // hits in a row to win a bar back
   var CUT_QUEUE = 2;           // places added to the queue when you're cut off
   var AHEAD = 0.2;             // the next part of a call is queued this soon
   var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100 };
