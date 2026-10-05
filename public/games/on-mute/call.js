@@ -84,6 +84,7 @@
         x.arc(p[0], p[1], n * r, 0, TAU);
         x.fill();
       });
+      tile.dotR = r;     // for anything that wants to redraw the dots (the cover's SVG)
       tiles[key] = tile;
     }
     var pat = c.createPattern(tile, "repeat");
@@ -972,6 +973,9 @@
       c.moveTo(-24, -40); c.lineTo(-20, -56); c.lineTo(-12, -42);
       c.moveTo(12, -42); c.lineTo(20, -56); c.lineTo(24, -40);
       fill(c, T.ink, 2.4, T.paper);
+      // the tail's white tip
+      ell(c, 10 + sway * 30, -74, 5.2, 5.2);
+      fill(c, T.paper, 2, T.ink);
       ell(c, 0, -4, 36, 36);
       fill(c, T.ink, 2.6, T.paper);
       // the haunches: two curves and a line
@@ -980,6 +984,11 @@
       c.moveTo(30, 18); c.quadraticCurveTo(18, -4, 2, 14);
       c.moveTo(0, -24); c.lineTo(0, -14);
       stroke(c, 2.2, T.paper);
+      // back paws
+      ell(c, -16, 30, 9, 5.4);
+      fill(c, T.paper, 2.2, T.ink);
+      ell(c, 16, 30, 9, 5.4);
+      fill(c, T.paper, 2.2, T.ink);
     }
     c.restore();
   }

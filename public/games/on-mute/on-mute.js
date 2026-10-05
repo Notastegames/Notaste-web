@@ -141,7 +141,7 @@
   var CHASE_GAP = 6;            // at most one "did you see my email" this often
   var VOLUNTEER_GAP = 1.2;      // a second wrong nod this soon is the same nod
   var KEEN = 0.8;
-  var APPROVED = 16000;
+  var APPROVED = 20000;
   var PTS = { box: 10, sheet: 50, nod: 50, yep: 75, keen: 25, muted: 25, hidden: 100, camBack: 25, survive: 1000 };
   var T0 = 3.6;                 // the first thing anyone says to you, after Go (the notice is up until then)
 
@@ -155,23 +155,23 @@
     { id: "standup", name: "The stand-up", start: 9 * 60, mins: 15, time: 30,
       cast: ["graham", "priya", "dave"], host: "graham",
       you: ["name", "ask", "name", "ask", "name"], cats: 0, gap: 4.7,
-      nameWin: 2.6, askWin: 3.0, grace: 2.4, catTime: 3.4, email: [7.4, 6.4],
-      clip: "TBC", talk: "standup", fill: 0.5 },
+      nameWin: 2.6, askWin: 3.0, grace: 2.4, catTime: 3.4, email: [7.0, 6.0],
+      clip: "TBC", talk: "standup" },
     { id: "team", name: "The team meeting", start: 10 * 60, mins: 60, time: 34,
       cast: ["graham", "priya", "gaz", "linda", "pam", "notes"], host: "graham",
-      you: ["name", "ask", "name", "ask", "ask"], cats: 2, gap: 4.0,
-      nameWin: 2.3, askWin: 2.7, grace: 2.1, catTime: 3.2, email: [6.2, 5.2],
-      clip: "See attached", talk: "team", fill: 0.55 },
+      you: ["name", "ask", "name", "ask", "ask", "name"], cats: 2, gap: 3.8,
+      nameWin: 2.2, askWin: 2.6, grace: 2.0, catTime: 3.2, email: [5.6, 4.8],
+      clip: "See attached", talk: "team" },
     { id: "allhands", name: "The all-hands", start: 13 * 60, mins: 60, time: 38,
       cast: ["rupert", "graham", "priya", "gaz", "linda", "pam", "dave", "femi", "hannah", "phone", "rob", "notes"],
-      host: "rupert", you: ["name", "ask", "round", "name", "ask"], cats: 2, gap: 3.6,
-      nameWin: 2.1, askWin: 2.4, grace: 1.9, catTime: 2.9, email: [5.4, 4.6],
-      clip: "Per my email", talk: "allhands", fill: 0.7 },
+      host: "rupert", you: ["name", "ask", "round", "name", "ask", "name"], cats: 2, gap: 3.3,
+      nameWin: 1.9, askWin: 2.2, grace: 1.8, catTime: 2.8, email: [4.4, 3.8],
+      clip: "Per my email", talk: "allhands" },
     { id: "email", name: "This could have been an email", start: 16 * 60, mins: 30, time: 40, overrun: 6,
       cast: ["graham", "priya", "keith", "bernard", "mo", "notes"], host: "graham",
-      you: ["name", "ask", "share", "name", "ask", "name"], cats: 3, gap: 3.2,
-      nameWin: 1.9, askWin: 2.2, grace: 1.7, catTime: 2.6, email: [4.8, 4.0],
-      clip: "N/A", talk: "email", fill: 0.6 }
+      you: ["name", "ask", "share", "name", "ask", "name", "ask"], cats: 3, gap: 2.9,
+      nameWin: 1.7, askWin: 2.0, grace: 1.6, catTime: 2.5, email: [3.8, 3.2],
+      clip: "N/A", talk: "email" }
   ];
   var LAST = STAGES.length - 1;
 
@@ -232,8 +232,9 @@
   var CHASE = ["Sam, did you see my email?", "Just flagging my email, Sam.", "Sam, I've emailed you about this.", "Sam, check your inbox."];
 
   // The spreadsheet
-  var FILLED = ["=SUM(B2:B9)", "Done", "Dave", "Ongoing", "Ask Graham", "Not mine", "See above", "Q4", "Pending", "Yes",
-                "=A2", "Parked", "Maybe", "Tuesday", "Pam", "Sorted", "As before", "Blue", "Who", "=B7*2", "Later", "Gaz"];
+  // (Notaste Display has no equals sign, so no formulas: what's already in a box is words)
+  var FILLED = ["Done", "Dave", "Ongoing", "Ask Graham", "Not mine", "See above", "Q4", "Pending", "Yes", "Nobody",
+                "Parked", "Maybe", "Tuesday", "Pam", "Sorted", "As before", "Blue", "Who", "Ages ago", "Later", "Gaz", "£40"];
   var SHEETS = ["Stand-up actions", "Q3 final v7", "Copy of budget (2)", "Tracker for the tracker", "Who's bringing what",
                 "Holiday rota", "Sheet1", "Do not edit", "Actions (old)", "Meeting notes FINAL", "Risks and issues",
                 "Lessons learned", "Desk moves", "Fridge rota", "Projects (live)", "Projects (dead)", "Notes for the notes"];
@@ -831,6 +832,7 @@
         startCat();
         break;
       case "decoy": {
+        G.lastDecoy = G.time;
         speak(b.who, b.line, 1.8);
         var tile = tileOf(b.target);
         if (tile) {
@@ -841,6 +843,7 @@
         break;
       }
       case "everyone":
+        G.lastDecoy = G.time;
         speak(b.who, b.line, 1.9);
         if (b.line === "Who's taking notes?" && castHas(st, "notes")) G.later = (G.later || []).concat([{ t: G.time + 1, who: "notes", line: "Recording." }]);
         else if (Math.random() < 0.5) {
@@ -2428,7 +2431,7 @@
         var row = curRow();
         var bl = boxRect(g, g.activeY, 0), br = boxRect(g, g.activeY, 1);
         return {
-          time: G.time, phase: G.phase, row: row ? row.empty : -1, stall: G.stall,
+          time: G.time, phase: G.phase, row: row ? row.empty : -1, stall: G.stall, decoy: G.lastDecoy || -1,
           open: G.open ? { kind: G.open.kind, left: G.open.deadline - G.time, id: G.open.opened } : null,
           micLive: G.mic.live, answered: G.mic.answered, micLeft: G.mic.left,
           cat: G.cat ? G.cat.phase : null, camOn: G.cam.on, camOff: G.cam.off, share: !!G.share,
