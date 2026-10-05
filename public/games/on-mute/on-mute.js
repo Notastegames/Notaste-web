@@ -163,7 +163,7 @@
       nameWin: 2.3, askWin: 2.7, grace: 2.1, catTime: 3.2, email: [6.2, 5.2],
       clip: "See attached", talk: "team", fill: 0.55 },
     { id: "allhands", name: "The all-hands", start: 13 * 60, mins: 60, time: 38,
-      cast: ["rupert", "graham", "priya", "gaz", "linda", "pam", "dave", "tanya", "rob", "femi", "hannah", "clive", "phone", "joy", "marcus", "notes"],
+      cast: ["rupert", "graham", "priya", "gaz", "linda", "pam", "dave", "femi", "hannah", "phone", "rob", "notes"],
       host: "rupert", you: ["name", "ask", "round", "name", "ask"], cats: 2, gap: 3.6,
       nameWin: 2.1, askWin: 2.4, grace: 1.9, catTime: 2.9, email: [5.4, 4.6],
       clip: "Per my email", talk: "allhands", fill: 0.7 },
@@ -578,7 +578,7 @@
     }
     var cl = root.querySelector(".kit-callouts");
     if (cl) {
-      cl.style.top = Math.round(L.call.y + L.call.h * 0.5 - 18) + "px";
+      cl.style.top = Math.round(L.call.y + L.call.h - 30) + "px";
       cl.style.bottom = "auto";
       cl.style.left = Math.round(L.call.x) + "px";
       cl.style.right = Math.round(W - L.call.x - L.call.w) + "px";
@@ -1461,11 +1461,11 @@
     c.setTransform(DPR, 0, 0, DPR, sx * DPR, sy * DPR);
     var now = G.time + G.endT;
     G.tiles.forEach(function (t) { drawTile(c, t, now); });
-    drawShareBanner(c);
     drawYou(c, now);
     if (L.tools) drawTools(c);
     if (L.side) drawSide(c);
     drawSheet(c, now);
+    drawShareBanner(c);
     drawFlights(c);
     drawToasts(c);
     drawStamps(c);
@@ -1543,8 +1543,9 @@
     return f;
   }
 
-  // A name tag in a tile's corner: ink, paper words, a mic
-  function nameTag(c, x, y, name, live, maxW, rec) {
+  // A name tag in a tile's corner: ink, paper words, a mic. bg: another
+  // colour behind it (yours, while you're live). Returns where it went.
+  function nameTag(c, x, y, name, live, maxW, rec, bg) {
     var size = tagSize();
     c.font = size + "px " + T.display;
     var label = name.toUpperCase();
@@ -1559,9 +1560,10 @@
     }
     if (tw + icon + size * 1.3 > maxW + 1) { icon = 0; w = Math.min(maxW, tw + size * 0.9); }
     A.rr(c, x, y - h, w, h, 3);
-    c.fillStyle = T.ink;
+    c.fillStyle = bg || T.ink;
     c.fill();
-    if (icon) A.micIcon(c, x + size * 0.45 + icon / 2, y - h / 2, icon, live, live ? T.accent : T.paper);
+    if (bg) { c.lineWidth = 1.5; c.strokeStyle = T.paper; c.stroke(); }
+    if (icon) A.micIcon(c, x + size * 0.45 + icon / 2, y - h / 2, icon, live, bg ? T.paper : live ? T.accent : T.paper);
     c.save();
     c.beginPath();
     c.rect(x, y - h, w - 3, h);
@@ -1571,6 +1573,7 @@
     c.textBaseline = "middle";
     A.text(c, label, x + (icon ? icon + size * 0.75 : size * 0.45), y - h / 2 + size * 0.06, size);
     c.restore();
+    return { x: x, y: y - h, w: w, h: h, icon: icon ? { x: x + size * 0.45 + icon / 2, y: y - h / 2, r: icon * 0.75 } : null };
   }
   function tagSize() { return N.flags.clip ? 13 : W < 480 ? 12 : clamp(Math.round(L.tileH * 0.085), 12, 15); }
 
@@ -1593,7 +1596,7 @@
     if (!G.share) return;
     var s = L.sheet;
     var size = W < 480 ? 12 : 14;
-    var h = size * 1.7, y = s.y - h * 0.4;
+    var h = size * 1.7, y = s.y + 2;
     c.save();
     c.translate(s.x + s.w / 2, y + h / 2);
     c.rotate(-0.02);
@@ -1659,7 +1662,7 @@
     c.restore();
     // the camera's off: only you can see this
     if (!G.cam.on) {
-      c.fillStyle = A.dots(c, T.ink, 3, 0.42);
+      c.fillStyle = A.dots(c, T.ink, 3.2, 0.3);
       c.fillRect(x, y, w, h);
     }
     c.restore();
@@ -1671,10 +1674,12 @@
     c.lineWidth = want ? 3 + pulse * 2 : G.flash > 0 ? 4 : 2;
     c.strokeStyle = want ? T.accent : G.flash > 0 && Math.floor(G.flash * 8) % 2 ? T.red : T.paper;
     c.stroke();
-    // your name tag, with your mic
-    nameTag(c, x + 5, y + h - 5, "Sam (you)", live, w - 10);
+    // your name tag, top left, with your mic: violet (then red) while you're live
+    var left = live ? clamp(G.mic.left / G.mic.max, 0, 1) : 1;
+    var tag = nameTag(c, x + 5, y + 5 + tagSize() * 1.6, live ? "Sam (you): live" : "Sam (you)", live, w - 10, false,
+                      live ? (left < 0.35 ? T.red : T.accent) : null);
     if (!G.cam.on) camOffCard(c, r);
-    if (live) micRing(c, r);
+    if (live) micRing(c, r, tag, left);
     if (o) badge(c, r, o, now);
     else if (roundNextIsYou()) chip(c, x + w - 6, y + 6, "You're next", "right", T.accent);
   }
@@ -1704,7 +1709,7 @@
     } else if (cat.phase === "walk") {
       // from the door, across the kitchen floor, towards the camera, getting bigger
       var p = clamp(cat.t2 / (cat.walk * 0.68), 0, 1);
-      var x = lerp(dx, 10, p), y = lerp(84, 98, p), s = lerp(0.42, 0.95, p * p);
+      var x = lerp(dx, 14, p), y = lerp(86, 96, p), s = lerp(0.62, 1.2, p * p);
       A.cat(c, x, y, s, "walk", t, -1);
     } else if (cat.phase === "desk" || cat.phase === "leave") {
       var off = cat.phase === "leave" ? clamp(cat.t4 / 0.8, 0, 1) : 0;
@@ -1747,25 +1752,22 @@
     c.restore();
   }
 
-  // You're live: a ring round your mic, running down
-  function micRing(c, r) {
-    var m = G.mic;
-    var size = tagSize();
-    var cx = r.x + 5 + size * 0.45 + size * 0.525, cy = r.y + r.h - 5 - size * 0.8;
-    var left = clamp(m.left / m.max, 0, 1);
-    var rad = size * 1.05;
-    c.beginPath();
-    c.arc(cx, cy, rad, 0, Math.PI * 2);
-    c.lineWidth = 6;
-    c.strokeStyle = T.ink;
-    c.stroke();
-    c.beginPath();
-    c.arc(cx, cy, rad, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2);
-    c.lineWidth = 3.4;
-    c.strokeStyle = left < 0.35 ? T.red : T.accent;
-    c.stroke();
-    // and a word on it, on the tile's top left
-    chip(c, r.x + 6, r.y + 6, m.answered ? "Live. Mute again" : "Live", "left", left < 0.35 ? T.red : T.accent);
+  // You're live: a ring round your mic, running down, and what to do about it
+  function micRing(c, r, tag, left) {
+    if (tag.icon) {
+      var ic = tag.icon;
+      c.beginPath();
+      c.arc(ic.x, ic.y, ic.r + 4, 0, Math.PI * 2);
+      c.lineWidth = 6;
+      c.strokeStyle = T.ink;
+      c.stroke();
+      c.beginPath();
+      c.arc(ic.x, ic.y, ic.r + 4, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2);
+      c.lineWidth = 3.4;
+      c.strokeStyle = left < 0.35 ? T.red : T.paper;
+      c.stroke();
+    }
+    chip(c, r.x + 5, tag.y + tag.h + 4, "Mute again", "left", left < 0.35 ? T.red : T.ink);
   }
 
   function camOffCard(c, r) {
@@ -1868,11 +1870,11 @@
     var top = s.y + tb + fb + hb;
     var area = s.y + s.h - top - 2;
     var show = 4 + run.mods.ahead;
-    var rh = Math.max(24, area / (show + 0.6));
+    var rh = Math.max(24, area / (show + 1));
     var colW = (s.w - gut - 4) / 2;
     return { s: s, tb: tb, fb: fb, hb: hb, gut: gut, top: top, area: area, rh: rh, colW: colW,
-             // the row you're on sits a bit down, so the one you've just done is still in view
-             activeY: top + rh * 0.6 };
+             // the row you're on sits one down, so the one you've just done is still in view
+             activeY: top + rh };
   }
   function inboxSpot() {
     if (L.side && L.side.h >= 30) return { x: L.side.x + 20, y: L.side.y + 30 };
@@ -1897,13 +1899,15 @@
     // title bar: the sheet's name, and the inbox
     c.fillStyle = G.stall > 0 ? T.paper : T.accent;
     c.fillRect(s.x, s.y, s.w, g.tb);
-    if (G.stall > 0) { c.fillStyle = A.dots(c, T.ink, 3.4, 0.3); c.fillRect(s.x, s.y, s.w, g.tb); }
+    c.beginPath();
+    c.moveTo(s.x, s.y + g.tb); c.lineTo(s.x + s.w, s.y + g.tb);
+    A.stroke(c, 1.5, T.ink);
     c.fillStyle = T.ink;
     c.font = size + "px " + T.display;
     c.textAlign = "left";
     c.textBaseline = "middle";
     var title = (G.sheetNames[G.sheetIdx % G.sheetNames.length] + (G.stall > 0 ? " (not responding)" : "")).toUpperCase();
-    var inboxW = drawInbox(c, g, size);
+    var inboxW = L.side && L.side.h >= 30 ? 0 : drawInbox(c, g, size);
     c.save();
     c.beginPath();
     c.rect(s.x, s.y, s.w - inboxW - 10, g.tb);

@@ -1051,7 +1051,7 @@
 
   // Gaz: the camera is on his desk, pointing up
   function nose(c, p, f, t) {
-    var cy = 96, r = 50;
+    var cy = 84, r = 48;
     ell(c, 0, cy, r, r * 0.92);
     fill(c, T.paper);
     crescent(c, 0, cy, r, r * 0.92, 0.08);
