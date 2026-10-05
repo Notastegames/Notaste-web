@@ -99,6 +99,8 @@
   var POP_FLY = 0.28;
   var VIDEO_W = 40, VIDEO_H = 25;
   var VIDEO_CHASE = 36;          // how fast a loose video slides after you
+  var VIDEO_CRAWL = 8;           // ...and once its X is up, buffering
+  var X_SLACK = 3;               // a press this close to the video's X counts as the X
   var VIDEO_RISE = 18;           // ...and comes up to meet you
   var VIDEO_X = 3;               // seconds before its X appears
   var VIDEO_LIFE = 11;           // seconds before it gives up
@@ -169,9 +171,10 @@
 
   function startCourse(n) {
     var def = COURSES[n];
-    // each page has its own seed, taken from the round's (today's, in today's
-    // run), so earlier choices change what's on it but not where it all is
-    var page = PG.build(n, N.seeded(shell.seed + (n + 1) * 7919), run.mods, run.owed);
+    // each page has its own seeds, taken from the round's (today's, in today's
+    // run): one for the layout, which no choice touches, and one for what
+    // the choices add to it (page.js, build)
+    var page = PG.build(n, N.seeded(shell.seed + (n + 1) * 7919), N.seeded(shell.seed + (n + 1) * 7919 + 524287), run.mods, run.owed);
     run.owed = 0;
     G = {
       n: n, def: def, items: page.items, triggers: page.triggers, len: page.len, storyTotal: page.storyTotal,
@@ -256,6 +259,11 @@
     return p.kind === "confirm" ? [x1 - 16, x1 - 1] : [x1 - 7.5, x1 - 0.5];
   }
   function videoX(v) { var x1 = v.x + VIDEO_W / 2; return [x1 - 7.5, x1 - 0.5]; }
+  // The X is small and the video moves, so a press near it counts
+  function onVideoX(v, x) {
+    var s = videoX(v);
+    return v.t >= VIDEO_X && x >= s[0] - X_SLACK && x <= s[1] + X_SLACK;
+  }
 
   // A banner whose buttons are at your fingertip, or about to be
   function bannerNear(y, ahead) {
@@ -304,7 +312,7 @@
     var b = bannerNear(y, EARLY);
     if (b && b.state === "up") { var btn = buttonAt(b, x); if (btn) return { what: "button", b: b, btn: btn }; }
     var v = G.video;
-    if (v && v.state === "dock" && v.t >= VIDEO_X) { var vs = videoX(v); if (x >= vs[0] && x <= vs[1]) return { what: "videoX" }; }
+    if (v && v.state === "dock" && onVideoX(v, x)) return { what: "videoX" };
     var j = jumpAt(x, y);
     if (j) return { what: "jump", j: j };
     return null;
@@ -393,11 +401,9 @@
     }
 
     var v = G.video;
-    if (v && v.state === "dock" && Math.abs(v.x - x) < VIDEO_W / 2 + TIP) {
-      var vs = videoX(v);
-      if (v.t >= VIDEO_X && x >= vs[0] && x <= vs[1]) closeVideo();
-      else newTab("The video");
-      return;
+    if (v && v.state === "dock") {
+      if (onVideoX(v, x)) { closeVideo(); return; }
+      if (Math.abs(v.x - x) < VIDEO_W / 2 + TIP) { newTab("The video"); return; }
     }
 
     var j = jumpAt(x, y);
@@ -585,7 +591,9 @@
       v.off = Math.max(0, v.off - VIDEO_RISE * dt);
       if (!v.off) v.state = "dock";
     }
-    v.x = clamp(v.x + clamp(hand.x - v.x, -VIDEO_CHASE * dt, VIDEO_CHASE * dt), VIDEO_W / 2, 100 - VIDEO_W / 2);
+    // it chases you until its X turns up, then it's mostly buffering
+    var chase = v.t < VIDEO_X ? VIDEO_CHASE : VIDEO_CRAWL;
+    v.x = clamp(v.x + clamp(hand.x - v.x, -chase * dt, chase * dt), VIDEO_W / 2, 100 - VIDEO_W / 2);
     if (v.t >= v.life) {
       v.state = "leave"; v.lt = 0;
       shell.callout("Video: still playing. Elsewhere", { tilt: -3 });
@@ -2122,6 +2130,7 @@
       hand: function () { return hand; },
       state: function () { return shell.state(); },
       view: function () { return { U: U, HY: HY, VH: VH, OX: OX, W: W, H: H }; },
+      seed: function () { return shell.seed; },
       // for scripted test scenes
       press: function () { press(); },
       setX: function (x) { hand.x = x; },
