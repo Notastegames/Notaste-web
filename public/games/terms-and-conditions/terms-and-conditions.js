@@ -159,7 +159,6 @@
   var gesture = { left: 0, wheelAt: -9 };
   var signs = [];                      // Signed stamps at the top of the page
   var greetAt = -1;                    // when the notice went, so the cast can say hello
-  var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function fmt(n) { return Math.round(n).toLocaleString("en-GB"); }

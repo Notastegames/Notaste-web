@@ -42,52 +42,20 @@
 .tc-tighter .tc-pip { width: 0.42rem; height: 0.42rem; border-width: 1.5px; }
 
 /*
-  Phones: the results are the longest panel in the game (a quote from the
-  terms and up to six numbers), so they get the room they need on a square
-  screen, and scroll rather than cut off. Only what the kit doesn't do itself.
-  Every size stays at 12px or more.
+  The kit fits its panels to the screen (kit.css, @container kit). Its
+  smallest labels drop under 12px on a phone, so they stop at 12px here.
 */
-@media (max-width: 39.99rem) {
-  .kit-results:not(.kit-inter) { gap: 0.35rem; align-content: safe center; overflow-y: auto; padding: 0.5rem 0.8rem; }
-  .kit-results:not(.kit-inter) .kit-heading { margin-top: 0; }
-  .kit-results:not(.kit-inter) .kit-line { font-size: 0.78rem; line-height: 1.35; }
-  .kit-results:not(.kit-inter) .kit-stats { gap: 0.15rem 0.75rem; }
-  .kit-results:not(.kit-inter) .kit-stats dt { font-size: 0.75rem; }
-}
-
-/* No touch buttons in this game (you tap the clauses), so the notice can sit low */
-#game-root.kit-touching .kit-brief { bottom: 0.9rem; }
+#game-root .kit-stats dt,
+#game-root .kit-choice-detail,
+#game-root .kit-brief-text { font-size: 0.75rem; }
+#game-root .kit-stat small { font-size: max(0.62em, 0.75rem); }
 
 /*
-  The clip frame (?clip) puts a phone-sized screen on a desktop-sized page, and
-  the kit sizes its HUD and panels by the page. Here they get the phone sizes,
-  so the score stays off the app's header and the choices fit between apps.
+  The clip frame (?clip) puts a phone-sized screen on a desktop-sized page.
+  The kit fits the panels to the screen, but sizes the HUD's numbers by the
+  page, so here they get the phone sizes and stay off the app's header.
 */
-html.kit-clip-on .kit-hud-tl,
-html.kit-clip-on .kit-hud-tr { top: 0.55rem; }
-html.kit-clip-on .kit-hud-tl { left: 0.6rem; }
-html.kit-clip-on .kit-hud-tr { right: 0.6rem; }
 html.kit-clip-on .kit-stat { font-size: 1.05rem; }
 html.kit-clip-on .kit-stat-big { font-size: 2rem; }
-html.kit-clip-on .kit-hud [data-minor] { display: none; }
 html.kit-clip-on .tc-pips { gap: 0.14rem; }
 html.kit-clip-on .tc-pip { width: 0.5rem; height: 0.5rem; border-width: 1.5px; }
-html.kit-clip-on .kit-panel { gap: 0.55rem; padding: 0.9rem; }
-html.kit-clip-on .kit-panel .stamp-label { font-size: 1.35rem; }
-html.kit-clip-on .kit-heading { margin-top: 0.2rem; font-size: 1.5rem; }
-html.kit-clip-on .kit-line { font-size: 0.8rem; line-height: 1.4; }
-html.kit-clip-on .kit-stats { gap: 0.3rem 1rem; }
-html.kit-clip-on .kit-stats dd { font-size: 0.88rem; }
-html.kit-clip-on .kit-inter { gap: 0.35rem; align-content: safe center; overflow-y: auto; padding: 0.6rem 0.8rem; }
-html.kit-clip-on .kit-inter .stamp-label { font-size: 1.1rem; }
-html.kit-clip-on .kit-inter .kit-heading { font-size: 1.3rem; margin-top: 0; }
-html.kit-clip-on .kit-inter .kit-line,
-html.kit-clip-on .kit-inter .kit-stats { display: none; }
-html.kit-clip-on .kit-ask { font-size: 0.95rem; }
-html.kit-clip-on .kit-choices { grid-template-columns: 1fr; gap: 0.35rem; }
-html.kit-clip-on .kit-choice { padding: 0.4rem 0.6rem; gap: 0.1rem; }
-html.kit-clip-on .kit-choice-label { font-size: 0.95rem; }
-html.kit-clip-on .kit-choice-detail { font-size: 0.72rem; line-height: 1.25; }
-html.kit-clip-on .kit-brief { padding: 0.45rem 0.65rem 0.5rem; border-top-width: 4px; }
-html.kit-clip-on .kit-brief-title { font-size: 0.95rem; }
-html.kit-clip-on .kit-brief-text { margin-top: 0.2rem; font-size: 0.74rem; line-height: 1.3; }
