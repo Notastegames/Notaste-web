@@ -813,10 +813,10 @@
     var c = info(), next = call + 1;
     var mistakes = st.transfers + st.drops + st.cutoffs;
     var beat = st.notes ? st.hits / st.notes : 0;
-    var stamp = mistakes === 0 && beat >= 0.9 ? "Approved" : mistakes <= 1 ? "Pending review" : "Not approved";
+    var stamp = mistakes === 0 && beat >= 0.9 ? "Approved" : mistakes <= 1 && beat >= 0.75 ? "Pending review" : "Not approved";
     var offers = offer();
     var stats = [
-      { label: "Menu", value: st.levels ? (st.menuFirst === st.levels ? "First time" : st.menuFirst + " of " + st.levels + " first time") : "Skipped" },
+      { label: "Right first time", value: st.levels ? st.menuFirst + " of " + st.levels : "Skipped" },
       { label: "On the beat", value: st.hits + " of " + st.notes },
       { label: "Cut off", value: times(st.cutoffs) },
       { label: "Patience", value: run.patience + " of " + PATIENCE_MAX },
@@ -1054,7 +1054,7 @@
     Lay.table = py + phH - 3;
     // you, behind the table on the left, as big as the space allows
     var cw = px - 1;
-    var R = wide ? clamp(Math.min(cw * 0.18, WH * 0.15), 9, 15) : tall ? clamp(cw * 0.28, 8, 14.5) : clamp(cw * 0.26, 8, 11);
+    var R = wide ? clamp(Math.min(cw * 0.18, WH * 0.15), 9, 15) : tall ? clamp(cw * 0.3, 8, 16) : clamp(cw * 0.26, 8, 11);
     Lay.you = { x: cw * (wide ? 0.42 : tall ? 0.46 : 0.42), y: Lay.table, R: R };
     var hatTop = Lay.table - R * 3.75;
     Lay.hatTop = hatTop;
@@ -1067,7 +1067,7 @@
       Lay.note = { x: 3, y: Lay.top + 1.5, w: Math.min(46, px - 4) };
       Lay.bubble = { x: Math.min(px - 22, 34), y: Lay.top + 1.5, right: WW - 2, bottom: py - 5, side: "down" };
       Lay.youBubble = null;
-      Lay.clock = { x: 9, y: Math.max(Lay.top + 32, hatTop - 11), r: 6 };
+      Lay.clock = { x: 9, y: Math.max(Lay.top + 34, hatTop - 9), r: 6 };
     } else {
       // a square phone screen: the note top left, the bubble under it
       Lay.note = { x: 1.6, y: Lay.top + 0.5, w: px - 2.6 };
@@ -1223,7 +1223,7 @@
   }
 
   function drawNote(c, v, h) {
-    var n = Lay.note, size = Lay.shape === "square" ? Math.max(13 / U, 3.1) : Math.max(Lay.tmin, 4.2), lh = size * 1.18;
+    var n = Lay.note, size = Lay.shape === "square" ? Math.max(13 / U, 3.1) : Math.max(Lay.tmin, Lay.shape === "tall" ? 5 : 4.2), lh = size * 1.18;
     var lines = noteLines();
     var title = "My problem";
     var tw = D.measure(c, title, size * 0.9);
