@@ -107,21 +107,21 @@
   // Your problem, and the menu's questions about it
   // ---------------------------------------------------------------------------
   var CATS = {
-    topic: { q: "What is your call about.", line: function (v) { return v.note; }, values: [
+    topic: { q: "What's your call about.", line: function (v) { return v.note; }, values: [
       { note: "Broadband", say: "broadband" }, { note: "Landline", say: "the landline" },
       { note: "Telly box", say: "a telly box" }, { note: "Smart meter", say: "a smart meter" },
       { note: "Mobile", say: "a mobile" }, { note: "Fax machine", say: "a fax machine" }] },
-    place: { q: "Is this for your home, or a business.", line: function (v) { return "Account: " + v.note; }, values: [
+    place: { q: "Is it home, or business.", line: function (v) { return "Account: " + v.note; }, values: [
       { note: "Home", say: "your home" }, { note: "Business", say: "a business" }, { note: "Boat", say: "a boat" },
       { note: "Shed", say: "a shed" }, { note: "Caravan", say: "a caravan" }, { note: "Lighthouse", say: "a lighthouse" }] },
-    light: { q: "What colour is the light on it.", line: function (v) { return "Light: " + v.note; }, iff: true, values: [
+    light: { q: "What colour is the light.", line: function (v) { return "Light: " + v.note; }, iff: true, values: [
       { note: "Red", say: "red" }, { note: "Green", say: "green" }, { note: "Orange", say: "orange" },
       { note: "Blue", say: "blue" }, { note: "Flashing", say: "flashing" }, { note: "Off", say: "off" }] },
     since: { q: "When did it stop working.", line: function (v) { return "Since " + v.note; }, values: [
       { note: "Monday", say: "Monday" }, { note: "Tuesday", say: "Tuesday" }, { note: "Wednesday", say: "Wednesday" },
       { note: "Thursday", say: "Thursday" }, { note: "Friday", say: "Friday" }, { note: "Saturday", say: "Saturday" },
       { note: "Sunday", say: "Sunday" }] },
-    tried: { q: "Have you turned it off and on again.", line: function (v) { return "Off and on: " + v.note; }, values: [
+    tried: { q: "Tried it off and on again.", line: function (v) { return "Tried: " + v.note; }, values: [
       { note: "Once", say: "once" }, { note: "Twice", say: "twice" }, { note: "Three times", say: "three times" },
       { note: "Never", say: "never" }, { note: "Lost count", say: "lost count" }] }
   };
@@ -139,38 +139,38 @@
       lock: false, scatter: false, flip: false, vo: false,
       pats: { please: ["q", "q", "q", "q", "q", "q", "q", "q"] },
       welcome: "Thank you for calling A Company.",
-      agent: { name: "Sam", look: "glasses", lines: ["Billing, Sam speaking. Oh. That's not billing, that's a fault.", "I'll put you through to Faults. They're lovely."] },
+      agent: { name: "Sam", look: "glasses", lines: ["Sam, Billing. Oh, that's a fault.", "I'll put you through to Faults."] },
       brief: "Find your problem on the note. When the menu reads it out, press its number. On hold, tap on the beat to keep your signal up.",
       done: "Sam was lovely. Sam couldn't help. Sam has put you through to Faults." },
     { dept: "Faults", menuBpm: 104, hold: [100], key: [0, 0], fastAt: null, queue: 5, cats: ["place", "light"], opts: 4,
       lock: true, scatter: false, flip: false, vo: true,
       pats: { please: ["q", "q", "q", "q", "q", "q", "q", "q"] },
-      welcome: "Welcome back to A Company. We missed you.",
-      agent: { name: "Jo", look: "bun", lines: ["Faults, Jo speaking. I can see the fault from here.", "I can't touch it until it's a complaint. Putting you through."] },
+      welcome: "Welcome back. We missed you.",
+      agent: { name: "Jo", look: "bun", lines: ["Jo, Faults. I can see it from here.", "It has to be a complaint first."] },
       brief: "The keypad now stays locked until every option has been read, so remember your number. On hold, lose all your signal and you're cut off.",
       done: "Jo can see the fault from her desk. Jo is not allowed to touch it." },
     { dept: "Complaints", menuBpm: 112, hold: [104, 120], key: [0, 2], fastAt: 3, queue: 6, cats: ["since", "topic"], opts: 5,
       lock: true, scatter: true, flip: false, vo: true,
       pats: { please: ["q", "q", "q", "q", "q", "q", "q", "q"], fast: ["a3", "q", "r4", "a1", "q", "r4", "a3", "q"] },
-      welcome: "Please listen carefully, as our options have changed.",
-      agent: { name: "Dee", look: "perm", lines: ["Complaints, Dee speaking. Honestly, I'd leave.", "I'm not allowed to say that. Putting you through to Cancellations."] },
+      welcome: "Our options have changed.",
+      agent: { name: "Dee", look: "perm", lines: ["Dee, Complaints. Honestly, I'd leave.", "I didn't say that. Cancellations next."] },
       brief: "Our options have changed: the numbers come in any order. Halfway through the hold the fast version starts, with extra notes and gaps.",
       done: "Dee agrees with you completely. Dee has been asked not to." },
     { dept: "Cancellations", menuBpm: 120, hold: [112, 132], key: [0, 3], fastAt: 3, queue: 6, cats: ["tried", "light", "place"], opts: 5,
       lock: true, scatter: true, flip: true, vo: true,
       pats: { please: ["q", "a3", "r4", "q", "a1", "q", "r4", "q"], fast: ["a1", "a4", "r3", "a3", "a1", "r4", "a3", "q"] },
-      welcome: "Thank you for calling A Company. Again.",
-      agent: { name: "", look: "none", lines: ["Hello, you're through to Cancellations. My name is"] },
+      welcome: "Thanks for calling. Again.",
+      agent: { name: "", look: "none", lines: ["Cancellations. Hello, my name is"] },
       brief: "The options come the other way round now: the thing first, then its number. The fast version is faster.",
       done: "" }
   ];
 
   var DEPTS = [
-    { name: "Lanyards", line: "Lanyards. We haven't got one for you." },
-    { name: "Restructuring", line: "Ongoing Restructuring. Call back when we know who we are." },
-    { name: "Pens", line: "Pens. All of our pens are in use." },
-    { name: "The car park", line: "The car park. It's raining. Please hold." },
-    { name: "Brand refresh", line: "Brand Refresh. We're now called A Company." },
+    { name: "Lanyards", line: "Lanyards. None left for you." },
+    { name: "Restructuring", line: "Restructuring. Back in March." },
+    { name: "Pens", line: "Pens. All our pens are in use." },
+    { name: "The car park", line: "The car park. It's raining." },
+    { name: "Brand refresh", line: "Brand Refresh. New font, same us." },
     { name: "Customer delight", line: "Customer Delight. We're closed." }
   ];
 
@@ -179,12 +179,12 @@
   // Announcements on hold, from the second call. Short, so they fit a bubble.
   var VO = [
     "Your call is important to us.",
-    "We're busier than usual. Usual is busy.",
-    "Most things can be done on our website. Not this.",
-    "Calls are recorded. Nobody listens to them.",
-    "Please don't hang up. You'll lose your place.",
-    "Thank you for your patience. We're using all of it.",
-    "Your call is still important to us. Slightly less.",
+    "We're busy. We're always busy.",
+    "Our website can't help either.",
+    "Calls are recorded. Nobody listens.",
+    "Please don't hang up. Please.",
+    "Thanks for your patience. All of it.",
+    "Your call is still important. Ish.",
     "Holding is free. So is giving up."
   ];
   var VO_BARS = [1, 4];
@@ -482,7 +482,7 @@
     // On hold: an announcement, a count-in, then bars until you're through
     hold: function (p) {
       var c = info(), b = 60 / (c.hold[0] + mods.bpm);
-      var text = p.reconnect ? "You are now number " + p.queue + " in the queue." : "Please hold. You are number " + p.queue + " in the queue.";
+      var text = p.reconnect ? "You are now number " + p.queue + " in the queue." : "You are number " + p.queue + " in the queue.";
       speak(p.t0, 3.6 * b, "voice", text);
       p.countAt = p.t0 + 4 * b;
       p.b0 = b;
@@ -533,8 +533,9 @@
       Line.sched(p.toneAt, function (a) { Line.inst.dial(a, 1.4, "fx"); }, "fx");
       p.againAt = p.toneAt + 1.7;
       Line.sched(p.againAt - 0.1, function (a) { Line.inst.click(a, "fx"); }, "fx");
-      speak(p.againAt, 2.6, "voice", "Thank you for calling A Company. Press 1 for billing.");
-      p.end = p.againAt + 3.2;
+      speak(p.againAt, 1.7, "voice", "Thank you for calling A Company.");
+      speak(p.againAt + 1.9, 1.3, "voice", "Press 1 for billing.");
+      p.end = p.againAt + 3.6;
       p.next = function () { p.done = true; Line.bedOff(); finish(true); };
       shell.callout("Line: dead", { tilt: -4, ms: 1800 });
       run.score += PTS.call;
@@ -707,7 +708,7 @@
       hitRun++;
       if (hitRun >= RESTORE && signal < SIGNAL) { signal++; hitRun = 0; soundNow(function (a) { Line.inst.hit(a, true, "fx"); }); }
       soundNow(function (a) { Line.inst.hit(a, perfect, "fx"); });
-      floats.push({ kind: perfect ? "perfect" : "close", text: perfect ? "Perfect" : "Close", t: 0, life: 0.6 });
+      laneFloat(perfect ? "perfect" : "close", perfect ? "Perfect" : "Close", 0.6);
       return;
     }
     // a nervous second tap straight after a hit doesn't count against you
@@ -715,7 +716,7 @@
     // a stray tap: costs a bar of signal, once in each gap between notes
     var gap = 0;
     while (gap < p.notes.length && p.notes[gap].t + CENTRE < t) gap++;
-    floats.push({ kind: "stray", text: "Off beat", t: 0, life: 0.6 });
+    laneFloat("stray", "Off beat", 0.6);
     run.streak = 0;
     st.clean = false;
     hitRun = 0;
@@ -732,7 +733,7 @@
       run.notes++; st.notes++;
       run.streak = 0;
       hitRun = 0;
-      floats.push({ kind: "miss", text: "Missed", t: 0, life: 0.7 });
+      laneFloat("miss", "Missed", 0.7);
       st.clean = false;
       soundNow(function (a) { Line.inst.miss(a, "fx"); });
       if (loseSignal()) return;
@@ -1014,14 +1015,14 @@
     // the HUD's top left block (the call and your patience)
     Lay.top = (N.flags.clip ? 64 : narrow ? 46 : 72) / U;
     // the keypad: keys at least 56px on a touch screen
-    var kk = coarse ? Math.max(56 / U + 0.4, 12) : wide ? 11 : tall ? 13.5 : 10.5;
-    var gap = kk * 0.08, pad = Math.max(2, kk * 0.16);
+    var kk = coarse ? Math.max(56 / U + 0.25, 12) : wide ? 11 : tall ? 13.5 : 10.5;
+    var gap = coarse ? 1 : kk * 0.08, pad = coarse ? 1.7 : Math.max(2, kk * 0.16);
     var star = !coarse;
     var gridW = 3 * kk + 2 * gap, gridH = 3 * kk + 2 * gap + (star ? kk * 0.6 + gap : 0);
     var lcdH = Math.max(tall ? 16 : 14, 46 / U);
     var pw = gridW + 2 * pad, phH = pad + lcdH + pad + gridH + pad;
     var px = WW - pw - (wide ? 5 : 1.5), py = WH - phH - (coarse ? 1.2 : 2.4);
-    Lay.phone = { x: px, y: py, w: pw, h: phH };
+    Lay.phone = { x: px, y: py, w: pw, h: phH, pad: pad };
     Lay.lcd = { x: px + pad, y: py + pad, w: gridW, h: lcdH };
     Lay.keys = { x: px + pad, y: py + pad + lcdH + pad, w: gridW, h: gridH, kk: kk, gap: gap, star: star };
     // the phone stands on the table
@@ -1044,16 +1045,18 @@
       Lay.clock = { x: 9, y: Math.max(Lay.top + 32, hatTop - 11), r: 6 };
     } else {
       // a square phone screen: the note top left, the bubble under it
-      Lay.note = { x: 2, y: Lay.top + 0.5, w: px - 4 };
-      Lay.bubble = { x: 1.5, y: 0, right: px - 2.5, bottom: hatTop - 0.5, side: "right" };
+      Lay.note = { x: 1.6, y: Lay.top + 0.5, w: px - 2.6 };
+      Lay.bubble = { x: 1.2, y: 0, right: px + pad - 1.2, bottom: hatTop - 0.5, side: "right" };
       Lay.youBubble = null;
       Lay.clock = null;
     }
     Lay.mug = { x: Math.max(5.5, Lay.you.x - R * 2.15), y: Lay.table + R * 0.12, k: R * 0.16 };
-    // callouts land over your side of the table, clear of the phone
-    root.style.setProperty("--hm-callouts-left", "0px");
+    // callouts land on your side, clear of the phone, the note and the bubbles:
+    // on the wall between you and the phone on a wide screen, over you otherwise
+    var cl = wide ? Lay.you.x + R * 1.5 : 0, ct = wide ? WH * 0.5 : tall ? WH * 0.38 : hatTop + R * 1.2;
+    root.style.setProperty("--hm-callouts-left", Math.round(cl * U) + "px");
     root.style.setProperty("--hm-callouts-right", Math.round((WW - px + 1) * U) + "px");
-    root.style.setProperty("--hm-callouts-top", Math.round((tall ? WH * 0.36 : wide ? WH * 0.34 : WH * 0.52) * U) + "px");
+    root.style.setProperty("--hm-callouts-top", Math.round(ct * U) + "px");
   }
 
   // ---------------------------------------------------------------------------
@@ -1199,8 +1202,8 @@
     var lines = noteLines();
     var title = "My problem";
     var tw = D.measure(c, title, size * 0.9);
-    lines.forEach(function (l) { tw = Math.max(tw, D.measure(c, l.text, size) + size * 1.6); });
-    var w = Math.min(n.w, tw + size * 1.6), hgt = lh * (lines.length + 1) + size * 1.1;
+    lines.forEach(function (l) { tw = Math.max(tw, D.measure(c, l.text, size) + size * (mods.pen ? 3.4 : 1.9)); });
+    var w = Math.min(n.w, tw + size * 1.5), hgt = lh * (lines.length + 1) + size * 1.1;
     var x = n.x, y = n.y;
     n.h = hgt;
     n.dw = w;
@@ -1466,6 +1469,11 @@
   }
 
   // ---------- Floating words ----------
+  // over the beat pad, one at a time
+  function laneFloat(kind, text, life) {
+    floats = floats.filter(function (f) { return f.key; });
+    floats.push({ kind: kind, text: text, t: 0, life: life });
+  }
   function floatAt(kind, d, text, cls) {
     floats.push({ kind: cls, text: text, t: 0, life: 0.8, key: d });
   }
@@ -1509,7 +1517,8 @@
       var b = Lay.bubble;
       var top = b.side === "right" ? Lay.note.y + (Lay.note.h || 0) + 2.4 : b.y;
       if (b.side === "right" && (v.kind === "hold" || v.kind === "agent")) top = Lay.note.y + (Lay.note.h || 0) + 2.4;
-      var box = { x: b.x * U, y: top * U, w: (b.right - b.x) * U, bottom: b.bottom * U };
+      var bx0 = b.side === "down" && Lay.note.dw ? Math.max(b.x, Lay.note.x + Lay.note.dw + 2) : b.x;
+      var box = { x: bx0 * U, y: top * U, w: (b.right - bx0) * U, bottom: b.bottom * U };
       var anchor = { x: (Lay.lcd.x + 1) * U, y: (Lay.lcd.y + Lay.lcd.h * 0.5) * U };
       if (b.side === "down") anchor = { x: (Lay.lcd.x + Lay.lcd.w * 0.3) * U, y: (Lay.phone.y - 3.2) * U };
       var fade = clamp((cur.end + 0.5 - h) * 4, 0, 1);
@@ -1652,6 +1661,7 @@
     },
     againLabel: "Call again",
     daily: true,
+    smallCallouts: true,
     keys: { up: [], down: [], left: [], right: [], action: ["Space"] },
     reset: reset,
     update: function (dt) { update(dt); },
@@ -1725,6 +1735,23 @@
         };
       },
       bot: function (profile) { bot = profile; },
+      longLines: function () {
+        var out = [], lines = [];
+        CALLS.forEach(function (c) { lines.push(c.welcome); c.agent.lines.forEach(function (l) { lines.push(l); }); });
+        DEPTS.forEach(function (d) { lines.push(d.line); });
+        VO.concat(THANKS).forEach(function (l) { lines.push(l); });
+        ["Please choose now.", "Here they are again.", "Sorry, I didn't catch that.", "Transferring you now.", "Returning you to the menu.",
+         "Let's skip that one.", "You are now number 12 in the queue.", "Thank you for calling A Company.", "Press 1 for billing."].forEach(function (l) { lines.push(l); });
+        Object.keys(CATS).forEach(function (k) {
+          lines.push(CATS[k].q);
+          CATS[k].values.forEach(function (v) { lines.push(optionText(k, v, 7, false)); lines.push(optionText(k, v, 7, true)); });
+        });
+        var b = Lay.bubble, c = ctx;
+        var size = clamp(U * 3.3, 12, 20);
+        c.font = size + "px " + T.display;
+        lines.forEach(function (l) { var n = wrapAll(c, l.toUpperCase(), (b.right - b.x) * U - size * 1.2).length; if (n > 2) out.push(n + ": " + l); });
+        return out;
+      },
       facts: function () { return facts; },
       plan: function () { return plan; }
     };
