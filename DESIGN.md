@@ -112,6 +112,7 @@ Parody content that imitates a real interface (the fake social posts in "Reject 
 - No other web fonts. No Google Fonts, no font services, no third-party requests of any kind.
 - Type scale: `--step--1` (0.875rem), `--step-0` (1.0625rem body), `--step-1` (1.25rem), `--step-2` (section headings), `--step-3` (the hero). Game titles use the sizes in `games/game.css`.
 - Display text is tight: line-height about 0.86–0.95.
+- On a game screen nothing is under 12px, on a phone too: canvas text, the HUD's labels, the notice, the numbers between stages and on the results. The kit's screens keep to it; a label that can't be that big is left out rather than shrunk.
 
 ---
 
@@ -216,7 +217,7 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 
 **Flow:** title screen, then the Notaste intro, then countdown (3, 2, 1, Go, each one a stamp), then play, then the results screen. Pause from anywhere. A game with stages puts the kit's between-stages screen in the middle (`shell.interlude`): a stamp, what happened, the numbers, and a choice for the next stage, then the countdown again.
 
-**Between stages.** A stamp from the approval ladder, a heading ("Stage 2 complete."), one joke line, the numbers, and up to three choices as equal cards: none of them is red, because none is the main action. Each card is a short label and one line saying what it does and what it costs. Number keys pick them as well as Tab and Enter.
+**Between stages.** A stamp from the approval ladder, a heading ("Stage 2 complete."), one joke line, the numbers, and up to three choices as equal cards: none of them is red, because none is the main action. Each card is a short label and one line saying what it does and what it costs. Number keys pick them as well as Tab and Enter. On a short screen (the phone-sized square in the page, the clip frame) the joke line and the numbers drop out so the choices fit; a full-window phone keeps them.
 
 **Title screen.** The cover art behind, the game's title in Notaste Display, one red "Press start" button, one line of small print, and a controls hint that matches the device (keys on desktop, touch on phones). Another way to play is a quiet outlined button under Press start, never a second red one.
 
