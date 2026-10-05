@@ -105,12 +105,12 @@
   var CLOSE = 0.14;            // close: this, or...
   var CLOSE_BEATS = 0.3;       // ...this much of a beat, if that's shorter
   var SPEAKER = 0.04;          // on speaker, both windows are this much wider
-  var PATIENCE = 3, PATIENCE_MAX = 5;
+  var PATIENCE = 3, PATIENCE_MAX = 5;   // patience left at the end scores up to PATIENCE
   var SIGNAL = 4;              // bars of signal
   var RESTORE = 2;             // hits in a row to win a bar back
   var CUT_QUEUE = 2;           // places added to the queue when you're cut off
   var AHEAD = 0.2;             // the next part of a call is queued this soon
-  var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100 };
+  var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100, zero: 150 };
   var APPROVED = 4300, PENDING = 3400;
   var DIAL = "08004655";       // the number you dial (it's not a real one)
 
@@ -142,47 +142,41 @@
     return flip ? "For " + v.say + ", press " + n + "." : "Press " + n + " for " + v.say + ".";
   }
 
-  // Tap patterns, in beats from the start of a bar
-  var PATS = { q: [0, 1, 2, 3], a3: [0, 1, 2, 2.5, 3], a1: [0, 1, 1.5, 2, 3], a4: [0, 1, 2, 3, 3.5], r4: [0, 1, 2], r3: [0, 1, 3] };
-
   var CALLS = [
     { dept: "Billing", menuBpm: 96, hold: [92], key: [0, 0], fastAt: null, queue: 4, cats: ["topic"], opts: 4,
-      lock: false, scatter: false, flip: false, vo: false,
-      pats: { please: ["q", "q", "q", "q", "q", "q", "q", "q"] },
+      lock: false, scatter: false, flip: false, vo: false, arr: { please: "easy" },
       welcome: "Thank you for calling A Company.",
       agent: { name: "Sam", look: "glasses", lines: ["Sam, Billing. Oh, that's a fault.", "I'll put you through to Faults."] },
       brief: "Find your problem on the note. When the menu reads it out, press its number. On hold, tap on the beat to keep your signal up.",
       done: "Sam was lovely. Sam couldn't help. Sam has put you through to Faults." },
     { dept: "Faults", menuBpm: 104, hold: [100], key: [0, 0], fastAt: null, queue: 5, cats: ["place", "light"], opts: 4,
-      lock: true, scatter: false, flip: false, vo: true,
-      pats: { please: ["q", "q", "q", "q", "q", "q", "q", "q"] },
+      lock: true, scatter: false, flip: false, vo: true, arr: { please: "tune" },
       welcome: "Welcome back. We missed you.",
       agent: { name: "Jo", look: "bun", lines: ["Jo, Faults. I can see it from here.", "It has to be a complaint first."] },
       brief: "The keypad now stays locked until every option has been read, so remember your number. On hold, lose all your signal and you're cut off.",
       done: "Jo can see the fault from her desk. Jo is not allowed to touch it." },
     { dept: "Complaints", menuBpm: 112, hold: [104, 120], key: [0, 2], fastAt: 3, queue: 6, cats: ["since", "topic"], opts: 5,
-      lock: true, scatter: true, flip: false, vo: true,
-      pats: { please: ["q", "q", "q", "q", "q", "q", "q", "q"], fast: ["a3", "q", "r4", "a1", "q", "r4", "a3", "q"] },
+      lock: true, scatter: true, flip: false, vo: true, arr: { please: "tune", fast: "medium" },
       welcome: "Our options have changed.",
       agent: { name: "Dee", look: "perm", lines: ["Dee, Complaints. Honestly, I'd leave.", "I didn't say that. Cancellations next."] },
       brief: "Our options have changed: the numbers come in any order. Halfway through the hold the fast version starts, with extra notes and gaps.",
       done: "Dee agrees with you completely. Dee has been asked not to." },
-    { dept: "Cancellations", menuBpm: 120, hold: [112, 132], key: [0, 3], fastAt: 3, queue: 6, cats: ["tried", "light", "place"], opts: 5,
-      lock: true, scatter: true, flip: true, vo: true,
-      pats: { please: ["q", "a3", "r4", "q", "a1", "q", "r4", "q"], fast: ["a1", "a4", "r3", "a3", "a1", "r4", "a3", "q"] },
+    { dept: "Cancellations", menuBpm: 120, hold: [112, 132], key: [0, 3], fastAt: 3, queue: 6, cats: ["tried", "place"], opts: 5,
+      lock: true, scatter: true, flip: true, vo: true, arr: { please: "tune", fast: "hard" },
       welcome: "Thanks for calling. Again.",
       agent: { name: "", look: "none", lines: ["Cancellations. Hello, my name is"] },
       brief: "The options come the other way round now: the thing first, then its number. The fast version is faster.",
       done: "" }
   ];
 
+  // say: how you'd name it in the middle of a sentence
   var DEPTS = [
-    { name: "Lanyards", line: "Lanyards. None left for you." },
-    { name: "Restructuring", line: "Restructuring. Back in March." },
-    { name: "Pens", line: "Pens. All our pens are in use." },
-    { name: "The car park", line: "The car park. It's raining." },
-    { name: "Brand refresh", line: "Brand Refresh. New font, same us." },
-    { name: "Customer delight", line: "Customer Delight. We're closed." }
+    { name: "Lanyards", say: "Lanyards", line: "Lanyards. None left for you." },
+    { name: "Restructuring", say: "Restructuring", line: "Restructuring. Back in March." },
+    { name: "Pens", say: "Pens", line: "Pens. All our pens are in use." },
+    { name: "The car park", say: "the car park", line: "The car park. It's raining." },
+    { name: "Brand refresh", say: "Brand Refresh", line: "Brand Refresh. New font, same us." },
+    { name: "Customer delight", say: "Customer Delight", line: "Customer Delight. We're closed." }
   ];
 
   var THANKS = ["Thank you.", "Lovely.", "Noted.", "Great choice."];
@@ -200,26 +194,30 @@
   ];
   var VO_BARS = [1, 4];
 
-  // What you say to the phone. Always about the phone.
+  // What you say to the phone. Always about the phone. A wrong number gets
+  // one of the first two as you press it, or the third when the department
+  // you didn't want answers.
   var YOU = {
-    transfer: ["I pressed {n}, you melon.", "That was {n}. I pressed {n}.", "Not Lanyards. Never Lanyards."],
+    transfer: ["I pressed {n}, you melon.", "That was {n}. I pressed {n}.", "Not {dept}. Never {dept}."],
     drop: ["I was thinking.", "Hang on. Hang on."],
-    cut: ["Hello. Hello.", "Don't you dare.", "No no no no."],
+    cut: ["Don't you dare.", "I was number {q}.", "Hello. Hello. Hello."],
     hang: ["Right. That's it.", "I'm writing a letter."],
     dead: ["Hello. Hello.", "You absolute weapon."]
   };
 
-  // Ways to get ready for the next call. Each helps and costs.
+  // Ways to get ready for the next call. Each one helps somebody and costs
+  // something, and its card says what. Patience left at the end only scores
+  // up to three, so the kettle's is for emergencies.
   var CHOICES = [
-    { id: "kettle", label: "Put the kettle on", detail: "One more patience. The queue's two longer, because you were in the kitchen.",
-      apply: function (m, r) { r.patience = Math.min(PATIENCE_MAX, r.patience + 1); m.queue += 2; m.kettle = true; } },
-    { id: "speaker", label: "Put it on speaker", detail: "Easier to keep time: the beat is 40ms more forgiving. Beats score half.",
+    { id: "kettle", label: "Put the kettle on", detail: "One more patience, for emergencies. The queue is three longer: you were in the kitchen.",
+      apply: function (m, r) { r.patience = Math.min(PATIENCE_MAX, r.patience + 1); m.queue += 3; m.kettle = true; } },
+    { id: "speaker", label: "Put it on speaker", detail: "The beat is 40ms more forgiving. The whole house can hear it: no clean-line bonus.",
       apply: function (m) { m.speaker = true; } },
-    { id: "zero", label: "Press 0 a lot", detail: "Skips the first question. The hold music is 8 beats a minute faster.",
-      apply: function (m) { m.skip = true; m.bpm += 8; } },
-    { id: "new", label: "Say you're a new customer", detail: "Sales pick up fast, so the queue is half as long. They try to sell you broadband: one less patience, though never your last.",
+    { id: "zero", label: "Press 0 a lot", detail: "Skips the first question and its points. The hold pays 150 more, and the music is faster.",
+      apply: function (m) { m.skip = true; m.bpm += 8; m.zero = true; } },
+    { id: "new", label: "Say you're a new customer", detail: "Sales answer quickly: half the queue. They sell you broadband: one less patience.",
       apply: function (m, r) { m.half = true; r.patience = Math.max(1, r.patience - 1); } },
-    { id: "pen", label: "Find a pen", detail: "You write your number on the note as it's read. The menu scores half.",
+    { id: "pen", label: "Find a pen", detail: "Your number goes on the note as it's read. The menu scores half.",
       apply: function (m) { m.pen = true; } },
     { id: "callback", label: "Ask for a callback", detail: "They'll call you back. They won't. Nothing changes.",
       apply: function () {} }
@@ -229,8 +227,10 @@
     "You reached Cancellations, on the beat, and the line went dead. A Company considers this resolved.",
     "Four departments, one problem. It has been passed to the relevant team, which is Billing.",
     "You got all the way through, and all the way back to the start.",
-    "You hung up. Your call was important to us. Briefly."
+    "Your call was important to us. Briefly."
   ];
+  // after "You hung up on ...": what A Company makes of it
+  var HUNG = { Complaints: "Complaints have been noted. By you.", Cancellations: "You were nearly cancelled. Nearly." };
 
   // ---------------------------------------------------------------------------
   // State
@@ -240,7 +240,7 @@
   var Lay = {};
   var plan = [], facts = null, run = null, st = null, mods = null, nextMods = null;
   var call = 0, ph = null, prevPh = null;
-  var talks = [], floats = [], presses = [], keyFlash = {}, lcdFlash = null;
+  var talks = [], floats = [], presses = [], keyFlash = {}, lcdFlash = null, cues = [];
   var signal = SIGNAL, hitRun = 0, strayGap = -1;
   var react = { shout: 0, steam: 0, drum: 0, lift: 0, bob: 0, said: null, saidT: 0, sweatT: 0 };
   var shake = 0, clockMin = 540, clockT = 0, animT = 0;
@@ -289,7 +289,7 @@
     });
   }
 
-  function freshMods() { return { queue: 0, speaker: false, skip: false, bpm: 0, half: false, pen: false, kettle: false }; }
+  function freshMods() { return { queue: 0, speaker: false, skip: false, bpm: 0, half: false, pen: false, kettle: false, zero: false }; }
 
   // ---------------------------------------------------------------------------
   // The round
@@ -315,7 +315,7 @@
     nextMods = freshMods();
     st = { transfers: 0, drops: 0, cutoffs: 0, hits: 0, notes: 0, menuFirst: 0, levels: 0, vo: 0,
            value: 0, hold: 0, clean: true };
-    talks = []; floats = []; presses = [];
+    talks = []; floats = []; presses = []; cues = [];
     ph = { kind: "start", t0: 0 };
     prevPh = null;
     signal = SIGNAL; hitRun = 0; strayGap = -1;
@@ -357,12 +357,16 @@
     talk(t, t + span, who, text);
     return Line.say(t, text, who, span * 0.88, group || "voice");
   }
-  // you say something to the phone
-  function youSay(kind, n) {
-    var line = pick(YOU[kind]).replace(/\{n\}/g, n || "1");
+  // you say something to the phone. o: { n, q, dept, line (one of the kind's lines) }
+  function youSay(kind, o) {
+    o = o || {};
+    var line = (o.line != null ? YOU[kind][o.line] : pick(YOU[kind]))
+      .replace(/\{n\}/g, o.n || "1").replace(/\{q\}/g, o.q || "2").replace(/\{dept\}/g, o.dept || "Lanyards");
     react.said = line;
     react.saidT = 0;
   }
+  // something to do when a moment is heard (heard time)
+  function cue(t, fn) { cues.push({ t: t, fn: fn }); }
   // a quiet tick on each beat under the menu
   function metronome(t0, beats, b) {
     for (var i = 0; i < beats; i++) {
@@ -397,7 +401,8 @@
       t += 1.15;
       p.pickAt = t;
       Line.sched(t, function (a) { Line.inst.click(a, "fx"); Line.bedOn(); }, "fx");
-      p.end = t + 0.25;
+      // the menu starts talking as it picks up
+      p.end = t + 0.1;
       p.next = function (t1) {
         if (p.after === "level") go("level", t1, { li: p.li, retry: true });
         else if (p.after === "hold") go("hold", t1, { queue: p.queue, reconnect: true });
@@ -407,7 +412,7 @@
 
     welcome: function (p) {
       var b = menuBeat();
-      var beats = call === 0 ? 4 : 3;
+      var beats = 3;
       speak(p.t0, (beats - 0.4) * b, "voice", info().welcome);
       metronome(p.t0, beats, b);
       p.end = p.t0 + beats * b;
@@ -468,7 +473,7 @@
 
     thanks: function (p) {
       var b = menuBeat();
-      if (p.li + 1 >= plan[call].levels.length) st.value = PTS.hold / plannedNotes(queueLength());
+      if (p.li + 1 >= plan[call].levels.length) st.value = holdWorth() / plannedNotes(queueLength());
       speak(p.t0, 1.2 * b, "voice", pick(THANKS));
       p.end = p.t0 + 1.5 * b;
       p.next = function (t1) {
@@ -477,26 +482,35 @@
       };
     },
 
-    // A wrong number: through to a department that can't help, and back
+    // A wrong number: through to a department that can't help, and back.
+    // The menu waits a beat, so what you said gets its moment first.
     transfer: function (p) {
-      var b = menuBeat();
-      p.dept = pick(DEPTS);
-      speak(p.t0, 1.8 * b, "voice", "Transferring you now.");
-      Line.sched(p.t0 + 2 * b - 0.1, function (a) { Line.inst.click(a, "fx"); }, "fx");
-      speak(p.t0 + 2 * b, 3.6 * b, "dept", p.dept.line);
-      p.deptAt = p.t0 + 2 * b;
-      Line.sched(p.t0 + 6 * b - 0.1, function (a) { Line.inst.click(a, "fx"); }, "fx");
-      speak(p.t0 + 6 * b, 1.8 * b, "voice", "Returning you to the menu.");
-      p.end = p.t0 + 8 * b;
+      var b = menuBeat(), t = p.t0 + b;
+      speak(t, 1.8 * b, "voice", "Transferring you now.");
+      Line.sched(t + 2 * b - 0.1, function (a) { Line.inst.click(a, "fx"); }, "fx");
+      speak(t + 2 * b, 3.6 * b, "dept", p.dept.line);
+      p.deptAt = t + 2 * b;
+      Line.sched(t + 6 * b - 0.1, function (a) { Line.inst.click(a, "fx"); }, "fx");
+      speak(t + 6 * b, 1.8 * b, "voice", "Returning you to the menu.");
+      if (p.late) {
+        cue(t + 5.2 * b, function () {
+          youSay("transfer", { line: 2, dept: p.dept.say });
+          react.shout = 1.2; react.steam = 2.6;
+        });
+      }
+      p.end = t + 8 * b;
       p.next = function (t1) { go("level", t1, { li: p.li, retry: true }); };
     },
 
-    // On hold: an announcement, a count-in, then bars until you're through
+    // On hold: a count-in, with your place in the queue read over it, then
+    // bars until you're through. Back from a pause, just the count-in.
     hold: function (p) {
       var c = info(), b = 60 / (c.hold[0] + mods.bpm);
-      var text = p.reconnect ? "You are now number " + p.queue + " in the queue." : "You are number " + p.queue + " in the queue.";
-      speak(p.t0, 3.6 * b, "voice", text);
-      p.countAt = p.t0 + 4 * b;
+      if (!p.resumed) {
+        var text = p.reconnect ? "You are now number " + p.queue + " in the queue." : "You are number " + p.queue + " in the queue.";
+        speak(p.t0, 3.6 * b, "voice", text);
+      }
+      p.countAt = p.t0;
       p.b0 = b;
       for (var i = 0; i < 4; i++) {
         (function (t, first) { Line.sched(t, function (a) { Line.inst.tick(a, first, "beat"); }, "beat"); })(p.countAt + i * b, i === 0);
@@ -508,14 +522,15 @@
       p.bars = [];
       p.notes = [];
       p.vo = 0;
-      signal = SIGNAL; hitRun = 0; strayGap = -1;
+      if (!p.resumed) signal = SIGNAL;
+      hitRun = 0; strayGap = -1;
       p.end = null;
     },
 
     // Through to someone. Lovely, sympathetic, and no help at all.
     agent: function (p) {
       var c = info(), t = p.t0 + 0.35;
-      if (st.clean) {
+      if (st.clean && !mods.speaker) {
         run.score += PTS.clean;
         p.clean = true;
         setTimeout(function () { if (shell.state() === "playing") shell.callout("Clean line", { tilt: -4 }); }, 250);
@@ -564,16 +579,23 @@
     }
   };
 
+  // which tune bar i of this call's hold plays, in which arrangement
+  function barTune(i) {
+    var c = info(), fast = c.fastAt != null && i >= c.fastAt;
+    var tune = fast ? "fast" : "please";
+    return { fast: fast, tune: tune, ti: fast ? (i - c.fastAt) % 8 : i % 8, arr: c.arr[tune] || "tune" };
+  }
   // how many notes a hold of this many bars plays, from the top
   function plannedNotes(bars) {
-    var c = info(), n = 0;
+    var n = 0;
     for (var i = 0; i < bars; i++) {
-      var fast = c.fastAt != null && i >= c.fastAt;
-      var tune = fast ? "fast" : "please", ti = fast ? (i - c.fastAt) % 8 : i % 8;
-      n += PATS[c.pats[tune][ti]].length;
+      var bt = barTune(i);
+      n += Line.taps(bt.tune, bt.arr, bt.ti).length;
     }
     return n;
   }
+  // what this call's hold is worth (more after pressing 0 a lot)
+  function holdWorth() { return PTS.hold + (mods.zero ? PTS.zero : 0); }
 
   function queueLength() {
     var q = info().queue + mods.queue;
@@ -622,10 +644,15 @@
   function transferred(d) {
     run.transfers++; st.transfers++;
     shell.callout("Transferred", { tilt: -5 });
-    youSay("transfer", d);
-    react.shout = 1.2; react.steam = 2.6;
+    var dept = pick(DEPTS);
+    // either you shout now, about the number, or later, about the department
+    var late = Math.random() < 1 / 3;
+    if (!late) {
+      youSay("transfer", { line: Math.random() < 0.5 ? 0 : 1, n: d });
+      react.shout = 1.2; react.steam = 2.6;
+    }
     if (losePatience()) return;
-    go("transfer", Line.now() + 0.08, { li: ph.li, pressed: d });
+    go("transfer", Line.now() + 0.08, { li: ph.li, pressed: d, dept: dept, late: late });
   }
 
   function dropped(t1) {
@@ -659,25 +686,25 @@
   // On hold: planning bars, judging taps
   // ---------------------------------------------------------------------------
   function planBar(p) {
-    var c = info(), i = p.nextIdx;
-    var fast = c.fastAt != null && i >= c.fastAt;
+    var c = info(), i = p.nextIdx + (p.idx0 || 0);
+    var bt = barTune(i), fast = bt.fast;
     var bpm = (fast ? c.hold[1] : c.hold[0]) + mods.bpm;
     var b = 60 / bpm, t0 = p.nextT;
-    var tune = fast ? "fast" : "please", ti = fast ? (i - c.fastAt) % 8 : i % 8;
-    Line.bar(t0, b, tune, ti, fast ? c.key[1] : c.key[0]);
-    PATS[c.pats[tune][ti]].forEach(function (beat) {
-      var t = t0 + beat * b;
-      p.notes.push({ t: t, state: 0, bar: i, beat: beat, b: b });
+    Line.bar(t0, b, bt.tune, bt.ti, fast ? c.key[1] : c.key[0], bt.arr);
+    Line.lead(bt.tune, bt.arr, bt.ti).forEach(function (ln) {
+      var beat = ln[0], t = t0 + beat * b;
+      // len: how long the tune holds this note, in beats (drawn as its tail)
+      p.notes.push({ t: t, state: 0, bar: i, beat: beat, b: b, len: ln[1], pitch: ln[2] });
       Line.sched(t, function (a) { Line.inst.tick(a, beat === 0, "beat"); }, "beat");
     });
     var bar = { t: t0, end: t0 + 4 * b, b: b, bpm: bpm, i: i, fast: fast, first: fast && i === c.fastAt };
-    if (c.vo && VO_BARS.indexOf(i) >= 0 && i < p.queue0 - 1) {
+    if (c.vo && VO_BARS.indexOf(i) >= 0 && p.nextIdx < p.queue0 - 1) {
       var line = plan[call].vo[(st.vo++) % VO.length];
       speak(t0 + 0.1 * b, Math.min(7 * b, 0.5 + line.split(" ").length * 0.3), "voice", line);
       Line.duck(t0, t0 + 8 * b);
       bar.vo = line;
     }
-    if (i === p.queue0 - 1) bar.last = true;
+    if (p.nextIdx === p.queue0 - 1) bar.last = true;
     p.bars.push(bar);
     p.nextT = t0 + 4 * b;
     p.nextIdx++;
@@ -728,7 +755,7 @@
       run.hits++; st.hits++;
       if (perfect) run.perfects++;
       // each note is worth a share of the hold's 600, half if it's only close
-      var pts = Math.min(Math.round(st.value * (perfect ? 1 : 0.5) * (mods.speaker ? 0.5 : 1)), PTS.hold - st.hold);
+      var pts = Math.min(Math.round(st.value * (perfect ? 1 : 0.5)), holdWorth() - st.hold);
       st.hold += pts;
       run.score += pts;
       run.streak++;
@@ -795,15 +822,31 @@
     // the notes nobody got to don't count against you
     p.notes.forEach(function (n) { if (!n.state) n.state = 4; });
     run.cutoffs++; st.cutoffs++;
+    run.clipCut = true;
     st.clean = false;
     Line.cancel("music"); Line.cancel("beat"); hush();
     soundNow(function (a) { Line.inst.staticHit(a, 0.45, "fx"); Line.inst.click(a, "fx"); });
     shell.callout("Cut off", { tilt: -5 });
-    youSay("cut");
-    react.shout = 1.2;
+    youSay("cut", { q: String(left) });
+    react.shout = 1.8; react.steam = 3; react.cut = 1;
     if (!shell.reduceMotion) shake = 0.7;
     if (losePatience()) return;
     go("dial", Line.now() + 0.7, { redial: true, after: "hold", queue: left + CUT_QUEUE, cutAt: Line.now() });
+  }
+
+  // Back from a pause in the middle of a hold: the bars you finished stay
+  // finished, the notes still to come are let off, and the hold picks up
+  // from the start of the bar it was in, after a fresh count-in. A pause
+  // never costs anything.
+  function resumed() {
+    var p = ph, h = Line.heard();
+    if (p.kind !== "hold" || p.done || p.end != null && h >= p.nextT) return;
+    var finished = p.bars.filter(function (bar) { return bar.end <= h; }).length;
+    p.notes.forEach(function (n) { if (!n.state) n.state = 4; });
+    p.done = true;
+    Line.cancel("music"); Line.cancel("beat"); hush();
+    go("hold", Line.now() + 0.25, { queue: Math.max(1, p.queue0 - finished), reconnect: true, resumed: true,
+                                     idx0: (p.idx0 || 0) + finished });
   }
 
   function countNotes(p) {
@@ -843,6 +886,7 @@
       choices: offers.map(function (o) { return { label: o.label, detail: o.detail }; })
     }).then(function (i) {
       var o = offers[i] || offers[0];
+      if (forcePick) o = CHOICES.filter(function (q) { return q.id === forcePick; })[0] || o;
       run.taken.push(o.id);
       o.apply(nextMods, run);
       call = next;
@@ -863,7 +907,7 @@
 
   function finish(completed) {
     if (shell.state() !== "playing") return;
-    if (completed) run.score += run.patience * PTS.patience;
+    if (completed) run.score += Math.min(run.patience, PATIENCE) * PTS.patience;
     var score = Math.round(run.score);
     var rec = shell.record(score);
     var rank;
@@ -871,7 +915,7 @@
     else rank = call >= 2 ? 3 : 4;
     var dept = CALLS[call].dept;
     var heading = completed ? "Press 1 for billing." : "You hung up on " + dept + ".";
-    var line = completed ? RANKS[rank - 1] : rank === 3 ? "You hung up on " + dept + ". You were nearly cancelled. Nearly." : RANKS[3];
+    var line = completed ? RANKS[rank - 1] : HUNG[dept] || RANKS[3];
     var onBeat = run.notes ? Math.round(run.hits / run.notes * 100) : 0;
     var stats = [
       { label: "Score", value: fmt(score) },
@@ -895,18 +939,31 @@
   // ---------------------------------------------------------------------------
   // The frame
   // ---------------------------------------------------------------------------
-  function update(dt) {
+  var wasPaused = false, padWas = false;
+  function update(dt, input) {
     var state = shell.state();
     animT += dt;
     animate(dt, state);
     if (state !== "playing") return;
     Line.advance(dt);
     var now = Line.now(), h = Line.heard();
+    if (wasPaused) { wasPaused = false; resumed(); }
     if (ph.kind === "start") {
       go("dial", now + 0.1, { after: "welcome", through: call > 0 });
     }
+    // a gamepad's buttons are the beat
+    var padNow = !!(input && input.beat);
+    if (padNow && !padWas) { lastMode = "pad"; presses.push({ kind: "beat", stamp: performance.now(), via: "pad" }); }
+    padWas = padNow;
     if (AUTOPILOT || bot) autopilot(h);
-    // presses, in the order they happened
+    // things to do when a moment is heard
+    for (var ci = 0; ci < cues.length; ci++) {
+      if (h >= cues[ci].t) { var cu = cues.splice(ci--, 1)[0]; cu.fn(); }
+    }
+    // presses, in the order they happened. Each event's own timestamp is
+    // turned into transport time now, after the clock has moved, so a tap
+    // made during a slow frame is timed from when it was made.
+    presses.forEach(function (e) { if (e.t == null) e.t = Line.tapTime(e.stamp); });
     presses.sort(function (a, b) { return a.t - b.t; });
     while (presses.length) {
       var e = presses.shift();
@@ -951,13 +1008,18 @@
   // ---------------------------------------------------------------------------
   // The autopilot (?autopilot, ?clip), and the test player (?debug): a
   // caller with a good memory and steady hands. It sometimes gets a number
-  // wrong, so a clip gets to see Lanyards.
+  // wrong. Filming a clip, it gets exactly one wrong (the first question of
+  // the second call), so a clip sees a department, and it loses the beat
+  // once in Complaints' fast version, so a clip sees a cut-off.
   // ---------------------------------------------------------------------------
   var AUTO = { react: [0.25, 0.45], wrong: [0, 0.08, 0.1, 0.1], spread: 0.035, sigma: 0, bias: 0, lapse: 0.03, stray: 0 };
+  var CLIP = { react: [0.25, 0.45], wrong: [0, 0, 0, 0], spread: 0.03, sigma: 0, bias: 0, lapse: 0.01, stray: 0 };
+  var forcePick = null;
   function gauss() { var u = 1 - Math.random(), v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 
   function autopilot(h) {
-    var prof = bot || AUTO, p = ph;
+    var clip = N.flags.clip && !bot;
+    var prof = bot || (clip ? CLIP : AUTO), p = ph;
     if (p.kind === "level" && !p.auto) {
       var lv = level(), right = null;
       lv.options.forEach(function (o) { if (o.right) right = o; });
@@ -965,6 +1027,7 @@
       var r = prof.react[0] + Math.random() * (prof.react[1] - prof.react[0]);
       var wrongP = p.retry ? (prof.wrong[call] || 0) * 0.4 : (prof.wrong[call] || 0);
       var wrong = Math.random() < wrongP;
+      if (clip && call === 1 && !p.retry && !run.clipWrong) { wrong = true; run.clipWrong = true; }
       var key = String(right.n);
       if (wrong) {
         var others = lv.options.filter(function (o) { return !o.right; });
@@ -979,9 +1042,11 @@
       presses.push({ kind: "key", key: p.auto.key, t: p.auto.at, via: "auto" });
     }
     if (p.kind === "hold") {
+      var c = info();
       p.notes.forEach(function (n) {
         if (n.auto == null) {
-          if (Math.random() < prof.lapse) n.auto = -1;
+          if (clip && call === 2 && !run.clipCut && c.fastAt != null && n.bar >= c.fastAt) n.auto = -1;
+          else if (Math.random() < prof.lapse) n.auto = -1;
           else n.auto = n.t + CENTRE + prof.bias + (prof.sigma ? gauss() * prof.sigma : (Math.random() * 2 - 1) * (prof.spread || 0));
           // a nervous extra tap in the gap after this note
           if (prof.stray && Math.random() < prof.stray) n.extra = n.t + n.b * (0.45 + Math.random() * 0.15);
@@ -1162,6 +1227,7 @@
     if (!ctx || !run) return;
     var state = shell.state();
     if (state !== "playing") Line.idle();
+    if (state === "paused") wasPaused = true;
     if (briefed !== call && (state === "countdown" || state === "playing")) {
       briefed = call;
       shell.brief({ title: "Call " + (call + 1) + ": " + info().dept, text: info().brief, ms: call === 0 ? 7000 : 6200 });
@@ -1343,10 +1409,15 @@
       D.voiceFace(c, px, py, l.h * 0.84, mouth);
       var shown = null;
       if (v.kind === "level") {
-        var item = null;
-        v.items.forEach(function (it) { if (h >= it.t) item = it; });
+        var item = null, said = null;
+        v.items.forEach(function (it) {
+          if (h >= it.t) item = it;
+          if (it.role === "opt" && it.digitAt != null && h >= it.digitAt) said = it;
+        });
         var locked = info().lock && h < v.unlock && h < v.againAt;
-        if (item && item.role === "opt" && item.digitAt != null && h >= item.digitAt) shown = String(levelOf(v).options[item.k].n);
+        // the last number read stays up until the next one is read (in
+        // Cancellations the number comes last, so it would only flash)
+        if (item && item.role === "opt" && said && said.pass === item.pass) shown = String(levelOf(v).options[said.k].n);
         if (shown) D.text(c, shown, mid, py + big * 0.04, big, { colour: T.ink });
         else if (item && (item.role === "choose" || item.role === "again" || item.role === "sorry" || (!locked && item.role === "opt"))) D.text(c, item.role === "sorry" ? "Sorry" : "Choose", mid, py, s * 1.3);
         else if (locked) D.text(c, "Listen", mid, py, s * 1.3);
@@ -1660,7 +1731,7 @@
     if (call === 0 && v.kind === "hold" && learned.beat < 6 && h >= v.countAt) {
       var r = padRect();
       return { x: r.x + r.w * 0.2, y: r.y + r.h * 0.5 + Math.min(r.h * 0.13, r.w * 0.09) + 1.2, dir: "up",
-               word: how === "touch" ? "Tap anywhere on the beat" : how === "mouse" ? "Click on the beat" : "Space on the beat", left: true };
+               word: N.flags.clip ? "Tap on the beat" : how === "touch" ? "Tap anywhere on the beat" : how === "mouse" ? "Click on the beat" : how === "pad" ? "Press on the beat" : "Space on the beat", left: true };
     }
     if (call === 0 && v.kind === "level" && !learned.menu) {
       var lv = levelOf(v), right = null;
@@ -1718,34 +1789,54 @@
     againLabel: "Call again",
     daily: true,
     smallCallouts: true,
-    keys: { up: [], down: [], left: [], right: [], action: ["Space"] },
+    keys: { up: [], down: [], left: [], right: [], action: ["Space"], beat: [] },
+    // a gamepad's face buttons and shoulders tap the beat
+    pad: { beat: [0, 1, 2, 3, 4, 5, 6, 7] },
     reset: reset,
-    update: function (dt) { update(dt); },
+    update: function (dt, input) { update(dt, input); },
     render: function () { render(); },
     resize: resize
   });
   T = shell.tokens;
   D.init(T, U * DPR);
 
-  // Keys: numbers for the menu, Space for the beat. Timed from the event.
+  // How focus got to the pause, sound or fullscreen button: a click leaves
+  // it there, but Space should still be the beat; reached with Tab, Space
+  // and Enter belong to the button.
+  var focusVia = "pointer";
+  document.addEventListener("pointerdown", function () { focusVia = "pointer"; }, true);
+  document.addEventListener("keydown", function (e) { if (e.key === "Tab") focusVia = "keys"; }, true);
+  function barButton(e) {
+    var t = e.target;
+    return t && t.closest ? t.closest(".kit-bar button") : null;
+  }
+
+  // Keys: numbers for the menu, Space for the beat. Each press keeps its
+  // event's timestamp, turned into transport time in the next update.
   document.addEventListener("keydown", function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
     if (shell.state() !== "playing") return;
-    var t = e.target;
-    if (t && t.closest && t.closest(".kit-bar") && (e.key === "Enter" || e.key === " ")) return;
+    var btn = barButton(e);
+    if (btn && (e.key === "Enter" || e.key === " ") && focusVia === "keys") return;
     var m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code || "");
     var d = m ? m[1] : null;
     if (d != null) {
       e.preventDefault();
       lastMode = "keys";
-      presses.push({ kind: "key", key: d, t: Line.tapTime(e.timeStamp), via: "keys" });
+      presses.push({ kind: "key", key: d, stamp: e.timeStamp, via: "keys" });
       return;
     }
     if (e.code === "Space") {
       e.preventDefault();
+      // a button clicked with the mouse lets go of the focus, so it can't
+      // take the next Space either
+      if (btn) { btn.blur(); root.focus({ preventScroll: true }); }
       lastMode = "keys";
-      presses.push({ kind: "beat", t: Line.tapTime(e.timeStamp), via: "keys" });
+      presses.push({ kind: "beat", stamp: e.timeStamp, via: "keys" });
     }
+  });
+  document.addEventListener("keyup", function (e) {
+    if (e.code === "Space" && shell.state() === "playing" && !(barButton(e) && focusVia === "keys")) e.preventDefault();
   });
 
   // Taps and clicks: a key on the keypad, or anywhere on hold
@@ -1755,16 +1846,16 @@
     var tg = e.target;
     if (tg && tg.closest && tg.closest(".kit-bar, .kit-panel, button, a")) return;
     lastMode = e.pointerType === "mouse" ? "mouse" : "touch";
-    var t = Line.tapTime(e.timeStamp);
+    var t = e.timeStamp;
     var box = root.getBoundingClientRect();
     var wx = (e.clientX - box.left) / U, wy = (e.clientY - box.top) / U;
-    if (padOn(ph)) { e.preventDefault(); presses.push({ kind: "beat", t: t, via: e.pointerType }); return; }
+    if (padOn(ph)) { e.preventDefault(); presses.push({ kind: "beat", stamp: t, via: e.pointerType }); return; }
     var hit = null;
     keyRects().forEach(function (r) {
       var slop = Lay.touch ? r.w * 0.06 : 0;
       if (wx >= r.x - slop && wx <= r.x + r.w + slop && wy >= r.y - slop && wy <= r.y + r.h + slop) hit = r;
     });
-    if (hit) { e.preventDefault(); presses.push({ kind: "key", key: hit.key === "*" || hit.key === "#" ? "x" : hit.key, t: t, via: e.pointerType }); }
+    if (hit) { e.preventDefault(); presses.push({ kind: "key", key: hit.key === "*" || hit.key === "#" ? "x" : hit.key, stamp: t, via: e.pointerType }); }
   });
 
   if (document.fonts && document.fonts.load) {
@@ -1791,6 +1882,7 @@
         };
       },
       bot: function (profile) { bot = profile; },
+      force: function (id) { forcePick = id; },
       taps: function () { return tapLog.slice(); },
       setMods: function (m) { Object.assign(mods, m); },
       longLines: function () {

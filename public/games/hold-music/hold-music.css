@@ -17,6 +17,6 @@ body[data-game="hold-music"] .kit-callouts {
   height: 0.62em;
   border: 2px solid var(--paper);
   border-radius: 50%;
-  box-shadow: 0 2px 0 #000;
+  box-shadow: 0 2px 0 var(--ink);
 }
 .hm-pip.is-on { background: var(--accent); }

@@ -19,7 +19,15 @@
 //
 // THE LINE. Everything goes down a phone line: a high-pass at 220Hz, a
 // low-pass at 3300Hz and a soft clip, with a music bus (ducked under the
-// announcements), a beat bus and a voice bus, plus hiss and crackle.
+// announcements), a beat bus and a voice bus, plus hiss and crackle. The
+// line comes out about as loud as Heavy Traffic's engine, and the tick on
+// every note you tap sits a few dB over the music.
+//
+// THE TUNES. Each tune is played in an arrangement: the same eight bars, with
+// some quavers folded into the note before them for the easier calls. The
+// notes you tap are the lead's own notes in that arrangement, so you really
+// are tapping along to the hold music, and on a beat where the tune rests the
+// backing rests too, so nothing tempts you to tap it.
 //
 // hold-music.js is the game; draw.js draws it.
 (function () {
@@ -189,7 +197,7 @@
     }
     clip.curve = curve;
     var out = c.createGain();
-    out.gain.value = 0.9;
+    out.gain.value = 0.3;
     lineIn.connect(hp); hp.connect(lp); lp.connect(clip); clip.connect(out); out.connect(snd.out());
     var music = c.createGain(), beat = c.createGain(), voice = c.createGain(), fx = c.createGain();
     music.gain.value = 1; beat.gain.value = 1; voice.gain.value = 1; fx.gain.value = 1;
@@ -209,8 +217,10 @@
     pulse = c.createPeriodicWave(re, im);
     var noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), d = noise.getChannelData(0);
     for (var j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1;
-    var crackle = c.createBuffer(1, c.sampleRate * 3, c.sampleRate), cd = crackle.getChannelData(0);
-    for (var q = 0; q < 26; q++) {
+    // crackle: nine and a bit seconds of pops at uneven gaps, so it never
+    // falls into step with the music
+    var crackle = c.createBuffer(1, Math.round(c.sampleRate * 9.37), c.sampleRate), cd = crackle.getChannelData(0);
+    for (var q = 0; q < 70; q++) {
       var p = Math.floor(Math.random() * (cd.length - 200)), amp = 0.3 + Math.random() * 0.7;
       for (var s = 0; s < 60 + Math.random() * 120; s++) cd[p + s] = (Math.random() * 2 - 1) * amp * Math.exp(-s / 30);
     }
@@ -227,11 +237,11 @@
     hiss.buffer = g.noise; hiss.loop = true;
     var bp = c.createBiquadFilter();
     bp.type = "bandpass"; bp.frequency.value = 2400; bp.Q.value = 0.6;
-    var hg = c.createGain(); hg.gain.value = 0.018;
+    var hg = c.createGain(); hg.gain.value = 0.009;
     hiss.connect(bp); bp.connect(hg); hg.connect(g.lineIn);
     var crk = c.createBufferSource();
     crk.buffer = g.crackle; crk.loop = true;
-    var cg = c.createGain(); cg.gain.value = 0.09;
+    var cg = c.createGain(); cg.gain.value = 0.045;
     crk.connect(cg); cg.connect(g.lineIn);
     hiss.start(); crk.start();
     bed = { hiss: hiss, crk: crk, hg: hg, cg: cg };
@@ -304,15 +314,17 @@
 
   var inst = {
     lead: function (t, midi, dur, group) { note(t, "pulse", hz(midi), dur, 0.16, "music", group, { decay: 0.18, sustain: 0.55, release: 0.05 }); },
-    bass: function (t, midi, dur, group) { note(t, "square", hz(midi), dur, 0.11, "music", group, { decay: 0.08, sustain: 0.5 }); },
+    bass: function (t, midi, dur, group) { note(t, "square", hz(midi), dur, 0.085, "music", group, { decay: 0.08, sustain: 0.5 }); },
     stab: function (t, midis, dur, group) {
-      midis.forEach(function (m) { note(t, "square", hz(m), dur, 0.035, "music", group, { release: 0.02 }); });
+      midis.forEach(function (m) { note(t, "square", hz(m), dur, 0.022, "music", group, { release: 0.02 }); });
     },
-    hat: function (t, loud, group) { burst(t, loud ? 0.05 : 0.03, loud ? 0.09 : 0.05, "music", group, { type: "highpass", freq: 2600 }); },
-    // the beat: a woodblock tick, on the beat bus (it carries on under announcements)
+    // hats: the loud one on the beat, a soft one on the off-beat
+    hat: function (t, loud, group) { burst(t, loud ? 0.05 : 0.025, loud ? 0.07 : 0.03, "music", group, { type: "highpass", freq: 2600 }); },
+    // the tick: a woodblock on every note you tap, on the beat bus (it carries
+    // on under announcements), a few dB over the music
     tick: function (t, accent, group) {
-      note(t, "square", accent ? 1560 : 1180, 0.045, accent ? 0.075 : 0.055, "beat", group, { release: 0.03 });
-      note(t, "triangle", accent ? 780 : 590, 0.06, 0.08, "beat", group, { release: 0.04 });
+      note(t, "square", accent ? 1560 : 1180, 0.045, accent ? 0.12 : 0.095, "beat", group, { release: 0.03 });
+      note(t, "triangle", accent ? 780 : 590, 0.06, 0.13, "beat", group, { release: 0.04 });
     },
     // a quiet metronome under the menu
     pulseTick: function (t, group) { note(t, "triangle", 880, 0.03, 0.03, "beat", group); },
@@ -391,33 +403,64 @@
     }
   };
 
+  // Arrangements: which quavers fold into the note before them. A rule (of
+  // the bar and the beat) says which off-beat notes go.
+  //   easy:   every off-beat note goes, so it's crotchets only (call 1)
+  //   tune:   the tune as written (calls 2 to 4, before the fast version)
+  //   medium: the fast tune with each bar's first quaver folded (call 3)
+  //   hard:   the fast tune, with its runs in bars 1, 3, 5 and 7 (call 4)
+  var ARRANGE = {
+    easy: function (bi, beat) { return beat % 1 !== 0; },
+    tune: function () { return false; },
+    medium: function (bi, beat) { return beat === 0.5; },
+    hard: function (bi, beat) { return beat === 0.5 && bi % 2 === 1; }
+  };
+  var arranged = {};
+  // The lead of bar bi of a tune in an arrangement, as [beat, length, midi]
+  function lead(name, arr, bi) {
+    var key = name + "|" + arr + "|" + (bi % 8);
+    if (arranged[key]) return arranged[key];
+    var drop = ARRANGE[arr] || ARRANGE.tune, out = [];
+    TUNES[name].lead[bi % 8].forEach(function (n) {
+      var prev = out[out.length - 1];
+      if (prev && drop(bi % 8, n[0])) out[out.length - 1] = [prev[0], prev[1] + n[1], prev[2]];
+      else out.push(n.slice());
+    });
+    arranged[key] = out;
+    return out;
+  }
+  // The beats you tap in that bar: where the lead's notes start
+  function taps(name, arr, bi) { return lead(name, arr, bi).map(function (n) { return n[0]; }); }
+
   // Queue one bar of a tune: at transport time t0, beat length b (seconds),
-  // bar i of the tune, transposed by key semitones
-  function bar(t0, b, name, i, key) {
+  // bar i of the tune in arrangement arr, transposed by key semitones. On a
+  // beat with no tapped note the bass and the loud hat rest, and on a beat
+  // with nothing to tap in it at all the whole backing rests.
+  function bar(t0, b, name, i, key, arr) {
     var tune = TUNES[name], bi = i % 8;
     var chords = tune.chords[bi], roots = tune.roots[bi];
-    tune.lead[bi].forEach(function (n) {
+    var notes = lead(name, arr, bi), starts = notes.map(function (n) { return n[0]; });
+    notes.forEach(function (n) {
       sched(t0 + n[0] * b, function (a) { inst.lead(a, n[2] + key, n[1] * b * 0.92, "music"); }, "music");
     });
     for (var beat = 0; beat < 4; beat++) {
       var half = beat < 2 || chords.length < 2 ? 0 : 1;
       var root = roots[Math.min(roots.length - 1, beat < 2 ? 0 : roots.length - 1)] + key;
-      if (tune.bass === "walk") {
-        (function (beat, root) {
+      var on = starts.indexOf(beat) >= 0;
+      var any = starts.some(function (s) { return s >= beat && s < beat + 1; });
+      if (!any) continue;
+      (function (beat, root, on, ch) {
+        if (tune.bass === "walk") {
           var m = beat % 2 ? root + 7 : root;
-          sched(t0 + beat * b, function (a) { inst.bass(a, m, b * 0.55, "music"); }, "music");
-        })(beat, root);
-      } else {
-        (function (beat, root) {
-          sched(t0 + beat * b, function (a) { inst.bass(a, root, b * 0.4, "music"); }, "music");
+          if (on) sched(t0 + beat * b, function (a) { inst.bass(a, m, b * 0.55, "music"); }, "music");
+        } else {
+          if (on) sched(t0 + beat * b, function (a) { inst.bass(a, root, b * 0.4, "music"); }, "music");
           sched(t0 + (beat + 0.5) * b, function (a) { inst.bass(a, root + 12, b * 0.32, "music"); }, "music");
-        })(beat, root);
-      }
-      (function (beat, ch) {
+        }
         sched(t0 + (beat + 0.5) * b, function (a) { inst.stab(a, ch, b * 0.18, "music"); }, "music");
-        sched(t0 + beat * b, function (a) { inst.hat(a, false, "music"); }, "music");
-        sched(t0 + (beat + 0.5) * b, function (a) { inst.hat(a, true, "music"); }, "music");
-      })(beat, chords[half].map(function (m) { return m + key; }));
+        if (on) sched(t0 + beat * b, function (a) { inst.hat(a, true, "music"); }, "music");
+        sched(t0 + (beat + 0.5) * b, function (a) { inst.hat(a, false, "music"); }, "music");
+      })(beat, root, on, chords[half].map(function (m) { return m + key; }));
     }
   }
 
@@ -496,6 +539,8 @@
     cancel: cancel,
     inst: inst,
     bar: bar,
+    taps: taps,
+    lead: lead,
     duck: duck,
     say: say,
     bedOn: bedOn,
