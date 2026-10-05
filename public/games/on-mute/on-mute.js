@@ -137,6 +137,7 @@
   var SHEET_ROWS = 6;
   var STREAK_STEP = 12, MULT_MAX = 4;
   var STALL = 0.7;              // a wrong box: the sheet stops responding this long
+  var SKIP_WAIT = 0.5;          // a row that wants nothing goes by after this long
   var CAM_GRACE = 3.4;          // camera off with no cat about: this long before they ask
   var CAT_STAY = 2.2;           // on the desk, in front of the camera
   var CHASE_GAP = 6;            // at most one "did you see my email" this often
@@ -153,31 +154,32 @@
   // to the desk. email: seconds between emails, start to end. gap: seconds
   // per thing addressed to you.
   var STAGES = [
-    { id: "standup", name: "The stand-up", start: 9 * 60, mins: 15, time: 30,
+    { id: "standup", name: "The stand-up", start: 9 * 60, mins: 15, time: 24,
       cast: ["graham", "priya", "dave"], host: "graham",
-      you: ["name", "ask", "name", "ask", "name"], cats: 0, gap: 4.7,
-      nameWin: 2.6, askWin: 3.0, grace: 2.4, catTime: 3.4, email: [7.0, 6.0],
-      clip: "TBC", talk: "standup" },
-    { id: "team", name: "The team meeting", start: 10 * 60, mins: 60, time: 34,
+      you: ["name", "ask", "name", "ask", "name"], cats: 0, gap: 4.2,
+      nameWin: 2.6, askWin: 3.0, grace: 2.4, catTime: 3.4, email: [6.4, 5.6],
+      clip: "TBC", twist: null },
+    { id: "team", name: "The team meeting", start: 10 * 60, mins: 60, time: 30,
       cast: ["graham", "priya", "gaz", "linda", "pam", "notes"], host: "graham",
-      you: ["name", "ask", "name", "ask", "ask", "name"], cats: 2, gap: 3.8,
-      nameWin: 2.2, askWin: 2.6, grace: 2.0, catTime: 3.2, email: [5.6, 4.8],
-      clip: "See attached", talk: "team" },
-    { id: "allhands", name: "The all-hands", start: 13 * 60, mins: 60, time: 38,
+      you: ["name", "ask", "name", "ask", "name"], cats: 2, gap: 3.8,
+      nameWin: 2.2, askWin: 2.6, grace: 2.0, catTime: 3.2, email: [5.2, 4.5],
+      clip: "See attached", twist: "locked" },
+    { id: "allhands", name: "The all-hands", start: 13 * 60, mins: 60, time: 32,
       cast: ["rupert", "graham", "priya", "gaz", "linda", "pam", "dave", "femi", "hannah", "phone", "rob", "notes"],
-      host: "rupert", you: ["name", "ask", "round", "name", "ask", "name"], cats: 2, gap: 3.3,
-      nameWin: 1.9, askWin: 2.2, grace: 1.8, catTime: 2.8, email: [4.4, 3.8],
-      clip: "Per my email", talk: "allhands" },
-    { id: "email", name: "This could have been an email", start: 16 * 60, mins: 30, time: 40, overrun: 6,
+      host: "rupert", you: ["name", "ask", "round", "name", "ask"], cats: 2, gap: 3.3,
+      nameWin: 1.9, askWin: 2.2, grace: 1.8, catTime: 2.8, email: [4.2, 3.6],
+      clip: "Per my email", twist: "pam" },
+    { id: "email", name: "This could have been an email", start: 16 * 60, mins: 30, time: 34, overrun: 6,
       cast: ["graham", "priya", "keith", "bernard", "mo", "notes"], host: "graham",
-      you: ["name", "ask", "share", "name", "ask", "name", "ask"], cats: 3, gap: 2.9,
-      nameWin: 1.8, askWin: 2.1, grace: 1.7, catTime: 2.5, email: [4.0, 3.4],
-      clip: "N/A", talk: "email" }
+      you: ["name", "ask", "share", "name", "ask", "name"], cats: 3, gap: 2.9,
+      nameWin: 1.8, askWin: 2.1, grace: 1.7, catTime: 2.5, email: [3.9, 3.3],
+      clip: "N/A", twist: null }
   ];
   var LAST = STAGES.length - 1;
 
   // ---------------------------------------------------------------------------
-  // What people say. Your name is Sam. You say "Yep."
+  // What people say. Your name is Sam. You say "Yep." Every line is dealt
+  // from a shuffled deck, so nothing is said twice in one meeting.
   // ---------------------------------------------------------------------------
   var YOU_NAME = "Sam";
   var YEP = "Yep.";
@@ -185,35 +187,52 @@
                "As per Sam's email.", "Sam and I were just saying.", "Credit to Sam for that.", "Sam's been great on this.",
                "I'll pick that up with Sam.", "That's Sam's area.", "Sam sorted that.", "Sam knows the history.",
                "Sam flagged that.", "Big thanks to Sam.", "Sam's on the next one too.", "Sam will remember."];
-  var ASKS = ["Sam, any blockers?", "Sam, are you happy with that?", "Sam, did you get a chance to look?", "Can you hear us, Sam?",
-              "Sam, are you still with us?", "Sam, is that right?", "Sam, does that work for you?", "Sam, anything to add?",
-              "Sam, can you see my screen?", "Sam, are we on track?", "Sam, did you read the doc?", "Sam, shall we say Thursday?",
-              "Sam, are you OK to own that?", "Sam, did that go out?", "Sam, can you hear me now?", "Sam, are you across this?"];
-  // someone else, named or asked, and what they say back
-  var DECOYS = [
-    ["Pam, any blockers?", "pam", "None."], ["Priya, happy with that?", "priya", "Yep, on it."],
-    ["Like Pam said.", "pam", null], ["Thanks, Priya.", "priya", null], ["Gaz, you're on mute.", "gaz", "Am I."],
-    ["Linda, are you eating?", "linda", "Sorry."], ["Pam, did you get that?", "pam", "Got it."],
-    ["Over to Priya.", "priya", "Thanks."], ["Dave? We've lost Dave.", "dave", null], ["Keith, you're breaking up.", "keith", "Tunnel."],
-    ["Mo, are you walking?", "mo", "Steps."], ["Bernard, you're very close.", "bernard", "Am I."], ["Rob, can you see it?", "rob", "Yes."],
-    ["Tanya, any questions?", "tanya", "No."], ["Pam, are you on mute?", "pam", "No."]
+  // Questions for you. Some take your yep at its word (reply), and some of
+  // those are an action point for the notetaker (agree: what you agreed to).
+  var ASKS = [
+    { line: "Sam, any blockers?", reply: "So you do have blockers.", agree: "having blockers" },
+    { line: "Sam, shall we say Thursday?", reply: "Lovely. Thursday it is.", agree: "Thursday" },
+    { line: "Sam, are you OK to own that?", reply: "Great. Sam's owning it.", agree: "owning it" },
+    { line: "Sam, can you present it next week?", reply: "Great. Sam's presenting.", agree: "presenting next week" },
+    { line: "Sam, could you take the minutes?", reply: "Thanks, Sam.", agree: "taking the minutes" },
+    { line: "Sam, can you send that round?", reply: "Lovely. Sam's sending it round.", agree: "sending it round" },
+    { line: "Sam, can you cover Saturday?", reply: "Saturday it is.", agree: "working Saturday" },
+    { line: "Sam, are you free after this?", reply: "I'll book us in.", agree: "another meeting" },
+    { line: "Sam, did you read the doc?", reply: "Great. Comments by Friday, then.", agree: "comments by Friday" },
+    { line: "Sam, happy to do the slides?", reply: "Lovely. Slides from Sam.", agree: "the slides" },
+    { line: "Sam, anything to add?", reply: "Go on, then." },
+    { line: "Sam, are we on track?", reply: "Good. Sam says we're on track." },
+    { line: "Sam, is that a no?", reply: "OK. It's a no." },
+    { line: "Sam, are you happy with that?" }, { line: "Sam, did you get a chance to look?" },
+    { line: "Can you hear us, Sam?" }, { line: "Sam, are you still with us?" }, { line: "Sam, does that work for you?" },
+    { line: "Sam, can you see my screen?" }, { line: "Sam, did that go out?" }, { line: "Sam, are you across this?" }
   ];
-  // questions to everyone: not for you
-  var EVERYONE = ["Any questions?", "Can everyone see my screen?", "Is everyone happy?", "Does that make sense?",
-                  "Can everyone hear me?", "Are we all here?", "Thoughts?", "Is it just me?", "Shall we wait for Dave?",
-                  "Who's taking notes?", "Anyone?", "Any objections?"];
-  var TALK = {
-    standup: ["Let's give it a minute.", "Yesterday: meetings.", "Today: meetings.", "No blockers.", "Same as yesterday.",
-              "Quick one.", "I'll keep this short.", "Nothing from me.", "Let's take that offline."],
-    team: ["Let's go through the actions.", "That's still open.", "Can we get a date on that?", "Let's park that.",
-           "Sorry, I was on mute.", "No, you go.", "Sorry, go on.", "Just to piggyback.", "I've got a hard stop.", "Can we circle back?"],
-    allhands: ["Big quarter.", "We're a family.", "Next slide.", "Exciting times.", "Our values haven't changed.",
-               "Huge shout-out to everyone.", "We're on a journey.", "Wellbeing is a priority.", "Can everyone go on mute.", "Synergy."],
-    email: ["Hi all.", "Just a quick reminder.", "The kitchen is not a storage area.", "Please label your milk.",
-            "The fridge will be cleared on Friday.", "Anything left will be binned.", "This includes the yoghurts.",
-            "Thanks in advance.", "Kind regards.", "Sent from my phone."]
+  // The meetings' own chatter: none of it is for you.
+  // Someone else asked or named, with what they say back (null: nothing)
+  var PAM = [["Pam, any blockers?", "None."], ["Pam, shall we say Thursday?", "Friday."], ["Pam, can you own that?", "No."],
+             ["Pam, did you get that?", "Got it."], ["Pam, are you happy with that?", "Not really."],
+             ["Pam, could you take the minutes?", "I did them last time."]];
+  var TEAM_OTHERS = [["Like Pam said.", "pam", null], ["Thanks, Priya.", "priya", null], ["Priya, happy with that?", "priya", "Fine."],
+                     ["Over to Priya.", "priya", "Thanks."]];
+  var UPDATES = {
+    yesterday: ["Yesterday: meetings.", "Yesterday: the deck.", "Yesterday: emails.", "Yesterday: a workshop."],
+    today: ["Today: meetings.", "Today: more meetings.", "Today: the deck again.", "Today: a workshop about workshops."],
+    blockers: ["No blockers.", "Blockers: meetings.", "Blocker: this meeting.", "Blocked by Dave."],
+    host: ["Me: same as yesterday.", "Nothing from me.", "Quick one from me. No, it's fine."]
   };
-  // each meeting's regulars, saying their one thing. Nothing for you to do.
+  var TEAM_TALK = ["Let's go through the actions.", "That's still open.", "Can we get a date on that?", "Let's park that.",
+                   "Sorry, I was on mute.", "Just to piggyback.", "I've got a hard stop.", "Can we circle back?"];
+  var RUPERT = ["Big quarter.", "We're a family.", "Next slide.", "Exciting times.", "Our values haven't changed.",
+                "Huge shout-out to everyone.", "We're on a journey.", "Wellbeing is a priority.", "Synergy."];
+  // questions to everyone, and someone who answers (or nobody)
+  var EVERYONE = ["Any questions?", "Can everyone see my screen?", "Is everyone happy?", "Does that make sense?",
+                  "Are we all here?", "Thoughts?", "Is it just me?", "Who's taking notes?", "Anyone?", "Any objections?"];
+  var EVERYONE_BACK = ["No.", "Fine.", "Nope.", "Mm.", "All good.", "Not really."];
+  // the last meeting: Graham reads out the email, in order
+  var EMAIL = ["Hi all.", "Just a quick reminder.", "The kitchen is not a storage area.", "Please label your milk.",
+               "The fridge will be cleared on Friday.", "Anything left will be binned.", "This includes the yoghurts.",
+               "Thanks in advance.", "Kind regards.", "Sent from my phone."];
+  // each meeting's regulars, saying their one thing
   var CAMEOS = [
     [["dave", "Sorry. You cut out. Can you repeat that?"]],
     [["linda", "Sorry, I'm eating."], ["gaz", "Is my camera on?"]],
@@ -223,19 +242,23 @@
   var STARTS = ["Let's give it a minute.", "Shall we start.", "Can everyone hear me?", "Right. Let me read this out."];
   var ENDS = ["Right, I'll let you all go.", "Let's take the rest offline.", "Exciting times. Bye.", "I'll send this round as an email."];
   var ROUND_ASK = "Let's go round. One word on your week.";
-  var ROUND_WORDS = ["Busy.", "Fine.", "Long.", "Thursday.", "Meetings.", "Mixed.", "Hectic.", "Grand.", "Ongoing.", "Wet."];
+  var ROUND_WORDS = ["Busy.", "Quiet.", "Long.", "Thursday.", "Meetings.", "Mixed.", "Hectic.", "Grand.", "Ongoing.", "Wet."];
   var SHARE_ASK = "Sam, can you share your screen?";
   var SHARE_LINES = ["Very colourful.", "Is that live?", "Love a spreadsheet.", "Can you make it bigger?"];
   var SHARE_OOPS = ["Is that a #N/A?", "Why's it doing that.", "That's not right.", "Can you zoom in."];
   var SHARE_END = "Thanks, Sam. Stop sharing.";
+  var SHARE_SAVED = ["Lovely. Thanks, Sam.", "Another one done.", "Very efficient."];
   var OVERRUN = "Just one more thing.";
+  var OVERRUN_MORE = "The microwave is also not a storage area.";
 
   var MISS_NAME = ["Sam? Frozen.", "We've lost Sam.", "Earth to Sam.", "Sam's gone quiet.", "Sam? Never mind."];
-  var MISS_ASK = ["Sam? You're on mute.", "Sam?", "I'll take that as a yes.", "Sam's not with us.", "Let's come back to Sam."];
+  var MISS_ASK = ["Sam? You're on mute.", "Sam?", "Sam's not with us.", "Let's come back to Sam."];
+  var TAKE_AS_YES = "I'll take that as a yes.";
   var CAT_SEEN = ["Is that a cat.", "Hello, puss.", "Sam's cat has joined.", "Lovely. A cat's bum.", "The cat's on mute too."];
   var DISH = ["Is that a dishwasher.", "Someone's not on mute.", "Sam, you're not on mute.", "Sounds like a spin cycle."];
   var VOLUNTEER = ["Great. Sam's on it.", "Thanks, Sam. I'll send it over.", "Lovely. Action on Sam.", "Sam's volunteered.", "Sam will take the minutes."];
   var NOD_AT_ASK = "We can't hear a nod, Sam.";
+  var NOD_NO_CAM = "We can't see a nod, Sam.";
   var CAM_LONG = ["Camera on, please, Sam.", "Can we see you, Sam?", "Sam's gone dark."];
   var CHASE = ["Sam, did you see my email?", "Just flagging my email, Sam.", "Sam, I've emailed you about this.", "Sam, check your inbox."];
 
@@ -273,11 +296,12 @@
       apply: function (m) { m.stall *= 0.5; m.streakStep *= 2; } }
   ];
 
+  // The results' joke, by rung (the last rung by meeting)
   var RESULT_LINES = [
     "Nobody noticed you weren't listening. That's called a career.",
     "You got through the day. A follow-up has been booked to discuss it.",
-    "You were removed from the call. The meeting carried on without you, which says a lot.",
-    "The stand-up ran over. So did you."
+    "You were removed from the call. Nobody has noticed yet.",
+    ["Removed from a fifteen-minute stand-up. It's still going.", "Removed from the team meeting. Your actions have been reassigned to you."]
   ];
 
   // ---------------------------------------------------------------------------
@@ -372,48 +396,40 @@
     var k = (end - T0) / total;
     var t = T0;
     var beats = [];
+    var nameDeck = deck(NAMES, rnd), askDeck = deck(ASKS, rnd);
     slots.forEach(function (kind, i) {
       var d = dur[i] * k;
       var jitter = kind === "name" || kind === "ask" ? (rnd() - 0.5) * d * 0.3 : 0;
-      var at0 = t + Math.max(0, jitter);
-      var beat = { kind: kind, t: at0, done: false };
-      if (kind === "name") beat.line = rpick(NAMES, rnd);
-      if (kind === "ask") beat.line = rpick(ASKS, rnd);
+      var beat = { kind: kind, t: t + Math.max(0, jitter), done: false };
+      if (kind === "name") beat.line = nameDeck();
+      if (kind === "ask") { var q = askDeck(); beat.line = q.line; beat.reply = q.reply; beat.agree = q.agree; }
       if (kind === "share") beat.line = SHARE_ASK;
       beat.who = speakerFor(st, rnd, kind);
       beats.push(beat);
-      // something else in the gap: someone else's question, one to everyone,
-      // or chatter. None of it is for you.
-      if ((kind === "name" || kind === "ask") && d > 2.9) {
-        var r = rnd(), filler;
-        if (r < 0.32 && st.id !== "standup") {
-          var dec = rpick(DECOYS.filter(function (x) { return castHas(st, x[1]); }), rnd);
-          filler = dec ? { kind: "decoy", line: dec[0], target: dec[1], reply: dec[2] } : null;
-        } else if (r < (st.id === "allhands" ? 0.75 : 0.55)) {
-          filler = { kind: "everyone", line: rpick(EVERYONE, rnd) };
-        }
-        if (!filler) filler = { kind: "talk", line: rpick(TALK[st.talk], rnd) };
-        filler.t = at0 + d * 0.62;
-        filler.who = filler.kind === "decoy" ? speakerFor(st, rnd, "decoy", filler.target) : speakerFor(st, rnd, filler.kind);
-        beats.push(filler);
-      }
       t += d;
     });
-    // the regulars, now and then (Dave unfreezes just before the end)
-    var cr = N.seeded(base + 6);
-    (CAMEOS[run.stage] || []).forEach(function (cm, n, all) {
-      var at2 = cm[0] === "dave" ? st.time - 3.2 : T0 + 3 + (end - T0 - 6) * (n + 0.3 + cr() * 0.4) / all.length;
-      beats.push({ kind: "talk", t: at2, line: cm[1], who: cm[0] });
-    });
-    // the meeting opens with someone talking, and the last meeting overruns
+    // the meeting opens with someone talking, Dave unfreezes just before the
+    // end of the stand-up, and the last meeting overruns
     beats.push({ kind: "talk", t: 0.6, line: STARTS[run.stage], who: st.host });
-    if (st.overrun) beats.push({ kind: "overrun", t: st.time - 0.2, line: OVERRUN, who: st.host });
+    if (run.stage === 0) beats.push({ kind: "talk", t: st.time - 3.2, line: CAMEOS[0][0][1], who: "dave" });
+    if (st.overrun) {
+      beats.push({ kind: "overrun", t: st.time - 0.2, line: OVERRUN, who: st.host });
+      beats.push({ kind: "talk", t: st.time + 2.2, line: OVERRUN_MORE, who: st.host });
+    }
     beats.sort(function (a, b) { return a.t - b.t; });
+    // and everything else that's said, on its own clock
+    var chat = planChatter(st, N.seeded(base + 8), beats, end);
 
-    // the spreadsheet: which box is empty in each row, and what's in the other
+    // the spreadsheet: which box is empty in each row, and what's in the other.
+    // From the team meeting on, now and then a row that wants nothing: let it go by.
     var rows = [], rr = N.seeded(base + 2);
-    var lastSide = 0, run2 = 0;
+    var lastSide = 0, run2 = 0, nextSkip = 9 + Math.floor(rr() * 4);
     for (var n = 0; n < 700; n++) {
+      if (st.twist && n === nextSkip) {
+        rows.push({ empty: -1, skip: st.twist, text: st.twist === "pam" ? "Done" : "Do not edit", state: "todo" });
+        nextSkip = n + 8 + Math.floor(rr() * 6);
+        continue;
+      }
       var side = rr() < 0.5 ? 0 : 1;
       if (side === lastSide) run2++; else run2 = 0;
       if (run2 >= 4) { side = 1 - side; run2 = 0; }   // never five the same way in a row
@@ -436,20 +452,129 @@
       var folk = st.cast.filter(function (id) { return id !== "notes" && id !== "phone" && id !== "dave" && id !== st.host; });
       order = shuffle(folk, ro).slice(0, 5);
       order.splice(3, 0, "you");
-      order = order.map(function (id) { return { id: id, word: id === "you" ? YEP : rpick(ROUND_WORDS, ro) }; });
+      var words = deck(ROUND_WORDS, ro);
+      order = order.map(function (id) { return { id: id, word: id === "you" ? YEP : words() }; });
     }
-    return { beats: beats, rows: rows, names: names, mails: mails, round: order };
+    return { beats: beats, chat: chat, rows: rows, names: names, mails: mails, round: order };
   }
 
   function castHas(st, id) { return st.cast.indexOf(id) >= 0; }
 
-  function speakerFor(st, rnd, kind, target) {
-    var pool = st.cast.filter(function (id) { return id !== "notes" && id !== "phone" && id !== "dave" && id !== target; });
+  // A deck: deals from a list without putting anything back, so nothing is
+  // dealt twice (it only reshuffles once it's been all the way through)
+  function deck(list, rnd) {
+    var pile = [];
+    return function () {
+      if (!pile.length) pile = shuffle(list.slice(), rnd || Math.random);
+      return pile.pop();
+    };
+  }
+
+  // Who says the things that are for you. Pam doesn't ask anyone anything
+  // (people ask Pam), and in the last meeting the host is busy reading.
+  function speakerFor(st, rnd, kind) {
     if (kind === "share" || kind === "round") return st.host;
-    if (st.id === "email" && (kind === "talk")) return st.host;           // he's reading the email out
-    if (st.id === "allhands" && (kind === "talk" || kind === "everyone")) return rnd() < 0.8 ? "rupert" : st.host;
-    if (rnd() < 0.45) return st.host === target ? pool[0] : st.host;
+    var pool = st.cast.filter(function (id) { return id !== "notes" && id !== "phone" && id !== "dave" && id !== "pam"; });
+    if (st.id === "email") pool = pool.filter(function (id) { return id !== st.host; });
+    else if (rnd() < 0.45) return st.host;
     return rpick(pool, rnd);
+  }
+
+  // What the meeting says while it isn't talking to you, dealt for each
+  // meeting: the stand-up's updates, the questions for Pam, the all-hands'
+  // questions to everyone and Rupert's vision, and the email, read out.
+  function chatterFor(st, rnd) {
+    var main = [], side = [], host = st.host;
+    function talk(q, who, line) { q.push({ kind: "talk", who: who, line: line }); }
+    function ask(q, who, line, target, reply) { q.push({ kind: "decoy", who: who, line: line, target: target, reply: reply }); }
+    var backs = deck(EVERYONE_BACK, rnd);
+    function all(q, who, line) {
+      var by = null, back = null;
+      if (line === "Who's taking notes?" && castHas(st, "notes")) { by = "notes"; back = "Recording."; }
+      else if (rnd() < 0.6) {
+        by = rpick(st.cast.filter(function (id) { return id !== who && id !== "notes" && id !== "phone" && id !== "dave" && id !== host; }), rnd);
+        back = backs();
+      }
+      q.push({ kind: "everyone", who: who, line: line, replyBy: by, reply: back });
+    }
+    if (st.id === "standup") {
+      // updates, one person at a time. Everyone's update is meetings.
+      ask(main, host, "Priya, you go first.", "priya", null);
+      talk(main, "priya", rpick(UPDATES.yesterday, rnd));
+      talk(main, "priya", rpick(UPDATES.today, rnd));
+      talk(main, "priya", rpick(UPDATES.blockers, rnd));
+      talk(main, host, rpick(UPDATES.host, rnd));
+    } else if (st.id === "team") {
+      // people ask Pam things, and Pam can say no
+      var pam = deck(PAM, rnd), tt = deck(TEAM_TALK, rnd), other = rpick(TEAM_OTHERS, rnd);
+      var asker = function () { return rnd() < 0.7 ? host : "priya"; };
+      var p1 = pam(), p2 = pam(), p3 = pam();
+      talk(main, host, tt());
+      ask(main, asker(), p1[0], "pam", p1[1]);
+      talk(main, "linda", CAMEOS[1][0][1]);
+      ask(main, asker(), p2[0], "pam", p2[1]);
+      ask(main, other[1] === "priya" ? host : asker(), other[0], other[1], other[2]);
+      talk(main, "gaz", CAMEOS[1][1][1]);
+      ask(main, asker(), p3[0], "pam", p3[1]);
+      talk(main, rnd() < 0.5 ? "priya" : "linda", tt());
+    } else if (st.id === "allhands") {
+      // Rupert's vision, and questions to everyone
+      var ev = deck(EVERYONE, rnd), rv = deck(RUPERT, rnd);
+      talk(main, host, rv());
+      all(main, host, ev());
+      talk(main, "phone", CAMEOS[2][0][1]);
+      all(main, host, ev());
+      talk(main, host, rv());
+      all(main, rnd() < 0.5 ? "graham" : host, ev());
+      main.push({ kind: "everyone", who: "femi", line: CAMEOS[2][1][1], replyBy: null, reply: null });
+      talk(main, host, rv());
+    } else {
+      // the email, read out from the top
+      EMAIL.forEach(function (line) { main.push({ kind: "email", who: host, line: line }); });
+      CAMEOS[3].forEach(function (cm) { talk(side, cm[0], cm[1]); });
+    }
+    return side.length ? [main, side] : [main];
+  }
+
+  // Spread each queue of chatter through the meeting, clear of the moments
+  // something's said to you (and the look before) and the round. The email
+  // is read at a steady pace, whatever else is going on.
+  var CHAT_GAP = 1.4;
+  function planChatter(st, rnd, beats, end) {
+    var from = T0 + 0.4, to = end - 0.6;
+    var busy = [];
+    beats.forEach(function (b) {
+      if (b.kind === "name" || b.kind === "ask" || b.kind === "share") busy.push([b.t - PRE - 0.5, b.t + 1.0]);
+      if (b.kind === "round") busy.push([b.t - PRE, b.t + 10.5]);
+    });
+    busy.sort(function (a, b) { return a[0] - b[0]; });
+    var free = [], at = from;
+    busy.forEach(function (bz) {
+      if (bz[0] > at) free.push([at, Math.min(bz[0], to)]);
+      at = Math.max(at, bz[1]);
+    });
+    if (at < to) free.push([at, to]);
+    free = free.filter(function (f) { return f[1] - f[0] > 0.3; });
+    var room = free.reduce(function (a, f) { return a + f[1] - f[0]; }, 0);
+    function when(u) {
+      for (var i = 0; i < free.length; i++) {
+        var len = free[i][1] - free[i][0];
+        if (u <= len) return free[i][0] + u;
+        u -= len;
+      }
+      return to;
+    }
+    return chatterFor(st, rnd).map(function (lines) {
+      var email = lines[0] && lines[0].kind === "email";
+      var n = lines.length, last = -9;
+      lines.forEach(function (l, i) {
+        var tt;
+        if (email) tt = from + (st.time - 2.6 - from) * (i + 0.5) / n;
+        else tt = when(Math.max(0, room * (i + 0.5 + (rnd() - 0.5) * 0.5) / n));
+        l.t = last = Math.max(tt, last + CHAT_GAP);
+      });
+      return { lines: lines, i: 0, last: -9 };
+    });
   }
 
   function startStage() {
@@ -457,15 +582,17 @@
     var p = plan(st);
     G = {
       time: 0, phase: "play", endT: 0,
-      beats: p.beats, rows: p.rows, row: 0, sheetRow: 0, sheetNames: p.names, sheetIdx: 0, rowAnim: 0,
+      beats: p.beats, chat: p.chat, rows: p.rows, row: 0, rowT: 0, sheetRow: 0, sheetNames: p.names, sheetIdx: 0, rowAnim: 0,
       mails: p.mails, mi: 0, roundOrder: p.round, round: null, share: null, overrun: false,
       open: null,           // the thing addressed to you right now
+      held: null,           // a press made during the tell, waiting for what it was for
       mic: { live: false, left: 0, max: 1, answered: false, heard: false, t: 0 },
       cam: { on: true, off: 0 },
       cat: null,
-      stall: 0, wrongBox: -1, stamps: [], pops: [], bubbles: [], toasts: [], flights: [], fx: [],
-      speaking: {}, gaze: null, tiles: [], volunteerAt: -9, chaseAt: -99, closedAt: -9,
+      stall: 0, wrongBox: -1, stamps: [], pops: [], bubbles: [], toasts: [], flights: [], fx: [], later: [],
+      speaking: {}, gaze: null, tiles: [], volunteerAt: -9, chaseAt: -99, closedAt: -9, camNodAt: -9,
       missed: 0, forgiven: 0, stageYeps: 0, stageNods: 0, stageVolunteered: 0, stageBoxes: 0, stageSheets: 0,
+      agreed: [], said: {},
       briefed: false, hint: null, nod: 0, yepT: 0, flash: 0, seen: 0, lastPaste: 0, sheetFlash: 0
     };
     G.tiles = st.cast.map(function (id, i) {
@@ -616,15 +743,13 @@
       // a full box: it stops responding
       G.stall = STALL * run.mods.stall;
       G.wrongBox = side;
+      r.hit = true;
       run.wrong++;
       run.streak = 0;
       sfx.wrong();
       shake(0.35);
-      if (G.share) {
-        loseRep("share", pick(SHARE_OOPS));
-      } else if (run.wrong === 1 || Math.random() < 0.25) {
-        say("Not responding", 1);
-      }
+      if (G.share) loseRep("share", pickFrom("oops", SHARE_OOPS), reactor());
+      else say("Not responding", 1, true);
       return;
     }
     r.state = "done";
@@ -637,12 +762,28 @@
     run.boxes++;
     G.stageBoxes++;
     run.learned.paste = (run.learned.paste || 0) + 1;
+    nextRow();
+    G.pasted = 1;
+    sfx.paste(run.streak);
+    if (mult() > m0) { say("Streak: x" + mult(), 1, true); sfx.streak(); }
+    if (G.sheetRow >= SHEET_ROWS) saveSheet();
+  }
+  function nextRow() {
     G.row++;
     G.sheetRow++;
     G.rowAnim = 1;
-    G.pasted = 1;
-    sfx.paste(run.streak);
-    if (mult() > m0) { say("Streak: x" + mult(), 1); sfx.streak(); }
+    G.rowT = 0;
+  }
+  // A row that wants nothing (locked, or Pam's already done it) goes by on
+  // its own, once you've left it alone for a moment
+  function tickRows(dt) {
+    var r = curRow();
+    if (!r || !r.skip || G.stall > 0) return;
+    G.rowT += dt;
+    if (G.rowT < SKIP_WAIT) return;
+    r.state = "skipped";
+    if (!r.hit) run.learned.skip = true;
+    nextRow();
     if (G.sheetRow >= SHEET_ROWS) saveSheet();
   }
 
@@ -663,23 +804,42 @@
       run.inbox--;
       var ib = inboxSpot();
       G.flights.push({ x0: ib.x, y0: ib.y, x1: ib.x + 40, y1: L.call.y + L.call.h * 0.3, t: 0, dur: 0.5 });
-      if (run.inbox === 0 && !G.zeroSaid) { G.zeroSaid = true; say("Inbox zero", 2); sfx.zero(); }
+      if (run.inbox === 0 && !G.zeroSaid) { G.zeroSaid = true; say("Inbox zero", 2, true); sfx.zero(); }
     }
     sfx.save();
-    if (G.share) { run.score += 100; speak(info().host, "Lovely. Thanks, Sam.", 1.6); }
+    if (G.share) {
+      run.score += 100;
+      var line = G.share.saved.shift();
+      if (line) speak(reactor(), line, 1.6);
+    }
   }
 
   // ---------------------------------------------------------------------------
   // The meeting: your tile's three buttons
   // ---------------------------------------------------------------------------
+  // The tell: everyone has turned to look at you, and something's about to
+  // be said. A press now isn't held against you: it waits for what it was
+  // for, and if that isn't what comes, it's dropped.
+  function tellOn() { return !!(G.pre && !G.pre.done && G.phase === "play" && G.pre.t - G.time <= PRE + 0.05); }
+  function hold(kind) { G.held = { kind: kind, at: G.time }; }
+  // A second press straight after you've dealt with something is the same press
+  function justDone() { return G.time - G.closedAt < 0.45; }
+
   function nod() {
     if (G.phase !== "play") return;
+    var o = G.open;
+    if (!o && (tellOn() || roundNextIsYou())) { hold("nod"); return; }
+    if (!o && justDone()) return;
     G.nod = 1;
     sfx.nod();
-    var o = G.open;
     if (o && o.kind === "name") { handled(o, "nod"); return; }
     if (o && (o.kind === "ask" || o.kind === "round" || o.kind === "share")) {
-      if (!o.nodSaid) { o.nodSaid = true; speak(o.who, NOD_AT_ASK, 1.6); }
+      if (!o.nodSaid) { o.nodSaid = true; speak(o.who, G.cam.on ? NOD_AT_ASK : NOD_NO_CAM, 1.6); }
+      return;
+    }
+    // with the camera off, nobody can see a nod: it costs nothing
+    if (!G.cam.on) {
+      if (G.time - G.camNodAt > 3) { G.camNodAt = G.time; speak(reactor(), NOD_NO_CAM, 1.6); }
       return;
     }
     volunteer();
@@ -700,6 +860,9 @@
       m.answered = false;
       return;
     }
+    var o = G.open;
+    if (!o && (tellOn() || roundNextIsYou())) { hold("mic"); return; }
+    if (!o && justDone()) return;
     m.live = true;
     m.heard = false;
     m.max = info().grace * run.mods.grace;
@@ -707,7 +870,6 @@
     m.t = 0;
     sfx.unmute();
     yep();
-    var o = G.open;
     if (o && (o.kind === "ask" || o.kind === "round" || o.kind === "share")) { m.answered = true; handled(o, "yep"); return; }
     m.answered = false;
     volunteer();
@@ -734,8 +896,11 @@
     }
   }
 
+  // Every yep goes on the record
   function yep() {
     G.yepT = 1.2;
+    run.yeps++;
+    G.stageYeps++;
     sfx.yep();
     G.bubbles = G.bubbles.filter(function (b) { return b.who !== "you"; });
     G.bubbles.push({ who: "you", text: YEP, t: 0, life: 1.2 });
@@ -746,11 +911,30 @@
     G.volunteerAt = G.time;
     run.volunteered++;
     G.stageVolunteered++;
-    speak(pick(info().cast.filter(function (id) { return id !== "notes" && id !== "phone" && id !== "dave"; })), pick(VOLUNTEER), 1.8);
+    speak(reactor(), pickFrom("volunteer", VOLUNTEER), 1.8);
     addStamp("Volunteered", 0.9);
     say("Volunteered", 1);
     addEmail({ from: "Graham", subject: "Action: Sam" }, true);
     lookAtYou(1.2);
+  }
+
+  // Anyone but the host in the last meeting (he's reading the email out),
+  // and never the notetaker, the phone or Dave
+  function reactor() {
+    var st = info();
+    return pick(st.cast.filter(function (id) {
+      return id !== "notes" && id !== "phone" && id !== "dave" && !(st.id === "email" && id === st.host);
+    }));
+  }
+  // Reactions to what you do are left to chance, but not said twice running
+  var decks = {};
+  function pickFrom(name, list) { return (decks[name] || (decks[name] = deck(list)))(); }
+
+  // Something's been dealt with or missed: its bubble stops being for you
+  function settle() {
+    G.bubbles.forEach(function (b) {
+      if (b.toYou) { b.toYou = false; b.life = Math.min(b.life, b.t + 0.6); }
+    });
   }
 
   // Something addressed to you, dealt with
@@ -758,6 +942,7 @@
     o.state = "done";
     G.open = null;
     G.closedAt = G.time;
+    settle();
     var pts = 0, label = "";
     if (how === "nod") { pts = Math.round(PTS.nod * run.mods.nodPts); label = "Nodded"; run.nods++; G.stageNods++; run.learned.nod = true; }
     else {
@@ -765,9 +950,10 @@
       var fast = how === "yep" && G.time - o.opened <= KEEN;
       pts = PTS.yep + (fast ? PTS.keen : 0);
       label = fast ? "Keen" : "Yep";
-      run.yeps++;
-      G.stageYeps++;
       run.learned.yep = true;
+      // and they take it at its word
+      if (o.agree) G.agreed.push(o.agree);
+      if (o.reply) G.later.push({ t: G.time + 0.9, who: o.who, line: o.reply });
     }
     run.score += pts;
     addStamp(label, 0.75);
@@ -782,7 +968,10 @@
     o.state = "missed";
     G.open = null;
     G.closedAt = G.time;
-    var line = o.kind === "name" ? pick(MISS_NAME) : pick(MISS_ASK);
+    settle();
+    var line = o.kind === "name" ? pickFrom("missName", MISS_NAME) : pickFrom("missAsk", MISS_ASK);
+    // a question you could have agreed to: they take silence as a yes
+    if (o.agree) { line = TAKE_AS_YES; G.agreed.push(o.agree); }
     if (o.kind === "round") line = "Let's skip Sam.";
     if (o.kind === "share") line = "I'll share it myself.";
     loseRep(o.kind, line, o.who);
@@ -803,7 +992,7 @@
     G.flash = 1;
     shake(0.6);
     sfx.lose();
-    if (line) speak(who || info().host, line, 2);
+    if (line) speak(who || (info().id === "email" ? reactor() : info().host), line, 2);
     addStamp(why === "cat" ? "Cat: seen" : why === "dish" ? "Heard" : why === "chase" ? "Unread" : why === "share" ? "Seen" : "Missed", 1);
     lookAtYou(1.6);
     paintHud();
@@ -819,10 +1008,12 @@
       var b = G.beats[i];
       if (b.done) continue;
       // one thing at a time for you, with a breath between; nothing else
-      // while you're sharing or they're going round. The cat waits for the
-      // share and the round, and in the team meeting for whatever's open.
+      // while you're sharing or they're going round. Nobody names you while
+      // your camera's off (they can't see a nod). The cat waits for the share
+      // and the round, and in the team meeting for whatever's open.
       var mine = b.kind === "name" || b.kind === "ask" || b.kind === "share";
       var busy = (mine || b.kind === "round") && (G.share || G.open || G.round || G.time - G.closedAt < 0.9);
+      if (b.kind === "name" && !G.cam.on) busy = true;
       if (b.t > G.time) {
         if (mine && !busy && b.t - G.time <= PRE && G.pre !== b) { G.pre = b; G.preAt = G.time; lookAtYou(PRE + 0.3); }
         continue;
@@ -834,6 +1025,33 @@
     }
   }
 
+  // The meeting's chatter: each queue in order, a breath between lines, and
+  // out of the way of anything that's for you (the email is read on regardless)
+  function tickChatter() {
+    G.chat.forEach(function (q) {
+      var b = q.lines[q.i];
+      if (!b || b.t > G.time || G.time - q.last < CHAT_GAP || !chatClear(b)) return;
+      q.i++;
+      q.last = G.time;
+      fire(b);
+    });
+  }
+  function chatClear(b) {
+    if (G.open && G.open.who === b.who) return false;      // they're asking you something
+    if (b.kind === "email") return true;
+    if (G.round || G.share || tellOn()) return false;
+    return !(G.open && G.time - G.open.opened < 0.7);
+  }
+  // Replies, a moment after the line they answer
+  function tickLater() {
+    G.later = G.later.filter(function (l) {
+      if (l.t > G.time) return true;
+      if (G.open && G.open.who === l.who) { l.t = G.time + 0.4; return true; }
+      speak(l.who, l.line, 1.4);
+      return false;
+    });
+  }
+
   function fire(b) {
     var st = info();
     switch (b.kind) {
@@ -841,12 +1059,19 @@
       case "ask":
       case "share": {
         var win = (b.kind === "name" ? st.nameWin * run.mods.nameWin : st.askWin * run.mods.askWin);
-        G.open = { kind: b.kind, who: b.who, line: b.line, opened: G.time, deadline: G.time + win, win: win, state: "open" };
+        G.open = { kind: b.kind, who: b.who, line: b.line, reply: b.reply, agree: b.agree, opened: G.time, deadline: G.time + win, win: win, state: "open" };
         speak(b.who, b.line, win + 0.3, true);
         lookAtYou(win);
         if (b.kind === "name") sfx.named(); else sfx.asked();
         // if you're already live, you just answer
         if (b.kind !== "name" && G.mic.live) { G.mic.answered = true; G.mic.left = G.mic.max; yep(); handled(G.open, "auto"); }
+        // a press made during the tell: now it counts, if it was the right one
+        var h = G.held;
+        G.held = null;
+        if (h && G.open && G.time - h.at < 1.2) {
+          if (h.kind === "nod" && b.kind === "name") nod();
+          else if (h.kind === "mic" && b.kind !== "name") mic();
+        }
         break;
       }
       case "round":
@@ -862,18 +1087,17 @@
         var tile = tileOf(b.target);
         if (tile) {
           lookAtTile(tile, 1.4);
-          if (b.reply) G.later = (G.later || []).concat([{ t: G.time + 1.1, who: b.target, line: b.reply }]);
+          if (b.reply) G.later.push({ t: G.time + 1.1, who: b.target, line: b.reply });
         }
         break;
       }
       case "everyone":
         G.lastDecoy = G.time;
         speak(b.who, b.line, 1.9);
-        if (b.line === "Who's taking notes?" && castHas(st, "notes")) G.later = (G.later || []).concat([{ t: G.time + 1, who: "notes", line: "Recording." }]);
-        else if (Math.random() < 0.5) {
-          var someone = pick(st.cast.filter(function (id) { return id !== b.who && id !== "notes" && id !== "phone" && id !== "dave"; }));
-          G.later = (G.later || []).concat([{ t: G.time + 1.2, who: someone, line: pick(["Yep.", "No.", "Fine.", "Nope.", "Mm."]) }]);
-        }
+        if (b.reply && b.replyBy) G.later.push({ t: G.time + 1.1, who: b.replyBy, line: b.reply });
+        break;
+      case "email":
+        speak(b.who, b.line, 2.3);
         break;
       case "overrun":
         G.overrun = true;
@@ -899,6 +1123,7 @@
     if (r.i >= r.order.length) {
       G.round = null;
       speak(info().host, "Lovely. Thanks, all.", 1.6);
+      G.closedAt = G.time;
       return;
     }
     var who = r.order[r.i];
@@ -909,6 +1134,10 @@
       lookAtYou(win);
       sfx.asked();
       if (G.mic.live) { G.mic.answered = true; G.mic.left = G.mic.max; yep(); handled(G.open, "auto"); }
+      // unmuted while "You're next" was up: that was for this
+      var h = G.held;
+      G.held = null;
+      if (h && G.open && h.kind === "mic" && G.time - h.at < 2) mic();
       return;
     }
     speak(who.id, who.word, 1.1);
@@ -925,7 +1154,7 @@
 
   // Screen sharing: everyone can see your spreadsheet for a while
   function startShare() {
-    G.share = { t: -0.5, dur: 8 };
+    G.share = { t: -0.5, dur: 8, saved: SHARE_SAVED.slice() };
     say("Screen: shared", 2);
     sfx.share();
   }
@@ -933,10 +1162,11 @@
     var s = G.share;
     if (!s) return;
     s.t += dt;
-    if (s.t > 2.5 && !s.said) { s.said = true; speak(pick(info().cast.filter(function (id) { return id !== "notes" && id !== info().host; })), pick(SHARE_LINES), 1.6); }
+    if (s.t > 2.5 && !s.said) { s.said = true; speak(pick(info().cast.filter(function (id) { return id !== "notes" && id !== info().host; })), pickFrom("shareLines", SHARE_LINES), 1.6); }
     if (s.t >= s.dur) {
       G.share = null;
       speak(info().host, SHARE_END, 1.8);
+      G.closedAt = G.time;
       sfx.unshare();
     }
   }
@@ -993,7 +1223,7 @@
     c.seen = true;
     G.seen = 1.4;
     sfx.gasp();
-    loseRep("cat", pick(CAT_SEEN), pick(info().cast.filter(function (id) { return id !== "notes" && id !== "phone" && id !== "dave"; })));
+    loseRep("cat", pickFrom("cat", CAT_SEEN), pick(info().cast.filter(function (id) { return id !== "notes" && id !== "phone" && id !== "dave"; })));
     say("Cat: seen", 2);
   }
   // the camera may only be off while the cat's about
@@ -1005,7 +1235,7 @@
     c.off += dt;
     if (c.off >= CAM_GRACE) {
       c.off = -0.6;    // they'll ask again a bit later
-      loseRep("cam", pick(CAM_LONG));
+      loseRep("cam", pickFrom("cam", CAM_LONG));
       if (G.cat && G.cat.phase === "gone") G.cat = null;
     }
   }
@@ -1023,7 +1253,7 @@
       m.live = false;
       m.answered = false;
       G.suds = 1.6;
-      loseRep("dish", pick(DISH));
+      loseRep("dish", pickFrom("dish", DISH));
       say("Host muted you", 2);
       sfx.hostMute();
     }
@@ -1041,7 +1271,7 @@
         G.chaseAt = G.time;
         var from = mail.from === "Notetaker" ? "Graham" : mail.from;
         var who = info().cast.filter(function (id) { return A.PEOPLE[id].name.indexOf(from) === 0; })[0] || info().host;
-        loseRep("chase", pick(CHASE), who);
+        loseRep("chase", pickFrom("chase", CHASE), who);
         say("Inbox: full", 2);
       }
       return;
@@ -1068,8 +1298,11 @@
     if (G.cat && G.cat.phase !== "desk") G.cat = null;
     G.mic.live = false;
     var st = info();
-    speak(st.host, ENDS[run.stage], 2.4);
-    sfx.leave();
+    // the last meeting's last line is the punchline: it gets a beat of its own
+    var lastOne = run.stage === LAST;
+    speak(st.host, ENDS[run.stage], lastOne ? 4.2 : 2.4);
+    if (lastOne) window.setTimeout(function () { sfx.leave(); }, 1500);
+    else sfx.leave();
     var n = run.stage + 1;
     var repBonus = 100 * run.rep * n;
     var zero = run.inbox === 0 ? 250 * n : 0;
@@ -1107,12 +1340,24 @@
     });
   }
 
-  // The notetaker's summary of the meeting
+  // The notetaker's summary of the meeting: every yep is on the record, and
+  // everything you agreed to is read back. Volunteering counts too.
+  var WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  function times(n) { return n === 1 ? "once" : n === 2 ? "twice" : (WORDS[n] || String(n)) + " times"; }
+  function listOf(items) {
+    var seen = [];
+    items.forEach(function (x) { if (seen.indexOf(x) < 0) seen.push(x); });
+    if (seen.length > 3) seen = seen.slice(0, 3).concat(["more"]);
+    return seen.length < 2 ? seen.join("") : seen.slice(0, -1).join(", ") + " and " + seen[seen.length - 1];
+  }
   function summary() {
-    var y = G.stageYeps, v = G.stageVolunteered;
-    var said = y === 0 ? "Sam said nothing" : y === 1 ? "Sam said yep" : "Sam said yep " + ["", "", "twice", "three times", "four times", "five times"][Math.min(y, 5)] + (y > 5 ? " or more" : "");
-    var acts = v === 0 ? "No action points" : v === 1 ? "One action point, Sam's" : v + " action points, all Sam's";
-    return "The notetaker's summary: " + said + ". " + acts + ".";
+    var y = G.stageYeps, acts = G.agreed.length + G.stageVolunteered;
+    var line = "Notetaker: " + (y ? "Sam said yep " + times(y) + "." : "Sam said nothing.");
+    if (G.agreed.length) line += " Sam agreed to " + listOf(G.agreed) + ".";
+    var n = WORDS[acts] || String(acts);
+    line += " " + (acts === 0 ? "No action points." : acts === 1 ? "One action point, Sam's." :
+      n.charAt(0).toUpperCase() + n.slice(1) + " action points, all Sam's.");
+    return line;
   }
 
   // Three of the ways to get through the next one, from the run's seed.
@@ -1143,7 +1388,6 @@
     G.round = null;
     G.share = null;
     G.mic.live = false;
-    say("Removed from the meeting", 3);
     sfx.removed();
     shake(1);
     end(false);
@@ -1169,10 +1413,10 @@
       total: 4,
       stamp: stamp,
       heading: survived ? "You got through four meetings." : "Removed from " + where + " at " + run.removedAt + ".",
-      line: RESULT_LINES[rank - 1],
+      line: rank === 4 ? RESULT_LINES[3][run.stage] : RESULT_LINES[rank - 1],
       stats: stats,
-      share: fmt(score) + " points, " + (survived ? "four meetings survived" : "removed from " + where) + ", " + run.boxes + " boxes pasted",
-      delay: survived ? 2400 : 2600
+      share: fmt(score) + " points, " + (survived ? "four meetings" : "removed from " + where) + ", said yep " + times(run.yeps),
+      delay: survived ? 3800 : 2600
     });
   }
 
@@ -1189,15 +1433,15 @@
       if (DEBUG && window.__onMute && window.__onMute.onTick) window.__onMute.onTick(dt);
       if (G.stall > 0) G.stall = Math.max(0, G.stall - dt);
       tickBeats();
+      tickChatter();
+      tickLater();
+      tickRows(dt);
       tickRound(dt);
       tickShare(dt);
       tickCat(dt);
       tickCam(dt);
       tickMic(dt);
       tickMail();
-      if (G.later) {
-        G.later = G.later.filter(function (l) { if (l.t <= G.time) { speak(l.who, l.line, 1.3); return false; } return true; });
-      }
       if (G.open && G.time >= G.open.deadline) missed(G.open);
       if (G.phase === "play" && G.time >= info().time + (info().overrun || 0)) endStage();
     } else {
@@ -1237,6 +1481,7 @@
         if (t.chewT <= 0) { t.chewing = !t.chewing; t.chewT = t.chewing ? 2.5 : 5 + Math.random() * 5; }
       }
       if (G.phase === "clear") t.dark = clamp((G.endT - 0.4 - t.i * 0.12) * 4, 0, 1);
+      if (G.phase === "done") t.dark = clamp((G.endT - 1.6 - t.i * 0.14) * 3, 0, 1);
       if (G.phase === "removed") t.dark = clamp((G.endT - 0.2) * 3, 0, 1);
     });
     // the dishwasher's hum while you're live
@@ -1246,13 +1491,16 @@
     }
   }
 
+  // What you did lands at the bottom of your tile, over your shirt, clear of
+  // your mouth and the tags; points go top right, where the badge was
   function addStamp(text, life) {
-    var y = L.you;
-    G.stamps.push({ x: y.x + y.w * 0.5, y: y.y + y.h * 0.62, text: text, t: 0, life: life || 0.8, tilt: (Math.random() - 0.5) * 0.24 });
+    var y = L.you, size = stampSize();
+    G.stamps.push({ x: y.x + y.w * 0.5, y: y.y + y.h - size * 1.3, text: text, t: 0, life: life || 0.8, tilt: (Math.random() - 0.5) * 0.24 });
   }
+  function stampSize() { return clamp(L.you.h * 0.1, 13, 20); }
   function popAtYou(text) {
-    var y = L.you;
-    G.pops.push({ x: y.x + y.w * 0.5, y: y.y + y.h * 0.36, text: text, t: 0 });
+    var y = L.you, rad = badgeRadius(y);
+    G.pops.push({ x: y.x + y.w - rad - 8, y: y.y + rad + 8 + (G.open ? rad * 2 + 16 : 0), text: text, t: 0 });
   }
 
   // Someone says something: a bubble from their tile, and their mouth moves
@@ -1268,6 +1516,7 @@
       G.bubbles.splice(drop, 1);
     }
     G.bubbles.push({ who: who, text: text, t: 0, life: life || 1.8, toYou: !!toYou });
+    if (DEBUG) (G.log || (G.log = [])).push([Math.round(G.time * 10) / 10, who, text]);
     G.speaking[who] = Math.min(life || 1.8, 0.35 + text.length * 0.045);
     sfx.voice(who, text);
   }
@@ -1279,11 +1528,15 @@
   function lookAtYou(t) { G.gaze = { target: "you", t: t }; }
   function lookAtTile(tile, t) { G.gaze = { target: tile, t: t }; }
 
-  // Callouts: one at a time, the important ones win
-  function say(text, priority) {
+  // Callouts: one at a time, the important ones win. Routine ones (the
+  // streak, inbox zero, not responding) land once a meeting.
+  function say(text, priority, routine) {
     if (!shell || (shell.state() !== "playing" && priority < 3)) return;
+    var key = routine ? text.split(":")[0] : null;
+    if (key && G.said[key]) return;
     var now = performance.now() / 1000;
     if (now - calloutAt < 1.5 && priority <= calloutPri) return;
+    if (key) G.said[key] = true;
     calloutAt = now;
     calloutPri = priority;
     placeKitBits();
@@ -1344,7 +1597,13 @@
     if (G.mic.live && !o && auto.mute <= 0) { mic(); auto.work = 0.12; }
     var c = G.cat;
     if (c && G.cam.on && (c.phase === "door" || c.phase === "walk")) {
-      if (auto.camFor !== c) { auto.camFor = c; auto.cam = (0.4 + Math.random() * 0.45 + (N.flags.clip && Math.random() < 0.3 ? 2.2 : 0)) / SKILL; }
+      if (auto.camFor !== c) {
+        auto.camFor = c;
+        // filming a clip, the first cat of the day gets seen: it's the moment to film
+        var late = N.flags.clip && !run.clipCat;
+        run.clipCat = true;
+        auto.cam = late ? 99 : (0.4 + Math.random() * 0.45) / SKILL;
+      }
       if (auto.cam <= 0) { cam(); auto.work = 0.12; }
     }
     if (!G.cam.on && (!c || c.phase === "gone")) {
@@ -1354,7 +1613,7 @@
     if (busy && auto.react < 0.25) return;
     if (auto.work <= 0 && G.stall <= 0) {
       var row = curRow();
-      if (row) {
+      if (row && !row.skip) {
         var careful = G.share ? 0 : 0.03;
         var side = Math.random() < careful ? 1 - row.empty : row.empty;
         paste(side, "auto");
@@ -1389,7 +1648,11 @@
       G.hint = { at: "cam", word: touch ? "Camera on: Cam" : keys ? "Camera on: C" : "Camera on" };
       return;
     }
-    if ((run.learned.paste || 0) < 4 && G.stall <= 0 && curRow()) {
+    if (curRow() && curRow().skip && !run.learned.skip) {
+      G.hint = { at: "row", word: "Leave it" };
+      return;
+    }
+    if ((run.learned.paste || 0) < 4 && G.stall <= 0 && curRow() && !curRow().skip) {
       var side = curRow().empty;
       G.hint = { at: "box", side: side, word: touch ? "Tap" : keys ? (side ? "Right" : "Left") : "Click" };
     }
@@ -1400,12 +1663,12 @@
     var touch = touching(), text;
     if (run.stage === 0) {
       text = touch ? "Tap the empty box in each row. Someone says your name: Nod. Someone asks you something: Mic, then Mic again to mute."
-        : "Paste into the empty box: left or right. Someone says your name: nod (N). Someone asks you something: unmute (Space), then mute again.";
+        : "Paste into the empty box: left or right. Someone says your name: nod (N or Down). Someone asks you something: unmute (Space or Up), then mute again.";
     } else if (run.stage === 1) {
       text = "The cat has found out you're on a call. When the door opens, " + (touch ? "camera off (Cam)" : "camera off (C)") +
-        " before it reaches the desk. Back on once it's gone.";
+        " before it reaches the desk, and back on once it's gone. A row that says Do not edit: leave it.";
     } else if (run.stage === 2) {
-      text = "Questions to everyone aren't for you: only answer your name. Then they'll go round the room, one word each. When it gets to you, unmute.";
+      text = "Questions to everyone aren't for you. Only answer the ones with your name in. When they go round the room, unmute when it gets to you. Pam has done some rows: leave those.";
     } else {
       text = "Graham is reading out an email. He'll ask you to share your screen: say yep, then don't paste into a full box while everyone's watching.";
     }
@@ -1574,25 +1837,32 @@
 
   // A name tag in a tile's corner: ink, paper words, a mic. bg: another
   // colour behind it (yours, while you're live). Returns where it went.
-  function nameTag(c, x, y, name, live, maxW, rec, bg) {
+  // ring: you're live, and a ring runs round the mic, so the words start
+  // after it rather than under it
+  function nameTag(c, x, y, name, live, maxW, rec, bg, ring) {
     var size = tagSize();
     c.font = size + "px " + T.display;
     var label = name.toUpperCase();
     var tw = A.textWidth(c, label, size);
     var icon = size * 1.05;
-    var w = Math.min(maxW, tw + icon + size * 1.3), h = size * 1.6;
-    if (tw + icon + size * 1.3 > maxW) {
+    var ringR = icon * 0.62 + 2;
+    var pad = ring ? icon * 0.12 + 4.5 + size * 0.3 : size * 0.3;
+    var room = function () { return tw + size * 0.45 + icon + pad + size * 0.45; };
+    var w = Math.min(maxW, room()), h = size * 1.6;
+    if (room() > maxW) {
       // too long for the tile: the bit in brackets goes
       label = name.replace(/\s*\(.*\)$/, "").toUpperCase();
+      if (ring) label += ": LIVE";
       tw = A.textWidth(c, label, size);
-      w = Math.min(maxW, tw + icon + size * 1.3);
+      w = Math.min(maxW, room());
     }
-    if (tw + icon + size * 1.3 > maxW + 1) { icon = 0; w = Math.min(maxW, tw + size * 0.9); }
+    if (room() > maxW + 1) { icon = 0; w = Math.min(maxW, tw + size * 0.9); }
     A.rr(c, x, y - h, w, h, 3);
     c.fillStyle = bg || T.ink;
     c.fill();
     if (bg) { c.lineWidth = 1.5; c.strokeStyle = T.paper; c.stroke(); }
-    if (icon) A.micIcon(c, x + size * 0.45 + icon / 2, y - h / 2, icon, live, bg ? T.paper : live ? T.accent : T.paper);
+    var ix = x + size * 0.45 + icon / 2;
+    if (icon) A.micIcon(c, ix, y - h / 2, icon, live, bg ? T.paper : live ? T.accent : T.paper);
     c.save();
     c.beginPath();
     c.rect(x, y - h, w - 3, h);
@@ -1600,9 +1870,9 @@
     c.fillStyle = T.paper;
     c.textAlign = "left";
     c.textBaseline = "middle";
-    A.text(c, label, x + (icon ? icon + size * 0.75 : size * 0.45), y - h / 2 + size * 0.06, size);
+    A.text(c, label, icon ? ix + icon / 2 + pad : x + size * 0.45, y - h / 2 + size * 0.06, size);
     c.restore();
-    return { x: x, y: y - h, w: w, h: h, icon: icon ? { x: x + size * 0.45 + icon / 2, y: y - h / 2, r: icon * 0.75 } : null };
+    return { x: x, y: y - h, w: w, h: h, icon: icon ? { x: ix, y: y - h / 2, r: ringR } : null };
   }
   function micTag(c, x, y, live) {
     var s = 18;
@@ -1697,30 +1967,39 @@
     c.restore();
     if (catFront) drawCat(c, cat, ww, now);
     c.restore();
-    // the camera's off: only you can see this
+    // the camera's off: only you can see this (dark, but the cat shows through)
     if (!G.cam.on) {
-      c.fillStyle = A.dots(c, T.ink, 3.2, 0.3);
+      c.fillStyle = A.dots(c, T.ink, 3.2, 0.56);
       c.fillRect(x, y, w, h);
     }
     c.restore();
-    // the frame: violet when they want something from you, and a thinner
-    // violet just before, while everyone turns to look
+    // the frame: violet when they want something from you. Just before (the
+    // tell, while everyone turns to look, or when you're next), it's dashed:
+    // get ready, not yet.
     var o = G.open;
-    var want = !!o || roundNextIsYou();
-    var coming = !want && G.pre && !G.pre.done && G.phase === "play";
+    var next = !o && roundNextIsYou();
+    var coming = !o && (next || tellOn());
     A.rr(c, x, y, w, h, 7);
     var pulse = shell.reduceMotion ? 1 : 0.5 + 0.5 * Math.abs(Math.sin(now * 6));
-    c.lineWidth = want ? 3 + pulse * 2 : coming ? 3 : G.flash > 0 ? 4 : 2;
-    c.strokeStyle = want || coming ? T.accent : G.flash > 0 && Math.floor(G.flash * 8) % 2 ? T.red : T.paper;
-    c.stroke();
+    if (coming) {
+      c.setLineDash([8, 6]);
+      c.lineWidth = 2.5;
+      c.strokeStyle = T.accent;
+      c.stroke();
+      c.setLineDash([]);
+    } else {
+      c.lineWidth = o ? 3 + pulse * 2 : G.flash > 0 ? 4 : 2;
+      c.strokeStyle = o ? T.accent : G.flash > 0 && Math.floor(G.flash * 8) % 2 ? T.red : T.paper;
+      c.stroke();
+    }
     // your name tag, top left, with your mic: violet (then red) while you're live
     var left = live ? clamp(G.mic.left / G.mic.max, 0, 1) : 1;
     var tag = nameTag(c, x + 5, y + 5 + tagSize() * 1.6, live ? "Sam (you): live" : "Sam (you)", live, w - 10, false,
-                      live ? (left < 0.35 ? T.red : T.accent) : null);
+                      live ? (left < 0.35 ? T.red : T.accent) : null, live);
     if (!G.cam.on) camOffCard(c, r);
     if (live) micRing(c, r, tag, left);
     if (o) badge(c, r, o, now);
-    else if (roundNextIsYou()) chip(c, x + w - 6, y + 6, "You're next", "right", T.accent);
+    else if (next) chip(c, x + w - 6, y + 6, "You're next", "right", T.accent);
   }
 
   function yourFace(now) {
@@ -1780,7 +2059,8 @@
     c.fillStyle = T.ink;
     c.textAlign = "center";
     c.textBaseline = "middle";
-    if (o.kind === "name") {
+    var name = o.kind === "name";
+    if (name) {
       var size = Math.round(rad * 0.62);
       c.font = size + "px " + T.display;
       c.fillText("SAM", 0, size * 0.06);
@@ -1789,34 +2069,51 @@
       c.font = size2 + "px " + T.display;
       c.fillText("?", 0, size2 * 0.08);
     }
+    // which button: its icon, tucked into the badge's corner
+    var sr = Math.max(9, rad * 0.5), sx = -rad * 0.86, sy = rad * 0.72;
+    A.ell(c, sx, sy, sr, sr);
+    A.fill(c, T.ink, 1.6, T.paper);
+    if (name) A.nodIcon(c, sx, sy, sr * 1.45, T.paper);
+    else A.micIcon(c, sx, sy, sr * 1.45, false, T.paper);
     c.restore();
+    // and its key or button underneath, all through the first meeting
+    if (run.stage === 0 || !run.learned[name ? "nod" : "yep"]) {
+      var touch = touching(), mouseOn = !touch && pointerMode === "mouse";
+      var word = touch ? (name ? "Tap Nod" : "Tap Mic") : mouseOn ? (name ? "Click Nod" : "Click Unmute") : (name ? "N or Down" : "Space or Up");
+      chip(c, r.x + r.w - 6, by + rad + 7, word, "right", T.ink);
+    }
   }
+  function badgeRadius(r) { return clamp(r.h * 0.17, 15, 26); }
 
   // You're live: a ring round your mic, running down, and what to do about it
   function micRing(c, r, tag, left) {
     if (tag.icon) {
       var ic = tag.icon;
       c.beginPath();
-      c.arc(ic.x, ic.y, ic.r + 4, 0, Math.PI * 2);
-      c.lineWidth = 6;
+      c.arc(ic.x, ic.y, ic.r, 0, Math.PI * 2);
+      c.lineWidth = 5;
       c.strokeStyle = T.ink;
       c.stroke();
       c.beginPath();
-      c.arc(ic.x, ic.y, ic.r + 4, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2);
-      c.lineWidth = 3.4;
+      c.arc(ic.x, ic.y, ic.r, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2);
+      c.lineWidth = 3;
       c.strokeStyle = left < 0.35 ? T.red : T.paper;
       c.stroke();
     }
-    chip(c, r.x + 5, tag.y + tag.h + 4, "Mute again", "left", left < 0.35 ? T.red : T.ink);
+    chip(c, r.x + 5, tag.y + tag.h + 5, "Mute again", "left", left < 0.35 ? T.red : T.ink);
   }
 
+  // The camera's off: a label over where your face was, and how long they'll wait
   function camOffCard(c, r) {
-    var size = W < 480 ? 12 : 13;
-    chip(c, r.x + r.w / 2 - 40, r.y + r.h * 0.3, "Camera off", "left");
+    var size = 12;
+    c.font = size + "px " + T.display;
+    var cw = A.textWidth(c, "CAMERA OFF", size) + size * 0.9;
+    var cy = r.y + r.h * 0.34;
+    chip(c, r.x + (r.w - cw) / 2, cy, "Camera off", "left");
     // how long before they ask: only when there's no cat about
     if (!catAbout() && G.cam.off > 0) {
       var left = clamp(1 - G.cam.off / CAM_GRACE, 0, 1);
-      var bw = Math.min(r.w * 0.6, 140), bx = r.x + (r.w - bw) / 2, by = r.y + r.h * 0.3 + size * 2;
+      var bw = Math.min(r.w * 0.6, 140), bx = r.x + (r.w - bw) / 2, by = cy + size * 2;
       A.rr(c, bx, by, bw, 8, 3);
       A.fill(c, T.ink, 2, T.paper);
       if (left > 0) {
@@ -2046,7 +2343,8 @@
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.fillText(String(num), s.x + g.gut / 2, ry + g.rh / 2 + 1);
-    for (var side = 0; side < 2; side++) {
+    if (row.skip) drawSkipRow(c, g, row, ry, size, active);
+    else for (var side = 0; side < 2; side++) {
       var b = boxRect(g, ry, side);
       var empty = row.empty === side;
       var done = row.state === "done" && empty;
@@ -2092,12 +2390,64 @@
       c.lineWidth = 4;
       c.strokeStyle = G.stall > 0 ? T.red : T.accent;
       c.stroke();
-      if (G.stall <= 0 && (shell.reduceMotion || Math.floor(now * 2.4) % 2 === 0)) {
+      if (G.stall <= 0 && !row.skip && (shell.reduceMotion || Math.floor(now * 2.4) % 2 === 0)) {
         var e = boxRect(g, ry, row.empty);
         c.fillStyle = T.ink;
         c.fillRect(e.x + 10, e.y + g.rh * 0.24, 2, g.rh * 0.52);
       }
     }
+  }
+
+  // A row that wants nothing: locked ("Do not edit", with a padlock), or
+  // one Pam has already done. Leave it, and it goes by.
+  function drawSkipRow(c, g, row, ry, size, active) {
+    var a = boxRect(g, ry, 0), b = boxRect(g, ry, 1);
+    [a, b].forEach(function (r) {
+      c.beginPath();
+      c.rect(r.x, r.y, r.w, r.h);
+      c.fillStyle = T.paper;
+      c.fill();
+      c.fillStyle = A.shade(c);
+      c.fill();
+      c.lineWidth = 1.2;
+      c.strokeStyle = T.ink;
+      c.stroke();
+    });
+    c.font = size + "px " + T.display;
+    c.textBaseline = "middle";
+    var wrong = active && G.stall > 0;
+    function label(text, x, y, maxW, lock) {
+      var tw = A.textWidth(c, text, size), lw = lock ? size * 1.1 : 0;
+      var w = Math.min(maxW, tw + lw + 10), h = size * 1.44;
+      c.fillStyle = T.paper;
+      c.fillRect(x - w / 2, y - h / 2, w, h);
+      c.lineWidth = 1.5;
+      c.strokeStyle = wrong ? T.red : T.ink;
+      c.strokeRect(x - w / 2, y - h / 2, w, h);
+      if (lock) {
+        // a padlock
+        var px = x - w / 2 + 5 + lw * 0.4, py = y + size * 0.12, pw = size * 0.62;
+        c.beginPath();
+        c.arc(px, py - pw * 0.42, pw * 0.3, Math.PI, 0);
+        A.stroke(c, 1.6, T.ink);
+        c.fillStyle = T.ink;
+        c.fillRect(px - pw / 2, py - pw * 0.4, pw, pw * 0.72);
+      }
+      c.fillStyle = wrong ? T.red : T.ink;
+      c.textAlign = "left";
+      A.text(c, text, x - w / 2 + 5 + lw, y + size * 0.06, size);
+    }
+    c.save();
+    c.beginPath();
+    c.rect(a.x, ry, g.colW * 2, g.rh);
+    c.clip();
+    if (row.skip === "pam") {
+      label("DONE", a.x + a.w / 2, ry + g.rh / 2, a.w - 8);
+      label("PAM", b.x + b.w / 2, ry + g.rh / 2, b.w - 8);
+    } else {
+      label("DO NOT EDIT", a.x + g.colW, ry + g.rh / 2, g.colW * 2 - 8, true);
+    }
+    c.restore();
   }
 
   // The inbox, in the title bar. Returns how wide it is.
@@ -2280,9 +2630,9 @@
   function hintTarget() {
     var h = G.hint;
     if (!h) return null;
-    if (h.at === "box") {
-      var g = sheetGeom(), b = boxRect(g, g.activeY, h.side);
-      return { x: b.x + b.w / 2, y: b.y + 2, dir: "down" };
+    if (h.at === "box" || h.at === "row") {
+      var g = sheetGeom(), b = boxRect(g, g.activeY, h.side || 0);
+      return { x: h.at === "row" ? b.x + g.colW : b.x + b.w / 2, y: b.y + 2, dir: "down" };
     }
     if (padsOn()) {
       var pad = root.querySelector('.kit-pad[data-key="' + h.at + '"]');
