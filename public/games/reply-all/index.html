@@ -2,14 +2,14 @@
 <html lang="en-GB">
 <head>
   <!--
-    Slop Cannon. Built on the shared kit like every playable game: the page
-    loads /games/kit/kit.css and kit.js, then art.js (the drawings) and
-    slop-cannon.js (the game). The rules are in DESIGN.md, section 13.
+    Reply All. Built from the starter game page: the kit (/games/kit/) runs the
+    screens, office.js draws the office and reply-all.js is the game.
+    Design rules: DESIGN.md.
   -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Slop Cannon: Notaste Games</title>
-  <meta name="description" content="Fire AI slop into a feed of real people's dinners. Nobody is checking. A free browser game in poor taste from Notaste Games.">
+  <title>Reply All: Notaste Games</title>
+  <meta name="description" content="Someone has replied all to the whole company. Now everyone is replying all to say stop replying all. Stop them before the server melts. A free browser game in poor taste from Notaste Games.">
   <meta name="theme-color" content="#000000">
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -24,16 +24,15 @@
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Notaste Games">
-  <meta property="og:title" content="Slop Cannon">
-  <meta property="og:description" content="Fire AI slop into a feed of real people's dinners. Nobody is checking. Free, in your browser.">
-  <meta property="og:url" content="https://notastegames.com/games/slop-cannon/">
-  <meta property="og:image" content="https://notastegames.com/art/og-slop-cannon.png">
+  <meta property="og:title" content="Reply All">
+  <meta property="og:description" content="Someone has replied all to the whole company. Stop the replies before the server melts. Free in your browser.">
+  <meta property="og:url" content="https://notastegames.com/games/reply-all/">
+  <meta property="og:image" content="https://notastegames.com/art/og-reply-all.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
-<!-- data-game is the slug: it matches the folder name and the GAMES entry. --accent is slime (DESIGN.md, section 3). -->
-<body class="game" data-game="slop-cannon" style="--accent: #b3bf2a">
+<body class="game" data-game="reply-all" style="--accent: #4fa3e0">
   <a class="skip" href="#main">Skip to content</a>
 
   <header class="top">
@@ -53,21 +52,21 @@
     <div class="game-page wrap">
 
       <div class="game-head">
-        <h1>Slop Cannon</h1>
+        <h1>Reply All</h1>
         <div class="game-meta">
-          <span class="stamp-label" style="--tilt: -5deg">Pending review</span>
-          <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now</p>
+          <span class="stamp-label" style="--tilt: -5deg">Not sent</span>
+          <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now. Four stages and a server.</p>
         </div>
-        <p class="game-pitch">Fire AI slop into a feed of real people's dinners. The platform pays you for every real post you ruin. Nobody is checking. Nobody was ever going to check.</p>
+        <p class="game-pitch">Someone has replied all to the whole company. Now everyone is replying all to say stop replying all. Stop them before the server melts. Home time is 17:00.</p>
       </div>
 
       <section class="cabinet" aria-label="Game screen">
         <div class="screen">
-          <img class="screen-art" src="/art/slop-cannon.svg" alt="" width="800" height="600">
+          <img class="screen-art" src="/art/reply-all.svg" alt="" width="800" height="600">
 
-          <!-- The game. /games/kit/kit.js builds the screens in here, slop-cannon.js is the game and art.js draws it. -->
+          <!-- The game. /games/kit/kit.js builds the screens in here, reply-all.js is the game. -->
           <div id="game-root">
-            <noscript><p class="kit-noscript">Slop Cannon needs JavaScript switched on. The feed will have to ruin itself.</p></noscript>
+            <noscript><p class="kit-noscript">Reply All needs JavaScript switched on. Please do not reply to this message.</p></noscript>
           </div>
         </div>
         <p class="cabinet-strip"><span>Notaste Games</span><span>Free play</span></p>
@@ -76,9 +75,10 @@
       <div class="game-info">
         <h2>How to play</h2>
         <ul class="how">
-          <li>Aim with the mouse, a finger or the arrow keys. Hold to charge, and let go when the red brackets are on the post you want.</li>
-          <li>Real posts pay. Slop on slop costs you and breaks the chain. Four real posts in a row goes viral. Fact checks bounce it back, and the Moderator has a net.</li>
-          <li>Make each stage's target or the board pulls the funding. Pick an upgrade between stages. Today's run scrolls the same feed past everyone.</li>
+          <li>Anyone with a bar over their head is typing a reply to everyone. Click or tap them before it fills. On a keyboard, every desk has a key, laid out like the office: 1 to 4 along the back, then Q to R, A to F and Z to V. The arrow keys and Enter work too.</li>
+          <li>Every reply that gets out fills the server and sets off two more desks. The server cools down slowly. Fill it and it melts, and the day is over.</li>
+          <li>Four stages, 09:00 to 17:00: your team, the department, the whole company, then the CEO's assistant. Each one starts with a notice saying what's new.</li>
+          <li>Mute thread (Space, or the Mute button) stops the busiest row at once, then takes a while to recharge. Between stages IT make three suggestions: each one helps, and each one costs. Today's run is the same office for everyone.</li>
         </ul>
         <div class="share">
           <button class="btn-line" id="share" type="button">Share</button>
@@ -109,7 +109,7 @@
 
   <script src="/games/game.js" defer></script>
   <script src="/games/kit/kit.js" defer></script>
-  <script src="/games/slop-cannon/art.js" defer></script>
-  <script src="/games/slop-cannon/slop-cannon.js" defer></script>
+  <script src="/games/reply-all/office.js" defer></script>
+  <script src="/games/reply-all/reply-all.js" defer></script>
 </body>
 </html>
