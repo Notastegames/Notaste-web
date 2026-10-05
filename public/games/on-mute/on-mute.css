@@ -31,16 +31,17 @@
   the corners, under the thumbs, and the call's three (Nod, Mic, Cam) in
   the middle. The kit puts them in two groups; here they share one row.
 */
-#game-root .kit-touch { justify-content: space-between; padding: 0 0.6rem 0.6rem; }
+#game-root .kit-touch { justify-content: center; gap: 0.5rem; padding: 0 0.6rem 0.6rem; }
 #game-root .kit-touch-side { display: contents; }
 #game-root .kit-pad { pointer-events: auto; width: 3.75rem; height: 3.75rem; }
 #game-root .kit-pad[data-key="left"],
 #game-root .kit-pad[data-key="right"] { width: 4.25rem; height: 4.25rem; }
-#game-root .kit-pad[data-key="left"] { order: 1; }
+/* the corners push out, so the call's three sit together in the middle */
+#game-root .kit-pad[data-key="left"] { order: 1; margin-right: auto; }
 #game-root .kit-pad[data-key="nod"] { order: 2; }
 #game-root .kit-pad[data-key="mic"] { order: 3; }
 #game-root .kit-pad[data-key="cam"] { order: 4; }
-#game-root .kit-pad[data-key="right"] { order: 5; }
+#game-root .kit-pad[data-key="right"] { order: 5; margin-left: auto; }
 #game-root .kit-pad[data-key="nod"] .kit-pad-face,
 #game-root .kit-pad[data-key="mic"] .kit-pad-face,
 #game-root .kit-pad[data-key="cam"] .kit-pad-face { font-size: 1.05rem; }

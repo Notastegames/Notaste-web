@@ -224,7 +224,7 @@
   var ROUND_ASK = "Let's go round. One word on your week.";
   var ROUND_WORDS = ["Busy.", "Fine.", "Long.", "Thursday.", "Meetings.", "Mixed.", "Hectic.", "Grand.", "Ongoing.", "Wet."];
   var SHARE_ASK = "Sam, can you share your screen?";
-  var SHARE_LINES = ["Very colourful.", "Is that a #N/A?", "Lovely.", "Why's it doing that.", "Is that live?"];
+  var SHARE_LINES = ["Very colourful.", "Is that live?", "Love a spreadsheet.", "Can you make it bigger?"];
   var SHARE_OOPS = ["Is that a #N/A?", "Why's it doing that.", "That's not right.", "Can you zoom in."];
   var SHARE_END = "Thanks, Sam. Stop sharing.";
   var OVERRUN = "Just one more thing.";
@@ -443,9 +443,7 @@
   function castHas(st, id) { return st.cast.indexOf(id) >= 0; }
 
   function speakerFor(st, rnd, kind, target) {
-    var pool = st.cast.filter(function (id) {
-      return id !== "notes" && id !== "phone" && id !== "dave" && id !== target && !(st.id === "allhands" && id === "rupert" && kind === "talk" && false);
-    });
+    var pool = st.cast.filter(function (id) { return id !== "notes" && id !== "phone" && id !== "dave" && id !== target; });
     if (kind === "share" || kind === "round") return st.host;
     if (st.id === "email" && (kind === "talk")) return st.host;           // he's reading the email out
     if (st.id === "allhands" && (kind === "talk" || kind === "everyone")) return rnd() < 0.8 ? "rupert" : st.host;
@@ -461,7 +459,6 @@
       beats: p.beats, rows: p.rows, row: 0, sheetRow: 0, sheetNames: p.names, sheetIdx: 0, rowAnim: 0,
       mails: p.mails, mi: 0, roundOrder: p.round, round: null, share: null, overrun: false,
       open: null,           // the thing addressed to you right now
-      queue: [],            // things addressed to you held back while you're sharing
       mic: { live: false, left: 0, max: 1, answered: false, heard: false, t: 0 },
       cam: { on: true, off: 0 },
       cat: null,
@@ -471,8 +468,7 @@
       briefed: false, hint: null, nod: 0, yepT: 0, flash: 0, seen: 0, lastPaste: 0, sheetFlash: 0
     };
     G.tiles = st.cast.map(function (id, i) {
-      return { id: id, p: A.PEOPLE[id], i: i, gaze: { x: 0, y: 0 }, look: null, talk: 0, mood: null, moodT: 0,
-               dark: 0, tunnel: 0, tunnelT: 3 + i, chew: 0, frame: 0 };
+      return { id: id, p: A.PEOPLE[id], i: i, dark: 0, tunnel: 0, tunnelT: 3 + i };
     });
     run.metCat = run.metCat || st.cats > 0;
     layout(true);
@@ -763,7 +759,8 @@
     var pts = 0, label = "";
     if (how === "nod") { pts = Math.round(PTS.nod * run.mods.nodPts); label = "Nodded"; run.nods++; G.stageNods++; run.learned.nod = true; }
     else {
-      var fast = G.time - o.opened <= KEEN;
+      // keen: answered quickly (not just already live when they asked)
+      var fast = how === "yep" && G.time - o.opened <= KEEN;
       pts = PTS.yep + (fast ? PTS.keen : 0);
       label = fast ? "Keen" : "Yep";
       run.yeps++;
@@ -775,9 +772,8 @@
     if (pts) popAtYou("+" + pts);
     if (o.kind === "round") roundNext(0.9);
     if (o.kind === "share") startShare();
-    // they carry on
-    var tile = tileOf(o.who);
-    if (tile) tile.look = null;
+    // they carry on: a moment later, nobody's looking at you any more
+    if (G.gaze && G.gaze.target === "you") G.gaze.t = Math.min(G.gaze.t, 0.5);
   }
 
   function missed(o) {
@@ -843,7 +839,7 @@
         lookAtYou(win);
         if (b.kind === "name") sfx.named(); else sfx.asked();
         // if you're already live, you just answer
-        if (b.kind !== "name" && G.mic.live) { G.mic.answered = true; G.mic.left = G.mic.max; yep(); handled(G.open, "yep"); }
+        if (b.kind !== "name" && G.mic.live) { G.mic.answered = true; G.mic.left = G.mic.max; yep(); handled(G.open, "auto"); }
         break;
       }
       case "round":
@@ -860,7 +856,6 @@
         if (tile) {
           lookAtTile(tile, 1.4);
           if (b.reply) G.later = (G.later || []).concat([{ t: G.time + 1.1, who: b.target, line: b.reply }]);
-          else tile.nodT = 0.8;
         }
         break;
       }
@@ -906,7 +901,7 @@
       speak(info().host, "Sam?", win, true);
       lookAtYou(win);
       sfx.asked();
-      if (G.mic.live) { G.mic.answered = true; G.mic.left = G.mic.max; yep(); handled(G.open, "yep"); }
+      if (G.mic.live) { G.mic.answered = true; G.mic.left = G.mic.max; yep(); handled(G.open, "auto"); }
       return;
     }
     speak(who.id, who.word, 1.1);
@@ -931,7 +926,7 @@
     var s = G.share;
     if (!s) return;
     s.t += dt;
-    if (s.t > 2.5 && !s.said) { s.said = true; speak(pick(info().cast.filter(function (id) { return id !== "notes" && id !== info().host; })), pick(SHARE_LINES.slice(0, 1).concat(["Very colourful.", "Is that live?"])), 1.6); }
+    if (s.t > 2.5 && !s.said) { s.said = true; speak(pick(info().cast.filter(function (id) { return id !== "notes" && id !== info().host; })), pick(SHARE_LINES), 1.6); }
     if (s.t >= s.dur) {
       G.share = null;
       speak(info().host, SHARE_END, 1.8);
@@ -1224,8 +1219,6 @@
     if (shakeAmt > 0) shakeAmt = Math.max(0, shakeAmt - dt * 3);
     if (G.gaze && (G.gaze.t -= dt) <= 0) G.gaze = null;
     G.tiles.forEach(function (t) {
-      if (t.lookT > 0 && (t.lookT -= dt) <= 0) t.look = null;
-      if (t.nodT > 0) t.nodT -= dt;
       if (t.p.id === "keith") {
         t.tunnelT -= dt;
         if (t.tunnelT <= 0) { t.tunnelOn = !t.tunnelOn; t.tunnelT = t.tunnelOn ? 1.6 : 5 + Math.random() * 4; }

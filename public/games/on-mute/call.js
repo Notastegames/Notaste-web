@@ -69,9 +69,18 @@
     return m ? Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1 : 1;
   }
   // Black (or another ink's) halftone dots. spacing in CSS pixels, r as a
-  // share of the spacing.
+  // share of the spacing. Each canvas keeps its own patterns, made once.
+  var patterns = window.WeakMap ? new WeakMap() : null;
   function dots(c, colour, spacing, r) {
     var key = colour + spacing + "-" + r + "-" + DPR;
+    var s = unitPx(c);
+    var mine = patterns && patterns.get(c);
+    if (!mine && patterns && !c.svgPattern && c instanceof CanvasRenderingContext2D) { mine = {}; patterns.set(c, mine); }
+    var held = mine && mine[key];
+    if (held) {
+      if (held.s !== s && held.pat.setTransform && window.DOMMatrix) { held.pat.setTransform(new DOMMatrix().scale(1 / s)); held.s = s; }
+      return held.pat;
+    }
     var tile = tiles[key];
     if (!tile) {
       var n = Math.max(2, Math.round(spacing * DPR));
@@ -88,8 +97,8 @@
       tiles[key] = tile;
     }
     var pat = c.createPattern(tile, "repeat");
-    var s = unitPx(c);
     if (pat.setTransform && window.DOMMatrix) pat.setTransform(new DOMMatrix().scale(1 / s));
+    if (mine) mine[key] = { pat: pat, s: s };
     return pat;
   }
   function shade(c) { return dots(c, T.ink, 3.4, 0.27); }
