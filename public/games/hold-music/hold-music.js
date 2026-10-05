@@ -9,59 +9,71 @@
 //
 // THE CALLS (stages). Four of them: Billing, Faults, Complaints, then
 // Cancellations, which picks up, starts to say its name and goes dead, and
-// the menu starts again from the top. Each call: you dial, it rings, the
-// menu (one to three questions), then hold, then an agent.
-// 1. Billing. One question. Press your option's number as soon as you've
-//    heard it. On hold, tap every beat.
+// the menu starts again from the top. Each call: it rings (the first one you
+// dial), the menu, hold, then an agent who puts you through to the next.
+// 1. Billing. One question, four options. Press your option's number as
+//    soon as you've heard it. On hold, tap every beat; this call can't cut
+//    you off (the signal stops at one bar and says so).
 // 2. Faults. Two questions, and the keypad stays locked until every option
 //    has been read: the memory test. Announcements on hold duck the music;
-//    the beat carries on under them.
-// 3. Complaints. Three questions, five options, and "our options have
+//    the beat carries on under them. Lose all your signal and you're cut off.
+// 3. Complaints. Two questions, five options, and "our options have
 //    changed": the numbers come in any order. Halfway through the hold the
 //    fast version starts, in a new key, with extra notes and gaps.
-// 4. Cancellations. Options the other way round ("For a boat, press 7"),
-//    and the fast version is faster.
+// 4. Cancellations. Three questions, the options the other way round ("For
+//    a boat, press 7"), and the fast version is faster.
 //
 // THE MENU. Each question is two beats, each option two beats, then "Please
 // choose now", a bar to choose, "Here they are again", the options again
 // (worth half), "Please choose now", another bar, and "Sorry, I didn't catch
-// that": dropped. A wrong number transfers you to a useless department
-// (Lanyards, The car park) and back to the same question. Pressing before
-// you're allowed just buzzes. Spoken numbers are their keypad tones.
+// that": dropped, and redialled. A wrong number transfers you to a useless
+// department (Lanyards, The car park) and back to the same question.
+// Pressing before you're allowed just buzzes; 0, * and # are never options.
+// Spoken numbers are their keypad tones.
 //
 // HOLD. A count-in bar, then you're number N in the queue: one bar off the
 // queue for every bar you stay on the line. Notes run along the beat pad
-// into a ring; tap as each one gets there. The signal has four bars: a
-// missed note costs one, a stray tap costs one (once per gap between notes),
-// and four hits in a row win one back. Lose all four and you're cut off:
-// a dial tone, a redial, and two more places in the queue.
+// into a ring; tap as each one gets there. Each note owns the taps near it
+// (up to 0.4 of a beat, never past halfway to its neighbours): the first
+// decides it, a hit in the window or a miss (early or late) outside it,
+// and any more are ignored, so a late tap is one mistake, not two. The
+// signal has four bars: a missed note costs one, a stray tap (in no note's
+// zone) costs one, once per gap between notes, and three hits in a row win
+// one back. Lose all four and you're cut off: a dial tone, a redial, and two
+// more places in the queue.
 //
 // PATIENCE. Three to start, five at most. A wrong number, a dropped call or
 // a cut-off each cost one. Run out and you hang up, and the round ends.
 //
-// BETWEEN CALLS (shell.interlude) pick one of three ways to prepare: Put the
-// kettle on (one more patience, a longer queue), Put it on speaker (wider
-// timing, half the beat points), Press 0 a lot (skip a question, faster
-// music), and others, each with a cost.
+// BETWEEN CALLS (shell.interlude) pick one of three ways to get ready, each
+// with a cost: Put the kettle on (one more patience, a longer queue), Put it
+// on speaker (wider timing, half the beat points), Press 0 a lot (skip a
+// question, faster music), Say you're a new customer (half the queue, one
+// less patience), Find a pen (your number on the note, half the menu points),
+// Ask for a callback (nothing).
 //
 // TIMING. line.js keeps a transport clock that follows the audio context
 // one for one, schedules every sound 0.15s ahead, and works out heard time
 // (the transport minus the output latency). Notes, lamps and bubbles are
 // drawn at heard time, and taps are judged at heard time from each event's
 // own timestamp, against a window centred 15ms after the note: perfect
-// within 75ms, close within 150ms (or 0.3 of a beat, if that's shorter).
+// within 60ms, close within 140ms (or 0.3 of a beat, if that's shorter).
 // With ?speed above 1, or no sound running, the transport runs on the frame
 // clock, so the automatic play-through works at eight times speed.
 //
 // SCORING. A question right first time: 100 (50 on the repeat, or after a
-// transfer or a drop). A note: 20 perfect, 10 close. Every eighth hit in a
-// row: 50. Every call put through: 200. Finish and every patience left is
-// worth 100. The most a run can score is about 4,900.
+// transfer or a drop). Each hold is worth 600 shared among the notes its
+// queue will play (close notes half), however long the queue, so a longer
+// queue can't buy points; a hold with no misses, strays or cut-offs is a
+// clean line, worth 100 more. Every call put through: 200. Finish and every
+// patience left is worth 100. The most a run can score is about 4,700, a
+// little more with the kettle on.
 //
 // THE LADDER (DESIGN.md, section 6). Finish all four calls: Approved at
 // 4,300 or more, Pending review at 3,400 or more, Not approved below that.
 // Hang up on Complaints or Cancellations: Not approved. Hang up any sooner:
-// Rejected.
+// Rejected. Tuned with test players: good ones are Approved about one run
+// in four, average ones mostly Pending review, beginners Not approved.
 //
 // TODAY'S RUN gives everyone the same problem, the same menus (the same
 // options in the same order with the same numbers), the same announcements
@@ -205,8 +217,7 @@
       apply: function (m) { m.speaker = true; } },
     { id: "zero", label: "Press 0 a lot", detail: "Skips the first question. The hold music is 8 beats a minute faster.",
       apply: function (m) { m.skip = true; m.bpm += 8; } },
-    { id: "new", label: "Say you're a new customer", detail: "Sales pick up fast, so the queue is half as long. They try to sell you broadband: one less patience.",
-      ok: function (r) { return r.patience >= 2; },
+    { id: "new", label: "Say you're a new customer", detail: "Sales pick up fast, so the queue is half as long. They try to sell you broadband: one less patience, though never your last.",
       apply: function (m, r) { m.half = true; r.patience = Math.max(1, r.patience - 1); } },
     { id: "pen", label: "Find a pen", detail: "You write your number on the note as it's read. The menu scores half.",
       apply: function (m) { m.pen = true; } },
@@ -844,7 +855,7 @@
   // three ways to get ready, from this call's stream (the same for everyone today)
   function offer() {
     var r = plan[call].offers;
-    var pool = CHOICES.filter(function (c) { return !c.ok || c.ok(run); });
+    var pool = CHOICES.slice();
     var out = [];
     while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
     return out;
@@ -1768,6 +1779,7 @@
       },
       bot: function (profile) { bot = profile; },
       taps: function () { return tapLog.slice(); },
+      setMods: function (m) { Object.assign(mods, m); },
       longLines: function () {
         var out = [], lines = [];
         CALLS.forEach(function (c) { lines.push(c.welcome); c.agent.lines.forEach(function (l) { lines.push(l); }); });

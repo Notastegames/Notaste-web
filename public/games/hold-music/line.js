@@ -157,6 +157,7 @@
 
   function reset() {
     cancel("all");
+    bedOff();
     tr = 0;
     resync = true;
     offset = null;
