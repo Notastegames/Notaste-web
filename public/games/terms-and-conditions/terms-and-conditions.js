@@ -150,7 +150,7 @@
   var wrongAt = -99, bubbles = [], fx = [], pops = [], shake = 0;
   var hintNow = null, noticed = false, footer = 0, accepted = false;
   var prev = { up: false, down: false, action: false }, repeat = { up: 0, down: 0 };
-  var hudEls = null, bg = null, stampCache = {}, autoT = 0, autoPick = 0;
+  var hudEls = null, bg = null, stampCache = {}, autoT = 0;
   var said = { legal: -9, mascot: -9 };
   var pointer = { x: 0, y: 0, mouse: false };
   var pending = 0, fling = 0, pull = 0, skimmed = 0, lastSkim = -99;
@@ -339,6 +339,12 @@
     m.bar = Math.round(fs * (m.mode === "square" ? 1.9 : 2.2));
     m.head = m.status + m.bar;
     m.view = { x: p.x, y: p.y + m.head, w: p.w, h: p.h - m.head };
+    // in-game stamps land on the app's header, not on the clauses about to go
+    // off the top (terms.css): standing on its bottom edge where there's a
+    // status bar over it, centred on it where there isn't (the kit's buttons)
+    var sq = m.mode === "square";
+    root.style.setProperty("--tc-callouts", Math.round(sq ? p.y + m.bar / 2 : p.y + m.head - 5) + "px");
+    root.style.setProperty("--tc-callouts-lift", sq ? "-50%" : "-100%");
     m.textW = m.view.w - m.pad * 2 - 6;
     m.fonts = {
       body: "500 " + fs + "px " + bodyFont(),
@@ -696,7 +702,8 @@
       // phone, and lower down on a phone, where his arm comes up from the
       // strip under the page (so it crosses as few lines as it can). The
       // page holds still while he writes, so there's time to read it again.
-      if (STAGES[stage].amend && !arm && !popup) {
+      // He waits for the notice to go, so his arm isn't under it.
+      if (STAGES[stage].amend && !arm && !popup && !briefOn) {
         var lo = L.strip ? 0.4 : 0.2, hi = L.strip ? 0.84 : 0.6;
         for (var a = 0; a < doc.length; a++) {
           var b = doc[a];
@@ -1017,15 +1024,6 @@
       startStage(stage + 1);
       shell.next();
     });
-    // the autopilot (and the clip camera) can't click: it picks for itself
-    // (a little after the kit would, where the kit already does)
-    if (AUTOPILOT) {
-      window.clearTimeout(autoPick);
-      autoPick = window.setTimeout(function () {
-        var first = root.querySelector(".kit-inter .kit-choice");
-        if (shell.state() === "interlude" && first) first.click();
-      }, 1500 + 3000);
-    }
   }
 
   // ---------- The end ----------

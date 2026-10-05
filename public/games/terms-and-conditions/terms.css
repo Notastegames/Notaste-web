@@ -52,10 +52,18 @@
 
 /*
   The clip frame (?clip) puts a phone-sized screen on a desktop-sized page.
-  The kit fits the panels to the screen, but sizes the HUD's numbers by the
-  page, so here they get the phone sizes and stay off the app's header.
+  The kit fits the panels to the screen, but sizes the HUD's numbers and the
+  in-game stamps by the page, so here they get the phone sizes.
 */
 html.kit-clip-on .kit-stat { font-size: 1.05rem; }
 html.kit-clip-on .kit-stat-big { font-size: 2rem; }
 html.kit-clip-on .tc-pips { gap: 0.14rem; }
 html.kit-clip-on .tc-pip { width: 0.5rem; height: 0.5rem; border-width: 1.5px; }
+html.kit-clip-on .kit-callouts .stamp-label { font-size: 0.85rem; }
+
+/* In-game stamps land on the app's header (the game sets where), so they
+   never cover the clauses about to go off the top */
+#game-root .kit-callouts {
+  inset: var(--tc-callouts, 22%) 0 auto;
+  transform: translateY(var(--tc-callouts-lift, 0));
+}
