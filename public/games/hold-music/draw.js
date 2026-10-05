@@ -223,7 +223,7 @@
         var ex = s * R * 1.08, ey = hy + R * 0.05;
         for (var i = 0; i < 3; i++) {
           var k = ((o.steamT || 0) * 1.6 + i / 3) % 1;
-          var px = ex + s * (R * 0.25 + k * R * 0.45), py = ey - R * 0.2 - k * R * 0.7, pr = R * (0.13 + k * 0.12);
+          var px = ex + s * (R * 0.12 + k * R * 0.32), py = ey - R * 0.25 - k * R * 0.75, pr = R * (0.08 + k * 0.09);
           c.fillStyle = T.accent;
           c.beginPath(); c.arc(px + R * 0.05, py + R * 0.05, pr, 0, 7); c.fill();
           c.fillStyle = T.paper;
