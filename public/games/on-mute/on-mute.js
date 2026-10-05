@@ -640,6 +640,7 @@
     G.row++;
     G.sheetRow++;
     G.rowAnim = 1;
+    G.pasted = 1;
     sfx.paste(run.streak);
     if (mult() > m0) { say("Streak: x" + mult(), 1); sfx.streak(); }
     if (G.sheetRow >= SHEET_ROWS) saveSheet();
@@ -1216,6 +1217,7 @@
     G.fx = G.fx.filter(function (p) { p.t += dt; return p.t < p.life; });
     G.bubbles = G.bubbles.filter(function (b) { b.t += dt; return b.t < b.life; });
     if (G.rowAnim > 0) G.rowAnim = Math.max(0, G.rowAnim - dt * 9);
+    if (G.pasted > 0) G.pasted = Math.max(0, G.pasted - dt * 6);
     if (G.nod > 0) G.nod = Math.max(0, G.nod - dt * 1.9);
     if (G.yepT > 0) G.yepT -= dt;
     if (G.flash > 0) G.flash = Math.max(0, G.flash - dt * 1.6);
@@ -2053,12 +2055,15 @@
       c.fillStyle = T.paper;
       c.fill();
       if (!empty) { c.fillStyle = A.shade(c); c.fill(); }
+      // the box you've just pasted into flashes violet for a moment (flat, no tint)
+      var flash = done && i === G.row - 1 && G.pasted > 0.45;
+      if (flash) { c.fillStyle = T.accent; c.fill(); }
       c.lineWidth = 1.2;
       c.strokeStyle = T.ink;
       c.stroke();
       var label = null, col = T.ink;
       if (!empty) label = row.text;
-      if (done) { label = info().clip; col = T.accent; }
+      if (done) { label = info().clip; col = flash ? T.paper : T.accent; }
       if (active && G.stall > 0 && G.wrongBox === side) { label = "#N/A"; col = T.red; }
       if (label) {
         c.save();
