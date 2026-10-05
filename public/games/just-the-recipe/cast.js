@@ -28,18 +28,20 @@
   // Halftone dots in one colour, sized in device pixels so they stay crisp.
   // The pattern is anchored to whatever the drawing is anchored to, so the
   // dots on the page scroll with the page.
+  // big: larger, sparser dots. "heavy": close-set fat dots that cover most
+  // of what's under them (the page behind a panel).
   function dots(c, colour, big) {
-    var key = colour + (big ? "b" : "s");
+    var key = colour + (big === "heavy" ? "h" : big ? "b" : "s");
     var e = pats[key];
     if (!e) {
       var tile = document.createElement("canvas");
-      var n = big ? 7 : 4;
+      var n = big === "heavy" ? 4 : big ? 7 : 4;
       tile.width = tile.height = n * 2;
       var t = tile.getContext("2d");
       t.fillStyle = colour;
       [[n / 2, n / 2], [n * 1.5, n * 1.5]].forEach(function (p) {
         t.beginPath();
-        t.arc(p[0], p[1], n * (big ? 0.27 : 0.24), 0, Math.PI * 2);
+        t.arc(p[0], p[1], n * (big === "heavy" ? 0.66 : big ? 0.27 : 0.24), 0, Math.PI * 2);
         t.fill();
       });
       e = pats[key] = { tile: tile, by: {}, c: null, n: 0 };

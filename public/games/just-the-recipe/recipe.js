@@ -461,22 +461,29 @@
     run.jumps++;
     run.knows.jump = true;
     // down the page until the next thing that isn't the life story
-    var to = G.recipe.y;
+    var to = G.recipe.y, at = G.recipe;
     for (var i = 0; i < G.items.length; i++) {
       var it = G.items[i];
       if (it.y <= j.y + j.h || it.dead || it.gone) continue;
-      if (it.kind === "banner" && it.state !== "gone") { to = it.y + it.row - 16; break; }
-      if ((it.kind === "advert" && !it.behind && !run.mods.adblock) || it.kind === "video" || it.kind === "recipe") { to = it.y - 16; break; }
+      if (it.kind === "banner" && it.state !== "gone") { to = it.y + it.row - 16; at = it; break; }
+      if ((it.kind === "advert" && !it.behind && !run.mods.adblock) || it.kind === "video" || it.kind === "recipe") { to = it.y - 16; at = it; break; }
     }
-    G.jump = { from: G.scroll, to: Math.max(G.scroll + 4, to) };
+    G.jump = { from: G.scroll, to: Math.max(G.scroll + 4, to), at: at };
     shell.sound.tone(260, 0.35, { type: "sawtooth", slide: 1300, vol: 0.08 });
     shell.sound.whoosh();
   }
 
-  function endJump(blocked) {
-    var d = G.scroll - G.jump.from;
+  // The jump says how it went only when nothing else is about to: a banner,
+  // a video or a pop-up waiting at the end of it is the moment, and an
+  // advert you're about to run into says so itself. No stamp sound: the
+  // jump has its whoosh.
+  function endJump(hit) {
+    var d = G.scroll - G.jump.from, at = G.jump.at;
     G.jump = null;
-    shell.callout(blocked ? "Jumped. Into an advert" : d > 70 ? "Jumped to recipe. Nearly" : "Jumped. Not far", { tilt: -4 });
+    var opts = { tilt: -4, sound: false };
+    if (hit) { if (hit.kind === "advert") shell.callout("Jumped. Into an advert", opts); return; }
+    var inWay = at.kind === "advert" && hand.x > at.x0 - TIP - 2 && hand.x < at.x1 + TIP + 2;
+    if (at.kind === "recipe" || (at.kind === "advert" && !inWay)) shell.callout(d > 70 ? "Jumped to recipe. Nearly" : "Jumped. Not far", opts);
   }
 
   // ---------- Cookie banners ----------
@@ -485,6 +492,8 @@
       var b = G.items[i];
       if (b.kind !== "banner" || b.dead) continue;
       b.t += dt;
+      var ax = acceptX(b);
+      b.cx = b.cx == null || shell.reduceMotion ? ax : b.cx + clamp(ax - b.cx, -60 * dt, 60 * dt);
       if (b.state === "wait" && b.t >= MANAGE_WAIT) {
         b.state = "up"; b.t = 0;
         if (b.second && b.layer === 1) { b.buttons = b.second; b.layer = 2; }
@@ -531,7 +540,7 @@
           shell.sound.tone(150, 0.18, { type: "square", slide: 90, vol: 0.12 });
           if (!shell.reduceMotion) shake = Math.max(shake, 0.35);
           hand.squash = 1;
-          if (p.kind === "news") { say(catAnchor(p), pick(SAY.catOpen)); once("news", "Newsletter: open"); }
+          if (p.kind === "news") say(catAnchor(p), pick(SAY.catOpen));
           else say(chefAt(p.cx + p.w / 2 - 12, HY - POP_TOP - 4), pick(SAY.adblock));
         } else {
           p.state = "miss";
@@ -670,14 +679,14 @@
       G.scroll += ds;
       G.blocked = hit.it;
       G.v = 0;
-      if (was !== hit.it) impact(hit.it);
-      if (G.jump) endJump(hit.it.kind === "advert");
+      if (was !== hit.it) impact(hit.it, !!G.jump);
+      if (G.jump) endJump(hit.it);
     } else {
       G.blocked = null;
       G.scroll += ds;
     }
     G.blockT = G.blocked ? G.blockT + dt : 0;
-    if (G.jump && G.scroll >= G.jump.to) endJump(false);
+    if (G.jump && G.scroll >= G.jump.to) endJump(null);
 
     // the life story: what you read, and what you skimmed
     var inStory = storyRowAt(G.scroll);
@@ -706,7 +715,7 @@
     return null;
   }
 
-  function impact(it) {
+  function impact(it, quiet) {
     hand.squash = 1;
     shell.sound.tone(110, 0.12, { type: "sine", slide: 55, vol: 0.32 });
     shell.sound.noise(0.05, { freq: 900, vol: 0.1 });
@@ -714,7 +723,7 @@
     for (var i = 0; i < 4; i++) fx.push({ kind: "spark", x: hand.x, y: HY, a: Math.PI * (1.05 + i * 0.3), t: 0, life: 0.25 });
     if (it.kind === "banner") {
       if (Math.random() < 0.5) say(chefAnchor(it), pick(SAY.chef));
-    } else if (it.kind === "advert") {
+    } else if (it.kind === "advert" && !quiet) {
       once("advert", "Advert: unclosable", { tilt: -3 });
     }
   }
@@ -981,10 +990,19 @@
     } };
   }
   function catX(p) { return p.cx - p.w / 2 + 9; }
-  function chefAnchor(b) { return { key: "chef", at: function () { return { x: 88, y: HY + b.y - G.scroll - 9 }; } }; }
+  function chefAnchor(b) { return { key: "chef", at: function () { return { x: chefX(b), y: HY + b.y - G.scroll - 9 }; } }; }
+  // The chef peeks over a banner from behind Accept all, the button he wants
+  // you to press, so his bubble never sits on the tiny Reject all. When
+  // Manage moves the buttons, he shuffles along after it.
+  function acceptX(b) {
+    for (var i = 0; i < b.buttons.length; i++) if (b.buttons[i].type === "accept") return clamp((b.buttons[i].x0 + b.buttons[i].x1) / 2, 8, 92);
+    return 88;
+  }
+  function chefX(b) { return b.cx != null ? b.cx : acceptX(b); }
   function chefAt(x, y) { return { key: "chef", at: function () { return { x: x, y: y }; } }; }
   function videoAnchor() {
-    return { key: "chef", at: function () { var v = G.video; return v ? { x: v.x - 6, y: HY + v.off + 3 } : null; } };
+    // above the video's top edge, so the bubble never sits on its label
+    return { key: "chef", at: function () { var v = G.video; return v && v.state !== "sulk" ? { x: v.x - 6, y: HY + v.off - 0.5 } : null; } };
   }
 
   // The family, as you skip their photos
@@ -1242,7 +1260,7 @@
     // speech bubbles and the arrow, in CSS pixels
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     if (++boxAge > 60) { boxes = null; boxAge = 0; }
-    var placed = [];
+    var placed = keepClear();
     // no arrow once you're already on the thing it points at
     if (hint && G.hover && Math.abs(hint.x - hand.x) < 6) hint = null;
     if (hint && shell.state() === "playing") {
@@ -1253,6 +1271,14 @@
     if (hint && shell.state() === "playing") {
       screenSpace(c, 0, 0);
       drawArrow(c, clamp(hint.x, 10, 90), hint.y, hint.word);
+    }
+    // between courses and on the results the page goes dark under a heavy
+    // ink halftone, so nothing on it reads through the panel's words
+    var st = shell.state();
+    if (st === "interlude" || st === "results") {
+      c.setTransform(DPR, 0, 0, DPR, 0, 0);
+      c.fillStyle = CA.dots(c, T.ink, "heavy");
+      c.fillRect(0, 0, W, H);
     }
   }
 
@@ -1366,6 +1392,7 @@
     // a rating, from two people, one of whom is the author
     for (var k = 0; k < 5; k++) star(c, 5 + k * 5, y + 11.5, 1.9, k < 4 ? T.red : null);
     font(c, 3, T.body, "600");
+    c.fillStyle = T.paper;
     text(c, "From 2 ratings", 30, y + 12.6);
     // the photo of the dish
     var py = y + 17, ph = 104 - py - 2;
@@ -1486,11 +1513,12 @@
       }
     }
     // the chef, peeking over the top of a banner stretched across the whole page
-    if (!fold) CA.chef(c, 88, y - 2.6, 4.6, { look: [clamp((hand.x - 88) / 30, -1, 1), 0.6] });
+    var cx = chefX(b);
+    if (!fold) CA.chef(c, cx, y - 2.6, 4.6, { look: [clamp((hand.x - cx) / 30, -1, 1), 0.6] });
     card(c, -1.5, y, 103, h, { r: 0.8 });
     if (!fold) {
-      CA.blob(c, 84.4, y + 0.4, 1.4, 1.3, T.paper, 0.4);
-      CA.blob(c, 91.6, y + 0.4, 1.4, 1.3, T.paper, 0.4);
+      CA.blob(c, cx - 3.6, y + 0.4, 1.4, 1.3, T.paper, 0.4);
+      CA.blob(c, cx + 3.6, y + 0.4, 1.4, 1.3, T.paper, 0.4);
     }
     c.textBaseline = "alphabetic";
     fitText(c, b.title, 2, y + 7.4, 76, 4.4, "left", T.ink);
@@ -1551,7 +1579,10 @@
       c.fill();
       CA.ink(c, 0.45);
       c.stroke();
-      fitText(c, LABELS[btn.type], mid, y + h / 2 + 0.2, w - 2, 3, "center", T.ink);
+      var label = LABELS[btn.type];
+      font(c, 3);
+      if (btn.type === "confirm" && textW(c, label.toUpperCase()) > w - 4) label = "Confirm";
+      fitText(c, label, mid, y + h / 2 + 0.2, w - 3, 3, "center", T.ink);
     }
     c.textBaseline = "alphabetic";
   }
@@ -1597,16 +1628,21 @@
     c.fillStyle = CA.dots(c, T.ink, true);
     c.fillRect(ax, a.y + a.h * 0.6, aw, a.h * 0.4);
     CA.product(c, a.art, ax + aw / 2, a.y + a.h * 0.55, Math.min(aw * 0.32, a.h * 0.32));
-    // the headline, and a red button
+    // the label that makes it legal, at its real size, then the headline
+    // under it and a red button, each clear of the last
     var tx = artLeft ? ax + aw + 2.5 : a.x0 + 3, tw = w - aw - 5.5;
+    c.textBaseline = "top";
+    c.textAlign = "left";
+    c.fillStyle = T.ink;
+    var ls = font(c, 2.2, T.body, "700");
+    text(c, textW(c, "Advertisement") <= tw ? "Advertisement" : "Ad", tx, a.y + 0.9);
+    var hy = a.y + Math.max(4.6, 1.5 + ls), by = a.y + a.h - 8.2;
     var s = font(c, 4.4);
     var lines = wrap(c, a.head.toUpperCase(), tw);
-    if (lines.length > 2) { s = font(c, 3.4); lines = wrap(c, a.head.toUpperCase(), tw); }
+    if (lines.length > 2 || hy + lines.length * s * 0.98 > by - 0.6) { s = font(c, 3.4); lines = wrap(c, a.head.toUpperCase(), tw); }
+    lines = lines.slice(0, Math.max(1, Math.floor((by - 0.6 - hy) / (s * 0.98))));
     c.fillStyle = T.ink;
-    c.textAlign = "left";
-    c.textBaseline = "top";
-    lines.slice(0, 3).forEach(function (l, i) { text(c, l, tx, a.y + 4.6 + i * s * 0.98); });
-    var by = a.y + a.h - 8.2;
+    lines.forEach(function (l, i) { text(c, l, tx, hy + i * s * 0.98); });
     CA.rrect(c, tx, by, Math.min(tw, 22), 5.4, 1);
     c.fillStyle = T.red;
     c.fill();
@@ -1614,12 +1650,6 @@
     c.stroke();
     c.textBaseline = "middle";
     fitText(c, "Shop now", tx + Math.min(tw, 22) / 2, by + 2.9, Math.min(tw, 22) - 2, 3, "center", T.paper);
-    // the label that makes it legal
-    c.textBaseline = "top";
-    font(c, 2.2, T.body, "700");
-    c.fillStyle = T.ink;
-    c.textAlign = "left";
-    text(c, "Advertisement", artLeft ? tx : a.x0 + 3, a.y + 0.9);
     c.restore();
     c.restore();
     c.textBaseline = "alphabetic";
@@ -1704,9 +1734,9 @@
     c.save();
     CA.rrect(c, x, y, w, h, 1);
     c.clip();
-    // the chef, mid-sentence
-    CA.chef(c, cx - 5, y + 14.6, 5.2, { mood: Math.floor(clock * 6) % 2 ? "shout" : "glare", look: [clamp((hand.x - cx) / 20, -1, 1), -0.6] });
-    CA.dish(c, "soup", cx + 9, y + 17, 4.2);
+    // the chef, mid-sentence, with today's dish
+    CA.chef(c, cx - 5, y + 16.4, 5, { mood: Math.floor(clock * 6) % 2 ? "shout" : "glare", look: [clamp((hand.x - cx) / 20, -1, 1), -0.6] });
+    CA.dish(c, G.def.art, cx + 10, y + 17.6, 4.2);
     c.restore();
     // the play bar, in red, as is traditional
     c.fillStyle = T.paper;
@@ -1717,7 +1747,7 @@
     font(c, 2.4, T.body, "700");
     c.fillStyle = T.paper;
     c.textAlign = "left";
-    text(c, "Autoplay", x + 1.8, y + 1.3);
+    text(c, loose && t >= VIDEO_X ? "Buffering" : "Autoplay", x + 1.8, y + 1.1);
     c.textBaseline = "alphabetic";
     if (!loose) {
       // a play button, though it's already playing
@@ -1752,11 +1782,14 @@
     var s = videoX(v), xr = s[1];
     c.textBaseline = "middle";
     if (v.t < VIDEO_X) {
-      var n = Math.ceil(VIDEO_X - v.t);
-      var bw = 13;
+      // a black tab as big as its words, so the number never gets lost
+      var label = ("Close in " + Math.ceil(VIDEO_X - v.t)).toUpperCase();
+      var fs = font(c, 2.6), bw = textW(c, label) + 2, bh = fs + 1.4;
       c.fillStyle = T.ink;
-      c.fillRect(xr - bw, y + 0.6, bw, 4.6);
-      fitText(c, "Close in " + n, xr - bw / 2, y + 3.1, bw - 1, 2.6, "center", T.paper);
+      c.fillRect(xr - bw, y + 0.6, bw, bh);
+      c.fillStyle = T.paper;
+      c.textAlign = "center";
+      text(c, label, xr - bw / 2, y + 0.6 + bh / 2 + 0.15);
     } else if (v.state === "dock" || v.state === "rise") {
       closeBox(c, s[0], y - 0.4, s[1] - s[0]);
     }
@@ -1991,6 +2024,36 @@
   }
 
   // ---------- bubbles and the arrow ----------
+  // Where a bubble goes: where it wants to be, or the nearest spot above,
+  // below or beside whatever's in the way. Never under the HUD.
+  function clash(x, y, w, h, placed) {
+    for (var k = 0; k < placed.length; k++) {
+      var o = placed[k];
+      if (x < o.x + o.w + 4 && x + w + 4 > o.x && y < o.y + o.h + 4 && y + h + 4 > o.y) return o;
+    }
+    return null;
+  }
+  function fit(x, y, w, h) {
+    x = clamp(x, 4, W - w - 4);
+    var topY = 4;
+    hudBoxes().forEach(function (r) { if (x < r.right + 4 && x + w > r.left - 4) topY = Math.max(topY, r.bottom + 4); });
+    return [x, clamp(y, topY, H - h - 4)];
+  }
+  function placeBubble(x, y, w, h, placed) {
+    var want = fit(x, y, w, h);
+    if (!clash(want[0], want[1], w, h, placed)) return want;
+    var best = null, bd = Infinity;
+    placed.forEach(function (o) {
+      [[want[0], o.y - h - 8], [want[0], o.y + o.h + 8], [o.x - w - 8, want[1]], [o.x + o.w + 8, want[1]]].forEach(function (cand) {
+        var at = fit(cand[0], cand[1], w, h);
+        if (clash(at[0], at[1], w, h, placed)) return;
+        var d = Math.abs(at[0] - want[0]) + Math.abs(at[1] - want[1]);
+        if (d < bd) { bd = d; best = at; }
+      });
+    });
+    return best || want;
+  }
+
   function drawBubble(c, b, placed) {
     var a = b.at();
     if (!a) return;
@@ -2006,20 +2069,8 @@
     lines.forEach(function (l) { tw = Math.max(tw, c.measureText(l).width); });
     var pad = size * 0.5, lh = size * 1.02;
     var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.3;
-    var bx = clamp(ax - bw / 2, 4, W - bw - 4);
-    var topY = 4;
-    hudBoxes().forEach(function (r) { if (bx < r.right + 4 && bx + bw > r.left - 4) topY = Math.max(topY, r.bottom + 4); });
-    var by = clamp(ay - bh - size * 0.7, topY, H - bh - 4);
-    for (var tries = 0; tries < 4; tries++) {
-      var hit = null;
-      for (var k = 0; k < placed.length; k++) {
-        var o = placed[k];
-        if (bx < o.x + o.w + 4 && bx + bw + 4 > o.x && by < o.y + o.h + 4 && by + bh + 4 > o.y) { hit = o; break; }
-      }
-      if (!hit) break;
-      by = hit.y - bh - size * 0.8 >= topY ? hit.y - bh - size * 0.8 : hit.y + hit.h + size * 0.8;
-      by = clamp(by, topY, H - bh - 4);
-    }
+    var spot = placeBubble(clamp(ax - bw / 2, 4, W - bw - 4), ay - bh - size * 0.7, bw, bh, placed);
+    var bx = spot[0], by = spot[1];
     placed.push({ x: bx, y: by, w: bw, h: bh });
     var tailX = clamp(ax, bx + 12, bx + bw - 12);
     var pop = shell.reduceMotion ? 1 : clamp(b.t * 8, 0, 1);
@@ -2047,6 +2098,27 @@
     lines.forEach(function (l, i) { c.fillText(l, bx + bw / 2, by + pad * 0.75 + i * lh); });
     c.textBaseline = "alphabetic";
     c.globalAlpha = 1;
+  }
+
+  // What speech bubbles keep clear of, in CSS pixels: the fist, the row of
+  // buttons on a banner you're at, and the callout that's showing
+  var calloutEl = null, calloutBox = null;
+  function keepClear() {
+    var out = [{ x: OX + (hand.x - 8) * U, y: (HY - 24) * U, w: 16 * U, h: 26 * U }];
+    var b = bannerNear(G.scroll, 40);
+    if (b) out.push({ x: OX - 1.5 * U, y: (HY + b.y + b.row - G.scroll - 2) * U, w: 103 * U, h: (b.rowH + 4) * U });
+    var el = root.querySelector(".kit-callouts .stamp-label");
+    if (el !== calloutEl) {
+      calloutEl = el;
+      calloutBox = null;
+      if (el) {
+        var base = root.getBoundingClientRect(), box = el.parentNode.getBoundingClientRect();
+        var w = el.offsetWidth + 16, h = el.offsetHeight + 12;
+        calloutBox = { x: box.left - base.left + (box.width - w) / 2, y: box.top - base.top - 6, w: w, h: h };
+      }
+    }
+    if (calloutBox) out.push(calloutBox);
+    return out;
   }
 
   var boxes = null, boxAge = 0;
