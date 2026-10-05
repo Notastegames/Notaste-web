@@ -85,7 +85,7 @@
 //
 // THE LADDER (calibrated against test players with human reaction times:
 // see the numbers at the end of this comment). Approved: seven or more of
-// the eight landed, Mars among them, and at least 8,000 points: soft,
+// the eight landed, Mars among them, and at least 7,500 points: soft,
 // central, thrifty landings all round. Pending review: five landed. Not
 // approved: at least one. Rejected: nothing landed ("Every rocket is now
 // data.").
@@ -162,7 +162,7 @@
   ];
   var LAST = STAGES.length - 1;
   var TOTAL = STAGES.reduce(function (n, s) { return n + s.boosters; }, 0);
-  var APPROVE = 8000;
+  var APPROVE = 7500;
 
   // Between stages: what it does, then what it costs
   var UPGRADES = [
@@ -808,7 +808,7 @@
     tag = null;
     var stop = THRUST * m.thrust * Math.cos(r.a) - stage().g;
     var need = (fall * fall - Math.pow(SAFE_VY * m.safeVy * 0.8, 2)) / (2 * Math.max(0.5, h - 0.5));
-    if (fall > SAFE_VY * m.safeVy && (need > stop * 0.62 || h < 3)) tag = { word: "Too fast", bad: true };
+    if (fall > SAFE_VY * m.safeVy && (need > stop * 0.5 || h < 3)) tag = { word: "Too fast", bad: true };
     else if (h < 18 && Math.abs(r.a + u.angle) > SAFE_TILT * m.safeTilt) tag = { word: "Not upright", bad: true };
     else if (h < 14 && Math.abs(r.vx) > SAFE_VX) tag = { word: "Drifting", bad: true };
     else tag = { word: "Speed " + Math.max(0, Math.round(fall)), bad: false };
@@ -1909,6 +1909,7 @@
     window.__scrubbed = {
       state: function () { return shell.state(); },
       run: function () { return run; },
+      talk: function () { return bubbles.map(function (b) { return { who: b.who, text: b.text, offair: b.offair, t: b.t }; }); },
       view: function () {
         if (!rk || !run) return null;
         var u = under(rk.x, clock), cu = under(crossX(), clock), m = run.mods, s = stage();
