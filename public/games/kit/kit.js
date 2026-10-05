@@ -947,7 +947,10 @@
         copy();
       }
     }
-    pauseBtn.addEventListener("click", function () { if (state === "paused") resume(); else pause(); });
+    pauseBtn.addEventListener("click", function (e) {
+      if (state === "paused") resume(); else pause();
+      if (e.detail) pauseBtn.blur();   // clicked, not pressed by key: Space goes back to the game
+    });
 
     // ---------- Sound button ----------
     function paintSound() {
@@ -955,7 +958,11 @@
       soundBtn.innerHTML = m ? ICONS.soundOff : ICONS.soundOn;
       soundBtn.setAttribute("aria-label", m ? "Turn sound on" : "Turn sound off");
     }
-    soundBtn.addEventListener("click", function () { sound.toggle(); paintSound(); });
+    soundBtn.addEventListener("click", function (e) {
+      sound.toggle();
+      paintSound();
+      if (e.detail) root.focus({ preventScroll: true });   // clicked: Space goes back to the game
+    });
     paintSound();
 
     // ---------- Fullscreen ----------
@@ -990,7 +997,10 @@
       document.documentElement.classList.remove("kit-lock");
       paintFull();
     }
-    fullBtn.addEventListener("click", function () { if (isFull()) exitFull(); else enterFull(); });
+    fullBtn.addEventListener("click", function (e) {
+      if (isFull()) exitFull(); else enterFull();
+      if (e.detail) root.focus({ preventScroll: true });   // clicked: Space goes back to the game
+    });
     document.addEventListener("fullscreenchange", paintFull);
     document.addEventListener("webkitfullscreenchange", paintFull);
     paintFull();
@@ -1167,6 +1177,56 @@
         if (Object.keys(padHeld).length) input.mode = "pad";
       }
     }
+
+    // Menus by gamepad (title, between stages, results, pause): the d-pad or
+    // stick moves between the buttons on screen, A presses one, Start too
+    // outside the pause (where Start already resumes). Presses only count once
+    // the screen has been up for a moment, so a held or mashed A from the
+    // round doesn't pick something by accident.
+    var menuWas = {};
+    var menuState = "";
+    var menuSince = 0;
+    var menuPolling = false;
+    function menuButtons() {
+      return Array.prototype.filter.call(root.querySelectorAll("button, a[href]"), function (b) {
+        return !b.closest(".kit-bar") && !b.classList.contains("kit-pad") &&
+          b.getClientRects().length && window.getComputedStyle(b).visibility !== "hidden";
+      });
+    }
+    function menuPads(now) {
+      var pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      var held = {};
+      var any = false;
+      for (var i = 0; i < pads.length; i++) {
+        var p = pads[i];
+        if (!p || !p.connected) continue;
+        any = true;
+        [0, 9, 12, 13, 14, 15].forEach(function (n) { if (p.buttons[n] && p.buttons[n].pressed) held[n] = true; });
+        var x = p.axes[0] || 0, y = p.axes[1] || 0;
+        if (y < -0.6) held[12] = true;
+        if (y > 0.6) held[13] = true;
+        if (x < -0.6) held[14] = true;
+        if (x > 0.6) held[15] = true;
+      }
+      if (state !== menuState) { menuState = state; menuSince = now; }
+      var fresh = function (n) { return held[n] && !menuWas[n]; };
+      var menu = state === "title" || state === "interlude" || state === "results" || state === "paused";
+      if (menu && now - menuSince > 350) {
+        var list = menuButtons();
+        var at = list.indexOf(document.activeElement);
+        var step = fresh(13) || fresh(15) ? 1 : fresh(12) || fresh(14) ? -1 : 0;
+        if (step && list.length) list[(at < 0 ? (step > 0 ? 0 : list.length - 1) : (at + step + list.length) % list.length)].focus({ preventScroll: true });
+        else if ((fresh(0) || (fresh(9) && state !== "paused")) && list.length) (list[at] || list[0]).click();
+      }
+      menuWas = held;
+      if (any) window.requestAnimationFrame(menuPads);
+      else menuPolling = false;
+    }
+    window.addEventListener("gamepadconnected", function () {
+      if (menuPolling) return;
+      menuPolling = true;
+      window.requestAnimationFrame(menuPads);
+    });
 
     function combineInput() {
       actions.forEach(function (k) {

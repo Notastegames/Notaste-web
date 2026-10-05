@@ -152,6 +152,12 @@
 }
 .kit-icon svg { width: 1.15rem; height: 1.15rem; fill: currentColor; }
 @media (hover: hover) { .kit-icon:hover { border-color: var(--paper); } }
+/* On touch screens they reach further than they look: down into the screen
+   and up to its edge, but never into the button next door */
+@media (pointer: coarse) {
+  .kit-icon { position: relative; }
+  .kit-icon::after { content: ""; position: absolute; inset: -0.45rem -0.12rem -1rem; }
+}
 
 /* ---------- Touch buttons ---------- */
 
