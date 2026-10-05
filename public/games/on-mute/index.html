@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <!--
+    On Mute. Built from the starter game page: the kit (/games/kit/) runs the
+    screens, call.js draws the call and the people in it, and on-mute.js is
+    the game. Design rules: DESIGN.md.
+  -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>On Mute: Notaste Games</title>
+  <meta name="description" content="Four video calls back to back and a spreadsheet that needs doing. Keep working, nod when you hear your name, say yep when you're asked, and hide the cat. A free browser game in poor taste from Notaste Games.">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <link rel="preload" href="/fonts/notaste-display.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/games/game.css">
+  <link rel="stylesheet" href="/games/kit/kit.css">
+  <link rel="stylesheet" href="/games/on-mute/on-mute.css">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Notaste Games">
+  <meta property="og:title" content="On Mute">
+  <meta property="og:description" content="Four meetings, one spreadsheet and a cat. Nod when you hear your name. Free in your browser.">
+  <meta property="og:url" content="https://notastegames.com/games/on-mute/">
+  <meta property="og:image" content="https://notastegames.com/art/og-on-mute.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body class="game" data-game="on-mute" style="--accent: #7a5cd6">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="top-inner wrap">
+      <a class="top-logo" href="/" aria-label="Notaste Games home">
+        <img src="/brand/logo-on-dark.svg" alt="No Taste" width="557" height="166">
+      </a>
+      <nav class="top-nav" aria-label="Main">
+        <a href="/#games">Games</a>
+        <a href="/#about">About</a>
+        <a href="/#follow">Follow</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="game-page wrap">
+
+      <div class="game-head">
+        <h1>On Mute</h1>
+        <div class="game-meta">
+          <span class="stamp-label" style="--tilt: -5deg">You're on mute</span>
+          <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now. Four meetings and a spreadsheet.</p>
+        </div>
+        <p class="game-pitch">Four video calls back to back and a spreadsheet that needs doing. Keep working. Nod when you hear your name, say yep when you're asked, and hide the cat.</p>
+      </div>
+
+      <section class="cabinet" aria-label="Game screen">
+        <div class="screen">
+          <img class="screen-art" src="/art/on-mute.svg" alt="" width="800" height="600">
+
+          <!-- The game. /games/kit/kit.js builds the screens in here, on-mute.js is the game. -->
+          <div id="game-root">
+            <noscript><p class="kit-noscript">On Mute needs JavaScript switched on. You're on mute.</p></noscript>
+          </div>
+        </div>
+        <p class="cabinet-strip"><span>Notaste Games</span><span>Free play</span></p>
+      </section>
+
+      <div class="game-info">
+        <h2>How to play</h2>
+        <ul class="how">
+          <li>Your actual job is the spreadsheet: paste into whichever box is empty, left or right, with the arrow keys, A and D, a click or a tap. Paste into a full one and it stops responding. Every sheet you finish answers an email, and if the inbox fills up, people start asking about it in the meeting.</li>
+          <li>Keep up appearances in the call. When someone says your name, nod (N). When they ask you something, unmute (Space) and say yep, then mute again before they hear the dishwasher. When the cat comes in, turn your camera off (C) until it's gone.</li>
+          <li>Do something nobody asked for and you've volunteered: one more email. Miss things and your reputation drops; lose all of it and you're removed from the meeting. Four meetings: a stand-up, a team meeting, the all-hands and one that could have been an email. Today's run is the same day for everyone.</li>
+        </ul>
+        <div class="share">
+          <button class="btn-line" id="share" type="button">Share</button>
+          <span class="share-status" id="share-status" role="status"></span>
+        </div>
+      </div>
+    </div>
+
+    <section class="more wrap" aria-labelledby="more-heading">
+      <div class="section-head">
+        <h2 id="more-heading">More games</h2>
+        <p class="section-note">Also unfinished. Also in poor taste.</p>
+      </div>
+      <!-- Filled from GAMES in /games/game.js -->
+      <ul class="more-list" id="more-list"></ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-inner wrap">
+      <img class="foot-mark" src="/brand/mark-on-dark.svg" alt="" width="183" height="166">
+      <div>
+        <p>Notaste Games makes satire. Real people, brands and events that appear in our games are being made fun of, not described.</p>
+        <p>&copy; <span id="year">2026</span> Notaste Games. <a href="/privacy/">Privacy</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/games/game.js" defer></script>
+  <script src="/games/kit/kit.js" defer></script>
+  <script src="/games/on-mute/call.js" defer></script>
+  <script src="/games/on-mute/on-mute.js" defer></script>
+</body>
+</html>
