@@ -212,6 +212,13 @@
             "The fridge will be cleared on Friday.", "Anything left will be binned.", "This includes the yoghurts.",
             "Thanks in advance.", "Kind regards.", "Sent from my phone."]
   };
+  // each meeting's regulars, saying their one thing. Nothing for you to do.
+  var CAMEOS = [
+    [["dave", "Sorry. You cut out. Can you repeat that?"]],
+    [["linda", "Sorry, I'm eating."], ["gaz", "Is my camera on?"]],
+    [["phone", "Hello? Hello?"], ["femi", "Can you hear me now?"]],
+    [["keith", "Sorry. Tunnel."], ["bernard", "Can everyone see me?"], ["mo", "I'm doing my steps."]]
+  ];
   var STARTS = ["Let's give it a minute.", "Shall we start.", "Can everyone hear me?", "Right. Let me read this out."];
   var ENDS = ["Right, I'll let you all go.", "Let's take the rest offline.", "Exciting times. Bye.", "I'll send this round as an email."];
   var ROUND_ASK = "Let's go round. One word on your week.";
@@ -390,6 +397,12 @@
         beats.push(filler);
       }
       t += d;
+    });
+    // the regulars, now and then (Dave unfreezes just before the end)
+    var cr = N.seeded(base + 6);
+    (CAMEOS[run.stage] || []).forEach(function (cm, n, all) {
+      var at2 = cm[0] === "dave" ? st.time - 3.2 : T0 + 3 + (end - T0 - 6) * (n + 0.3 + cr() * 0.4) / all.length;
+      beats.push({ kind: "talk", t: at2, line: cm[1], who: cm[0] });
     });
     // the meeting opens with someone talking, and the last meeting overruns
     beats.push({ kind: "talk", t: 0.6, line: STARTS[run.stage], who: st.host });
@@ -1147,6 +1160,8 @@
       { label: rec.isNew ? (shell.daily ? "New best today" : "New best") : shell.daily ? "Today's best" : "Best",
         value: fmt(rec.best || 0), highlight: rec.isNew }
     ];
+    // today's run says which day it was (and drops the boxes, so it fits a phone)
+    if (shell.daily) stats.splice(1, 1, { label: "Run", value: shell.today });
     shell.finish({
       place: rank,
       total: 4,
@@ -1549,7 +1564,7 @@
     }
     if (G.speaking[t.id]) { f.mood = "talk"; f.talk = Math.sin(now * 15 + t.i); }
     if (t.p.sandwich && t.chewing && !G.speaking[t.id]) { f.mood = "chew"; f.talk = Math.sin(now * 9); }
-    if (t.p.special === "frozen") { f.mood = "sleep"; f.gx = 0; f.gy = 0; }
+    if (t.p.special === "frozen" && !G.speaking[t.id]) { f.mood = "sleep"; f.gx = 0; f.gy = 0; }
     if (G.seen > 0 && t.p.special !== "frozen") f.mood = "shock";
     if (G.phase === "removed") f.mood = "shock";
     if (t.p.id === "keith") f.tunnel = t.tunnel;
