@@ -193,7 +193,8 @@
     transfer: ["I pressed {n}, you melon.", "That was {n}. I pressed {n}.", "Not Lanyards. Never Lanyards."],
     drop: ["I was thinking.", "Hang on. Hang on."],
     cut: ["Hello. Hello.", "Don't you dare.", "No no no no."],
-    hang: ["Right. That's it.", "I'm writing a letter."]
+    hang: ["Right. That's it.", "I'm writing a letter."],
+    dead: ["Hello. Hello.", "You absolute weapon."]
   };
 
   // Ways to get ready for the next call. Each helps and costs.
@@ -249,7 +250,6 @@
   function info() { return CALLS[call]; }
   function touching() { return root.classList.contains("kit-touching"); }
   function times(n) { return n === 0 ? "Never" : n === 1 ? "Once" : n === 2 ? "Twice" : n + " times"; }
-  function words(n) { return ["no", "one", "two", "three", "four", "five", "six", "seven", "eight"][n] || String(n); }
 
   // ---------------------------------------------------------------------------
   // Today's run: everything that should be the same for everyone, dealt at
@@ -539,6 +539,8 @@
       p.end = p.againAt + 3.6;
       p.next = function () { p.done = true; Line.bedOff(); finish(true); };
       shell.callout("Line: dead", { tilt: -4, ms: 1800 });
+      react.shout = 1.4; react.steam = 3;
+      setTimeout(function () { youSay("dead"); }, 1600);
       run.score += PTS.call;
       run.calls++;
     },
@@ -594,7 +596,7 @@
       if (first) { run.menuFirst++; st.menuFirst++; }
       learned.menu = true;
       lcdFlash = { text: "Thank you", t: 0, good: true };
-      floatAt("key", d, "+" + pts, "good");
+      floats.push({ kind: "good", text: "+" + pts, t: 0, life: 0.8, key: d });
       go("thanks", Line.now() + 0.08, { li: p.li, pressed: d });
     } else {
       transferred(d);
@@ -1175,7 +1177,7 @@
     var hn = hint(v, h);
     if (hn) {
       c.setTransform(DPR * U, 0, 0, DPR * U, 0, 0);
-      drawArrow(c, hn.x, hn.y, hn.word, hn.dir);
+      drawArrow(c, hn.x, hn.y, hn.word, hn.dir, hn.left);
     }
   }
 
@@ -1338,6 +1340,7 @@
       } else D.text(c, "Menu", l.x + l.w / 2, py, s * 1.3);
     } else if (v.kind === "hold") {
       var left = queueLeft(v, h);
+      if (mods.speaker) D.text(c, "Speaker", l.x + l.w * 0.56, l.y + l.h - s * 0.8, s * 0.8);
       D.text(c, "Queue", l.x + s * 0.5, l.y + s * 0.9, s * 0.85, { align: "left" });
       D.text(c, String(left), l.x + s * 0.5, py + s * 0.7, big * 0.95, { align: "left" });
       D.signal(c, l.x + l.w - s * 2.3, l.y + l.h - s * 0.5, s * 1.9, signal, T.ink, T.ink);
@@ -1485,7 +1488,6 @@
     if (v.kind === "dial") word = h < v.dialAt ? "Cut off" : "Redialling";
     else if (h < v.countAt) word = "Please hold";
     else if (h < v.barsAt) word = String(Math.min(4, Math.floor((h - v.countAt) / v.b0) + 1));
-    else if (learned.beat < 6 && call === 0) word = touching() ? "Tap anywhere on the beat" : lastMode === "mouse" ? "Click on the beat" : "Space on the beat";
     else if (bar && bar.first && h < bar.t + bar.b * 4) word = "Fast version";
     else if (bar && bar.last) word = "You're next";
     if (word) D.text(c, word, r.x + r.w / 2, r.y + r.h * 0.83, s * (word.length < 3 ? 1.6 : 1), { colour: T.paper });
@@ -1497,9 +1499,7 @@
     floats = floats.filter(function (f) { return f.key; });
     floats.push({ kind: kind, text: text, t: 0, life: life });
   }
-  function floatAt(kind, d, text, cls) {
-    floats.push({ kind: cls, text: text, t: 0, life: 0.8, key: d });
-  }
+
   function drawFloats(c) {
     var r = padRect();
     floats.forEach(function (f) {
@@ -1547,9 +1547,12 @@
       var fade = clamp((cur.end + 0.5 - h) * 4, 0, 1);
       bubble(c, cur.text.toUpperCase(), box, anchor, b.side, Math.min(fade, shell.reduceMotion ? 1 : clamp((h - cur.t) * 9, 0, 1)), cur.who === "dept", placed);
     }
-    // what you say back, where there's room for it
-    if (react.said && react.saidT < 2.2 && Lay.youBubble) {
-      var yb = Lay.youBubble, R = Lay.you.R;
+    // what you say back: in your own bubble where there's room for one,
+    // otherwise in the phone's space while the phone isn't talking
+    if (react.said && react.saidT < 2.2 && (Lay.youBubble || !cur)) {
+      var R = Lay.you.R;
+      var yb = Lay.youBubble || { x: Lay.bubble.x, y: Lay.bubble.side === "right" ? Lay.note.y + (Lay.note.h || 0) + 2.4 : Lay.bubble.y,
+                                   right: Lay.bubble.side === "right" ? Lay.bubble.right : Math.min(Lay.phone.x - 2, WW - 2), bottom: Lay.hatTop - 1.5 };
       var yAnchor = { x: (Lay.you.x - R * 0.3) * U, y: (Lay.hatTop + R * 0.4) * U };
       bubble(c, react.said.toUpperCase(), { x: yb.x * U, y: yb.y * U, w: (yb.right - yb.x) * U, bottom: yb.bottom * U }, yAnchor, "down",
         clamp((2.2 - react.saidT) * 4, 0, 1) * (shell.reduceMotion ? 1 : clamp(react.saidT * 9, 0, 1)), false, placed);
@@ -1559,7 +1562,7 @@
   // A speech bubble: paper, a thick ink outline, a tail to the speaker
   // (DESIGN.md, section 7). box: the room it has, in CSS pixels.
   function bubble(c, text, box, anchor, side, alpha, dashed, placed) {
-    var size = clamp(U * 3.3, 12, 20);
+    var size = N.flags.clip ? clamp(U * 3.6, 12, U * 4.2) : clamp(U * 3.3, 12, 20);
     var lines;
     for (;;) {
       c.font = size + "px " + T.display;
@@ -1630,6 +1633,11 @@
   function hint(v, h) {
     if (shell.state() !== "playing") return null;
     var how = touching() ? "touch" : lastMode || "keys";
+    if (call === 0 && v.kind === "hold" && learned.beat < 6 && h >= v.countAt) {
+      var r = padRect();
+      return { x: r.x + r.w * 0.2, y: r.y + r.h * 0.5 + Math.min(r.h * 0.13, r.w * 0.09) + 1.2, dir: "up",
+               word: how === "touch" ? "Tap anywhere on the beat" : how === "mouse" ? "Click on the beat" : "Space on the beat", left: true };
+    }
     if (call === 0 && v.kind === "level" && !learned.menu) {
       var lv = levelOf(v), right = null;
       lv.options.forEach(function (o) { if (o.right) right = o; });
@@ -1644,7 +1652,7 @@
     return null;
   }
 
-  function drawArrow(c, x, y, word, dir) {
+  function drawArrow(c, x, y, word, dir, left) {
     var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(animT * 4)) * -1.4;
     var size = Math.max(3, Lay.tmin);
     c.save();
@@ -1662,6 +1670,7 @@
     c.stroke();
     c.restore();
     if (dir === "right") D.text(c, word, -5.2, 0, size, { align: "right", colour: T.paper, stroke: size * 0.32 });
+    else if (dir === "up" && left) D.text(c, word, 4, 2.6, size, { align: "left", colour: T.paper, stroke: size * 0.32 });
     else if (dir === "up") D.text(c, word, 0, 5.6, size, { base: "top", colour: T.paper, stroke: size * 0.32 });
     else D.text(c, word, 0, -5.2, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
     c.restore();
