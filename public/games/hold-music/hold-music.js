@@ -1050,12 +1050,20 @@
     Lay.shape = tall ? "tall" : wide ? "wide" : "square";
     // the HUD's top left block (the call and your patience)
     Lay.top = (N.flags.clip ? 64 : narrow ? 46 : 72) / U;
-    // the keypad: keys at least 56px on a touch screen
+    // the keypad: keys 56px on a touch screen, unless that would push the
+    // phone up under the pause buttons and the score (a 320px phone gets
+    // about 50px)
+    var gap = coarse ? 1 : 0, pad = coarse ? 1.7 : 0;
+    var lcdH = Math.max(tall ? 16 : 14, 46 / U);
     var kk = coarse ? Math.max(56 / U + 0.25, 12) : wide ? 11 : tall ? 13.5 : 10.5;
-    var gap = coarse ? 1 : kk * 0.08, pad = coarse ? 1.7 : Math.max(2, kk * 0.16);
+    if (coarse) {
+      var room = WH - 46 / U - 2.8 - 1.2 - 3 * pad - lcdH - 2 * gap;
+      kk = Math.max(Math.min(kk, room / 3), 44 / U);
+    } else {
+      gap = kk * 0.08; pad = Math.max(2, kk * 0.16);
+    }
     var star = !coarse;
     var gridW = 3 * kk + 2 * gap, gridH = 3 * kk + 2 * gap + (star ? kk * 0.6 + gap : 0);
-    var lcdH = Math.max(tall ? 16 : 14, 46 / U);
     var pw = gridW + 2 * pad, phH = pad + lcdH + pad + gridH + pad;
     var px = WW - pw - (wide ? 5 : 1.5), py = WH - phH - (coarse ? 1.2 : 2.4);
     Lay.phone = { x: px, y: py, w: pw, h: phH, pad: pad };
@@ -1234,10 +1242,15 @@
   }
 
   function drawNote(c, v, h) {
-    var n = Lay.note, size = Lay.shape === "square" ? Math.max(13 / U, 3.1) : Math.max(Lay.tmin, Lay.shape === "tall" ? 5 : 4.2), lh = size * 1.18;
+    var n = Lay.note, size = Lay.shape === "square" ? Math.max(13 / U, 3.1) : Math.max(Lay.tmin, Lay.shape === "tall" ? 5 : 4.2);
     var lines = noteLines();
     var title = "My problem";
-    var tw = D.measure(c, title, size * 0.9);
+    var tw = 0;
+    // on a narrow phone the note's words shrink to fit its column, to 12px at the least
+    lines.forEach(function (l) { tw = Math.max(tw, D.measure(c, l.text, size) + size * (mods.pen ? 3.4 : 1.9)); });
+    if (tw + size * 1.5 > n.w) size = Math.max(Lay.tmin, size * (n.w - size * 1.5) / tw);
+    var lh = size * 1.18;
+    tw = D.measure(c, title, size * 0.9);
     lines.forEach(function (l) { tw = Math.max(tw, D.measure(c, l.text, size) + size * (mods.pen ? 3.4 : 1.9)); });
     var w = Math.min(n.w, tw + size * 1.5), hgt = lh * (lines.length + 1) + size * 1.1;
     var x = n.x, y = n.y;
