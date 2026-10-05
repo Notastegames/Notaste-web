@@ -675,6 +675,29 @@
       c.stroke();
       blob(c, x, y - r * 0.55, r * 0.14, r * 0.1, T.accent, w);
       steam(c, x - r * 1.05, y - r * 0.55, r * 0.45, w * 0.7);
+    } else if (kind === "bed") {
+      // a mattress, near you: a bed from the side
+      rrect(c, x - r * 1.25, y - r * 0.85, r * 0.3, r * 1.7, r * 0.1);
+      c.fillStyle = T.ink;
+      c.fill();
+      [-1.0, 1.0].forEach(function (k) {
+        rrect(c, x + k * r - r * 0.08, y + r * 0.45, r * 0.16, r * 0.4, r * 0.04);
+        c.fillStyle = T.ink;
+        c.fill();
+      });
+      rrect(c, x - r * 1.05, y + r * 0.05, r * 2.2, r * 0.45, r * 0.08);
+      c.fillStyle = T.accent;
+      c.fill();
+      ink(c, w);
+      c.stroke();
+      rrect(c, x - r * 1.05, y - r * 0.4, r * 2.2, r * 0.5, r * 0.18);
+      c.fillStyle = T.paper;
+      c.fill();
+      shadeClip(c, x + r * 0.5, y - r * 0.05, r * 1.2, r * 0.45);
+      ink(c, w);
+      c.stroke();
+      [-0.35, 0.25, 0.8].forEach(function (k) { seg(c, [[x + k * r, y - r * 0.36], [x + k * r, y + r * 0.06]], w * 0.6); });
+      blob(c, x - r * 0.62, y - r * 0.55, r * 0.34, r * 0.18, T.paper, w);
     } else {
       // a spoon
       c.save();
@@ -700,7 +723,7 @@
   // A family photo: who's in it, inside a box x, y, w, h (the picture part of
   // the frame). Returns where their head is, for speech bubbles.
   // ---------------------------------------------------------------------------
-  function photo(c, who, x, y, w, h, look) {
+  function photo(c, who, x, y, w, h, look, food) {
     c.save();
     c.beginPath();
     c.rect(x, y, w, h);
@@ -738,7 +761,7 @@
     } else if (who === "me") {
       shoulders(c, cx, cy, r, T.paper);
       head(c, cx, cy, r, { hat: "bun", look: lk });
-      dish(c, "soup", cx + r * 1.2, cy + r * 1.35, r * 0.6);
+      dish(c, food || "soup", cx + r * 1.2, cy + r * 1.35, r * 0.6);
       mitten(c, cx + r * 0.6, cy + r * 1.6, r * 0.28);
       at.y = cy - r * 1.3;
     } else if (who === "kids") {

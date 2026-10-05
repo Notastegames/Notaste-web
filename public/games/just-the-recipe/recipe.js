@@ -16,7 +16,7 @@
 // What's in the way, and what to do about it:
 // - The life story. Paragraphs, family photos and pull quotes, with white
 //   space wandering down between them. On the words you wade (about a third of
-//   the speed) and leave a highlighter trail of what you read; in the white
+//   the speed) and the words you touch light up in rust, read; in the white
 //   space you skim at full speed. The share of story you didn't wade through
 //   is "Skipped".
 // - Cookie banners, stretched across the whole page. Your fingertip stops at
@@ -85,7 +85,7 @@
   // see about the same amount of page.
   // ---------------------------------------------------------------------------
   var VIEW_W = 106, VIEW_H = 112;
-  var START = 45;                // where the fingertip starts on every page
+  var START = 36;                // where the fingertip starts on every page (the page's top sits under the HUD)
   var TIP = 1.8;                 // half the width of the fingertip
   var HAND_SPEED = 100;          // keys and pad, units a second
   var AIM_SPEED = 320;           // mouse and finger
@@ -96,6 +96,7 @@
   var EARLY = 6;                 // a button can be clicked this far before it reaches you
   var POP_W = 46, POP_H = 30, POP_TOP = 6;   // a newsletter pop-up, and how far above the fingertip its top sits
   var POP_WARN = [1, 0.9, 0.75]; // how long the cat gives you, per course
+  var SURE_W = 54, SURE_TOP = 11; // Leaving so soon?, and how far above the fingertip its top sits
   var POP_FLY = 0.28;
   var VIDEO_W = 40, VIDEO_H = 25;
   var VIDEO_CHASE = 36;          // how fast a loose video slides after you
@@ -110,7 +111,7 @@
 
   // Between courses: something good, something bad, in that order
   var CHOICES = {
-    reader: { label: "Reader mode", detail: "The life story slows you less. No more Jump to recipe buttons.",
+    reader: { label: "Reader mode", detail: "The life story slows you less. Only the fake Jump buttons are left.",
               apply: function (m) { m.reader = true; } },
     adblock: { label: "Ad blocker", detail: "Adverts never load. A pop-up asks you to turn it off, twice a page.",
                apply: function (m) { m.adblock = true; } },
@@ -129,12 +130,13 @@
     { line: "Dinner is very late. You know a lot about the author's kitchen tiles." },
     { line: "By the time you reached the pudding, it was breakfast." }
   ];
-  // Between courses, by how that page went (pudding has the results screen instead)
+  // Between courses, by how that page went (pudding has the results screen
+  // instead). The heading says what was found and how long it took.
   var CLEARED = [
-    ["Soup located. Nan's childhood went largely unread.", "Lasagne located. Italy can wait."],
-    ["Soup located. You know about the tiles now.", "Lasagne located. You've seen the oven."],
-    ["Soup located. It's gone cold.", "Lasagne located. The kids have had toast."],
-    ["Soup located, eventually. The soup has been informed.", "Lasagne located. It's tomorrow."]
+    ["Nan's childhood went largely unread.", "You skipped Italy. All of it."],
+    ["You know about the tiles now.", "You've seen the oven. From the front."],
+    ["It's gone cold.", "The kids have had toast."],
+    ["The soup has been reheated twice.", "It's tomorrow."]
   ];
 
   // ---------------------------------------------------------------------------
@@ -180,7 +182,7 @@
       n: n, def: def, items: page.items, triggers: page.triggers, len: page.len, storyTotal: page.storyTotal,
       recipe: page.items[page.items.length - 1], read: 0, scroll: START, v: 0, clock: 0,
       popups: [], video: null, tab: null, jump: null, blocked: null, blockT: 0, wade: false, wadeT: 0, skimT: 0,
-      trail: [], calls: {}, over: false, endT: 0, hover: null, warned: false
+      calls: {}, over: false, endT: 0, hover: null, warned: false
     };
     hand.x = 50; hand.kv = 0; hand.press = 0; hand.squash = 0;
     prevAct = true;
@@ -253,10 +255,18 @@
   }
   function modal() { return !!(openPopup() || G.tab); }
 
-  // The pop-up's close target: the X, or "Yes, leave" on an Are you sure
+  // The pop-up's close target: the X, or the tiny Yes on a Leaving so soon?
   function closeSpan(p) {
+    if (p.kind === "confirm") return sureBox(p).yes;
     var x1 = p.cx + p.w / 2;
-    return p.kind === "confirm" ? [x1 - 16, x1 - 1] : [x1 - 7.5, x1 - 0.5];
+    return [x1 - 7.5, x1 - 0.5];
+  }
+  // Leaving so soon?: the big red No sits under your finger, the tiny Yes at
+  // the far end of the same row, and the question over the Yes
+  function sureBox(p) {
+    var x0 = p.cx - p.w / 2, w = p.w;
+    return p.flip ? { yes: [x0 + 2, x0 + 12], no: [x0 + 21, x0 + w - 2], title: x0 + 2, align: "left" }
+                  : { yes: [x0 + w - 12, x0 + w - 2], no: [x0 + 2, x0 + 33], title: x0 + w - 2, align: "right" };
   }
   function videoX(v) { var x1 = v.x + VIDEO_W / 2; return [x1 - 7.5, x1 - 0.5]; }
   // The X is small and the video moves, so a press near it counts
@@ -307,7 +317,9 @@
     var p = openPopup();
     if (p) {
       var s = closeSpan(p);
-      return x >= s[0] && x <= s[1] ? { what: "close", p: p } : null;
+      if (x >= s[0] && x <= s[1]) return { what: "close", p: p };
+      if (p.kind === "confirm") { var no = sureBox(p).no; if (x >= no[0] && x <= no[1]) return { what: "no", p: p }; }
+      return null;
     }
     var b = bannerNear(y, EARLY);
     if (b && b.state === "up") { var btn = buttonAt(b, x); if (btn) return { what: "button", b: b, btn: btn }; }
@@ -390,6 +402,7 @@
     if (p) {
       var s = closeSpan(p);
       if (x >= s[0] && x <= s[1]) closePopup(p);
+      else if (p.kind === "confirm") { var no = sureBox(p).no; if (x >= no[0] && x <= no[1]) takeMeBack(p); }
       else if (p.kind === "news" && Math.random() < 0.5) say(catAnchor(p), pick(SAY.catWrong));
       return;
     }
@@ -448,7 +461,7 @@
   }
 
   function newTab(what) {
-    G.tab = { t: 0, life: TAB_TIME, head: pick(PG.TABS), what: what };
+    G.tab = { t: 0, life: TAB_TIME, ad: pick(PG.TABS), what: what };
     run.clicked++;
     shell.callout("Advert: clicked", { tilt: 3 });
     shell.sound.tone(700, 0.4, { type: "sawtooth", slide: 160, vol: 0.09 });
@@ -563,9 +576,11 @@
     puff(closeSpan(p)[1] - 3, HY);
     if (p.kind === "news") {
       say(catAnchor(p), pick(SAY.catClosed));
-      // on pudding, closing one sometimes asks if you're sure
+      // on pudding, closing one sometimes asks if you're sure, with the
+      // big red No right under your finger
       if (p.confirm) {
-        G.popups.push({ kind: "confirm", w: 40, cx: clamp(hand.x, 21, 79), side: p.side, t: 0, state: "open" });
+        var flip = hand.x > 50, x0 = clamp(hand.x - (flip ? 36.5 : 17.5), 1, 99 - SURE_W);
+        G.popups.push({ kind: "confirm", w: SURE_W, cx: x0 + SURE_W / 2, flip: flip, side: p.side, t: 0, state: "open" });
         shell.sound.tone(500, 0.12, { type: "square", slide: 700, vol: 0.06 });
       }
     } else if (p.kind === "confirm") {
@@ -573,9 +588,19 @@
     }
   }
 
+  // No, take me back: back to the newsletter, as asked
+  function takeMeBack(p) {
+    p.state = "gone";
+    var w = POP_W, q = { kind: "news", w: w, cx: clamp(hand.x, w / 2 + 1, 99 - w / 2), side: p.side, t: 0, state: "open", confirm: false };
+    G.popups.push(q);
+    shell.sound.tone(150, 0.18, { type: "square", slide: 90, vol: 0.12 });
+    hand.squash = 1;
+    say(catAnchor(q), "Knew it.");
+  }
+
   // ---------- Autoplay videos ----------
   function updateVideo(dt) {
-    if (!G.video) {
+    if (!G.video || G.video.state === "sulk") {
       for (var i = 0; i < G.items.length; i++) {
         var it = G.items[i];
         if (it.kind !== "video" || it.gone) continue;
@@ -591,9 +616,11 @@
     var v = G.video;
     if (!v) return;
     v.t += dt;
+    if (v.state === "sulk") { v.lt += dt; return; }
     if (v.state === "leave" || v.state === "close") {
       v.lt += dt;
-      if (v.lt > 0.5) G.video = null;
+      // closed, it's gone; given up, it sulks in a corner, still playing
+      if (v.lt > 0.5) { if (v.state === "close") G.video = null; else { v.state = "sulk"; v.lt = 0; } }
       return;
     }
     if (v.state === "rise") {
@@ -648,7 +675,6 @@
   function shove(y0, dh, except) {
     G.items.forEach(function (it) { if (it !== except && it.y >= y0 - 0.001) it.y += dh; });
     G.triggers.forEach(function (tr) { if (tr.at >= y0) tr.at += dh; });
-    G.trail.forEach(function (p) { if (p && p[1] >= y0) p[1] += dh; });
     if (G.jump && G.jump.to >= y0) G.jump.to += dh;
     G.len += dh;
   }
@@ -693,17 +719,25 @@
     if (G.wade) {
       G.read += ds;
       G.wadeT += dt;
-      var last = G.trail[G.trail.length - 1];
-      if (!last || Math.abs(last[0] - x) + Math.abs(last[1] - G.scroll) > 0.8) G.trail.push([x, G.scroll]);
+      highlight(row, x, G.scroll - ds - 1.3, G.scroll + 0.4);
     } else {
       G.wadeT = 0;
-      if (G.trail.length && G.trail[G.trail.length - 1]) G.trail.push(null);
       if (inStory && !G.jump && ds > 0) {
         G.skimT += dt;
         if (G.skimT > 1.6) run.knows.gap = true;
       }
     }
-    if (G.trail.length > 900) G.trail.splice(0, 300);
+  }
+
+  // The words under the fingertip, read: marked, and drawn in rust
+  function highlight(row, x, y0, y1) {
+    row.blocks.forEach(function (b) {
+      if (b.type !== "text" || x < b.x0 - TIP || x > b.x1 + TIP) return;
+      bars(row, b).forEach(function (w) {
+        var wy = row.y + w[1];
+        if (wy + 1.25 >= y0 && wy <= y1 && w[0] <= x + TIP + 0.6 && w[0] + w[2] >= x - TIP - 0.6) w[3] = 1;
+      });
+    });
   }
 
   function storyRowAt(y) {
@@ -747,7 +781,7 @@
     shell.interlude({
       stamp: stamp,
       tilt: rank % 2 ? 4 : -4,
-      heading: G.def.food + " found.",
+      heading: G.def.food + " found in " + N.fmtTime(t * 1000) + ".",
       line: CLEARED[rank][G.n],
       stats: [
         { label: "Page", value: N.fmtTime(t * 1000) },
@@ -900,7 +934,7 @@
       if (it.behind || run.mods.adblock) return;
       if (it.loaded || it.y - y < it.load + 14) bad.push([it.x0 - TIP - 1.5, it.x1 + TIP + 1.5]);
     });
-    if (v && v.state !== "leave" && v.state !== "close") bad.push([v.x - VIDEO_W / 2 - 6, v.x + VIDEO_W / 2 + 6]);
+    if (v && (v.state === "rise" || v.state === "dock")) bad.push([v.x - VIDEO_W / 2 - 6, v.x + VIDEO_W / 2 + 6]);
     if (warn) bad.push([warn.cx - warn.w / 2 - 3, warn.cx + warn.w / 2 + 3]);
 
     var want = x;
@@ -1012,14 +1046,15 @@
     for (var i = 0; i < G.items.length; i++) {
       var it = G.items[i];
       if (it.kind !== "story" || it.said || it.y > G.scroll) continue;
-      if (it.y + it.h * 0.5 > G.scroll) continue;
+      if (it.y + it.h * 0.3 > G.scroll) continue;
       it.said = true;
       var ph = null;
       it.blocks.forEach(function (b) { if (b.type === "photo") ph = b; });
       if (!ph || !SAY[ph.who] || !SAY[ph.who].length) continue;
       if (Math.random() < 0.35) continue;
       (function (row, b) {
-        say({ key: "photo", at: function () { return { x: (b.x0 + b.x1) / 2, y: HY + row.y - G.scroll + 9 }; } }, pick(SAY[b.who]));
+        var side = b.x0 < 50 ? b.x1 + 5 : b.x0 - 5;
+        say({ key: "photo", at: function () { return { x: side, y: HY + row.y - G.scroll + 9 }; } }, pick(SAY[b.who]));
       })(it, ph);
       talkWait = 3;
       break;
@@ -1034,15 +1069,17 @@
     mumble -= dt;
     if (G.wade && G.v > 1 && mumble <= 0) {
       mumble = 0.13 + Math.random() * 0.08;
-      shell.sound.tone(150 + Math.random() * 90, 0.07, { type: "square", vol: 0.022 });
+      shell.sound.tone(150 + Math.random() * 90, 0.07, { type: "square", vol: 0.035 });
     }
+    // the autoplay jingle: the most annoying sound in the game, and still
+    // going, quieter, from the corner after the video gives up
     var v = G.video;
-    if (v && (v.state === "rise" || v.state === "dock")) {
+    if (v && v.state !== "close") {
       jingle -= dt;
       if (jingle <= 0) {
         jingle = 0.19;
         v.note = ((v.note || 0) + 1) % JINGLE.length;
-        shell.sound.tone(JINGLE[v.note], 0.12, { type: "square", vol: 0.025 });
+        shell.sound.tone(JINGLE[v.note], 0.12, { type: "square", vol: v.state === "rise" || v.state === "dock" ? 0.07 : 0.03 });
       }
     }
   }
@@ -1073,8 +1110,14 @@
   // ---------------------------------------------------------------------------
   // The notice for each course, up with the countdown so it's read before Go
   // ---------------------------------------------------------------------------
+  // how the player last pressed something, so the first notice of a round
+  // started with a mouse click says click, not Space
+  var lastPress = "keys";
+  root.addEventListener("pointerdown", function (e) { lastPress = e.pointerType === "mouse" ? "mouse" : "touch"; }, true);
+  document.addEventListener("keydown", function () { lastPress = "keys"; }, true);
   function how() {
     var m = shell.input.mode;
+    if (m === "keys" && lastPress === "mouse") m = "mouse";
     return m === "touch" ? "tap Click" : m === "mouse" ? "click" : m === "pad" ? "press A" : "press Space";
   }
   function notice() {
@@ -1234,8 +1277,8 @@
     pageSpace(c, sx, sy);
     var top = G.scroll - HY - 6, bottom = G.scroll - HY + VH + 6;
     drawMargins(c, top, bottom);
-    drawTrail(c, top, bottom);
     wordsPath = new Path2D();
+    readPath = new Path2D();
     for (var i = 0; i < G.items.length; i++) {
       var it = G.items[i];
       if (it.y > bottom) break;
@@ -1245,6 +1288,8 @@
     // nothing else on the page overlaps the words, so they go on last
     c.fillStyle = T.paper;
     c.fill(wordsPath);
+    c.fillStyle = T.accent;
+    c.fill(readPath);
 
     screenSpace(c, sx, sy);
     if (G.jump && !shell.reduceMotion) drawRush(c);
@@ -1263,12 +1308,12 @@
     var placed = keepClear();
     // no arrow once you're already on the thing it points at
     if (hint && G.hover && Math.abs(hint.x - hand.x) < 6) hint = null;
-    if (hint && shell.state() === "playing") {
+    if (hint && shell.state() === "playing" && !G.tab) {
       var ax = clamp(hint.x, 14, 86);
       placed.push({ x: OX + (ax - 14) * U, y: (hint.y - 24) * U, w: 28 * U, h: 24 * U });
     }
-    bubbles.forEach(function (b) { drawBubble(c, b, placed); });
-    if (hint && shell.state() === "playing") {
+    if (!G.tab) bubbles.forEach(function (b) { drawBubble(c, b, placed); });
+    if (hint && shell.state() === "playing" && !G.tab) {
       screenSpace(c, 0, 0);
       drawArrow(c, clamp(hint.x, 10, 90), hint.y, hint.word);
     }
@@ -1296,7 +1341,7 @@
 
   // Sticky sidebar adverts, where there's room: they stay put below the HUD
   // and swap themselves for a new one every so often, with a little jump.
-  var SIDE_ADS = [["onion", "This onion will make you cry"], ["kettle", "Kettles hate this trick"], ["fridge", "Win a fridge. Probably."],
+  var SIDE_ADS = [["onion", "This onion will make you cry"], ["kettle", "Kettles hate this one trick"], ["fridge", "Win a fridge. Probably."],
                   ["spoon", "A spoon. Wow."], ["pan", "Pans near you"]];
   function drawSideAds(c) {
     if (MARGIN < 15) return;
@@ -1344,21 +1389,6 @@
       CA.seg(c, [[x, y], [x, y + 16]], 1.4, T.ink);
       CA.seg(c, [[x, y], [x, y + 16]], 0.7, T.paper);
     }
-  }
-
-  // ---------- what you read: a highlighter trail through the words ----------
-  function drawTrail(c, top, bottom) {
-    if (G.trail.length < 2) return;
-    c.beginPath();
-    var on = false;
-    for (var i = 0; i < G.trail.length; i++) {
-      var p = G.trail[i];
-      if (!p || p[1] < top - 10 || p[1] > bottom + 10) { on = false; continue; }
-      if (on) c.lineTo(p[0], p[1]); else c.moveTo(p[0], p[1]);
-      on = true;
-    }
-    CA.ink(c, 3.2, T.accent);
-    c.stroke();
   }
 
   function drawItem(c, it) {
@@ -1448,11 +1478,12 @@
     return out;
   }
 
-  // The words of the life story go into one path, filled once a frame
-  var wordsPath = null;
+  // The words of the life story go into one path, filled once a frame, and
+  // the ones you've read into another, in rust, like a highlighter
+  var wordsPath = null, readPath = null;
   function drawText(c, row, b) {
     var list = bars(row, b);
-    for (var i = 0; i < list.length; i++) wordsPath.rect(list[i][0], row.y + list[i][1], list[i][2], 1.25);
+    for (var i = 0; i < list.length; i++) (list[i][3] ? readPath : wordsPath).rect(list[i][0], row.y + list[i][1], list[i][2], 1.25);
   }
 
   function drawQuote(c, row, b) {
@@ -1487,7 +1518,7 @@
     var capH = lines.length * s * 1.08 + 1.4;
     var px = x + 1.6, py = y + 1.6, pw = w - 3.2, phh = h - 3.2 - capH;
     var look = [clamp((hand.x - (x + w / 2)) / 30, -1, 1), clamp((HY - (HY + y - G.scroll)) / 40, -1, 1)];
-    CA.photo(c, b.who, px, py, pw, phh, look);
+    CA.photo(c, b.who, px, py, pw, phh, look, G.def.art);
     CA.ink(c, 0.4);
     c.strokeRect(px, py, pw, phh);
     font(c, 3, T.body, "700");
@@ -1520,14 +1551,19 @@
       CA.blob(c, cx - 3.6, y + 0.4, 1.4, 1.3, T.paper, 0.4);
       CA.blob(c, cx + 3.6, y + 0.4, 1.4, 1.3, T.paper, 0.4);
     }
+    // the words go on the side away from Reject all (or Manage), so the
+    // hand on its way there doesn't sit on them
+    var aim = null;
+    b.buttons.forEach(function (k) { if (k.type === "reject" || (k.type === "manage" && !aim)) aim = k; });
+    var right = aim && (aim.x0 + aim.x1) / 2 < 50, tx = right ? 98 : 2;
     c.textBaseline = "alphabetic";
-    fitText(c, b.title, 2, y + 7.4, 76, 4.4, "left", T.ink);
+    fitText(c, b.title, tx, y + 7.4, 76, 4.4, right ? "right" : "left", T.ink);
     font(c, 2.8, T.body, "600");
     c.fillStyle = T.ink;
-    c.textAlign = "left";
+    c.textAlign = right ? "right" : "left";
     var lineW = textW(c, b.line);
-    if (lineW <= 96) text(c, b.line, 2, y + 11.6);
-    else greek(c, 2, y + 10, 76, 1);
+    if (lineW <= 96) text(c, b.line, tx, y + 11.6);
+    else greek(c, right ? 22 : 2, y + 10, 76, 1);
     // the buttons
     if (b.state === "wait") {
       fitText(c, "Loading your preferences", 50, line + 6, 90, 3.6, "center", T.ink);
@@ -1728,7 +1764,8 @@
   }
 
   // ---------- the loose video, and the embed it came from ----------
-  function drawVideoBox(c, cx, y, t, loose) {
+  // mini: shrunk into the corner, so no words (they'd be under 12px)
+  function drawVideoBox(c, cx, y, t, loose, mini) {
     var x = cx - VIDEO_W / 2, w = VIDEO_W, h = VIDEO_H;
     card(c, x, y, w, h, { fill: T.ink, edge: T.paper, line: 0.7, r: 1 });
     c.save();
@@ -1743,6 +1780,7 @@
     c.fillRect(x + 2, y + h - 2.6, w - 4, 0.8);
     c.fillStyle = T.red;
     c.fillRect(x + 2, y + h - 2.6, (w - 4) * ((t * 0.07) % 1), 0.8);
+    if (mini) return;
     c.textBaseline = "top";
     font(c, 2.4, T.body, "700");
     c.fillStyle = T.paper;
@@ -1765,23 +1803,37 @@
     var v = G.video;
     if (!v) return;
     var y = HY + v.off;
+    // the corner it sulks in: bottom left, in the desk where there's room
+    var MINI = 0.4, cxm = MARGIN > VIDEO_W * MINI + 4 ? -MARGIN / 2 : VIDEO_W * MINI / 2 + 2, cym = VH - VIDEO_H * MINI - 3;
+    if (v.state === "sulk") {
+      c.save();
+      if (shell.reduceMotion) c.globalAlpha = Math.min(1, v.lt / 0.3);
+      c.translate(cxm, cym);
+      c.scale(MINI, MINI);
+      c.translate(-v.x, -y);
+      drawVideoBox(c, v.x, y, v.t, true, true);
+      c.restore();
+      return;
+    }
     c.save();
     if (v.state === "leave") {
       var k = ease(v.lt / 0.5);
-      // off to sulk in the corner
-      var tx = 100 - VIDEO_W * 0.25, ty = VH - VIDEO_H * 0.4;
-      c.translate(v.x + (tx - v.x) * k, y + (ty - y) * k);
-      c.scale(1 - k * 0.6, 1 - k * 0.6);
-      c.translate(-v.x, -y);
-      c.globalAlpha = 1 - k * 0.5;
+      if (shell.reduceMotion) c.globalAlpha = 1 - k;
+      else {
+        // off to sulk in the corner
+        c.translate(v.x + (cxm - v.x) * k, y + (cym - y) * k);
+        c.scale(1 - k * (1 - MINI), 1 - k * (1 - MINI));
+        c.translate(-v.x, -y);
+      }
     } else if (v.state === "close") {
       c.globalAlpha = 1 - ease(v.lt / 0.3);
     }
-    drawVideoBox(c, v.x, y, v.t, true);
+    drawVideoBox(c, v.x, y, v.t, true, v.state === "leave");
     // the X, after it's made you wait
     var s = videoX(v), xr = s[1];
     c.textBaseline = "middle";
-    if (v.t < VIDEO_X) {
+    if (v.state === "leave") { /* no X: it's going */ }
+    else if (v.t < VIDEO_X) {
       // a black tab as big as its words, so the number never gets lost
       var label = ("Close in " + Math.ceil(VIDEO_X - v.t)).toUpperCase();
       var fs = font(c, 2.6), bw = textW(c, label) + 2, bh = fs + 1.4;
@@ -1816,7 +1868,7 @@
       c.fillRect(-MARGIN - 2, 0, VW + 4, VH);
     }
     G.popups.forEach(function (p) {
-      var y = HY - POP_TOP;
+      var y = HY - (p.kind === "confirm" ? SURE_TOP : POP_TOP);
       if (p.state === "warn") {
         // where it'll land, and the cat, peeking in
         c.setLineDash([1.6, 1.2]);
@@ -1856,12 +1908,12 @@
 
   function drawPopupCard(c, p, cx, y) {
     var x = cx - p.w / 2, w = p.w;
-    var h = p.kind === "confirm" ? 22 : POP_H;
+    var h = p.kind === "confirm" ? SURE_TOP + 5 : POP_H, strip = p.kind === "confirm" ? 6.6 : 7.4;
     card(c, x, y, w, h, { r: 1.2 });
     c.fillStyle = T.accent;
-    c.fillRect(x + 0.3, y + 0.3, w - 0.6, 7.4);
+    c.fillRect(x + 0.3, y + 0.3, w - 0.6, strip);
     c.fillStyle = T.ink;
-    c.fillRect(x + 0.3, y + 7.4, w - 0.6, 0.45);
+    c.fillRect(x + 0.3, y + strip, w - 0.6, 0.45);
     c.textBaseline = "middle";
     var s = p.kind === "confirm" ? null : closeSpan({ cx: cx, w: w, kind: p.kind });
     if (p.kind === "news") {
@@ -1905,16 +1957,18 @@
       fitText(c, "Turn it off", cx, y + 20.3, 32, 3.4, "center", T.paper);
       if (p.state !== "close") CA.chef(c, x + 10, y - 2.2, 4.2, { look: [0.5, 0.5] });
     } else {
-      fitText(c, "Are you sure", x + 3, y + 4.1, w - 22, 3.6, "left", T.ink);
-      var ys = closeSpan({ cx: cx, w: w, kind: "confirm" });
-      fitText(c, "Yes", (ys[0] + ys[1]) / 2, y + 4.1, ys[1] - ys[0] - 1, 2.6, "center", T.ink);
-      c.fillRect(ys[0] + 4, y + 5.6, ys[1] - ys[0] - 8, 0.3);
-      CA.rrect(c, x + 4, y + 11, w - 8, 7, 1.2);
+      // the question over the Yes, the big red No under your finger
+      var sb = sureBox(p), row = y + SURE_TOP;
+      fitText(c, "Leaving so soon?", sb.title, y + 3.5, 28, 3.6, sb.align, T.ink);
+      CA.rrect(c, sb.no[0], row - 3.2, sb.no[1] - sb.no[0], 6.4, 1.2);
       c.fillStyle = T.red;
       c.fill();
       CA.ink(c, 0.4);
       c.stroke();
-      fitText(c, "No, take me back", cx, y + 14.6, w - 12, 3.4, "center", T.paper);
+      fitText(c, "No, take me back", (sb.no[0] + sb.no[1]) / 2, row + 0.3, sb.no[1] - sb.no[0] - 3, 3.4, "center", T.paper);
+      var ys = fitText(c, "Yes", (sb.yes[0] + sb.yes[1]) / 2, row + 0.2, sb.yes[1] - sb.yes[0], 2.6, "center", T.ink);
+      var yw = textW(c, "YES");
+      c.fillRect((sb.yes[0] + sb.yes[1]) / 2 - yw / 2, row + ys * 0.5, yw, 0.3);
     }
     if (s) closeBox(c, s[0], y + 0.6, s[1] - s[0]);
     c.textBaseline = "alphabetic";
@@ -1925,7 +1979,9 @@
     var hv = G.hover;
     if (!hv || shell.state() !== "playing") return;
     var x0, x1, y0, y1;
-    if (hv.what === "close") { var s = closeSpan(hv.p); x0 = s[0]; x1 = s[1]; y0 = HY - POP_TOP + 0.6; y1 = y0 + (s[1] - s[0]); }
+    if (hv.what === "close" && hv.p.kind === "confirm") { var ys = closeSpan(hv.p); x0 = ys[0]; x1 = ys[1]; y0 = HY - 3.2; y1 = HY + 3.2; }
+    else if (hv.what === "no") { var no = sureBox(hv.p).no; x0 = no[0]; x1 = no[1]; y0 = HY - 3.2; y1 = HY + 3.2; }
+    else if (hv.what === "close") { var s = closeSpan(hv.p); x0 = s[0]; x1 = s[1]; y0 = HY - POP_TOP + 0.6; y1 = y0 + (s[1] - s[0]); }
     else if (hv.what === "button") { x0 = hv.btn.x0; x1 = hv.btn.x1; y0 = HY + hv.b.y + hv.b.row - G.scroll - (hv.btn.type === "accept" ? 1.6 : 0); y1 = y0 + hv.b.rowH + (hv.btn.type === "accept" ? 3.2 : 0); }
     else if (hv.what === "videoX") { var vs = videoX(G.video); x0 = vs[0]; x1 = vs[1]; y0 = HY - 0.4; y1 = y0 + (vs[1] - vs[0]); }
     else if (hv.what === "jump") { x0 = hv.j.x0; x1 = hv.j.x1; y0 = HY + hv.j.y - G.scroll; y1 = y0 + hv.j.h; }
@@ -1982,7 +2038,9 @@
 
   // The page's own scrollbar: a long page means a tiny thumb
   function drawScrollbar(c) {
-    var x = MARGIN > 3 ? 101.6 : 98.6, top = 2, len = VH - 4;
+    var hud = 0;
+    hudBoxes().forEach(function (r) { hud = Math.max(hud, r.bottom); });
+    var x = MARGIN > 3 ? 101.6 : 98.6, top = hud / U + 1.5, len = VH - top - 2;
     c.fillStyle = T.ash;
     c.fillRect(x - 0.4, top, 0.8, len);
     var p = clamp((G.scroll - START) / Math.max(1, G.len - START), 0, 1);
@@ -1998,26 +2056,32 @@
     if (!tb) return;
     var k = shell.reduceMotion ? 1 : ease(Math.min(tb.t, tb.life - tb.t) / 0.15);
     var x = -MARGIN, w = VW, y = (1 - k) * VH;
+    // the browser's ink strip, as deep as the HUD, with the tab hanging
+    // off its bottom edge like a real one
+    var hud = 0;
+    hudBoxes().forEach(function (r) { hud = Math.max(hud, r.bottom); });
+    var strip = Math.max(9, hud / U + 7.5);
     c.save();
     c.globalAlpha = shell.reduceMotion ? Math.min(1, Math.min(tb.t, tb.life - tb.t) / 0.15) : 1;
     c.fillStyle = T.paper;
     c.fillRect(x, y, w, VH);
     c.fillStyle = T.ink;
-    c.fillRect(x, y, w, 9);
+    c.fillRect(x, y, w, strip);
     c.fillStyle = T.paper;
-    CA.rrect(c, 4, y + 3, 34, 6, 1);
+    CA.rrect(c, 4, y + strip - 6, 34, 7, 1);
     c.fill();
     c.textBaseline = "middle";
-    fitText(c, "A new tab", 21, y + 6.2, 30, 2.8, "center", T.ink);
+    fitText(c, "A new tab", 21, y + strip - 2.7, 30, 2.8, "center", T.ink);
     // the advert, at full size, which is what it always wanted
     c.fillStyle = CA.dots(c, T.accent, true);
     c.fillRect(x, y + VH * 0.55, w, VH * 0.45);
     var s = font(c, 7);
-    var lines = wrap(c, tb.head.toUpperCase(), 90);
+    var lines = wrap(c, tb.ad.head.toUpperCase(), 90);
     c.fillStyle = T.ink;
     c.textAlign = "center";
-    lines.slice(0, 3).forEach(function (l, i) { text(c, l, 50, y + 22 + i * s); });
-    CA.product(c, ["pan", "kettle", "fridge", "onion"][PG.TABS.indexOf(tb.head) % 4], 50, y + VH * 0.62, 11);
+    lines.slice(0, 3).forEach(function (l, i) { text(c, l, 50, y + strip + 13 + i * s); });
+    if (tb.ad.dish) CA.dish(c, tb.ad.art, 50, y + VH * 0.62, 11);
+    else CA.product(c, tb.ad.art, 50, y + VH * 0.62, 11);
     fitText(c, "Closing it for you", 50, y + VH - 8, 80, 3.2, "center", T.ink);
     c.textBaseline = "alphabetic";
     c.restore();
@@ -2071,6 +2135,8 @@
     var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.3;
     var spot = placeBubble(clamp(ax - bw / 2, 4, W - bw - 4), ay - bh - size * 0.7, bw, bh, placed);
     var bx = spot[0], by = spot[1];
+    // a photo scrolling up under the HUD takes its bubble with it
+    if (b.key === "photo" && by > ay - bh - size * 0.7 + 2) b.life = Math.min(b.life, b.t + 0.3);
     placed.push({ x: bx, y: by, w: bw, h: bh });
     var tailX = clamp(ax, bx + 12, bx + bw - 12);
     var pop = shell.reduceMotion ? 1 : clamp(b.t * 8, 0, 1);
@@ -2173,8 +2239,8 @@
     note: "Three courses. Three recipes. About nine thousand words in the way.",
     pitch: "Scroll down to the recipe. The page has other ideas.",
     hints: {
-      keys: "Arrow keys, A and D, or the mouse to steer. Space or click to click. P to pause.",
-      touch: "Drag anywhere to steer the hand. Click on the right."
+      keys: "Arrow keys, A and D, or the mouse to steer. Space or a mouse click to click. P to pause.",
+      touch: "Drag anywhere to steer. Tap Click, bottom right, to click."
     },
     againLabel: "Scroll again",
     aim: true,

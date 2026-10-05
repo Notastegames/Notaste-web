@@ -127,17 +127,18 @@
   var KNOWN = ["Still thinking about soup", "We saw you looking at sponges", "Hello again. We remember you",
                "You, yes you. Saucepans."];
 
-  // The new tab an advert opens
-  var TABS = ["Mattresses near you", "Ten soups ranked", "A free cruise. Terms apply.", "Saucepan clearance"];
+  // The new tab an advert opens, and what's on it
+  var TABS = [{ head: "Mattresses near you", art: "bed" }, { head: "Ten soups ranked", art: "soup", dish: true },
+              { head: "A free kettle. Terms apply.", art: "kettle" }, { head: "Saucepan clearance", art: "pan" }];
 
   var SAY = {
     // the chef, on cookie banners and in autoplay videos
-    chef: ["Cookies. Not the nice kind.", "Accept all. Go on.", "We only want to know everything."],
+    chef: ["Go on. Everyone else did.", "Accept all. Go on.", "We only want to know everything."],
     chefRejected: ["Rude.", "Fine. Melon.", "Suit yourself, plonker."],
     chefAccepted: ["Lovely. We'll tell everyone.", "Good. Adverts on the way."],
     chefManage: ["Have a seat.", "This might take a while."],
     chefVideo: ["Before the recipe, a short video.", "Don't close me.", "Up next: more of me.", "Is the sound on. Good."],
-    chefClosed: ["I was getting to the soup.", "Charming."],
+    chefClosed: ["I was getting to the sponge.", "Charming."],
     // the newsletter cat
     catWarn: ["Psst.", "Before you go.", "Quick one."],
     catOpen: ["Join 40,000 others.", "It's free. For now.", "Don't go.", "Weekly. Ish."],
@@ -150,11 +151,11 @@
     dog: ["Woof. Means read it.", "Woof. Rude."],
     me: ["That's my life, that.", "You'll miss the bit about Tuscany."],
     kids: ["Toast is faster.", "Mum's on about Italy again."],
-    grandad: ["Hated it. Read about it anyway.", "In my day we read the whole thing."],
+    grandad: ["I hated sponge. Read it anyway.", "In my day we read the whole thing."],
     oven: [],
     cake: [],
     // the ad blocker pop-up
-    adblock: ["Please. We have saucepans to sell."]
+    adblock: ["Saucepans don't sell themselves.", "That's our livelihood, melon."]
   };
 
   // ---------------------------------------------------------------------------
