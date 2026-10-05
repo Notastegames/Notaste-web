@@ -32,10 +32,11 @@
 // ("Sam, did you see my email?"), and that costs reputation.
 //
 // THE MEETING (the top half: keep up appearances)
-// Everything addressed to you lights your tile: a violet frame, everyone's
-// eyes turning to you, and a badge in your tile's corner with a ring that
-// runs down for as long as you have. Bubbles that name you have a violet
-// outline and your name underlined.
+// Everything addressed to you lights your tile. The tell comes first: half
+// a second before they say it, everyone turns to look at your tile and its
+// frame goes violet. Then the bubble, and a badge in your tile's corner with
+// a ring that runs down for as long as you have. Bubbles that name you have
+// a violet outline and your name underlined.
 //   Your name    "Like Sam said last week." The badge says SAM. Nod (N).
 //                2.6 seconds in the stand-up, down to 1.9 in the last.
 //   A question   "Sam, any blockers?" The badge is a question mark. Unmute
@@ -811,15 +812,20 @@
   // ---------------------------------------------------------------------------
   // Beats: things people say, on a timetable
   // ---------------------------------------------------------------------------
+  var PRE = 0.6;      // the tell: everyone turns to look at you this long before they say it
   function tickBeats() {
     for (var i = 0; i < G.beats.length; i++) {
       var b = G.beats[i];
-      if (b.done || b.t > G.time) continue;
+      if (b.done) continue;
       // one thing at a time for you, with a breath between; nothing else
       // while you're sharing or they're going round. The cat waits for the
       // share and the round, and in the team meeting for whatever's open.
-      var mine = b.kind === "name" || b.kind === "ask" || b.kind === "round" || b.kind === "share";
-      var busy = mine && (G.share || G.open || G.round || G.time - G.closedAt < 0.9);
+      var mine = b.kind === "name" || b.kind === "ask" || b.kind === "share";
+      var busy = (mine || b.kind === "round") && (G.share || G.open || G.round || G.time - G.closedAt < 0.9);
+      if (b.t > G.time) {
+        if (mine && !busy && b.t - G.time <= PRE && G.pre !== b) { G.pre = b; G.preAt = G.time; lookAtYou(PRE + 0.3); }
+        continue;
+      }
       if (b.kind === "cat") busy = G.share || G.round || G.cat || (run.stage < 2 && G.open);
       if (busy) { b.t = G.time + 0.3; continue; }
       b.done = true;
@@ -1695,13 +1701,15 @@
       c.fillRect(x, y, w, h);
     }
     c.restore();
-    // the frame: violet when they want something from you
+    // the frame: violet when they want something from you, and a thinner
+    // violet just before, while everyone turns to look
     var o = G.open;
     var want = !!o || roundNextIsYou();
+    var coming = !want && G.pre && !G.pre.done && G.phase === "play";
     A.rr(c, x, y, w, h, 7);
     var pulse = shell.reduceMotion ? 1 : 0.5 + 0.5 * Math.abs(Math.sin(now * 6));
-    c.lineWidth = want ? 3 + pulse * 2 : G.flash > 0 ? 4 : 2;
-    c.strokeStyle = want ? T.accent : G.flash > 0 && Math.floor(G.flash * 8) % 2 ? T.red : T.paper;
+    c.lineWidth = want ? 3 + pulse * 2 : coming ? 3 : G.flash > 0 ? 4 : 2;
+    c.strokeStyle = want || coming ? T.accent : G.flash > 0 && Math.floor(G.flash * 8) % 2 ? T.red : T.paper;
     c.stroke();
     // your name tag, top left, with your mic: violet (then red) while you're live
     var left = live ? clamp(G.mic.left / G.mic.max, 0, 1) : 1;
