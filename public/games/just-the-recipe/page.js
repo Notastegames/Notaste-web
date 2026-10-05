@@ -1,8 +1,8 @@
 // Just the Recipe: the pages, and the words on them.
 //
-// Each course is one recipe page, built fresh from a seed taken from the
+// Each course is one recipe page, built fresh from seeds taken from the
 // round's (shell.seed), so today's run lays out the same three pages for
-// everyone, whatever they chose along the way. A page is a list of
+// everyone, whatever they chose along the way (see build). A page is a list of
 // items in page units: 100 across the column, y measured down from the top of
 // the page. recipe.js scrolls through them, draws them and makes them fight.
 //
@@ -158,59 +158,106 @@
   };
 
   // ---------------------------------------------------------------------------
-  // Building a page
+  // Building a page, in two passes, so today's run is the same pages for
+  // everyone whatever they pick between courses.
+  //
+  // 1. The layout, all of it drawn from the page's own stream (rand) before
+  //    any choice is looked at: every row of the life story and its white
+  //    space, the photos and quotes, every banner and its buttons, every
+  //    advert's side and size, where each Jump and video sits, and the
+  //    pop-ups. Nothing a player picks changes a single draw from it.
+  // 2. The choices, applied afterwards without touching that stream. Reader
+  //    mode leaves the real Jump buttons' slots empty. Adverts owed for
+  //    cookies, the banners that Accept all, forever turns into adverts and
+  //    their pairs, and the ad blocker's pop-ups take their places and sizes
+  //    from a second stream (more), so they're the same for everyone who
+  //    made the same choice.
   // ---------------------------------------------------------------------------
-  // n: which course (0, 1, 2). rand: a seeded random for this page. mods: the choices so far.
-  // extraAds: adverts owed for cookies accepted on earlier pages.
-  function build(n, rand, mods, extraAds) {
+  // n: which course (0, 1, 2). rand, more: the page's two seeded streams.
+  // mods: the choices so far. owed: adverts owed for cookies accepted earlier.
+  function build(n, rand, more, mods, owed) {
     var def = COURSES[n];
-    var items = [], triggers = [];
-    var y = 0, gx = 50, storyTotal = 0, seedN = 1;
+    var seedN = 1, gx = 50, adN = 0;
 
     function R(a, b) { return a + rand() * (b - a); }
-    function shuffle(list) {
+    function shuffle(list, r) {
+      r = r || rand;
       for (var i = list.length - 1; i > 0; i--) {
-        var j = Math.floor(rand() * (i + 1)), t = list[i];
+        var j = Math.floor(r() * (i + 1)), t = list[i];
         list[i] = list[j]; list[j] = t;
       }
       return list;
     }
+
+    // ---------- 1. the layout ----------
     var quotes = shuffle(def.quotes.slice());
     var photos = shuffle(def.photos.slice());
     var ads = shuffle(ADVERTS.slice());
-    var adN = 0;
+    var slots = def.plan.map(function (step) {
+      if (step.t === "story") return planStory(step);
+      if (step.t === "banner") return planBanner(step.v);
+      if (step.t === "advert") return planAdvert(step);
+      if (step.t === "jump") return { t: "jump", fake: !!step.fake, cx: R(24, 76) };
+      return { t: "video", cx: R(28, 72) };
+    });
 
+    // ---------- 2. the choices ----------
+    // Adverts owed for cookies accepted on earlier pages, before story sections
+    if (owed) {
+      var storyAt = [];
+      slots.forEach(function (sl, i) { if (sl.t === "story" && i > 0) storyAt.push(i); });
+      shuffle(storyAt, more).slice(0, Math.min(owed, storyAt.length)).sort(function (a, b) { return b - a; })
+        .forEach(function (i) { slots.splice(i, 0, { t: "advert", known: true }); });
+    }
+
+    var items = [], triggers = [], storyTotal = 0;
     // The top of the page: the site, the title, a big photo of the dish
     items.push({ kind: "head", y: 0, h: 104, def: def });
-    y = 108;
+    var y = 108;
     if (!mods.reader) items.push({ kind: "jump", y: y, h: 9, x0: 33, x1: 67, fake: false, first: true });
     y += 18;
 
-    // Which story sections get an extra advert, for cookies accepted earlier
-    var plan = def.plan.slice();
-    if (extraAds) {
-      var storyAt = [];
-      plan.forEach(function (s, i) { if (s.t === "story" && i > 0) storyAt.push(i); });
-      shuffle(storyAt).slice(0, Math.min(extraAds, storyAt.length)).sort(function (a, b) { return b - a; })
-        .forEach(function (i) { plan.splice(i, 0, { t: "advert", known: true }); });
-    }
-    // Accept all, forever: no banners, and the adverts come in pairs
-    if (mods.forever) {
-      plan = plan.map(function (s) { return s.t === "banner" ? { t: "advert", known: true } : s; });
-    }
-
-    plan.forEach(function (step) {
-      if (step.t === "story") story(step);
-      else if (step.t === "banner") banner(step.v);
-      else if (step.t === "advert") advert(step);
-      else if (step.t === "jump") jump(step.fake);
-      else if (step.t === "video") video();
+    slots.forEach(function (sl) {
+      if (sl.t === "story") {
+        sl.rows.forEach(function (r) {
+          y += r.pre;
+          if (r.pop) triggers.push({ at: y - 6, kind: "news", track: n >= 2, confirm: r.pop.confirm });
+          items.push({ kind: "story", y: y, h: r.h, blocks: r.blocks, gx: r.gx, gw: r.gw });
+          storyTotal += r.h;
+          y += r.h;
+        });
+        y += 8;
+      } else if (sl.t === "banner") {
+        // Accept all, forever: no banners, and the adverts that replace them come in pairs
+        if (mods.forever) knownAdvert();
+        else {
+          items.push({ kind: "banner", y: y, h: 34, row: 14, rowH: 9, state: "up", t: 0, v: sl.v, layer: 1,
+                       title: sl.title, line: sl.line, buttons: sl.buttons, second: sl.second });
+          y += 44;
+        }
+      } else if (sl.t === "advert") {
+        if (sl.known) knownAdvert();
+        else {
+          var it = { kind: "advert", y: y, h: PH, loaded: false, art: sl.art, head: sl.head, pop: 1,
+                     x0: sl.x0, x1: sl.x1, full: sl.full, load: sl.load };
+          if (sl.behind) it.behind = true;
+          items.push(it);
+          y += PH + 8;
+        }
+      } else if (sl.t === "jump") {
+        // Reader mode takes the real ones away and leaves the gap
+        if (sl.fake || !mods.reader) items.push({ kind: "jump", y: y, h: 9, x0: sl.cx - 17, x1: sl.cx + 17, fake: sl.fake });
+        y += 17;
+      } else {
+        items.push({ kind: "video", y: y, h: 25, x0: sl.cx - 20, x1: sl.cx + 20 });
+        y += 33;
+      }
     });
 
     // A pop-up asking you to turn the ad blocker off, twice a page
     if (mods.adblock) {
       var rows = items.filter(function (it) { return it.kind === "story" && it.y > 200; });
-      shuffle(rows).slice(0, 2).forEach(function (row) { triggers.push({ at: row.y, kind: "adblock" }); });
+      shuffle(rows, more).slice(0, 2).forEach(function (row) { triggers.push({ at: row.y, kind: "adblock" }); });
     }
     triggers.sort(function (a, b) { return a.at - b.at; });
 
@@ -218,17 +265,34 @@
     items.push({ kind: "recipe", y: y, h: 62, def: def });
     return { items: items, triggers: triggers, len: y, storyTotal: storyTotal };
 
+    // An advert that knows you (owed, or in place of a banner), from the
+    // second stream; with Accept all, forever, a second one straight after
+    function knownAdvert() {
+      var w = 54 + more() * 12, left = more() < 0.5;
+      items.push({ kind: "advert", y: y, h: PH, loaded: false, art: ADVERTS[Math.floor(more() * ADVERTS.length)].art,
+                   head: KNOWN[Math.floor(more() * KNOWN.length)], pop: 1,
+                   x0: left ? 0 : 100 - w, x1: left ? w : 100, full: Math.round(22 + more() * 6), load: 20 + more() * 10 });
+      if (mods.forever) {
+        y += PH + 18;
+        var w2 = 50 + more() * 10;
+        items.push({ kind: "advert", y: y, h: PH, loaded: false, art: ADVERTS[Math.floor(more() * ADVERTS.length)].art,
+                     head: KNOWN[Math.floor(more() * KNOWN.length)], pop: 1,
+                     x0: left ? 100 - w2 : 0, x1: left ? 100 : w2, full: Math.round(20 + more() * 6), load: 20 + more() * 8 });
+      }
+      y += PH + 8;
+    }
+
     // ---------- the life story ----------
-    function story(step) {
-      var rows = step.rows;
-      var photoAt = step.photo ? 1 + Math.floor(rand() * (rows - 1)) : -1;
+    function planStory(step) {
+      var count = step.rows, out = [];
+      var photoAt = step.photo ? 1 + Math.floor(rand() * (count - 1)) : -1;
       var quoteAt = -1;
-      if (step.quote) { do { quoteAt = Math.floor(rand() * rows); } while (quoteAt === photoAt); }
-      var popAt = step.pop ? Math.floor(rand() * rows) : -1;
-      for (var i = 0; i < rows; i++) {
-        if (i && rand() < 0.3) y += 4;   // a paragraph break: white space all the way across
+      if (step.quote) { do { quoteAt = Math.floor(rand() * count); } while (quoteAt === photoAt); }
+      var popAt = step.pop ? Math.floor(rand() * count) : -1;
+      for (var i = 0; i < count; i++) {
+        var pre = i && rand() < 0.3 ? 4 : 0;   // a paragraph break: white space all the way across
         var gw = R(def.gap[0], def.gap[1]);
-        var row = { kind: "story", y: y, h: 14, blocks: [] };
+        var row = { pre: pre, h: 14, blocks: [] };
         var a, b;
         if (i === photoAt && photos.length) {
           var ph = photos.pop();
@@ -267,25 +331,21 @@
         }
         row.gx = gx;
         row.gw = gw;
-        if (i === popAt) triggers.push({ at: y - 6, kind: "news", track: n >= 2, confirm: n >= 2 && rand() < 0.5 });
-        storyTotal += row.h;
-        items.push(row);
-        y += row.h;
+        if (i === popAt) row.pop = { confirm: n >= 2 && rand() < 0.5 };
+        out.push(row);
       }
-      y += 8;
+      return { t: "story", rows: out };
     }
 
     // ---------- cookie banners ----------
     // edge: Reject all at one end. middle: tucked between the others.
     // hidden: no Reject all until you've been through Manage.
-    function banner(v) {
+    function planBanner(v) {
       var copy = BANNERS[Math.floor(rand() * BANNERS.length)];
-      var b = { kind: "banner", y: y, h: 34, row: 14, rowH: 9, state: "up", t: 0, v: v, layer: 1,
-                title: copy.title, line: copy.line };
-      b.buttons = buttons(v === "hidden" ? "first" : v);
-      if (v === "hidden") b.second = buttons("second");
-      items.push(b);
-      y += b.h + 10;
+      var sl = { t: "banner", v: v, title: copy.title, line: copy.line };
+      sl.buttons = buttons(v === "hidden" ? "first" : v);
+      if (v === "hidden") sl.second = buttons("second");
+      return sl;
     }
 
     function buttons(v) {
@@ -308,48 +368,22 @@
     // ---------- adverts ----------
     // Ahead: a strip that jumps open in front of you. Behind: one you've
     // already passed, which loads late and shoves the whole page down.
-    function advert(step) {
+    function planAdvert(step) {
       var ad = ads[adN++ % ads.length];
-      var head = ad.head;
-      if (step.known) head = KNOWN[Math.floor(rand() * KNOWN.length)];
-      var it = { kind: "advert", y: y, h: PH, loaded: false, art: ad.art, head: head, pop: 1 };
+      var sl = { t: "advert", art: ad.art, head: ad.head };
       if (step.behind) {
-        it.behind = true;
-        it.x0 = 0; it.x1 = 100;
-        it.full = Math.round(R(26, 32));
-        it.load = R(6, 26);           // how far past it you get before it loads
+        sl.behind = true;
+        sl.x0 = 0; sl.x1 = 100;
+        sl.full = Math.round(R(26, 32));
+        sl.load = R(6, 26);           // how far past it you get before it loads
       } else {
         var w = R(54, 66), left = rand() < 0.5;
-        it.x0 = left ? 0 : 100 - w;
-        it.x1 = left ? w : 100;
-        it.full = Math.round(R(22, 28));
-        it.load = R(20, 30);          // how far ahead of you it is when it loads
+        sl.x0 = left ? 0 : 100 - w;
+        sl.x1 = left ? w : 100;
+        sl.full = Math.round(R(22, 28));
+        sl.load = R(20, 30);          // how far ahead of you it is when it loads
       }
-      if (mods.forever && step.known) {
-        // Accept all, forever: a second one straight after, on the other side
-        items.push(it);
-        y += PH + 18;
-        var w2 = R(50, 60), l2 = it.x0 > 0;
-        it = { kind: "advert", y: y, h: PH, loaded: false, art: ads[adN++ % ads.length].art, head: KNOWN[Math.floor(rand() * KNOWN.length)],
-               pop: 1, x0: l2 ? 0 : 100 - w2, x1: l2 ? w2 : 100, full: Math.round(R(20, 26)), load: R(20, 28) };
-      }
-      items.push(it);
-      y += PH + 8;
-    }
-
-    // ---------- Jump to recipe ----------
-    function jump(fake) {
-      if (mods.reader && !fake) return;
-      var cx = R(24, 76);
-      items.push({ kind: "jump", y: y, h: 9, x0: cx - 17, x1: cx + 17, fake: !!fake });
-      y += 17;
-    }
-
-    // ---------- an autoplay video, which comes loose and follows you ----------
-    function video() {
-      var cx = R(28, 72);
-      items.push({ kind: "video", y: y, h: 25, x0: cx - 20, x1: cx + 20 });
-      y += 33;
+      return sl;
     }
   }
 
