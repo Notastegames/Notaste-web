@@ -75,6 +75,11 @@
 
   var params = new URLSearchParams(window.location.search);
   var AUTO = N.flags.autopilot;
+  // Filming a clip (?clip), the autopilot gets caught on purpose once a
+  // page, because that's what people share: it presses Manage and sits
+  // through it, lets a pop-up land on it, and on pudding falls for a fake
+  // Jump to recipe.
+  var CLIP = N.flags.clip;
   var DEBUG = params.has("debug");
   var FIRST = DEBUG ? Math.max(0, Math.min(2, (parseInt(params.get("course"), 10) || 1) - 1)) : 0;
   var COURSES = PG.COURSES, SAY = PG.SAY;
@@ -182,7 +187,7 @@
       n: n, def: def, items: page.items, triggers: page.triggers, len: page.len, storyTotal: page.storyTotal,
       recipe: page.items[page.items.length - 1], read: 0, scroll: START, v: 0, clock: 0,
       popups: [], video: null, tab: null, jump: null, blocked: null, blockT: 0, wade: false, wadeT: 0, skimT: 0,
-      calls: {}, over: false, endT: 0, hover: null, warned: false
+      calls: {}, over: false, endT: 0, hover: null, warned: false, caught: {}
     };
     hand.x = 50; hand.kv = 0; hand.press = 0; hand.squash = 0;
     prevAct = true;
@@ -900,24 +905,30 @@
     }
     if (G.tab) return out;
     var p = openPopup();
-    if (p) { var s = closeSpan(p); tap(s[0], s[1]); return out; }
+    if (p) {
+      // in a clip, let it sit there a moment first
+      if (CLIP && !G.caught.popSeen) { G.caught.popSeen = true; autoCd = 1.1; }
+      var s = closeSpan(p); tap(s[0], s[1]); return out;
+    }
 
     var speed = Math.max(G.v, G.def.speed);
     var b = bannerNear(y, 60);
     if (b) {
-      if (b.state === "wait") return out;
+      if (b.state === "wait") { G.caught.manage = true; return out; }
       var btn = null;
       b.buttons.forEach(function (k) { if (k.type === "reject") btn = k; });
-      if (!btn) b.buttons.forEach(function (k) { if (k.type === "manage") btn = k; });
+      if (!btn || (CLIP && !G.caught.manage)) b.buttons.forEach(function (k) { if (k.type === "manage") btn = k; });
       if (!btn) btn = b.buttons[0];
       out.x = (btn.x0 + btn.x1) / 2;
       if (b.y + b.row - y <= EARLY - 1) tap(btn.x0, btn.x1);
       return out;
     }
 
-    // keep out of the way of a pop-up that's coming
+    // keep out of the way of a pop-up that's coming (in a clip, the first
+    // one a page gets to land)
     var warn = null;
     G.popups.forEach(function (q) { if (q.state === "warn" || q.state === "fly") warn = q; });
+    if (warn && CLIP && warn.kind === "news" && (!G.caught.pop || G.caught.pop === warn)) { G.caught.pop = warn; return out; }
 
     var v = G.video;
     if (v && v.state === "dock" && v.t >= VIDEO_X && Math.abs(v.x - x) < VIDEO_W) {
@@ -941,8 +952,10 @@
     // a real Jump to recipe, coming up: worth it
     var jump = null;
     G.items.forEach(function (it) {
-      if (!jump && it.kind === "jump" && !it.fake && !it.used && it.y + it.h > y - 2 && it.y < y + 34) jump = it;
+      var fall = CLIP && it.fake && G.n === 2 && (!G.caught.fake || G.caught.fake === it);
+      if (!jump && it.kind === "jump" && (!it.fake || fall) && !it.used && it.y + it.h > y - 2 && it.y < y + 34) jump = it;
     });
+    if (jump && jump.fake) G.caught.fake = jump;
     if (jump) {
       want = (jump.x0 + jump.x1) / 2;
       if (y >= jump.y - 4 && y <= jump.y + jump.h + 2) tap(jump.x0 + 2, jump.x1 - 2);

@@ -41,7 +41,7 @@
       t.fillStyle = colour;
       [[n / 2, n / 2], [n * 1.5, n * 1.5]].forEach(function (p) {
         t.beginPath();
-        t.arc(p[0], p[1], n * (big === "heavy" ? 0.66 : big ? 0.27 : 0.24), 0, Math.PI * 2);
+        t.arc(p[0], p[1], n * (big === "heavy" ? 0.72 : big ? 0.27 : 0.24), 0, Math.PI * 2);
         t.fill();
       });
       e = pats[key] = { tile: tile, by: {}, c: null, n: 0 };
