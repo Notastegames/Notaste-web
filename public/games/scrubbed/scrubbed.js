@@ -318,14 +318,14 @@
     for (var b = 0; b < s.boosters; b++) {
       var side = r() < 0.5 ? -1 : 1;
       var gentle = run.stage === 0 && b === 0;
-      var dx = gentle ? 9 : lerp(s.start.dx[0], s.start.dx[1], r());
+      var dx = gentle ? 7 : lerp(s.start.dx[0], s.start.dx[1], r());
       var vxs = s.start.vx;
       var vx = Array.isArray(vxs) ? -side * lerp(vxs[0], vxs[1], r()) : (r() - 0.5) * 2 * vxs;
       st.starts.push({
         x: side * dx,
-        y: lerp(s.start.h[0], s.start.h[1], r()) - (gentle ? 6 : 0),
+        y: gentle ? 50 : lerp(s.start.h[0], s.start.h[1], r()),
         vx: gentle ? 0 : vx,
-        vy: -(gentle ? 7 : lerp(s.start.vy[0], s.start.vy[1], r())),
+        vy: -(gentle ? 4 : lerp(s.start.vy[0], s.start.vy[1], r())),
         a: gentle ? 0 : (s.start.inbound ? -side * s.start.tilt * (0.6 + r() * 0.4) : (r() - 0.5) * 2 * s.start.tilt),
         bias: (r() - 0.5) * 2.4, sloppy: r()
       });
@@ -398,7 +398,7 @@
     receipt = null;
     cam.snap = cam.snap || st.booster === 0;
     auto = { t: 0, out: { up: false, steer: 0 }, bias: p.bias * (AUTO ? 1 : 0),
-             windSense: p.sloppy < 0.12 || FORCE === "drift" ? 0.25 : 0.85, late: p.sloppy > 0.9 || FORCE === "late", prevUp: false };
+             windSense: p.sloppy < 0.1 || FORCE === "drift" ? 0.2 : 0.85, late: p.sloppy > 0.88 || FORCE === "late", prevUp: false };
     if (FORCE === "sea") auto.bias = (p.x > 0 ? 1 : -1) * ((stage().deck || 30) / 2 + 3);
     boss.pose = "film"; boss.mood = "smug"; boss.air = true;
   }
@@ -806,7 +806,7 @@
     tag = null;
     var stop = THRUST * m.thrust * Math.cos(r.a) - stage().g;
     var need = (fall * fall - Math.pow(SAFE_VY * m.safeVy * 0.8, 2)) / (2 * Math.max(0.5, h - 0.5));
-    if (fall > SAFE_VY * m.safeVy && (need > stop * 0.72 || h < 3)) tag = { word: "Too fast", bad: true };
+    if (fall > SAFE_VY * m.safeVy && (need > stop * 0.62 || h < 3)) tag = { word: "Too fast", bad: true };
     else if (h < 18 && Math.abs(r.a + u.angle) > SAFE_TILT * m.safeTilt) tag = { word: "Not upright", bad: true };
     else if (h < 14 && Math.abs(r.vx) > SAFE_VX) tag = { word: "Drifting", bad: true };
     else tag = { word: "Speed " + Math.max(0, Math.round(fall)), bad: false };
@@ -946,11 +946,13 @@
     var rank;
     if (run.landed >= TOTAL - 1 && run.marsLanded && score >= APPROVE) rank = 1;
     else if (run.landed >= 5) rank = 2;
-    else if (run.landed >= 2) rank = 3;
+    else if (run.landed >= 1) rank = 3;
     else rank = 4;
     var heading = run.landed === TOTAL ? "All " + TOTAL + " landed." : run.landed ? "Landed " + run.landed + " of " + TOTAL + "." : "Nothing landed.";
     var line = RANKS[rank - 1];
-    if (rank === 2 && run.marsLanded) line = "Most of them came back, and one landed on Mars, where nobody saw it. The rest are being described as data.";
+    if (rank === 2 && run.landed === TOTAL) line = "Every one came home, a bit bent. He has announced they came home perfect.";
+    else if (rank === 2 && run.marsLanded) line = "Most of them came back, and one landed on Mars, where nobody saw it. The rest are being described as data.";
+    else if (rank === 3 && run.landed === 1) line = "One landed. He has had it framed. The rest are data.";
     var stats = [
       { label: "Score", value: fmt(score) },
       { label: "Landed", value: run.landed + " of " + TOTAL }
@@ -990,7 +992,7 @@
     var limit = h < 4 ? 0.04 : h < 12 ? 0.18 : 0.5;
     lean = clamp(lean, -limit, limit);
     // down: fall most of the way, then slow to a walk at the deck
-    var brake = (push * Math.cos(r.a) - s.g) * (auto.late ? (FORCE === "late" ? 2.6 : 0.95) : 0.62);
+    var brake = (push * Math.cos(r.a) - s.g) * (auto.late ? (FORCE === "late" ? 2.6 : 1.8) : 0.62);
     var vyWant = -(1.4 + Math.sqrt(Math.max(0, 2 * brake * Math.max(0, h - 1.2))) * 0.82);
     if (Math.abs(dx) > 6 && h < 26) vyWant = Math.max(vyWant, -2.5);   // hold off until it's over the deck
     var fall = r.vy - u.vy;
@@ -1261,9 +1263,18 @@
   // ---------------------------------------------------------------------------
   // Drawing
   // ---------------------------------------------------------------------------
+  var MAX_PIXELS = 640000;      // a full-window phone at 2x is 1.2 million: too many to fill at 60fps
   function resize(w, h, dpr) {
+    var canvas = shell ? shell.canvas : root.querySelector("canvas");
+    // a big canvas (a phone gone full-window) draws at a little under 2x
+    if (w * h * dpr * dpr > MAX_PIXELS) {
+      dpr = Math.max(1, Math.sqrt(MAX_PIXELS / (w * h)));
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      dpr = canvas.width / w;
+    }
     W = w; H = h; DPR = dpr;
-    ctx = (shell ? shell.canvas : root.querySelector("canvas")).getContext("2d");
+    ctx = canvas.getContext("2d");
     hudBox = null;
     cam.snap = true;
     stars = [];
@@ -1656,6 +1667,7 @@
     if (s.scene === "party") return toScreen(23.6, 1.4 + 6.2);
     return toScreen(13, marsY(st.mars.ground, 13) + 4.6);
   }
+  var liveTop = null;
   function drawLive(c, placed) {
     var s = stage();
     var p = bossAt();
@@ -1678,6 +1690,7 @@
     }
     c.fillText(text, x + (live ? 15 : 6), y + h / 2 + 1);
     placed.push({ x: x, y: y, w: w, h: h, live: true });
+    liveTop = { x: x + w / 2, y: y };
   }
 
   function drawHint(c, placed) {
@@ -1701,7 +1714,7 @@
   // A speech bubble, drawn in screen pixels so it stays readable on a phone
   function drawBubble(c, b, placed) {
     var spot;
-    if (b.who === "boss" || b.who === "earth") spot = bossAt();
+    if (b.who === "boss" || b.who === "earth") spot = liveTop || bossAt();
     else if (b.who === "guest" && b.g) spot = toScreen(b.g.x, 1.4 + 6.4);
     if (!spot) return;
     var ax = spot.x, ay = spot.y;
@@ -1718,7 +1731,7 @@
     var pad = size * 0.5, lh = size * 1.02;
     var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.3;
     var boxes = hudBoxes();
-    var want = { x: clamp(ax - bw / 2, 4, W - bw - 4), y: ay - bh - 26 };
+    var want = { x: clamp(ax - bw / 2, 4, W - bw - 4), y: ay - bh - 12 };
     function topAt(x) {
       var t = 6;
       boxes.forEach(function (r) { if (x < r.right + 4 && x + bw > r.left - 4) t = Math.max(t, r.bottom + 4); });
