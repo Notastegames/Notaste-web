@@ -2353,9 +2353,14 @@
       c.fillStyle = T.paper;
       c.textAlign = "center";
       c.textBaseline = "middle";
-      var label = (showKeys ? b.keyName : b.label).toUpperCase();
-      if (showKeys && b.short && A.textWidth(c, label, size) > b.w - 10) label = b.short.toUpperCase();
-      A.text(c, label, ix, b.y + b.h - size * 0.85, size);
+      // both keys if they fit (down to 12px), otherwise the main one
+      var label = (showKeys ? b.keyName : b.label).toUpperCase(), ls = size;
+      if (showKeys && b.short && A.textWidth(c, label, ls) > b.w - 8) {
+        ls = 12;
+        c.font = ls + "px " + T.display;
+        if (A.textWidth(c, label, ls) > b.w - 8) { ls = size; c.font = ls + "px " + T.display; label = b.short.toUpperCase(); }
+      }
+      A.text(c, label, ix, b.y + b.h - size * 0.85, ls);
     });
   }
 
