@@ -80,7 +80,7 @@
 // 4,900 by betting on clean lines.
 //
 // THE LADDER (DESIGN.md, section 6). Finish all four calls: Approved at
-// 4,450 or more, Pending review at 3,400 or more, Not approved below that.
+// 4,500 or more, Pending review at 3,400 or more, Not approved below that.
 // Hang up on Complaints or Cancellations: Not approved. Hang up any sooner:
 // Rejected. Tuned with scripted callers picking from what they're offered:
 // good ones are Approved about one run in four (nearly always when they bet
@@ -123,7 +123,7 @@
   var CUT_QUEUE = 2;           // places added to the queue when you're cut off
   var AHEAD = 0.2;             // the next part of a call is queued this soon
   var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100, zero: 200, sold: 100 };
-  var APPROVED = 4450, PENDING = 3400;
+  var APPROVED = 4500, PENDING = 3400;
   var DIAL = "08004655";       // the number you dial (it's not a real one)
 
   // ---------------------------------------------------------------------------
