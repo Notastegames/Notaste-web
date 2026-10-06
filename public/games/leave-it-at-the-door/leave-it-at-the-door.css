@@ -1,0 +1,30 @@
+/*
+  Leave It at the Door: what this game does differently on the page.
+
+  Between stages the app's sums are the joke, so the joke line and the
+  numbers stay on any screen with the height for them (the kit drops them
+  under 600px), set a little tighter so the choices still fit.
+
+  The stage's notice goes over the phone, not over the town: the game sets
+  where (--leave-brief-*) when the phone is a column beside the town; under
+  the town it keeps the kit's place.
+
+  Everything else is the kit's (games/kit/kit.css).
+*/
+@container kit (min-height: 400px) {
+  body[data-game="leave-it-at-the-door"] .kit-inter .kit-line { display: block; }
+  body[data-game="leave-it-at-the-door"] .kit-inter .kit-stats { display: flex; }
+}
+@container kit (min-height: 400px) and (max-height: 600px) {
+  body[data-game="leave-it-at-the-door"] .kit-inter { gap: 0.5rem; }
+  body[data-game="leave-it-at-the-door"] .kit-inter .kit-line { margin: 0; font-size: 0.8rem; line-height: 1.35; }
+  body[data-game="leave-it-at-the-door"] .kit-inter .kit-stats { gap: 0.15rem 1rem; }
+  body[data-game="leave-it-at-the-door"] .kit-inter .kit-stats dd { font-size: 0.85rem; }
+}
+
+body[data-game="leave-it-at-the-door"] #game-root .kit-brief {
+  left: var(--leave-brief-x, 50%);
+  width: var(--leave-brief-w, min(25rem, calc(100% - 2rem)));
+  top: var(--leave-brief-top, auto);
+  bottom: var(--leave-brief-bottom, 0.9rem);
+}
