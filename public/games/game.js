@@ -17,7 +17,8 @@
     { slug: "reply-all",     title: "Reply All",     accent: "#4fa3e0", stamp: "Not sent",       pitch: "Someone has replied all to the whole company. Now everyone is replying all to say stop replying all.", status: "Playable now." },
     { slug: "unexpected-item", title: "Unexpected Item", accent: "#4e9a55", stamp: "Approval needed", pitch: "Scan your own shopping. The machine thinks you're stealing it.", status: "Playable now." },
     { slug: "terms-and-conditions", title: "Terms and Conditions", accent: "#f2b48c", stamp: "Unread", pitch: "Read the terms. Strike out the bad bits. Accept anyway. There is no other button.", status: "Playable now." },
-    { slug: "just-the-recipe", title: "Just the Recipe", accent: "#c2643a", stamp: "Rejected", pitch: "Scroll down to the recipe. The page has other ideas.", status: "Playable now. Three courses, one life story." }
+    { slug: "just-the-recipe", title: "Just the Recipe", accent: "#c2643a", stamp: "Rejected", pitch: "Scroll down to the recipe. The page has other ideas.", status: "Playable now. Three courses, one life story." },
+    { slug: "on-mute",       title: "On Mute",       accent: "#7a5cd6", stamp: "You're on mute", pitch: "Four meetings, one spreadsheet and a cat. Nod when you hear your name.", status: "Playable now." }
   ];
 
   var current = document.body.getAttribute("data-game");
