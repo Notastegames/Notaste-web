@@ -2187,7 +2187,8 @@
     var left = live ? clamp(G.mic.left / G.mic.max, 0, 1) : 1;
     var tag = nameTag(c, x + 5, y + 5 + tagSize() * 1.6, live ? "Sam (you): live" : "Sam (you)", live, w - 10, false,
                       live ? (left < 0.35 ? T.red : T.accent) : null, live);
-    if (!G.cam.on) camOffCard(c, r);
+    // (while you're live it goes under the "Mute again" tag)
+    if (!G.cam.on) camOffCard(c, r, live ? tag.y + tag.h + 27 : 0);
     if (live) micRing(c, r, tag, left);
     if (o) badge(c, r, o, now);
     else if (next) chip(c, x + w - 6, y + 6, "You're next", "right", T.accent);
@@ -2295,11 +2296,11 @@
   }
 
   // The camera's off: a label over where your face was, and how long they'll wait
-  function camOffCard(c, r) {
+  function camOffCard(c, r, minY) {
     var size = 12;
     c.font = size + "px " + T.display;
     var cw = A.textWidth(c, "CAMERA OFF", size) + size * 0.9;
-    var cy = r.y + r.h * 0.34;
+    var cy = Math.max(r.y + r.h * 0.34, minY || 0);
     chip(c, r.x + (r.w - cw) / 2, cy, "Camera off", "left");
     // how long before they ask: only when there's no cat about
     if (!catAbout() && G.cam.off > 0) {
