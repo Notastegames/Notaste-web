@@ -603,21 +603,76 @@ h1, h2, h3 {
 
 .poster--feature .btn { margin-top: 1.5rem; }
 
-.poster-pair {
+/* ---------- Games grid: every game but the featured one ---------- */
+
+.tiles {
   display: grid;
-  gap: 3rem;
-  margin-top: 3.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.75rem 1rem;
+  margin: 3.5rem 0 0;
+  padding: 0;
+  list-style: none;
 }
-/* a wide poster after the pairs, when the count is odd */
-.poster-pair + .poster--feature { margin-top: 3.5rem; }
+
+.tile { display: block; text-decoration: none; }
+
+.tile-art {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #111;
+  outline: 1px solid var(--ash);
+}
+.tile-art img { width: 100%; transition: transform 400ms ease; }
+
+.tile-art .stamp-label {
+  position: absolute;
+  left: var(--sx, 50%);
+  top: var(--sy, 50%);
+  max-width: 92%;
+  font-size: clamp(0.8rem, 2.6vw, 1.3rem);
+  white-space: nowrap;
+  border-width: 2px;
+  outline-offset: 2px;
+  transform: translate(-50%, -50%) rotate(var(--sr, -6deg));
+}
+
+/* the title on a small black tag that bites into the bottom of the art */
+.tile-title {
+  position: relative;
+  display: inline-block;
+  max-width: calc(100% - 0.5rem);
+  margin: -1.1rem 0 0 0.5rem;
+  padding: 0.4rem 0.55rem 0.2rem;
+  background: var(--ink);
+  border-top: 4px solid var(--accent, var(--paper));
+  font-family: var(--display);
+  font-size: clamp(1.35rem, 5vw, 2rem);
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.tile-line {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: var(--step--1);
+  line-height: 1.4;
+}
+
+.tile:hover .tile-title,
+.tile:focus-visible .tile-title { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 0.12em; }
 
 @media (hover: hover) {
-  .poster:hover .poster-art img { transform: scale(1.035); }
+  .poster:hover .poster-art img,
+  .tile:hover .tile-art img { transform: scale(1.035); }
   .poster:hover .poster-title { border-top-width: 8px; }
+  .tile:hover .tile-title { border-top-width: 6px; }
 }
 
 @media (min-width: 48rem) {
-  .poster-pair { grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.5rem 1.75rem; }
+  .tile-line { font-size: var(--step-0); }
 }
 
 @media (min-width: 60rem) {
@@ -633,7 +688,6 @@ h1, h2, h3 {
     font-size: clamp(4.5rem, 6.5vw, 6.5rem);
   }
   .poster--feature .poster-title { display: block; background: none; }
-  .poster-pair .poster-title { font-size: 3.2rem; }
 }
 
 /* ---------- About (paper) ---------- */

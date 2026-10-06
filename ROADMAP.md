@@ -13,7 +13,8 @@ Last updated: 6 October 2026.
 - **Extra:** two delivery games, also the owner's idea, live on 6 October 2026. Speak to a Human (periwinkle, chat boss fight): your food never came and the help chat is a bot. Leave It at the Door (cyan, delivery juggling): a rider's shift in a town one app runs. Neither is one of the edgier five either.
 - **Next:** the owner's notes on the ten (see "Left over" in Phase 3), then phase 4 (the site at ten games), then phase 5 (the socials).
 - **Built:** the shared game kit (with today's run, Share result and a clip mode for filming), the starter game, the automatic play-through, `DESIGN.md`, per-game share images, a privacy note, and the preview-then-approve process.
-- **Not yet:** the socials (accounts partly set up, not linked yet), a shop link, and a homepage designed for ten games (for now the posters run in pairs, with a wide one at the top and the bottom).
+- **Not yet:** the socials (accounts partly set up, not linked yet) and a shop link, which now comes after the socials.
+- **Homepage:** the newest game has the wide featured slot, and every other game is a small tile in a grid under it, newest first (3 across on desktop, 2 on a phone).
 
 ## The goals
 
@@ -97,7 +98,7 @@ Helpers are briefed with `docs/phase3/builder-rules.md` (builders and fixers) an
 - **Batches of three.** Each game gets a builder, which designs and builds it from its brief, then a reviewer, which plays it cold against `DESIGN.md` and the standard Thonglets and Heavy Traffic set. The builder fixes what the reviewer finds, then a final check, a playable preview and a pull request.
 - **Nothing merges until the owner has played it and said yes.** Expect a round or two of notes per game; that's where "as good as the first two" comes from. (For batches 2 and 3 the owner said to merge them all together once everything was finished.)
 - **If a session stops** (a usage limit, a restart), a check-in every couple of hours picks the work back up from the branches, the open pull requests and this list.
-- **The homepage** gets a poster for each game as it merges; the pair of posters under the featured one wraps into a grid. Phase 4 redesigns it properly.
+- **The homepage** gets each game as it merges: the new one takes the featured slot and the one before it joins the top of the grid.
 
 ### Every Phase 3 game
 
@@ -131,8 +132,7 @@ Helpers are briefed with `docs/phase3/builder-rules.md` (builders and fixers) an
 
 ## Phase 4: the site at ten games
 
-- [ ] A games grid in place of the poster list: "New", "Today's runs", then everything. Possibly a `/games/` page.
-- [ ] A **Shop** link in the header and footer to the existing hoodie and T-shirt shop. Just a link: no embedded store, no shop scripts.
+- [x] A games grid in place of the poster list: the newest game featured, then every other game as a tile, newest first. A "Today's runs" row and a `/games/` page were left out, since every game has a daily run and one page holds them all.
 - [ ] A press page: logo, screenshots, one-line pitches, contact.
 - [ ] An RSS feed of new games (a static file, no third parties).
 - [ ] Search-engine tags (structured data) on each game page.
@@ -146,6 +146,7 @@ Once there are ten polished games.
 - [ ] **Where:** TikTok, YouTube Shorts and Instagram Reels first. That's where browser games get found. X and Bluesky are for the one-line jokes, if anyone can be bothered.
 - [ ] **What:** 10–20 second clips of the funniest moment in each game (a smite, the Gas button, a stamp landing), with the pitch line as the caption. Post the daily run results. Launch with a stockpile from phase 3 so it doesn't run dry in week two.
 - [ ] Each new game launches with a clip, a merch design and a share image.
+- [ ] A **Shop** link in the header and footer to the existing hoodie and T-shirt shop, added with the first merch drop once the socials bring people in (the owner's call, 6 October 2026). Just a link: no embedded store, no shop scripts.
 
 ## Phase 6: the edgier five (games 11 to 15)
 
@@ -175,7 +176,7 @@ Reserves if one doesn't work: **Rug Pull** (Launch a coin named after a dog. Sel
 
 This should cost next to nothing to run (static files on Cloudflare), so it can stay a passion project with upside. In order of how well each option fits:
 
-1. **Merch.** The hoodie and T-shirt shop already exists, and the stamp words are ready-made designs: "Not approved", "Rejected", "In poor taste", "There is no yes button", plus one design per game (a Thonglet, the Gas button). Drop one with each game launch, and link the shop from the site in phase 4.
+1. **Merch.** The hoodie and T-shirt shop already exists, and the stamp words are ready-made designs: "Not approved", "Rejected", "In poor taste", "There is no yes button", plus one design per game (a Thonglet, the Gas button). Drop one with each game launch, and link the shop from the site in phase 5, once the socials are open.
 2. **Commissions.** Campaign groups, charities and publications pay for satirical games about their issue. Fifteen polished games is the portfolio. This fits the edgier five especially well.
 3. **Adverts on portal copies, not on the site.** Poki and CrazyGames share advert revenue but need their own code in the game. Apply with separate copies of the best games, and the site itself stays ad-free (and keeps "Adverts: None, yet" true).
 4. **A tip link** ("Buy the developer a coffee"). Small money, no scripts, keeps the rules.
@@ -191,5 +192,5 @@ The realistic big break is one game or one clip catching on. Daily runs, shareab
 - [ ] A contact address for the site (phase 1).
 - [x] OK the automatic play-through tool (phase 2).
 - [ ] Pick or swap the game ideas, and their order.
-- [ ] The shop URL for the Shop link (phase 4).
+- [ ] The shop URL for the Shop link (phase 5).
 - [ ] Whether and when to apply to the advert portals.
