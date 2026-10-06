@@ -68,10 +68,10 @@
   var START = 4.7, FLOOR = 4.4;
   var CANCEL = 5;           // minutes late before the app cancels it
   var PULL = 1.5;           // an idle rider gets the next order this soon after the last
-  var LAST = 6;             // no new orders in a rush's last minutes
+  var LAST = 10;            // no new orders in a rush's last minutes
   var SKID = 3.0;            // in the rain, a turn pressed this close to the junction skids past it
   if (DEBUG && params.has("skid")) SKID = +params.get("skid");
-  var APPROVE = { rating: 4.8, delivered: 24 };
+  var APPROVE = { rating: 4.75, delivered: 22 };
 
   var STAGES = [
     { key: "lunch", name: "Lunch", start: 12 * 60, len: 40, gap: [4.9, 5.9], types: { bell: 3, knock: 3, shout: 2, code: 2 },
@@ -83,7 +83,7 @@
     { key: "friday", name: "Friday night", start: 19 * 60, len: 40, gap: [3.9, 4.8], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 2, back: 3 },
       k: 1.6, slack: 4, shrink: 0.55, batch: 0.3, prep: [1.4, 3.0], oneway: true, cars: true,
       brief: "Friday night. One-way streets: go the wrong way and you push. Parked cars open their doors: when the light comes on, wait. Some flats are round the back. The app's pin isn't." },
-    { key: "final", name: "Cup final", start: 20 * 60, len: 40, gap: [3.2, 4.0], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 2, back: 2 },
+    { key: "final", name: "Cup final", start: 20 * 60, len: 40, gap: [3.6, 4.4], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 2, back: 2 },
       k: 1.55, slack: 4, shrink: 0.6, batch: 0.35, prep: [1.3, 2.8], oneway: true, cars: true, precinct: true, goals: 2,
       brief: "Cup final. Everyone orders at once, and again at every goal. The high street is a precinct: walk your bike through it." }
   ];
@@ -135,7 +135,7 @@
   var townCanvas = null, townKey = "";
   var stageIdx = 0, stage = null, clock = 0, rng = null, carRng = null;
   var rider, route, orders, deals, dealAt, nextTag, nextDealT, lastDealT, pulledTold;
-  var rating, earned, fees, delivered, onTime, lateCount, cancelled, babies;
+  var rating, earned, spent, fees, delivered, onTime, lateCount, cancelled, babies;
   var stageStats, owned, toasts, mapBubbles, fx, doorstep, taught, prev, hudEls, briefed, ended, goalsAt, toldOutside;
   var pointerDown = null, autoT = 0, autoDoorT = 0, autoWrong = false;
 
@@ -151,7 +151,7 @@
     T = sh.tokens;
     A.init(T);
     stageIdx = DEBUG ? clamp((parseInt(params.get("stage"), 10) || 1) - 1, 0, 3) : 0;
-    rating = START; earned = 0; fees = 0; delivered = 0; onTime = 0; lateCount = 0; cancelled = 0; babies = 0;
+    rating = START; earned = 0; spent = 0; fees = 0; delivered = 0; onTime = 0; lateCount = 0; cancelled = 0; babies = 0;
     owned = {};
     taught = { pick: false, door: false, note: false };
     nextTag = 1;
@@ -195,7 +195,7 @@
   }
 
   function charge(p, why) {
-    earned -= p;
+    earned -= p; spent += p;
     stageStats.earned -= p;
     toast(why + ": " + money(p) + ". Taken from your pay.");
   }
@@ -849,12 +849,12 @@
     stageStats.earned += o.pay; stageStats.fees += o.fees;
     if (late > 0) {
       lateCount++; stageStats.late++;
-      rate(-(0.04 + Math.min(0.06, late * 0.012)));
+      rate(-(0.03 + Math.min(0.04, late * 0.01)));
     } else {
       onTime++; stageStats.onTime++;
-      rate(o.due - now() >= 3 ? 0.02 : 0.012);
+      rate(o.due - now() >= 3 ? 0.025 : 0.015);
     }
-    if (o.soggy) rate(-0.03);
+    if (o.soggy) rate(-0.015);
     if (!taught.door) taught.door = true;
     if (how !== "baby") taught.note = true;
     // the stamp
@@ -912,7 +912,7 @@
         cancelled++; stageStats.cancelled++;
         banner(wasBag ? "Cancelled. The food is yours now. It's cold." : "Order cancelled. The customer has had cereal.");
         rare("cancel", "Cancelled", 3);
-        rate(-0.1);
+        rate(-0.08);
         if (route && route.stop === stopOf(o).id) route = null;
       }
       if (o.state === "bag" && !toldOutside && clock - o.pickedAt > 1.2 && clock - o.pickedAt < 2) {
@@ -986,8 +986,10 @@
   // ---------------------------------------------------------------------------
   function endStage() {
     if (ended) return;
-    var left = orders.filter(function (o) { return o.state === "bag" || o.state === "assigned"; }).length;
-    if (left) { rate(-0.05 * left); toast(left + " order" + (left > 1 ? "s" : "") + " reassigned. The app noted it."); }
+    // what's left is reassigned: never collected costs more than in the bag
+    var unpicked = orders.filter(function (o) { return o.state === "assigned"; }).length;
+    var left = unpicked + bagCount();
+    if (left) { rate(-0.03 * unpicked - 0.015 * (left - unpicked)); toast(left + " order" + (left > 1 ? "s" : "") + " reassigned. The app noted it."); }
     if (ended) return;
     if (stageIdx >= STAGES.length - 1) { endRound(true); return; }
     var share = stageStats.delivered ? stageStats.onTime / stageStats.delivered : 0;
@@ -1001,7 +1003,7 @@
     var nextName = STAGES[stageIdx + 1].name.toLowerCase();
     shell.interlude({
       stamp: stamp,
-      heading: stage.name + ": " + stageStats.delivered + " delivered.",
+      heading: stage.name + ": they paid " + money(stageStats.fees) + ". You made " + money(stageStats.earned) + ".",
       line: lines[stageIdx % lines.length],
       stats: [
         { label: "On time", value: stageStats.onTime + " of " + stageStats.delivered },
@@ -1013,7 +1015,7 @@
     }).then(function (i) {
       var c = offer[i];
       owned[c.key] = true;
-      if (c.cost && !c.every) { earned -= c.cost; }
+      if (c.cost && !c.every) { earned -= c.cost; spent += c.cost; }
       stageIdx++;
       startStage();
       shell.next();
@@ -1051,6 +1053,8 @@
     } else if (stageIdx >= 2) { rung = 3; line = RESULT_LINES.notApproved[stageIdx - 2]; }
     else { rung = 4; line = RESULT_LINES.rejected[stageIdx]; }
     var stamp = ["Approved", "Pending review", "Not approved", "Rejected"][rung - 1];
+    // the best is what you took home: the app's upgrades came out of it
+    if (spent > 0) line += " Upgrades cost you " + money(spent) + ", out of your pay and out of your best.";
     var rec = shell.record(earned);
     var stats = [
       { label: "Delivered", value: String(delivered) + (lateCount ? " (" + lateCount + " late)" : "") },
@@ -1154,6 +1158,8 @@
     // a stop near the tap: ride to it
     var stopHit = null;
     var act = activeStops();
+    // the app's pin for a round-the-back order is at the front: tapping it rides there
+    orders.forEach(function (o) { if (o.state === "bag" && o.type === "back" && !o.frontTried) act[o.house.front.id] = true; });
     TW.stops.forEach(function (st) {
       if (!act[st.id] && !(route && route.stop === st.id)) return;
       if (st.kind === "door" && !orders.some(function (o) { return o.state === "bag" && (o.house.front.id === st.id); })) return;

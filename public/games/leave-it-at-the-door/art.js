@@ -298,6 +298,13 @@
     // houses and flats
     TW.houses.forEach(function (hs) { house(c, hs); });
     TW.restaurants.forEach(function (rs) { if (!rs.dark) restaurant(c, rs); });
+    // back gardens: whoever's out in them
+    var gi = 0;
+    TW.blocks.forEach(function (b) {
+      var B = b.box;
+      var shop = TW.restaurants.some(function (rs) { return rs.x + rs.w > B.x0 && rs.x < B.x1 && rs.y + rs.h > B.y0 && rs.y < B.y1; });
+      if (b.kind === "houses" && !shop) garden(c, B, gi++);
+    });
 
     // the precinct: paving, bollards and bunting
     edges.forEach(function (e) {
@@ -389,20 +396,87 @@
       }
     } else {
       // a pitched roof: the ridge along the street, halftone on the back slope
+      var v = (hs.no * 7 + Math.round(x)) % 4;
+      if (v === 1) { solid(c, roof, T.red, 0.32); }
       if (horiz) {
         var back = hs.side === "N" ? box(x, y + h / 2, w, h / 2) : box(x, y, w, h / 2);
         shade(c, roof, back, 0.6, T.ink, 0.26);
+        var fy = hs.side === "N" ? y + h * 0.15 : y + h * 0.6;
+        if (v === 2) {
+          solid(c, box(x + w * 0.2, fy, 1.0, 1.3), T.paper, 0.2);
+          solid(c, ell(x + w * 0.62, fy + 0.7, 0.75, 0.75), T.paper, 0.2);
+          line(c, [[x + w * 0.62, fy + 0.7], [x + w * 0.62 + 0.55, fy + 0.15]], 0.16);
+        } else if (v === 3) {
+          [0.22, 0.56].forEach(function (k) { solid(c, box(x + w * k, fy + 0.1, 1.5, 1.1), T.accent, 0.18); });
+        } else if (v === 0) {
+          var sp = box(x + w * 0.18, fy, w * 0.64, 1.3);
+          solid(c, sp, T.ink, 0.18, T.paper);
+          for (var k = 1; k < 4; k++) line(c, [[x + w * 0.18 + k * w * 0.16, fy], [x + w * 0.18 + k * w * 0.16, fy + 1.3]], 0.1, T.paper);
+        }
         line(c, [[x + 0.4, y + h / 2], [x + w - 0.4, y + h / 2]], 0.26);
         solid(c, box(x + w * 0.68, y + (hs.side === "N" ? h * 0.6 : h * 0.18), 0.9, 1.1), T.paper, 0.2);
       } else {
         var back2 = hs.side === "W" ? box(x + w / 2, y, w / 2, h) : box(x, y, w / 2, h);
         shade(c, roof, back2, 0.6, T.ink, 0.26);
+        var fx2 = hs.side === "W" ? x + w * 0.15 : x + w * 0.6;
+        if (v === 2) { solid(c, box(fx2, y + h * 0.25, 1.3, 1.0), T.paper, 0.2); solid(c, ell(fx2 + 0.7, y + h * 0.62, 0.75, 0.75), T.paper, 0.2); }
+        else if (v === 3) { [0.2, 0.55].forEach(function (k) { solid(c, box(fx2, y + h * k, 1.1, 1.5), T.accent, 0.18); }); }
         line(c, [[x + w / 2, y + 0.4], [x + w / 2, y + h - 0.4]], 0.26);
       }
     }
     // the front door, in mint, with a path to the pavement
     var d = hs.front;
     door(c, d.x, d.y, hs.side, false);
+  }
+  // A back garden, in the middle of a block: a dog, a washing line, a
+  // trampoline, someone in a deckchair. World units.
+  function garden(c, B, i) {
+    var cx = (B.x0 + B.x1) / 2, cy = (B.y0 + B.y1) / 2;
+    var kind = i % 4;
+    if (kind === 0 || kind === 2) {
+      // a washing line, and a dog under it
+      line(c, [[cx - 6, cy - 1.2], [cx + 6, cy - 1.2]], 0.14, T.paper);
+      [[-4.6, T.red], [-2.4, T.paper], [0.2, T.accent], [2.6, T.paper]].forEach(function (q, k) {
+        solid(c, k % 2 ? box(cx + q[0], cy - 1.2, 1.5, 1.7) : poly([[cx + q[0], cy - 1.2], [cx + q[0] + 1.6, cy - 1.2], [cx + q[0] + 1.4, cy + 0.5], [cx + q[0] + 0.2, cy + 0.5]]), q[1], 0.14);
+      });
+      dog(c, cx + (kind ? -3.2 : 3.6), cy + 1.5, kind ? -1 : 1);
+    } else if (kind === 1) {
+      // a trampoline and a child on it
+      var tr = ell(cx - 2.5, cy + 0.2, 2.2, 1.7);
+      solid(c, tr, T.ink, 0.3, T.paper);
+      shade(c, tr, null, 0.45, T.paper, 0.18);
+      kid(c, cx - 2.5, cy - 0.6, T.red, true);
+      dog(c, cx + 3.2, cy + 1.2, -1);
+    } else {
+      // a deckchair and its owner, and a gnome
+      var dc = rr(cx - 3.2, cy - 1.4, 2.4, 3.0, 0.3);
+      solid(c, dc, T.paper, 0.2);
+      c.save(); c.clip(dc); c.fillStyle = T.red;
+      for (var k = 0; k < 3; k++) c.fillRect(cx - 3.2 + k * 0.85, cy - 1.4, 0.42, 3);
+      c.restore(); ink(c, 0.2); c.stroke(dc);
+      kid(c, cx - 2.0, cy - 0.5, T.accent, false);
+      solid(c, poly([[cx + 3, cy - 0.6], [cx + 2.4, cy + 0.6], [cx + 3.6, cy + 0.6]]), T.red, 0.15);
+      solid(c, ell(cx + 3, cy + 0.9, 0.5, 0.45), T.paper, 0.15);
+    }
+  }
+  function dog(c, x, y, f) {
+    solid(c, ell(x, y, 1.15, 0.6), T.paper, 0.2);
+    [-0.7, -0.3, 0.4, 0.8].forEach(function (lx) { line(c, [[x + lx, y + 0.3], [x + lx, y + 1.0]], 0.22); });
+    line(c, [[x - f * 1.05, y - 0.2], [x - f * 1.6, y - 0.9]], 0.2);
+    solid(c, ell(x + f * 1.2, y - 0.55, 0.62, 0.55), T.paper, 0.2);
+    solid(c, ell(x + f * 0.95, y - 1.0, 0.22, 0.4, f * 0.5), T.ink, 0);
+    c.fillStyle = T.ink; c.beginPath(); c.arc(x + f * 1.75, y - 0.5, 0.15, 0, 7); c.fill();
+  }
+  function kid(c, x, y, top, up) {
+    [-1, 1].forEach(function (sd) {
+      var hand = up ? [x + sd * 1.1, y - 1.4] : [x + sd * 1.0, y + 0.9];
+      line(c, [[x + sd * 0.4, y + 0.2], hand], 0.42, T.ink);
+      line(c, [[x + sd * 0.4, y + 0.2], hand], 0.2, top);
+    });
+    solid(c, rr(x - 0.6, y - 0.1, 1.2, 1.5, 0.35), top, 0.16);
+    solid(c, ell(x, y - 0.75, 0.62, 0.62), T.paper, 0.16);
+    c.fillStyle = T.ink;
+    c.beginPath(); c.arc(x - 0.2, y - 0.8, 0.09, 0, 7); c.arc(x + 0.2, y - 0.8, 0.09, 0, 7); c.fill();
   }
   function door(c, sx, sy, side, wide) {
     var hw = wide ? 1.4 : 0.85;
@@ -928,9 +1002,10 @@
     var R = h * 0.125, lw = Math.max(2, R * 0.1);
     var hy = y - h + R * 1.05;
     var shY = hy + R * 1.45, hipY = shY + h * 0.36;
-    var top = look === "scarf" ? T.red : look === "gown" || look === "curlers" || look === "baby" ? T.accent : T.paper;
+    var top = look === "scarf" || look === "baby" ? T.red : look === "gown" || look === "curlers" ? T.accent : T.paper;
     var pose = o.pose || "hips";
-    if (look === "baby") pose = pose === "shout" ? "shout" : "baby";
+    var baby = look === "baby";
+    if (pose === "baby") pose = "hips";
     function arm(pts, flip) {
       line(c, pts, R * 0.62, T.ink);
       line(c, pts, R * 0.62 - lw * 2, top);
@@ -957,25 +1032,26 @@
     if (top === T.accent) line(c, [[x - R * 1.25, hipY - R * 0.5], [x + R * 1.25, hipY - R * 0.5]], lw * 2.2, T.paper);
     // the arm at the back first
     var L0 = [x - R * 1.0, shY + R * 0.2], R0 = [x + R * 1.0, shY + R * 0.2];
-    if (pose === "baby") arm([L0, [x - R * 1.7, shY + R * 1.4], [x - R * 0.6, hipY - R * 0.2]], false);
+    if (baby) { /* the arm goes round the baby, below */ }
     else if (pose === "shout") arm([L0, [x - R * 1.9, shY - R * 0.4], [x - R * 1.6, hy - R * 1.0]], false);
     else arm([L0, [x - R * 2.0, shY + R * 1.3], [x - R * 1.25, hipY - R * 0.15]], false);
     // the head and the one thing each (the baby goes on the hip, not the sling)
     person(c, x, hy, R, look === "baby" ? "curlers" : look, { shout: o.shout || 0, brows: o.brows, look: o.look || 0, smile: o.smile });
-    if (pose === "baby") {
-      var bx = x - R * 1.35, by = hipY - R * 0.75;
-      solid(c, ell(bx, by + R * 0.4, R * 0.8, R * 0.7), T.paper, lw);
-      shade(c, ell(bx, by + R * 0.4, R * 0.8, R * 0.7), null, R * 0.18, T.ink);
-      solid(c, ell(bx - R * 0.1, by - R * 0.55, R * 0.62, R * 0.58), T.paper, lw);
+    if (baby) {
+      // on the hip: the body, the arm round it, then the head over the arm
+      var bx = x - R * 1.5, by = hipY - R * 1.05;
+      solid(c, ell(bx, by + R * 0.5, R * 0.75, R * 0.68), T.paper, lw);
+      shade(c, ell(bx, by + R * 0.5, R * 0.75, R * 0.68), null, R * 0.18, T.ink);
+      arm([L0, [x - R * 2.0, shY + R * 1.2], [x - R * 0.85, hipY + R * 0.05]], false);
+      solid(c, ell(bx - R * 0.15, by - R * 0.45, R * 0.62, R * 0.58), T.paper, lw);
       if (o.awake) {
-        solid(c, ell(bx - R * 0.1, by - R * 0.38, R * 0.22, R * 0.17), T.ink, 0);
-        line(c, [[bx - R * 0.38, by - R * 0.72], [bx - R * 0.2, by - R * 0.64]], lw);
-        line(c, [[bx + R * 0.18, by - R * 0.72], [bx, by - R * 0.64]], lw);
+        solid(c, ell(bx - R * 0.15, by - R * 0.28, R * 0.22, R * 0.17), T.ink, 0);
+        line(c, [[bx - R * 0.43, by - R * 0.62], [bx - R * 0.25, by - R * 0.54]], lw);
+        line(c, [[bx + R * 0.13, by - R * 0.62], [bx - R * 0.05, by - R * 0.54]], lw);
       } else {
-        c.beginPath(); c.arc(bx - R * 0.3, by - R * 0.62, R * 0.12, 0.2, Math.PI - 0.2); ink(c, lw * 0.8); c.stroke();
-        c.beginPath(); c.arc(bx + R * 0.1, by - R * 0.62, R * 0.12, 0.2, Math.PI - 0.2); c.stroke();
+        c.beginPath(); c.arc(bx - R * 0.35, by - R * 0.52, R * 0.12, 0.2, Math.PI - 0.2); ink(c, lw * 0.8); c.stroke();
+        c.beginPath(); c.arc(bx + R * 0.05, by - R * 0.52, R * 0.12, 0.2, Math.PI - 0.2); c.stroke();
       }
-      arm([L0, [x - R * 1.9, shY + R * 1.0], [x - R * 0.7, hipY - R * 0.2]], false);
     }
     // the arm at the front
     if (pose === "wave") arm([R0, [x + R * 2.0, shY - R * 0.3], [x + R * 2.2, hy - R * 1.1]], true);
