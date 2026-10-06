@@ -1745,17 +1745,21 @@
     if (player.spin > 0) want = speed > 30 ? Math.atan2(player.vy, player.vx) : camA;
     camA += wrapAngle(want - camA) * (dt ? Math.min(1, dt * 5) : 1);
     var fx = Math.cos(camA), fy = Math.sin(camA);
-    var f = Math.min(W * 0.85, H * 0.95) * (1 - Math.min(1, speed / MAX) * 0.1) * (player.boost > 0 ? 0.9 : 1);
+    // A phone held upright in full window is mostly height: the camera goes
+    // up a little and in a little, so more of that height is road, not sky
+    var tall = H > W * 1.5;
+    var camH = CAM_H * (1 + clamp(H / W - 1.3, 0, 0.9));
+    var f = Math.min(W * (tall ? 0.95 : 0.85), H * 0.95) * (1 - Math.min(1, speed / MAX) * 0.1) * (player.boost > 0 ? 0.9 : 1);
     // your kart sits low on screen, but clear of the touch buttons when they're showing
-    var kartAt = root.classList.contains("kit-touching") ? (H > W * 1.3 ? 0.7 : 0.66) : 0.8;
-    var horizon = clamp(H * kartAt - CAM_H * f / CAM_D, H * 0.2, H * 0.55);
+    var kartAt = root.classList.contains("kit-touching") ? (tall ? 0.74 : H > W * 1.3 ? 0.7 : 0.66) : (tall ? 0.78 : 0.8);
+    var horizon = clamp(H * kartAt - camH * f / CAM_D, H * 0.2, H * 0.55);
     var sx = 0, sy = 0;
     if (cam.shake > 0.01) {
       sx = (Math.random() - 0.5) * cam.shake * 10;
       sy = (Math.random() - 0.5) * cam.shake * 8;
       cam.shake *= Math.exp(-(dt || 0.016) * 7);
     }
-    view = { x: player.x - fx * CAM_D, y: player.y - fy * CAM_D, fx: fx, fy: fy, h: CAM_H, f: f,
+    view = { x: player.x - fx * CAM_D, y: player.y - fy * CAM_D, fx: fx, fy: fy, h: camH, f: f,
              cx: W / 2 + sx, horizon: horizon + sy, dpr: DPR, fogNear: 650, fogFar: 1900 };
     ground.draw(view);
 
@@ -1981,7 +1985,7 @@
   // A low skyline that turns with you, with the NO mark up on two towers
   var markImg = null;
   function buildSky() {
-    var ph = Math.round(Math.max(40, H * 0.16)), pw = ph * 12;
+    var ph = Math.round(Math.max(40, Math.min(H, W * 1.25) * 0.16)), pw = ph * 12;
     var cv = document.createElement("canvas");
     cv.width = Math.round(pw * DPR);
     cv.height = Math.round(ph * DPR);
