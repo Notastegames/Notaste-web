@@ -1707,7 +1707,7 @@
         c.save();
         D.ink(c, size * 0.13, T.red);
         c.beginPath();
-        c.ellipse(size * 0.7 + lw2 / 2, ly, lw2 / 2 + size * 0.5, size * 0.72, -0.03, 0, Math.PI * 2);
+        c.ellipse(size * 0.7 + lw2 / 2, ly - size * 0.05, lw2 * 0.56 + size * 0.9, size * 0.76, -0.02, 0, Math.PI * 2);
         c.stroke();
         c.restore();
         // with a pen, your number goes on the note as it's read
