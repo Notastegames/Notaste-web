@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <!--
+    Game page for a playable game. To add a game: copy /games/starter/ to
+    /games/<slug>/, rewrite the script as the new game (built with the kit in
+    /games/kit/), change everything marked EDIT on this page, then add one
+    line to GAMES in /games/game.js, a poster on the homepage and a line in
+    the sitemap. The full checklist is at the end of DESIGN.md.
+  -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- EDIT: title, description and the og: tags -->
+  <title>Hold Music: Notaste Games</title>
+  <meta name="description" content="Phone a company about your broadband. Remember the menu, tap along to the hold music and get put through to someone else. Four calls, one problem. A free browser game in poor taste from Notaste Games.">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <link rel="preload" href="/fonts/notaste-display.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/games/game.css">
+  <link rel="stylesheet" href="/games/kit/kit.css">
+  <link rel="stylesheet" href="/games/hold-music/hold-music.css">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Notaste Games">
+  <meta property="og:title" content="Hold Music">
+  <meta property="og:description" content="Phone a company. Remember the menu. Tap along to the hold music. Free in your browser.">
+  <meta property="og:url" content="https://notastegames.com/games/hold-music/">
+  <meta property="og:image" content="https://notastegames.com/art/og-hold-music.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<!--
+  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
+  --accent is the game's colour (same as its GAMES entry and its homepage poster).
+-->
+<body class="game" data-game="hold-music" style="--accent: #c452b5">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="top-inner wrap">
+      <a class="top-logo" href="/" aria-label="Notaste Games home">
+        <img src="/brand/logo-on-dark.svg" alt="No Taste" width="557" height="166">
+      </a>
+      <nav class="top-nav" aria-label="Main">
+        <a href="/#games">Games</a>
+        <a href="/#about">About</a>
+        <a href="/#follow">Follow</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="game-page wrap">
+
+      <!-- EDIT: title, stamp (and its tilt), state, pitch -->
+      <div class="game-head">
+        <h1>Hold Music</h1>
+        <div class="game-meta">
+          <span class="stamp-label" style="--tilt: -5deg">Please hold</span>
+          <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now</p>
+        </div>
+        <p class="game-pitch">Phone a company about your broadband. Remember the menu, tap along to the hold music, and get put through to someone else. Your call is important to us.</p>
+      </div>
+
+      <section class="cabinet" aria-label="Game screen">
+        <div class="screen">
+          <!-- EDIT: cover art path -->
+          <img class="screen-art" src="/art/hold-music.svg" alt="" width="800" height="600">
+
+          <!-- The game. /games/kit/kit.js builds the screens in here, hold-music.js is the game. -->
+          <div id="game-root">
+            <noscript><p class="kit-noscript">Hold Music needs JavaScript switched on. Please hold.</p></noscript>
+          </div>
+        </div>
+        <p class="cabinet-strip"><span>Notaste Games</span><span>Free play</span></p>
+      </section>
+
+      <div class="game-info">
+        <h2>How to play</h2>
+        <!-- EDIT: two or three short lines -->
+        <ul class="how">
+          <li>Your problem is on the sticky note. Listen to the menu and press the number that matches (1 to 9, or tap the keypad). From the second call the keypad stays locked until every option has been read, so remember your number. Nobody else will.</li>
+          <li>On hold, tap along to the hold music (Space, a click, or a tap anywhere) as each note reaches the ring at your ear. The hold music is eight bars long. You will learn them. Miss too many and the line goes: you're cut off and sent back down the queue.</li>
+          <li>Wrong numbers, dropped calls and cut-offs cost patience, and when it runs out you hang up. Between calls, pick how to get ready: each choice helps, and each one costs. Today's run gives everyone the same problem and the same menus.</li>
+        </ul>
+        <div class="share">
+          <button class="btn-line" id="share" type="button">Share</button>
+          <span class="share-status" id="share-status" role="status"></span>
+        </div>
+      </div>
+    </div>
+
+    <section class="more wrap" aria-labelledby="more-heading">
+      <div class="section-head">
+        <h2 id="more-heading">More games</h2>
+        <p class="section-note">Also unfinished. Also in poor taste.</p>
+      </div>
+      <!-- Filled from GAMES in /games/game.js -->
+      <ul class="more-list" id="more-list"></ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-inner wrap">
+      <img class="foot-mark" src="/brand/mark-on-dark.svg" alt="" width="183" height="166">
+      <div>
+        <p>Notaste Games makes satire. Real people, brands and events that appear in our games are being made fun of, not described.</p>
+        <p>&copy; <span id="year">2026</span> Notaste Games. <a href="/privacy/">Privacy</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/games/game.js" defer></script>
+  <script src="/games/kit/kit.js" defer></script>
+  <script src="/games/hold-music/line.js" defer></script>
+  <script src="/games/hold-music/draw.js" defer></script>
+  <script src="/games/hold-music/hold-music.js" defer></script>
+</body>
+</html>
