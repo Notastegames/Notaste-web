@@ -36,7 +36,7 @@
 // RATING. Starts at 4.90. On time nudges it up, late takes it down by how
 // late, a woken baby, soggy food or a wrong photo take a bit, a cancelled
 // order takes more. Under 4.50 the account is deactivated and the shift
-// ends. Approved needs the whole shift, 4.80 or better and 26 deliveries.
+// ends. Approved needs the whole shift, 4.80 or better and 24 deliveries.
 //
 // THE STAGES. Lunch (bell, knock and gate codes), Rain (late turns skid,
 // puddles soak the food, photos at the door), Friday night (one-way
@@ -67,19 +67,20 @@
   var BAG = 3;
   var START = 4.9, FLOOR = 4.5;
   var SKID = 3.0;            // in the rain, a turn pressed this close to the junction skids past it
-  var APPROVE = { rating: 4.8, delivered: 26 };
+  if (DEBUG && params.has("skid")) SKID = +params.get("skid");
+  var APPROVE = { rating: 4.8, delivered: 24 };
 
   var STAGES = [
-    { key: "lunch", name: "Lunch", start: 12 * 60, len: 40, gap: [4.4, 5.4], types: { bell: 3, knock: 3, code: 2 },
-      k: 1.6, slack: 4, shrink: 0.3, batch: 0.15, prep: [1.6, 3.4],
+    { key: "lunch", name: "Lunch", start: 12 * 60, len: 40, gap: [4.9, 5.9], types: { bell: 3, knock: 3, code: 2 },
+      k: 1.7, slack: 5, shrink: 0.3, batch: 0.15, prep: [1.6, 3.4],
       brief: "Orders arrive by themselves. Ride to the pickup, then the door: arrow keys steer, or tap where to go. At the door, read the note and press when it shows what they asked for." },
-    { key: "rain", name: "Rain", start: 15 * 60, len: 40, gap: [4.0, 5.0], types: { bell: 2, knock: 2, code: 2, photo: 3 },
-      k: 1.55, slack: 4, shrink: 0.45, batch: 0.22, prep: [1.5, 3.2], rain: true,
+    { key: "rain", name: "Rain", start: 15 * 60, len: 40, gap: [4.3, 5.3], types: { bell: 2, knock: 2, code: 2, photo: 3 },
+      k: 1.65, slack: 5, shrink: 0.45, batch: 0.22, prep: [1.5, 3.2], rain: true,
       brief: "Rain. Press your turn before the junction or you'll skid past it. Puddles soak the food. The app has added a 10p weather bonus for you, and a rain fee for them." },
-    { key: "friday", name: "Friday night", start: 19 * 60, len: 42, gap: [3.6, 4.5], types: { bell: 2, knock: 2, code: 2, photo: 2, back: 3 },
+    { key: "friday", name: "Friday night", start: 19 * 60, len: 40, gap: [3.9, 4.8], types: { bell: 2, knock: 2, code: 2, photo: 2, back: 3 },
       k: 1.6, slack: 4, shrink: 0.55, batch: 0.3, prep: [1.4, 3.0], oneway: true, cars: true,
       brief: "Friday night. One-way streets: go the wrong way and you push. Parked cars open their doors: when the light comes on, wait. Some flats are round the back. The app's pin isn't." },
-    { key: "final", name: "Cup final", start: 20 * 60, len: 44, gap: [3.2, 4.0], types: { bell: 2, knock: 3, code: 2, photo: 2, back: 2 },
+    { key: "final", name: "Cup final", start: 20 * 60, len: 40, gap: [3.2, 4.0], types: { bell: 2, knock: 3, code: 2, photo: 2, back: 2 },
       k: 1.55, slack: 4, shrink: 0.6, batch: 0.35, prep: [1.3, 2.8], oneway: true, cars: true, precinct: true, goals: 2,
       brief: "Cup final. Everyone orders at once, and again at every goal. The high street is a precinct: walk your bike through it." }
   ];
@@ -823,6 +824,7 @@
   function deactivate() {
     if (ended) return;
     ended = true;
+    paintHud();
     toast("Your account is under review. This decision was made automatically.");
     shell.callout("Account: under review", { tilt: -5 });
     sfx("low");
@@ -947,7 +949,6 @@
       if (c.cost && !c.every) { earned -= c.cost; }
       stageIdx++;
       startStage();
-      if (c.every) charge(c.cost, c.label);
       shell.next();
     });
   }
@@ -1155,8 +1156,11 @@
     L = layout();
     townKey = "";
     if (shell) {
-      if (L.mode === "col") shell.placeCallouts({ top: L.panel.y + 70, left: L.panel.x, right: W - L.panel.x - L.panel.w });
-      else if (L.mode === "bot") shell.placeCallouts({ top: L.panel.y + 112, left: 0, right: 0 });
+      // over the map column, in the black above the town where there is
+      // some, so the phone's numbers stay readable
+      if (L.mode === "col") shell.placeCallouts({ top: L.top + Math.max(0, Math.min(20, L.mapY - L.top - 44)), left: 0, right: W - L.panel.x });
+      // between the town and the phone, over the bottom street at worst
+      else if (L.mode === "bot") shell.placeCallouts({ top: L.panel.y - 40, left: 0, right: 0 });
       else shell.placeCallouts({ top: L.mapY + 2, left: 0, right: 0 });
     }
   }
