@@ -27,6 +27,9 @@
 //   4. The late one (23:45): half the stickers have come off, so you have to
 //      know a doughnut is sugar. The big items have two stickers and need
 //      sorting twice.
+// The clerks tire as the day goes on: each meal they stamp a little slower,
+// so the in-trays fill, and Flush (or holding an item back while the chute
+// has room) is how you keep up.
 // Between meals the speaker asks if you'd like to go large (shell.interlude),
 // with three answers, all of them yes, each with a catch.
 //
@@ -110,15 +113,15 @@
   var STAGES = [
     { name: "Breakfast", at: 7 * 60 + 30, time: 28, gap: 1.4, mix: { grease: 0.55, sugar: 0.45, salt: 0 },
       foods: ["muffin", "hashbrown", "burger", "cola", "doughnut", "pie"], deal: 0, leaf: 0.03,
-      clear: "Breakfast has been processed. Most of it." },
+      tired: 1, clear: "Breakfast has been processed. Most of it." },
     { name: "Lunch", at: 12 * 60 + 30, time: 30, gap: 1.2, mix: { grease: 0.36, sugar: 0.3, salt: 0.34 },
-      foods: null, deal: 9, leaf: 0.03, kidneys: true,
+      foods: null, deal: 9, leaf: 0.03, kidneys: true, tired: 0.84,
       clear: "Lunch has been processed. The Kidneys would like it noted that they were on a break." },
     { name: "Dinner", at: 18 * 60 + 30, time: 30, gap: 1.15, mix: { grease: 0.36, sugar: 0.34, salt: 0.3 },
-      foods: null, deal: 8.5, leaf: 0.03, kidneys: true, flush: true, refill: true,
+      foods: null, deal: 8.5, leaf: 0.03, kidneys: true, flush: true, refill: true, tired: 0.74,
       clear: "Dinner has been processed. The hatch would like a word." },
     { name: "The late one", at: 23 * 60 + 45, time: 30, gap: 1.15, mix: { grease: 0.4, sugar: 0.3, salt: 0.3 },
-      foods: null, deal: 8, leaf: 0.02, kidneys: true, flush: true, refill: true, bare: 0.5, big: 0.14,
+      foods: null, deal: 8, leaf: 0.02, kidneys: true, flush: true, refill: true, bare: 0.5, big: 0.14, tired: 0.68,
       clear: "" }
   ];
   var LAST = STAGES.length - 1;
@@ -254,7 +257,10 @@
       clock: 0,
       spawnWait: 0.6,
       dealWait: st.deal ? st.deal * 0.6 : 0,
+      // the food, and the meal deals, each from their own seeded stream, so
+      // today's run serves the same food whatever anyone does with it
       rnd: N.seeded(shell.seed + 101 * (run.stage + 1)),
+      dealRnd: N.seeded(shell.seed + 7919 * (run.stage + 1)),
       queue: [],
       plate: null,
       flying: [],
@@ -283,7 +289,7 @@
                       open: id !== "kidneys" || !!st.kidneys };
     });
     if (run.stage === 0 && !G.taught.first) G.taught.first = 0;
-    speak(pick(SAY.speakerStart, G.rnd), 2.4);
+    speak(pick(SAY.speakerStart), 2.4);
     setFlushPad();
   }
 
@@ -341,8 +347,14 @@
   }
 
   function mealDeal() {
-    var r = G.rnd, st = info();
-    var foods = [pick(BY_KIND.grease, r), pick(BY_KIND.salt, r), pick(["cola", "shake"], r)];
+    var r = G.dealRnd, st = info();
+    // a combo (a burger, fries and a drink), or three of one thing
+    var foods;
+    if (r() < 0.45) foods = [pick(BY_KIND.grease, r), pick(BY_KIND.salt, r), pick(["cola", "shake"], r)];
+    else {
+      var kind = pick(st.kidneys ? ["grease", "sugar", "salt"] : ["grease", "sugar"], r);
+      foods = [pick(BY_KIND[kind], r), pick(BY_KIND[kind], r), pick(BY_KIND[kind], r)];
+    }
     foods.forEach(function (f, i) {
       var bare = !!st.bare && r() < st.bare * 0.6;
       var refill = !!st.refill && FOODS[f].drink && (run.mods.refillAll || r() < 0.55);
@@ -351,8 +363,7 @@
       it.y -= i * 6;
       arrive(it);
     });
-    call("Meal deal", "routine");
-    speak(pick(SAY.speakerDeal, r), 1.8);
+    speak(pick(SAY.speakerDeal), 1.8);
     G.spawnWait = Math.max(G.spawnWait, info().gap * 0.9);
   }
 
@@ -433,7 +444,7 @@
       run.streak++;
       run.bestStreak = Math.max(run.bestStreak, run.streak);
       if (run.streak === 10 || run.streak === 20 || run.streak === 30) { call("Streak x" + mult()); sfx.streak(); }
-      if (G.rnd() < 0.14 && !d.say) say(d, pick(SAY.filed[id]), 1.3);
+      if (Math.random() < 0.14 && !d.say) say(d, pick(SAY.filed[id]), 1.3);
     }
     if (it.refill && !it.isRefill && piece === it) {
       // free refill: it comes back
@@ -486,7 +497,7 @@
     G.pipes += n;
     run.peak = Math.max(run.peak, G.pipes);
     G.blobs.push({ t: 0, x: from ? L[from.id].tray.x : L.plate.x, y: from ? L[from.id].tray.y : L.plate.y, n: n });
-    if (G.pipes > 60 && !G.heart.say && G.rnd() < 0.5) heartSay(pick(SAY.heartWorry.slice(1)), 1.6);
+    if (G.pipes > 60 && !G.heart.say && Math.random() < 0.5) heartSay(pick(SAY.heartWorry.slice(1)), 1.6);
   }
 
   function score(n) { run.score += Math.round(n * mult() * run.mods.score); }
@@ -562,7 +573,7 @@
       if (st.deal) {
         G.dealWait -= dt;
         if (G.dealWait <= 0) {
-          G.dealWait = st.deal / run.mods.deals * (0.85 + G.rnd() * 0.3);
+          G.dealWait = st.deal / run.mods.deals * (0.85 + G.dealRnd() * 0.3);
           if (G.clock < st.time - 2) mealDeal();
         }
       }
@@ -572,7 +583,7 @@
     DESKS.forEach(function (id) {
       var d = G.desks[id];
       if (!d.tray.length) { d.proc = 0; return; }
-      d.proc += dt * RATE * run.mods.speed[id];
+      d.proc += dt * RATE * st.tired * run.mods.speed[id];
       if (d.proc >= 1) {
         d.proc -= 1;
         d.tray.shift();
@@ -593,8 +604,8 @@
     // the speaker, every so often
     G.speaker.idle -= dt;
     if (G.speaker.idle <= 0) {
-      G.speaker.idle = 5 + G.rnd() * 4;
-      if (!G.speaker.say && G.clock < st.time) speak(pick(SAY.speakerIdle, G.rnd), 1.5);
+      G.speaker.idle = 5 + Math.random() * 4;
+      if (!G.speaker.say && G.clock < st.time) speak(pick(SAY.speakerIdle), 1.5);
     }
 
     // the heart frets when the pipes are high
@@ -817,7 +828,6 @@
     run.signedOff = true;
     G.pipes = 100;
     sfx.signedOff();
-    call("Signed off");
     heartSay(["That's", "me done"], 2);
     DESKS.forEach(function (id) { mood(G.desks[id], "shock", 3); });
     G.shake = 1;
@@ -869,7 +879,7 @@
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big" data-score>0</p>' +
-        '<p class="kit-meter" data-pipes><span class="kit-meter-label">Pipes</span><span class="kit-meter-bar"><span data-pipes-bar></span></span></p>' +
+        '<p class="kit-meter" data-pipes><span class="kit-meter-label">Pipes</span><span class="kit-meter-bar"><span data-pipes-bar style="background: var(--red)"></span></span></p>' +
         '<p class="kit-stat" data-minor><small>Streak</small><span data-streak>x1</span></p>' +
       '</div>';
     hudEls = {};
@@ -912,8 +922,8 @@
     var o = {
       cx: cx,
       top: top,
-      board: { y: top + 0.5, w: 27, h: 7.5 },
-      chuteTop: top + 8,
+      board: { y: top + 0.5, w: 28, h: 8.6 },
+      chuteTop: top + 9,
       chuteBottom: plateY - 6.5,
       chuteW: 13,
       plate: { x: cx, y: plateY, r: 11 },
@@ -922,8 +932,8 @@
       heart: { x: 17.5, y: WH - 21, r: 4.8 },
       hatch: { x: WW - 11, y: WH - 12, r: 5.2 }
     };
-    o.liver = { x: cx - side, deskY: deskY, head: { x: cx - side - 2.5, y: deskY - 8.5, r: 6.4 } };
-    o.pancreas = { x: cx + side, deskY: deskY, head: { x: cx + side + 2.5, y: deskY - 8.5, r: 6.4 } };
+    o.liver = { x: cx - side, deskY: deskY, head: { x: cx - side - 2.5, y: deskY - 9.2, r: 7 } };
+    o.pancreas = { x: cx + side, deskY: deskY, head: { x: cx + side + 2.5, y: deskY - 9.2, r: 7 } };
     o.kidneys = { x: cx, deskY: kY, heads: [{ x: cx - 4, y: kY - 7.5, r: 5.2 }, { x: cx + 7, y: kY - 7.5, r: 5.2 }] };
     o.liver.tray = { x: o.liver.x + 7.5, y: deskY - 0.6, w: 9.5 };
     o.pancreas.tray = { x: o.pancreas.x - 7.5, y: deskY - 0.6, w: 9.5 };
@@ -1070,17 +1080,17 @@
     for (var i = shown - 1; i >= 0; i--) {
       var it = G.queue[i];
       // stickers stay on in the chute: you can see what's coming
-      A.item(c, it, x, it.y, 6.6, { minSticker: 2.6, rot: (it.id % 3 - 1) * 0.08 });
+      A.item(c, it, x, it.y, 6.6, { iconSticker: 3.4, rot: (it.id % 3 - 1) * 0.08 });
     }
     c.restore();
-    A.board(c, x, L.board.y, L.board.w, L.board.h, G.speaker.say ? G.speaker.say.join(" ") : null, anim, G.intakeOpen);
-    if (G.queue.length > L.slots) A.label(c, "+" + (G.queue.length - L.slots), x - L.chuteW / 2 - 1.5, L.chuteTop + 5, 3.8, "right");
+    A.board(c, x, L.board.y, L.board.w, L.board.h, G.speaker.say ? G.speaker.say.join(" ") : null, anim, G.intakeOpen, shell.reduceMotion);
+    if (G.queue.length > L.slots) A.label(c, "+" + (G.queue.length - L.slots), x - L.chuteW / 2 - 1.5, L.chuteTop + 5, 4, "right");
     // queue pressure: the chute's mouth goes red when it's nearly full
     if (G.queue.length >= QUEUE_MAX - 1) {
       var blink = Math.floor(anim * 5) % 2;
       A.rr(c, x - L.chuteW * 0.62, L.chuteBottom - 1.4, L.chuteW * 1.24, 2.4, 0.8);
       A.fill(c, blink ? T.red : T.paper, 0.5);
-      if (G.queue.length >= QUEUE_MAX) A.label(c, "Chute full", x + L.chuteW / 2 + 1.5, L.chuteBottom - 3, 3.6, "left", T.paper);
+      if (G.queue.length >= QUEUE_MAX) A.label(c, "Chute full", x + L.chuteW / 2 + 1.5, L.chuteBottom - 3, 4, "left", T.paper);
     }
   }
 
@@ -1099,7 +1109,7 @@
     }
     var size = it.big ? 15 : 13;
     if (it.chomp) size *= 1 - it.chomp * 0.12;
-    A.item(c, it, p.x + bx, y, size, { minSticker: 3.8, squash: it.drop < 1 ? 0 : (it.bounce > 0 ? -0.08 * it.bounce : 0) });
+    A.item(c, it, p.x + bx, y, size, { minSticker: 5.4, squash: it.drop < 1 ? 0 : (it.bounce > 0 ? -0.08 * it.bounce : 0) });
     if (it.bare && it.drop >= 1) {
       // the sticker's come off: a sticky patch where it was
       A.rr(c, p.x + bx + size * 0.08, y + size * 0.3, size * 0.5, size * 0.22, size * 0.08);
@@ -1107,7 +1117,7 @@
       A.stroke(c, 0.4, T.paper);
       c.setLineDash([]);
     }
-    if (it.isRefill && it.drop >= 1) A.label(c, "Refill", p.x - size * 0.55 + bx, y - size * 0.5, 3.6, "right", T.accent);
+    if (it.isRefill && it.drop >= 1) A.label(c, "Refill", p.x - size * 0.55 + bx, y - size * 0.5, 4, "right", T.accent);
   }
 
   function drawDesk(c, id) {
@@ -1115,7 +1125,7 @@
     var lit = hover === id && G.phase === "play" && d.open;
     var keyWord = touching() ? "" : pointerMode === "keys" ? KEYS[id] : "";
     // the sign
-    A.sign(c, lo.sign.x, lo.sign.y, NAMES[id], d.open ? keyWord : "Back at lunch", 4.2, lit, !d.open);
+    A.sign(c, lo.sign.x, lo.sign.y, NAMES[id], d.open ? keyWord : "Back at lunch", 4.4, lit, !d.open);
     // the clerk(s), then the desk in front
     var t = anim;
     if (id === "kidneys") {
@@ -1136,7 +1146,7 @@
     var w = id === "kidneys" ? 40 : L.deskW;
     A.desk(c, lo.x, lo.deskY, w, 8.5);
     // the department's sticker on the front of the desk
-    A.sticker(c, DEPT[id], lo.x + (id === "kidneys" ? 5 : id === "liver" ? -3 : 3), lo.deskY + 5, 4.2, id === "liver" ? -0.05 : 0.05);
+    A.sticker(c, DEPT[id], lo.x + (id === "kidneys" ? 5 : id === "liver" ? -2 : 2), lo.deskY + 4.6, 5.4, id === "liver" ? -0.05 : 0.05);
     A.tray(c, lo.tray.x, lo.tray.y, lo.tray.w, d.tray, cap(), d.flash > 0 && Math.floor(anim * 10) % 2 === 0);
     // mitten hands on the desk, and a stamp coming down on the tray when
     // something's done
@@ -1151,7 +1161,7 @@
     }
     if (d.stampK > 0.5) {
       // a little "Processed" stamp pops up
-      A.stamp(c, lo.tray.x, lo.tray.y - 9 - (1 - d.stampK) * 6, "Done", 2.6, -0.12, d.stampK, 1);
+      A.stamp(c, lo.tray.x, lo.tray.y - 9 - (1 - d.stampK) * 6, "Done", 3.8, -0.12, d.stampK, 1);
     }
     if (lit) A.brackets(c, lo.hit.x + 1, lo.hit.y + 3, lo.hit.w - 2, lo.hit.h - 3, T.paper, 3, 0.6);
   }
@@ -1179,7 +1189,7 @@
     c.save();
     c.translate(g.x + g.w / 2 + 2.4, g.y + g.h * 0.5);
     c.rotate(-Math.PI / 2);
-    A.label(c, "Pipes", 0, 0, 3.2);
+    A.label(c, "Pipes", 0, 0, 3.8);
     c.restore();
     var worried = G.pipes > 60;
     var mood = G.phase === "off" ? "sad" : worried ? "sweat" : G.heart.say ? "talk" : "idle";
@@ -1190,7 +1200,7 @@
       sweat: worried ? 1 : 0, time: anim
     });
     A.mitten(c, h.x + 5.5, h.y + 7, 1.5);
-    A.label(c, "Heart", h.x, h.y + h.r * 3.1, 3.4);
+    A.label(c, "Heart", h.x, h.y + h.r * 3.1, 3.8);
   }
 
   function drawHatch(c) {
@@ -1198,7 +1208,7 @@
     if (!info().flush || padsOn()) return;
     var hh = L.hatch;
     var ready = G.flushWait > 0 ? 1 - G.flushWait / (FLUSH_WAIT * run.mods.flush) : 1;
-    var word = padsOn() ? "" : touching() || pointerMode !== "keys" ? "Flush" : "Flush: Space";
+    var word = padsOn() ? "" : "Flush";
     A.hatch(c, hh.x, hh.y, hh.r, ready, G.flushSpin, word);
     if (hover === "hatch" && G.phase === "play") A.brackets(c, hh.x - hh.r * 1.5, hh.y - hh.r * 1.5, hh.r * 3, hh.r * 3, T.paper, 2, 0.6);
   }
@@ -1234,19 +1244,22 @@
   }
 
   function drawBubbles(c) {
-    var size = 3.6;
+    var size = 3.8;
     DESKS.forEach(function (id) {
       var d = G.desks[id];
       if (!d.say) return;
       var lo = L[id];
       var head = id === "kidneys" ? lo.heads[1] : lo.head;
-      var bx = id === "liver" ? head.x + 4 : id === "pancreas" ? head.x - 4 : head.x + 13;
-      var by = id === "kidneys" ? head.y - 3 : head.y - 12;
-      A.bubble(c, bx, by, d.say, size, head.x, head.y - head.r, Math.min(1, d.sayT * 4), WW - 1.5, 1.5);
+      // beside the head, towards the middle, clear of the sign above
+      var side = id === "pancreas" ? -1 : 1;
+      var bw = A.bubbleWidth(c, d.say, size);
+      var bx = head.x + side * (head.r + 2.6 + bw / 2);
+      A.bubble(c, bx, head.y - 2, d.say, size, head.x + side * head.r * 0.7, head.y, Math.min(1, d.sayT * 4), WW - 1.5, 1.5);
     });
     if (G.heart.say) {
       var h = L.heart;
-      A.bubble(c, h.x + 12, h.y - 9, G.heart.say, size, h.x + 2, h.y - h.r, Math.min(1, G.heart.t * 4), WW - 1.5, 1.5);
+      var hw = A.bubbleWidth(c, G.heart.say, size);
+      A.bubble(c, h.x + h.r + 3 + hw / 2, h.y - 3, G.heart.say, size, h.x + h.r * 0.7, h.y, Math.min(1, G.heart.t * 4), WW - 1.5, 1.5);
     }
   }
 
@@ -1261,9 +1274,11 @@
       else if (id === "liver") A.arrow(c, L.plate.x - L.plate.r - 4 + bob, L.plate.y - 1, word, 5, "left");
       else A.arrow(c, L.plate.x + L.plate.r + 4 - bob, L.plate.y - 1, word, 5, "right");
     });
-    if (G.hint.flush > 0 && !padsOn()) {
+    if (G.hint.flush > 0) {
       var hh = L.hatch;
-      A.arrow(c, hh.x, hh.y - hh.r * 1.6 + bob, touching() ? "Flush" : pointerMode === "keys" ? "Space" : "Flush", 5, "down");
+      // on a touch screen it points at the Flush button in the corner
+      var ay = padsOn() ? WH - px(110) : hh.y - hh.r * 1.6;
+      A.arrow(c, padsOn() ? WW - px(52) : hh.x, ay + bob, touching() ? "Flush" : pointerMode === "keys" ? "Space" : "Flush", 5, "down");
     }
   }
 
@@ -1286,7 +1301,7 @@
     } else {
       text = "Half the stickers have come off. A doughnut is sugar. You know this. Big items have two stickers: sort them twice.";
     }
-    shell.brief({ title: info().name + ", " + clockText(info().at), text: text, ms: run.stage === 0 ? 8000 : 6800 });
+    shell.brief({ title: info().name + ", " + clockText(info().at), text: text, ms: N.flags.clip ? 3600 : run.stage === 0 ? 8000 : 6800 });
   }
 
   // ---------------------------------------------------------------------------

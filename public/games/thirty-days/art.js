@@ -181,10 +181,12 @@
     }
   }
   // A sticker centred on x, y, size s (its height). Returns its width.
-  function sticker(c, kind, x, y, s, rot, alpha) {
+  // icon: just the icon, no word, for stickers too small to read (the chute)
+  function sticker(c, kind, x, y, s, rot, alpha, icon) {
     var col = stickerColours(kind), word = KINDS[kind].word.toUpperCase();
-    font(c, s * 0.62);
-    var w = textWidth(c, word, s * 0.62) + s * 1.45;
+    var fs = s * 0.7;
+    font(c, fs);
+    var w = icon ? s * 1.1 : textWidth(c, word, fs) + s * 1.45;
     c.save();
     if (alpha != null) c.globalAlpha *= alpha;
     c.translate(x, y);
@@ -192,12 +194,14 @@
     rr(c, -w / 2, -s / 2, w, s, s * 0.22);
     fill(c, col.bg, Math.max(0.35, s * 0.11), col.edge === T.paper ? T.paper : T.ink);
     if (kind === "sugar") { rr(c, -w / 2 + s * 0.13, -s / 2 + s * 0.13, w - s * 0.26, s - s * 0.26, s * 0.15); stroke(c, s * 0.06, T.red); }
-    kindIcon(c, kind, -w / 2 + s * 0.55, 0, s * 0.62, col.fg);
-    c.fillStyle = col.fg;
-    c.textAlign = "left";
-    c.textBaseline = "middle";
-    font(c, s * 0.62);
-    text(c, word, -w / 2 + s * 1.0, s * 0.04, s * 0.62);
+    kindIcon(c, kind, icon ? 0 : -w / 2 + s * 0.55, 0, s * 0.62, col.fg);
+    if (!icon) {
+      c.fillStyle = col.fg;
+      c.textAlign = "left";
+      c.textBaseline = "middle";
+      font(c, fs);
+      text(c, word, -w / 2 + s * 1.0, s * 0.05, fs);
+    }
     c.restore();
     return w;
   }
@@ -588,11 +592,12 @@
     if (opts.noSticker) return;
     var kinds = it.kinds.slice(it.step || 0);
     if (it.bare && !opts.showBare) return;
-    var ss = Math.max(opts.minSticker || 0, s * 0.3);
+    var ss = opts.iconSticker || Math.max(opts.minSticker || 0, s * 0.3);
     kinds.forEach(function (k, i) {
       c.save();
       if (opts.alpha != null) c.globalAlpha *= opts.alpha;
-      sticker(c, k, x + s * 0.3 - i * s * 0.12, y + s * 0.42 + i * ss * 1.05, ss, -0.12 + i * 0.1);
+      if (opts.iconSticker) sticker(c, k, x + s * 0.34 + i * ss * 1.1, y + s * 0.3, ss, -0.12 + i * 0.1, null, true);
+      else sticker(c, k, x + s * 0.3 - i * s * 0.12, y + s * 0.42 + i * ss * 1.05, ss, -0.12 + i * 0.1);
       c.restore();
     });
   }
@@ -871,8 +876,12 @@
   // A hanging sign: the department's name, and how to send things there
   function sign(c, x, y, name, key, size, lit, shut) {
     font(c, size);
-    var w = Math.max(textWidth(c, name.toUpperCase(), size), key ? textWidth(c, key.toUpperCase(), size * 0.62) : 0) + size * 1.4;
-    var h = size * (key ? 2.05 : 1.45);
+    var ks = Math.max(size * 0.62, 3.8);
+    font(c, ks);
+    var kw = key ? textWidth(c, key.toUpperCase(), ks) : 0;
+    font(c, size);
+    var w = Math.max(textWidth(c, name.toUpperCase(), size), kw) + size * 1.4;
+    var h = size * 1.45 + (key ? ks * 1.05 : 0);
     // the two strings it hangs from
     c.beginPath();
     c.moveTo(x - w * 0.3, y - h / 2); c.lineTo(x - w * 0.22, y - h / 2 - size * 0.9);
@@ -884,11 +893,11 @@
     c.textAlign = "center";
     c.textBaseline = "middle";
     font(c, size);
-    text(c, name.toUpperCase(), x, y - (key ? size * 0.32 : 0) + size * 0.05, size);
+    text(c, name.toUpperCase(), x, y - (key ? ks * 0.52 : 0) + size * 0.05, size);
     if (key) {
-      font(c, size * 0.62);
+      font(c, ks);
       c.fillStyle = shut ? T.paper : T.ink;
-      text(c, key.toUpperCase(), x, y + size * 0.55, size * 0.62);
+      text(c, key.toUpperCase(), x, y + size * 0.5, ks);
     }
     return { x: x - w / 2, y: y - h / 2, w: w, h: h };
   }
@@ -963,7 +972,9 @@
   // The intake at the top: a drive-thru board over the chute. When the
   // speaker's talking, its words run along the board in mint; otherwise it
   // says what it is. t: a clock for the scrolling. open: the flap, 0..1.
-  function board(c, x, y, w, h, msg, t, open) {
+  // still: reduced motion, so a long line shows a few words at a time
+  // instead of scrolling
+  function board(c, x, y, w, h, msg, t, open, still) {
     // the flap the food drops through, under the board
     rr(c, x - w * 0.22, y + h - 0.6 + open * 1.4, w * 0.44, 2.2, 0.6);
     fill(c, T.ink, OUT * 0.6, T.paper);
@@ -975,7 +986,7 @@
     c.save();
     rr(c, sx, sy, sw, sh, h * 0.1);
     c.clip();
-    var size = sh * 0.62;
+    var size = sh * 0.7;
     font(c, size);
     c.textBaseline = "middle";
     var str = (msg || "Intake").toUpperCase();
@@ -984,6 +995,16 @@
     c.textAlign = "left";
     if (tw <= sw - size * 0.6) {
       text(c, str, x - tw / 2, sy + sh / 2 + size * 0.06, size);
+    } else if (still) {
+      // split into pieces that fit, and show each in turn
+      var words = str.split(" "), parts = [], cur = "";
+      words.forEach(function (wd) {
+        var next = cur ? cur + " " + wd : wd;
+        if (cur && textWidth(c, next, size) > sw - size * 0.6) { parts.push(cur); cur = wd; } else cur = next;
+      });
+      if (cur) parts.push(cur);
+      var part = parts[Math.floor(t * 0.8) % parts.length];
+      text(c, part, x - textWidth(c, part, size) / 2, sy + sh / 2 + size * 0.06, size);
     } else {
       // too long for the board: it scrolls, the way they do
       var span = tw + sw * 0.6, off = (t * size * 4) % span;
@@ -1062,7 +1083,7 @@
       ell(c, x, y, r * 1.18, r * 1.18);
       stroke(c, OUT * 1.4, T.accent);
     }
-    if (label) label_(c, label, x, y + r * 1.9, r * 0.62);
+    if (label) label_(c, label, x, y + r * 1.9, Math.max(3.8, r * 0.62));
   }
   function label_(c, str, x, y, size) { label(c, str, x, y, size); }
 
@@ -1108,8 +1129,30 @@
     c.fill();
     pen(c, size * 0.2);
     c.stroke();
-    // the tail
+    // the tail: from the side facing the speaker, or the top or bottom
     var below = ty > by + h, above = ty < by;
+    var leftT = !below && !above && tx < bx, rightT = !below && !above && tx > bx + w;
+    if (leftT || rightT) {
+      var ex = leftT ? bx : bx + w, cy0 = Math.max(by + r, Math.min(by + h - r, ty)), sw2 = size * 0.4;
+      var tip = leftT ? Math.max(tx, ex - size * 1.4) : Math.min(tx, ex + size * 1.4);
+      c.beginPath();
+      c.moveTo(ex, cy0 - sw2);
+      c.lineTo(tip, cy0 + (ty - cy0) * 0.5);
+      c.lineTo(ex, cy0 + sw2);
+      c.closePath();
+      c.fillStyle = T.paper;
+      c.fill();
+      c.beginPath();
+      c.moveTo(ex, cy0 - sw2);
+      c.lineTo(tip, cy0 + (ty - cy0) * 0.5);
+      c.lineTo(ex, cy0 + sw2);
+      pen(c, size * 0.2);
+      c.stroke();
+      c.beginPath();
+      c.moveTo(ex, cy0 - sw2 * 0.6); c.lineTo(ex, cy0 + sw2 * 0.6);
+      pen(c, size * 0.3, T.paper);
+      c.stroke();
+    }
     var cx0 = Math.max(bx + r + size * 0.4, Math.min(bx + w - r - size * 0.4, tx));
     var tw = size * 0.45;
     if (below || above) {
@@ -1135,6 +1178,13 @@
     lines.forEach(function (l, i) { text(c, l.toUpperCase(), bx + w / 2, by + size * 0.4 + lh * (i + 0.5) + size * 0.05, size); });
     c.restore();
     return { x: bx, y: by, w: w, h: h };
+  }
+
+  function bubbleWidth(c, lines, size) {
+    font(c, size);
+    var w = 0;
+    lines.forEach(function (l) { w = Math.max(w, textWidth(c, l.toUpperCase(), size)); });
+    return w + size * 1.2;
   }
 
   // A small rubber stamp: paper, a red double border, red capitals
@@ -1196,7 +1246,7 @@
     c.restore();
     if (word) {
       var off = dir === "left" ? [size * 1.15, 0, "left"] : dir === "right" ? [-size * 1.15, 0, "right"] : dir === "up" ? [0, size * 1.45, "center"] : [0, -size * 1.45, "center"];
-      label(c, word, off[0], off[1], Math.max(size * 0.5, 3.6), off[2]);
+      label(c, word, off[0], off[1], Math.max(size * 0.5, 3.8), off[2]);
     }
     c.restore();
   }
@@ -1258,6 +1308,6 @@
     clerk: clerk, mitten: mitten, stamper: stamper,
     desk: desk, sign: sign, tray: tray, plate: plate, chute: chute, board: board,
     gauge: gauge, hatch: hatch, plunger: plunger,
-    bubble: bubble, stamp: stamp, brackets: brackets, arrow: arrow, puff: puff, splat: splat, motion: motion
+    bubble: bubble, bubbleWidth: bubbleWidth, stamp: stamp, brackets: brackets, arrow: arrow, puff: puff, splat: splat, motion: motion
   };
 })();
