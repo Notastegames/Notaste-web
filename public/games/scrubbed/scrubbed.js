@@ -104,12 +104,14 @@
 // A crash: nothing (250 with the PR team).
 //
 // THE LADDER (calibrated against test players with human reaction times:
-// see the numbers at the end of this comment). Approved: seven or more of
-// the eight landed, Mars among them, and at least 8,000 points: soft,
-// central, thrifty landings all round, and in practice all eight of them
-// and no upgrade that takes a cut. Pending review: five landed. Not
-// approved: at least one. Rejected: nothing landed ("Every rocket is now
-// data.").
+// see the numbers at the end of this comment). The stamp goes by the
+// flying: the landings' points before the beta and the PR team take their
+// cut, so those cost points and the best score, never the stamp. Approved:
+// seven or more of the eight landed, Mars among them, and at least 7,200
+// points of flying: all eight, or a very good seven. Pending review: five
+// landed. Not approved: at least one. Rejected: nothing landed ("Every
+// rocket is now data."). The results say what the upgrades took, and when
+// seven or eight landed but it wasn't Approved, what it still needed.
 //
 // TODAY'S RUN. Everything that decides the run comes from shell.random at
 // the start of each stage, from that stage's own stream: where each booster
@@ -134,18 +136,21 @@
 // controls, sound and saving. art.js draws everything.
 //
 // THE NUMBERS. Scripted test players (outside the repo) see the game only
-// as it was 200 to 450ms ago, misjudge speed and height, forget the wind,
-// lean and thrust to move sideways, and play with real key presses, a real
-// mouse or real touches held on the buttons. 37 rounds, October 2026:
-//   good, upgrades picked at random: 4,400 to 7,000, four to eight landed.
-//     Pending review eight times in nine: every one of them took the beta
-//     or the PR team.
-//   good and expert, leaving those two alone: 6,400 to 8,600. Approved in
-//     three of ten, each with all eight landed (an expert who landed all
-//     eight for 7,923 got Pending review); seven landed made 6,400 to 7,400.
-//   average: 2,300 to 5,900, two to six landed. Pending review or Not
-//     approved, about half each.
-//   novice: 0 to 1,500, none or one landed. Rejected or Not approved.
+// as it was 200 to 450ms ago, misjudge speed and height, aim off, overshoot
+// their lean taps, and play through real key presses, real touches on the
+// buttons, or a real mouse; skilled ones time the swell as the notice says.
+// 71 rounds, October 2026, after the review's fixes:
+//   good and expert, normal speed, 25 rounds over keys, touch and mouse:
+//     3,200 to 8,200, three to eight landed. Approved 7 times in 25 (keys
+//     3 in 9, touch 3 in 9, mouse 1 in 4): all four that landed all eight,
+//     and three of the six sevens with Mars. Mars is the wall (landed about
+//     three times in five), then the swell (about three in four); the rest
+//     about nine in ten.
+//   average: 500 to 5,400, none to six landed. Not approved or Pending.
+//   novice: 0 to 1,800, none or one landed. Rejected or Not approved.
+//   first-timers who keep the speed shown under 6, as the notice says,
+//     land the first booster every time (and little else); ones who only
+//     thrust while the tag is red crash it.
 // Keys, mouse and touch come out about the same. A round takes two minutes
 // or so.
 (function () {
@@ -202,7 +207,7 @@
   ];
   var LAST = STAGES.length - 1;
   var TOTAL = STAGES.reduce(function (n, s) { return n + s.boosters; }, 0);
-  var APPROVE = 7400;            // the flying (landings before the upgrades' cut), with seven or more landed, Mars among them
+  var APPROVE = 7200;            // the flying (landings before the upgrades' cut), with seven or more landed, Mars among them
 
   // Between stages: what it does, then what it costs
   var UPGRADES = [
@@ -559,11 +564,13 @@
     // moving, so it only gets there while the button is held
     if (input.mode === "mouse" && input.aim.on && !input.left && !input.right) {
       lastMode = "mouse";
+      // the sideways speed it heads for drops as it comes down, so it arrives slow
       var h = heightAbove(rk), dx = cam.x + (input.aim.x - W / 2) / cam.z - rk.x;
-      var vxWant = h < 10 ? clamp(dx * 0.3, -2, 2) : clamp(dx * 0.42, -9, 9);
+      var most = clamp(h * 0.2 + 0.5, 1.5, 9);
+      var vxWant = clamp(dx * (h < 10 ? 0.3 : 0.42), -most, most);
       var lean = Math.asin(clamp((vxWant - rk.vx) * 1.1 / (THRUST * m.thrust), -0.55, 0.55));
-      var most = h < 4 ? 0.04 : h < 12 ? 0.18 : 0.5;
-      lean = clamp(lean, -most, most);
+      var tilt = h < 4 ? 0.04 : h < 12 ? 0.18 : 0.5;
+      lean = clamp(lean, -tilt, tilt);
       var diff = lean - rk.a;
       return { up: up, rate: Math.abs(diff) < 0.02 ? 0 : clamp(diff * 7, -1, 1) * TURN * m.turn, aimed: true };
     }
