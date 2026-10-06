@@ -83,6 +83,16 @@
 #game-root .kit-brief-text { font-size: max(0.75rem, 12px); }
 #game-root .kit-stat small { font-size: max(0.62em, 0.75rem); }
 
+/*
+  Between meetings the notetaker's summary is the joke, so a phone that has
+  the height (full-window) keeps it and the numbers, which the kit drops on
+  narrow screens (kit.css hides them under 440px wide)
+*/
+@container kit (max-width: 440px) and (min-height: 540px) {
+  #game-root .kit-inter .kit-line { display: block; }
+  #game-root .kit-inter .kit-stats { display: flex; }
+}
+
 /* phones: the reputation's label goes, the pips stay */
 @container kit (max-width: 440px) {
   .om-rep small {
