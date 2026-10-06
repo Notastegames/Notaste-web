@@ -115,13 +115,14 @@
 // THE NUMBERS. Scripted test players (outside the repo) see the game only
 // as it was 200 to 450ms ago, misjudge speed and height, forget the wind,
 // lean and thrust to move sideways, and play with real key presses, a real
-// mouse or real touches held on the buttons. 27 rounds, October 2026:
-//   good, upgrades picked at random: 5,500 to 7,000, six to eight landed.
-//     Pending review every time: they all took the beta or the PR team.
+// mouse or real touches held on the buttons. 37 rounds, October 2026:
+//   good, upgrades picked at random: 4,400 to 7,000, four to eight landed.
+//     Pending review eight times in nine: every one of them took the beta
+//     or the PR team.
 //   good and expert, leaving those two alone: 6,400 to 8,600. Approved in
-//     three of nine, each with all eight landed; seven landed, Mars among
-//     them, made 6,400 to 7,400 (Pending review).
-//   average: 2,400 to 5,900, three to six landed. Pending review or Not
+//     three of ten, each with all eight landed (an expert who landed all
+//     eight for 7,923 got Pending review); seven landed made 6,400 to 7,400.
+//   average: 2,300 to 5,900, two to six landed. Pending review or Not
 //     approved, about half each.
 //   novice: 0 to 1,500, none or one landed. Rejected or Not approved.
 // Keys, mouse and touch come out about the same. A round takes two minutes
