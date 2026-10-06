@@ -158,13 +158,9 @@
     rupert:  { id: "rupert", name: "Rupert (Head of Vision)", hair: "quiff", shirt: "ink", polo: true, room: "vision" },
     notes:   { id: "notes", name: "Notetaker", special: "bot", room: "none" },
     phone:   { id: "phone", name: "Dialled in", special: "phone", room: "none" },
-    tanya:   { id: "tanya", name: "Tanya", hair: "bobble", shirt: "accent", room: "blinds" },
     rob:     { id: "rob", name: "Rob", hair: "bald", bow: true, shirt: "paper", dots: true, room: "shelf" },
     femi:    { id: "femi", name: "Femi", hair: "phones", shirt: "red", room: "frame" },
-    hannah:  { id: "hannah", name: "Hannah", hair: "party", shirt: "accent", room: "kitchen" },
-    clive:   { id: "clive", name: "Clive", hair: "spiky", lanyard: true, shirt: "ink", room: "office" },
-    joy:     { id: "joy", name: "Joy", hair: "fringe", glasses: true, shirt: "red", room: "plant" },
-    marcus:  { id: "marcus", name: "Marcus", hair: "beanie", shirt: "paper", dots: true, room: "office" }
+    hannah:  { id: "hannah", name: "Hannah", hair: "party", shirt: "accent", room: "kitchen" }
   };
 
   var HY = 52, HR = 24;   // the head: centred on x 0, at y 52, radius 24
@@ -299,23 +295,6 @@
         fill(c, T.ink, 2.1);
         break;
       }
-      case "bobble": {
-        c.beginPath();
-        c.arc(0, HY, HR + 1.6, Math.PI + 0.42, -0.42);
-        c.closePath();
-        fill(c, T.accent, 2.2);
-        rr(c, -HR - 2.2, HY - 19.5, HR * 2 + 4.4, 7.6, 3);
-        fill(c, T.accent, 2.1);
-        c.save();
-        rr(c, -HR - 2.2, HY - 19.5, HR * 2 + 4.4, 7.6, 3);
-        c.clip();
-        c.fillStyle = shade(c);
-        c.fillRect(-HR - 3, HY - 20, HR * 2 + 6, 9);
-        c.restore();
-        ell(c, 0, HY - HR - 6, 6.6, 6.2);
-        fill(c, T.red, 2.1);
-        break;
-      }
       case "bald": {
         c.beginPath();
         c.moveTo(-2, HY - HR + 0.4);
@@ -359,46 +338,6 @@
         stroke(c, 2.2);
         ell(c, 4, HY - HR - 24, 4, 4);
         fill(c, T.paper, 1.8);
-        break;
-      }
-      case "spiky": {
-        c.beginPath();
-        var pts = 7;
-        c.moveTo(-HR + 0.4, HY - 8);
-        for (var i = 0; i <= pts; i++) {
-          var a = Math.PI + 0.35 + (Math.PI - 0.7) * (i / pts);
-          var am = a + (Math.PI - 0.7) / pts / 2;
-          c.lineTo(Math.cos(a) * (HR - 2.4), HY + Math.sin(a) * (HR - 2.4));
-          if (i < pts) c.lineTo(Math.cos(am) * (HR + 9), HY + Math.sin(am) * (HR + 9));
-        }
-        c.lineTo(HR - 0.4, HY - 8);
-        c.quadraticCurveTo(0, HY - 15, -HR + 0.4, HY - 8);
-        c.closePath();
-        fill(c, T.ink, 2.1);
-        break;
-      }
-      case "fringe": {
-        hairCap(c, T.ink);
-        c.beginPath();
-        c.moveTo(-HR + 1, HY - 8);
-        c.quadraticCurveTo(-HR + 2, HY - HR - 2, 0, HY - HR - 1);
-        c.quadraticCurveTo(HR - 2, HY - HR - 2, HR - 1, HY - 8);
-        c.lineTo(HR - 6, HY - 12);
-        c.lineTo(-HR + 6, HY - 12);
-        c.closePath();
-        fill(c, T.ink, 2);
-        break;
-      }
-      case "beanie": {
-        c.beginPath();
-        c.arc(0, HY, HR + 1.6, Math.PI + 0.36, -0.36);
-        c.closePath();
-        fill(c, T.ink, 2.2, T.ink);
-        c.beginPath();
-        c.arc(0, HY, HR + 1.6, Math.PI + 0.36, -0.36);
-        stroke(c, 1.6, T.paper);
-        rr(c, -HR - 2.6, HY - 18, HR * 2 + 5.2, 7.4, 3);
-        fill(c, T.red, 2.1);
         break;
       }
       case "wisps": {
@@ -473,13 +412,6 @@
       fill(c, T.red, 1.8);
       ell(c, 0, 80, 2.6, 2.6);
       fill(c, T.red, 1.6);
-    }
-    if (p.lanyard) {
-      c.beginPath();
-      c.moveTo(-12, 76); c.lineTo(0, 94); c.lineTo(12, 76);
-      stroke(c, 4, T.accent);
-      rr(c, -6, 92, 12, 11, 1.6);
-      fill(c, T.paper, 1.6);
     }
   }
 
@@ -760,20 +692,6 @@
       case "outdoors": {
         c.fillStyle = T.paper;
         c.fillRect(L, 0, ww, 100);
-        break;
-      }
-      case "office": {
-        wall(c, ww);
-        var wx = Math.max(L + 6, -82);
-        rr(c, wx, 10, 58, 40, 2);
-        fill(c, T.paper, 2.2);
-        c.beginPath();
-        c.moveTo(wx + 6, 20); c.lineTo(wx + 36, 18);
-        c.moveTo(wx + 6, 28); c.quadraticCurveTo(wx + 20, 24, wx + 30, 30);
-        c.moveTo(wx + 6, 38); c.lineTo(wx + 26, 37);
-        stroke(c, 1.6, T.accent);
-        ell(c, wx + 46, 30, 6, 6);
-        stroke(c, 1.6, T.red);
         break;
       }
       case "vision": {

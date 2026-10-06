@@ -34,46 +34,61 @@
 // THE MEETING (the top half: keep up appearances)
 // Everything addressed to you lights your tile. The tell comes first: half
 // a second before they say it, everyone turns to look at your tile and its
-// frame goes violet. Then the bubble, and a badge in your tile's corner with
-// a ring that runs down for as long as you have. Bubbles that name you have
-// a violet outline and your name underlined.
-//   Your name    "Like Sam said last week." The badge says SAM. Nod (N).
-//                2.6 seconds in the stand-up, down to 1.9 in the last.
+// frame goes dashed violet (get ready). A press made then waits for what
+// comes, and counts if it was the right one. Then the bubble, a solid frame
+// and a badge in your tile's corner with a ring that runs down for as long
+// as you have, with the button's icon in it and, all through the first
+// meeting, its key underneath. Bubbles that name you have a violet outline
+// and your name underlined, only while they're waiting for you.
+//   Your name    "Like Sam said last week." The badge says SAM. Nod (N or
+//                Down). 2.6 seconds in the stand-up, down to 1.8 in the last.
 //   A question   "Sam, any blockers?" The badge is a question mark. Unmute
-//                (Space) and you say "Yep." Whatever the question was.
-//                3 seconds, down to 2.2. Then you're live, with a ring round
+//                (Space or Up) and you say "Yep." Whatever the question was.
+//                3 seconds, down to 2.1. Then you're live, with a ring round
 //                your mic: mute again before it runs out, or they hear the
 //                dishwasher behind you (it starts shaking as soon as you're
 //                live), the host mutes you, and that costs reputation.
 //   The cat      From the team meeting on. The door behind you creaks open
 //                and two eyes appear in the gap. It walks across the kitchen
 //                and jumps up in front of the camera, facing away. Camera off
-//                (C) before it gets there (3.2 seconds, down to 2.6), and
+//                (C) before it gets there (3.2 seconds, down to 2.5), and
 //                back on once it's gone: the camera can only be off while the
 //                cat's about, and a few seconds after (a bar on your tile
 //                runs down) people ask where you've gone.
 // One rule per action, everywhere: nod at your name, answer questions out
 // loud, camera off for the cat. Do any of them when nobody asked and you've
-// volunteered ("Great. Sam's on it."): one more email. Nodding at a question
-// just gets "We can't hear a nod, Sam." Questions to everyone ("Any
+// volunteered ("Great. Sam's on it."): one more email. The exceptions are
+// said out loud and cost nothing: a nod at a question gets "We can't hear a
+// nod, Sam.", and a nod with the camera off "We can't see a nod, Sam." Nobody
+// says your name while your camera's off. Questions to everyone ("Any
 // questions?") and to other people (Pam, mostly) aren't for you.
+// Every yep goes on the record. Some questions take it at its word ("Lovely.
+// Thursday it is."), and those are action points; one you miss is taken as
+// a yes. The notetaker reads them back between meetings.
 // Miss something and your reputation drops a pip (five to start). Get through
 // a meeting without missing anything and one comes back. Lose them all and
 // the host removes you from the meeting: the run is over.
 //
-// THE STAGES (a notice, shell.brief, says what's new before Go)
-//   1. The stand-up (09:00, 30s). Graham, Priya and Dave (frozen). Your name
-//      and questions only, with long windows and plenty of space between.
-//   2. The team meeting (10:00, 34s). Six tiles, and the cat.
-//   3. The all-hands (13:00, 38s). Twelve tiles and Rupert, Head of Vision.
-//      Lots of questions to everyone, which aren't for you, and "Let's go
-//      round the room": a frame moves tile to tile as each person says one
-//      word about their week, and when it gets to you, unmute.
-//   4. This could have been an email (16:00, 40s). Graham reads an email
-//      out. Everything is quicker, and he asks you to share your screen: say
-//      yep, and for eight seconds everyone can see your spreadsheet, so a
-//      wrong box costs reputation ("Is that a #N/A?"). Nothing else is asked
-//      of you while you're sharing. Then it overruns.
+// THE STAGES (a notice, shell.brief, says what's new before Go, and comes
+// down before anything's said to you). Each meeting talks on its own clock,
+// whatever's said to you, every line dealt from a deck.
+//   1. The stand-up (09:00, 24s). Graham, Priya and Dave (frozen). Your name
+//      and questions only, with long windows. Priya gives her update; Dave
+//      unfreezes at the end to ask if you can repeat that.
+//   2. The team meeting (10:00, 30s). Six tiles, and the cat. People ask Pam
+//      things, and Pam says no. Now and then a locked "Do not edit" row: let
+//      it go by.
+//   3. The all-hands (13:00, 32s). Twelve tiles and Rupert, Head of Vision.
+//      Questions to everyone, which aren't for you, and "Let's go round the
+//      room": a frame moves tile to tile as each person says one word about
+//      their week, and when it gets to you, unmute. Rows Pam has done: leave
+//      them.
+//   4. This could have been an email (16:00, 34s). Graham reads the fridge
+//      email out, a line at a time. Everything is quicker, and he asks you to
+//      share your screen: say yep, and for eight seconds everyone can see
+//      your spreadsheet, so a wrong box costs reputation ("Is that a #N/A?").
+//      Nothing else is asked of you while you're sharing. Then it overruns
+//      (six seconds more).
 // Between meetings (shell.interlude) the notetaker's summary, the numbers,
 // and three ways to get through the next one, each with a cost: have an
 // opinion (a pip back, three more emails), headphones (longer to mute again,
@@ -145,7 +160,9 @@
   var KEEN = 0.8;
   var APPROVED = 22000;
   var PTS = { box: 10, sheet: 50, nod: 50, yep: 75, keen: 25, muted: 25, hidden: 100, camBack: 25, survive: 1000 };
-  var T0 = 3.6;                 // the first thing anyone says to you, after Go (the notice is up until then)
+  // The first thing anyone says to you, in seconds after Go: the notice is
+  // up until just before its tell (the countdown is 2.35s of the notice's ms)
+  var T0S = [4.4, 4.0, 4.0, 4.0], NOTICE_MS = [6000, 5700, 5700, 5700];
 
   // start: the meeting's clock (minutes past midnight), mins: how long it says
   // it lasts. time: seconds of play. slots: what happens to you, in order
@@ -267,7 +284,7 @@
   var FILLED = ["Dave", "Ongoing", "Ask Graham", "Not mine", "See above", "Q4", "Pending", "Yes", "Nobody",
                 "Parked", "Maybe", "Tuesday", "Sorted", "As before", "Blue", "Who", "Ages ago", "Later", "Gaz", "£40"];
   var SHEETS = ["Stand-up actions", "Q3 final v7", "Copy of budget (2)", "Tracker for the tracker", "Who's bringing what",
-                "Holiday rota", "Sheet1", "Do not edit", "Actions (old)", "Meeting notes FINAL", "Risks and issues",
+                "Holiday rota", "Sheet1", "Untitled spreadsheet (4)", "Actions (old)", "Meeting notes FINAL", "Risks and issues",
                 "Lessons learned", "Desk moves", "Fridge rota", "Projects (live)", "Projects (dead)", "Notes for the notes"];
   var SUBJECTS = ["Quick one", "Following up", "Any update?", "Per my last email", "Re: Re: Fwd: Lunch", "Can we jump on a call?",
                   "Notes from the meeting", "Reminder: meeting", "Action points", "Did you see this?", "Pre-meeting prep",
@@ -393,6 +410,7 @@
     });
     var end = st.time + (st.overrun || 0) - 2.4;
     var total = dur.reduce(function (a, b) { return a + b; }, 0);
+    var T0 = T0S[run.stage];
     var k = (end - T0) / total;
     var t = T0;
     var beats = [];
@@ -541,7 +559,7 @@
   // is read at a steady pace, whatever else is going on.
   var CHAT_GAP = 1.4;
   function planChatter(st, rnd, beats, end) {
-    var from = T0 + 0.4, to = end - 0.6;
+    var from = T0S[run.stage] + 0.4, to = end - 0.6;
     var busy = [];
     beats.forEach(function (b) {
       if (b.kind === "name" || b.kind === "ask" || b.kind === "share") busy.push([b.t - PRE - 0.5, b.t + 1.0]);
@@ -1729,7 +1747,7 @@
     } else {
       text = "Graham is reading out an email. He'll ask you to share your screen: say yep, then don't paste into a full box while everyone's watching.";
     }
-    shell.brief({ title: info().name, text: text, ms: run.stage === 0 ? 6200 : 5600 });
+    shell.brief({ title: info().name, text: text, ms: NOTICE_MS[run.stage] });
   }
 
   // ---------------------------------------------------------------------------
@@ -2911,7 +2929,7 @@
   // Sound: lo-fi, through the kit
   // ---------------------------------------------------------------------------
   var VOICES = { graham: 150, priya: 260, dave: 130, gaz: 170, linda: 230, pam: 250, keith: 120, bernard: 110, mo: 190,
-                 rupert: 140, notes: 600, phone: 300, tanya: 270, rob: 160, femi: 180, hannah: 280, clive: 145, joy: 240, marcus: 175 };
+                 rupert: 140, notes: 600, phone: 300, rob: 160, femi: 180, hannah: 280 };
   var sfx = {
     paste: function (streak) {
       N.sound.tone(620 + Math.min(streak, 36) * 18, 0.035, { vol: 0.05 });
