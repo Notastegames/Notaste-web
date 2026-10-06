@@ -1,17 +1,10 @@
 <!doctype html>
 <html lang="en-GB">
 <head>
-  <!--
-    Game page for a playable game. To add a game: copy /games/starter/ to
-    /games/<slug>/, rewrite the script as the new game (built with the kit in
-    /games/kit/), change everything marked EDIT on this page, then add one
-    line to GAMES in /games/game.js, a poster on the homepage and a line in
-    the sitemap. The full checklist is at the end of DESIGN.md.
-  -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Leave It at the Door: Notaste Games</title>
-  <meta name="description" content="Ride a delivery bike round a small town for a delivery app that pays in pennies, shrinks every promise and tells the customer you're already outside. A free browser game in poor taste from Notaste Games.">
+  <title>Thirty Days: Notaste Games</title>
+  <meta name="description" content="Thirty days of fast food. Your insides are a council office, and the in-trays are full. A free browser game from Notaste Games.">
   <meta name="theme-color" content="#000000">
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -23,19 +16,18 @@
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/games/game.css">
   <link rel="stylesheet" href="/games/kit/kit.css">
-  <link rel="stylesheet" href="/games/leave-it-at-the-door/leave-it-at-the-door.css">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Notaste Games">
-  <meta property="og:title" content="Leave It at the Door">
-  <meta property="og:description" content="Deliver the food. The app has promised it was already here. Free in your browser.">
-  <meta property="og:url" content="https://notastegames.com/games/leave-it-at-the-door/">
-  <meta property="og:image" content="https://notastegames.com/art/og-leave-it-at-the-door.png">
+  <meta property="og:title" content="Thirty Days">
+  <meta property="og:description" content="Thirty days of fast food. Your insides are a council office, and the in-trays are full.">
+  <meta property="og:url" content="https://notastegames.com/games/thirty-days/">
+  <meta property="og:image" content="https://notastegames.com/art/og-thirty-days.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
-<body class="game" data-game="leave-it-at-the-door" style="--accent: #4dd0e1">
+<body class="game" data-game="thirty-days" style="--accent: #5ccfa8">
   <a class="skip" href="#main">Skip to content</a>
 
   <header class="top">
@@ -55,21 +47,21 @@
     <div class="game-page wrap">
 
       <div class="game-head">
-        <h1>Leave It at the Door</h1>
+        <h1>Thirty Days</h1>
         <div class="game-meta">
-          <span class="stamp-label" style="--tilt: -5deg">Left at door</span>
-          <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now</p>
+          <span class="stamp-label" style="--tilt: -5deg">Go large</span>
+          <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now. Four meals and a doctor's note.</p>
         </div>
-        <p class="game-pitch">Deliver the food. The app has promised it was already here. It has also told the customer you're outside, added a rain fee for them and a 10p weather bonus for you.</p>
+        <p class="game-pitch">Thirty days of nothing but fast food, and every meal has to be processed. Your insides are a council office: the Liver does grease, the Pancreas does sugar, the Kidneys do salt, and nobody does lettuce.</p>
       </div>
 
       <section class="cabinet" aria-label="Game screen">
         <div class="screen">
-          <img class="screen-art" src="/art/leave-it-at-the-door.svg" alt="" width="800" height="600">
+          <img class="screen-art" src="/art/thirty-days.svg" alt="" width="800" height="600">
 
-          <!-- The game. /games/kit/kit.js builds the screens in here; leave-it-at-the-door.js is the game. -->
+          <!-- The game. /games/kit/kit.js builds the screens in here, thirty-days.js is the game. -->
           <div id="game-root">
-            <noscript><p class="kit-noscript">Leave It at the Door needs JavaScript switched on. The app has told the customer it's on its way.</p></noscript>
+            <noscript><p class="kit-noscript">Thirty Days needs JavaScript switched on. The food will wait. It always does.</p></noscript>
           </div>
         </div>
         <p class="cabinet-strip"><span>Notaste Games</span><span>Free play</span></p>
@@ -78,9 +70,9 @@
       <div class="game-info">
         <h2>How to play</h2>
         <ul class="how">
-          <li>Orders arrive by themselves. Ride to the pickup, wait while it's prepared, then take it to the door. Keys 1 to 4 ride to that order on the phone, or steer with the arrow keys or WASD (press a turn before the junction), or click or tap where to go. The bag holds three.</li>
-          <li>At every door, read the customer's note. The doorstep cycles through the bell, a knock, the letterbox, gate codes or the doors for the photo: press Space, click or tap when it shows what they asked for.</li>
-          <li>Late deliveries cost you stars, and under 4.40 the app deactivates you. Four rushes: lunch, rain, Friday night and the cup final, with a choice between each. Today's run is the same shift for everyone.</li>
+          <li>Food comes down the chute onto the plate. Send each item to the desk on its sticker: grease to the Liver (left arrow, A, or click or tap the desk), sugar to the Pancreas (right, D), salt to the Kidneys (down, S). Swiping from the plate works too.</li>
+          <li>A full in-tray spills into the pipes. So does a wrong desk, a bit, and anything left when the chute backs up. Fill the pipes and you're signed off. From dinner, Flush (Space, up, the hatch or the Flush button) sends anything down the hatch, then recharges.</li>
+          <li>Four meals a day. Between them, someone asks if you'd like to go large. Every answer is yes. Today's run serves the same day to everyone.</li>
         </ul>
         <div class="share">
           <button class="btn-line" id="share" type="button">Share</button>
@@ -111,8 +103,7 @@
 
   <script src="/games/game.js" defer></script>
   <script src="/games/kit/kit.js" defer></script>
-  <script src="/games/leave-it-at-the-door/town.js" defer></script>
-  <script src="/games/leave-it-at-the-door/art.js" defer></script>
-  <script src="/games/leave-it-at-the-door/leave-it-at-the-door.js" defer></script>
+  <script src="/games/thirty-days/art.js" defer></script>
+  <script src="/games/thirty-days/thirty-days.js" defer></script>
 </body>
 </html>

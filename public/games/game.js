@@ -21,7 +21,8 @@
     { slug: "on-mute",       title: "On Mute",       accent: "#7a5cd6", stamp: "You're on mute", pitch: "Four meetings, one spreadsheet and a cat. Nod when you hear your name.", status: "Playable now." },
     { slug: "hold-music",    title: "Hold Music",    accent: "#c452b5", stamp: "Please hold",    pitch: "Phone a company. Remember the menu. Keep time with the hold music.", status: "Playable now. Four calls." },
     { slug: "scrubbed",      title: "Scrubbed",      accent: "#e8892b", stamp: "Good data",      pitch: "Land a billionaire's reusable rocket on a barge. He'll call it a success either way.", status: "Playable now. Five stages, eight rockets." },
-    { slug: "leave-it-at-the-door", title: "Leave It at the Door", accent: "#5fd6a8", stamp: "Left at door", pitch: "Deliver the food. The app has promised it was already here.", status: "Playable now. Four rushes, one shift." }
+    { slug: "leave-it-at-the-door", title: "Leave It at the Door", accent: "#4dd0e1", stamp: "Left at door", pitch: "Deliver the food. The app has promised it was already here.", status: "Playable now. Four rushes, one shift." },
+    { slug: "thirty-days",   title: "Thirty Days",   accent: "#5ccfa8", stamp: "Go large",       pitch: "Thirty days of fast food. Your insides are a council office, and the in-trays are full.", status: "Playable now. Four meals and a doctor's note." }
   ];
 
   var current = document.body.getAttribute("data-game");

@@ -1583,7 +1583,7 @@
       var row = A.rr(x, ry, w, rh, 6);
       A.solid(c, row, T.ink, sel ? 2.4 : 1.2, sel ? T.accent : T.paper);
       if (o === focus && !sel) { A.ink(c, 1.2, T.accent); c.setLineDash([4, 3]); c.stroke(row); c.setLineDash([]); }
-      // its number: in the bag, a mint key; to collect, a paper one
+      // its number: in the bag, a cyan key; to collect, a paper one
       var kx = x + 6, ky = ry + rh / 2 - 10;
       A.solid(c, A.rr(kx, ky, 20, 20, 4), o.state === "bag" ? T.accent : T.paper, 1.2);
       A.text(c, String(i + 1), kx + 10, ky + 11, 14, { colour: T.ink });
