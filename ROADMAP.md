@@ -80,7 +80,7 @@ All fifteen accents (these and the edgier five) are in `DESIGN.md` section 3.
 Nothing in Phase 3 is half done. What's left is notes and small things, none of them blocking.
 
 1. **The owner's notes on the ten.** Each becomes a fix on a fresh `claude/game-<slug>` branch from `main`, before phase 4.
-2. ~~**Kit follow-ups** the reviews found~~. Done on `claude/kit-fixes`: the results fit a 320×568 phone, leaving full-window mid-round pauses with "Back to full screen", the notice fades under a finger and its clock stops while paused, `countIn` and a callout position option (Heavy Traffic, Unexpected Item and Hold Music moved onto it). No game uses `countIn` yet; the owner decides which should.
+2. ~~**Kit follow-ups** the reviews found~~. Done on `claude/kit-fixes`: the results fit a 320×568 phone, leaving full-window mid-round pauses with "Back to full screen", the notice fades under a finger and its clock stops while paused, `countIn` and a callout position option (Heavy Traffic, Unexpected Item and Hold Music moved onto it). Heavy Traffic and Scrubbed count in after a pause.
 3. **Each game's "still weak" list** is at the end of its pull request. The ones worth a real phone: the frame rate in Just the Recipe's full window and On Mute's all-hands, and Hold Music's tap timing through Bluetooth headphones.
 4. **Loose ends:**
     - The homepage's own share image (`public/og-image.png`) still shows the old Slop Cannon art.

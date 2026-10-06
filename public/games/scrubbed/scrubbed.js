@@ -2231,6 +2231,7 @@
     pad: { up: [0, 7, 5] },
     daily: true,
     fullOnTouch: true,
+    countIn: true,      // back from a pause: 3, 2, 1, Go, not straight into a landing
     pitch: "Land a billionaire's reusable rocket on a barge. He'll call it a success either way.",
     touch: [
       { key: "left", label: "Lean left", icon: "left", side: "left" },
