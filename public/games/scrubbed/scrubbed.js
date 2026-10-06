@@ -140,6 +140,7 @@
   var DEBUG = params.has("debug");
   var FIRST = DEBUG ? Math.max(0, Math.min(4, (parseInt(params.get("stage"), 10) || 1) - 1)) : 0;
   var FORCE = DEBUG ? params.get("fly") : null;   // the autopilot on purpose: late (burns too late), drift (ignores the wind), sea (aims off the deck)
+  var OFFAIR = DEBUG && params.has("offair");     // every fire after the first drops the stream
 
   // ---------------------------------------------------------------------------
   // Tuning
@@ -151,7 +152,6 @@
   var MAX_TILT = 1.2;
   var FUEL = 8;                  // seconds of full thrust a booster
   var SPOOL = 0.07;              // seconds for the engine to light or go out
-  var MOUSE_REACH = 0.25;        // the pointer this far to the side (a share of the screen) leans it 45 degrees
   var SAFE_VY = 6, SAFE_VX = 4, SAFE_TILT = 0.3;
   var SOFT = 1.0;                // under this it's feather light
   var CROSS_R = 6;               // cross points run out this far from the cross
@@ -165,12 +165,12 @@
   var STAGES = [
     { id: "barge", name: "The barge", boosters: 2, scene: "sea", deck: 34, barge: "Told you so",
       wind: 0, gust: 0, swell: 0.18, roll: 0.008, period: 4.2, g: 7.5, drag: 0.12,
-      start: { h: [62, 70], dx: [10, 20], vx: 3, vy: [7, 10], tilt: 0.12 } },
+      start: { h: [52, 58], dx: [8, 12], vx: 0, vy: [2.5, 3.5], tilt: 0 } },
     { id: "weather", name: "Weather", boosters: 2, scene: "sea", deck: 28, barge: "Trust me",
       wind: 6.5, gust: 5, swell: 0.3, roll: 0.012, period: 4, g: 7.5, drag: 0.12,
       start: { h: [66, 76], dx: [12, 24], vx: 4, vy: [8, 12], tilt: 0.18 } },
     { id: "swell", name: "Swell", boosters: 2, scene: "sea", deck: 24, barge: "Cost saving",
-      wind: 4, gust: 3.5, swell: 1.25, roll: 0.07, period: 3.4, g: 7.5, drag: 0.12,
+      wind: 4, gust: 3.5, swell: 1.0, roll: 0.06, period: 3.4, g: 7.5, drag: 0.12,
       start: { h: [66, 76], dx: [12, 24], vx: 4, vy: [8, 12], tilt: 0.18 } },
     { id: "party", name: "Launch party", boosters: 1, scene: "party",
       wind: 2.5, gust: 2, swell: 0, roll: 0, period: 4, g: 7.5, drag: 0.12,
@@ -181,7 +181,7 @@
   ];
   var LAST = STAGES.length - 1;
   var TOTAL = STAGES.reduce(function (n, s) { return n + s.boosters; }, 0);
-  var APPROVE = 8000;
+  var APPROVE = 7400;            // the flying (landings before the upgrades' cut), with seven or more landed, Mars among them
 
   // Between stages: what it does, then what it costs
   var UPGRADES = [
@@ -220,7 +220,7 @@
     crash: ["Good data.", "That counts.", "Delete that.", "Rapid unscheduled success.", "Exactly as planned.",
             "We learned loads.", "Technically, it landed.", "Clip that. Not that bit.", "They're all tests.",
             "Nominal.", "Most of it is on the barge."],
-    sea: ["Water landing. On purpose.", "The sea was in the way.", "It'll wash up somewhere. Probably mine.", "Delete that."],
+    sea: ["Water landing. On purpose.", "The sea was in the way.", "It'll wash up. Probably mine.", "Delete that."],
     edge: ["It was nearly on.", "That's a landing. Then a swim."],
     tipped: ["It stood up for a bit. Count it.", "Upright, then flat. Both count."],
     fuel: ["Fuel is a mindset.", "We're testing gravity now."],
@@ -235,7 +235,7 @@
     cake: ["The cake was a test as well."],
     balloon: ["Those balloons were for the photos.", "Mind the balloons, you lemon."]
   };
-  var GUESTS = ["Is it meant to do that.", "Getting this for my story.", "He said there'd be canapés.",
+  var GUESTS = ["Is it meant to do that.", "Getting this for my story.", "He said there'd be nibbles.",
                 "Is the cake safe.", "I flew here for this.", "Is that the one from the advert."];
   var DUCK = ["Mind the hats.", "Not the hats.", "Get down."];
   // Mars: his messages, fourteen minutes old, so always about the wrong thing
@@ -276,13 +276,18 @@
   var rk = null;               // the rocket in the air
   var phase = "fly";           // fly | beat | wrap
   var beatT = 0, beatKind = "", clock = 0, vis = 0, acc = 0;
+  var beatLen = 2.2, skipAfter = SKIP_AFTER;   // how long this outcome lasts, and when thrust can skip it
   var cam = { x: 0, y: 30, z: 4, snap: true, box: null };
   var fx = [], debris = [], puffs = [], streaks = [], bubbles = [], balloons = [];
   var receipt = null, shake = 0, wreck = null;
   var hudEls = null, hudBox = null, hudAge = 0;
   var noticed = false, lastMode = "keys", held = false, heldId = null;
   var hint = null, said = {};
-  var boss = { pose: "film", mood: "smug", air: true, t: 0, soot: 0, viewers: 2.1 };
+  var boss = { pose: "film", mood: "smug", air: true, t: 0, soot: 0, viewers: 2.1, mars: "film" };
+  // his live stream, in a phone in the sky: which side it's on (away from
+  // where the rocket comes in), where it is now (it slides across), static
+  var pip = { side: 1, x: null, y: null, staticT: 0, rect: null };
+  var PIP_STATIC = 0.4;
   var guests = [];
   var auto = {};
   var stars = [];
@@ -309,7 +314,8 @@
     A.init(T);
     if (DEBUG && params.get("seed")) { sh.seed = parseInt(params.get("seed"), 10) || 1; sh.random = N.seeded(sh.seed); }
     run = { stage: FIRST, mods: newMods(), score: 0, landed: 0, flown: 0, crashes: 0, taken: [], closest: null,
-            stageScore: 0, stageLanded: 0, daily: sh.daily, marsLanded: false, firstCrash: true, fuelLeft: 0 };
+            stageScore: 0, stageLanded: 0, daily: sh.daily, marsLanded: false, fuelLeft: 0,
+            flight: 0, cut: 0, tests: 0, scrubbed: false, fires: 0, offairs: 0, landedSince: false, lastOff: false };
     // ?debug&take=beta,pr starts with those upgrades
     if (DEBUG && params.get("take")) params.get("take").split(",").forEach(function (id) {
       UPGRADES.forEach(function (u) { if (u.id === id) { run.taken.push(id); u.apply(run.mods); } });
@@ -346,18 +352,19 @@
     }
     for (var b = 0; b < s.boosters; b++) {
       var side = r() < 0.5 ? -1 : 1;
-      var gentle = run.stage === 0 && b === 0;
-      var dx = gentle ? 7 : lerp(s.start.dx[0], s.start.dx[1], r());
+      var dx = lerp(s.start.dx[0], s.start.dx[1], r());
       var vxs = s.start.vx;
       var vx = Array.isArray(vxs) ? -side * lerp(vxs[0], vxs[1], r()) : (r() - 0.5) * 2 * vxs;
-      st.starts.push({
-        x: side * dx,
-        y: gentle ? 50 : lerp(s.start.h[0], s.start.h[1], r()),
-        vx: gentle ? 0 : vx,
-        vy: -(gentle ? 4 : lerp(s.start.vy[0], s.start.vy[1], r())),
-        a: gentle ? 0 : (s.start.inbound ? -side * s.start.tilt * (0.6 + r() * 0.4) : (r() - 0.5) * 2 * s.start.tilt),
+      var p = {
+        x: side * dx, y: lerp(s.start.h[0], s.start.h[1], r()), vx: vx, vy: -lerp(s.start.vy[0], s.start.vy[1], r()),
+        a: s.start.inbound ? -side * s.start.tilt * (0.6 + r() * 0.4) : (r() - 0.5) * 2 * s.start.tilt,
         bias: (r() - 0.5) * 2.4, sloppy: r()
-      });
+      };
+      // stage 1 is for learning: the first comes in close, low and nearly at
+      // rest, on the left, clear of the countdown's stamps in the middle; the
+      // second close and straight down
+      if (run.stage === 0 && b === 0) { p.x = -8; p.y = 40; p.vx = 0; p.vy = -0.5; p.a = 0; }
+      st.starts.push(p);
     }
     if (s.scene === "party") {
       for (var k = 0; k < 14; k++) st.balloonAt.push({ t: 0.6 + k * 1.7 + r() * 1.2, x: 22 + r() * 10, c: k % 3 });
@@ -393,9 +400,11 @@
       }
       g.push({ x: x, y: y });
     }
-    // the pad's edges, exactly
+    // the pad's edges, exactly, and flat ground out past anything the camera shows
     g.push({ x: -9, y: 0 }, { x: 9, y: 0 });
     g.sort(function (a, b) { return a.x - b.x; });
+    g.unshift({ x: -400, y: g[0].y });
+    g.push({ x: 400, y: g[g.length - 1].y });
     for (var i = 0; i < 16; i++) {
       var rx = (r() < 0.5 ? -1 : 1) * (12 + r() * 60);
       rocks.push({ x: rx, y: marsY(g, rx), s: 0.6 + r() * 1.2 });
@@ -432,7 +441,13 @@
              windSense: p.sloppy < 0.1 || FORCE === "drift" ? 0.2 : 0.85, late: p.sloppy > 0.88 || FORCE === "late", prevUp: false };
     if (FORCE === "sea") auto.bias = (p.x > 0 ? 1 : -1) * ((stage().deck || 30) / 2 + 3);
     if (DEBUG && params.get("aim")) auto.bias = parseFloat(params.get("aim")) || 0;
-    boss.pose = "film"; boss.mood = "smug"; boss.air = true;
+    boss.pose = "film"; boss.mood = "smug"; boss.mars = "film";
+    tag = null;
+    if (!boss.air) pip.staticT = 0.2;          // back on air
+    boss.air = true;
+    // his stream sits on the other side from where this one comes in
+    pip.side = p.x > 0 ? -1 : 1;
+    if (s.scene === "mars" && st.booster === 0) pip.staticT = PIP_STATIC;   // the signal arriving from Earth
   }
 
   // ---------------------------------------------------------------------------
@@ -517,12 +532,19 @@
     var m = run.mods;
     if (AUTO) return { up: auto.out.up, rate: auto.out.steer * TURN * m.turn };
     var up = input.up || input.action || held;
-    // a mouse: the rocket leans towards the pointer, more the further it is to one side
+    // a mouse: the pointer is where to go. The rocket leans to head there,
+    // easing off as it arrives (as the autopilot does), never more than it
+    // could land with near the deck; the engine does the moving, so it only
+    // gets there while the button is held
     if (input.mode === "mouse" && input.aim.on && !input.left && !input.right) {
       lastMode = "mouse";
-      var p = toScreen(rk.x, rk.y + RH * 0.55);
-      var want = clamp(Math.atan2(input.aim.x - p.x, Math.min(W, H) * MOUSE_REACH), -0.95, 0.95);
-      return { up: up, rate: clamp((want - rk.a) * 9, -TURN * m.turn, TURN * m.turn), aimed: true };
+      var h = heightAbove(rk), dx = cam.x + (input.aim.x - W / 2) / cam.z - rk.x;
+      var vxWant = h < 10 ? clamp(dx * 0.3, -2, 2) : clamp(dx * 0.42, -9, 9);
+      var lean = Math.asin(clamp((vxWant - rk.vx) * 1.1 / (THRUST * m.thrust), -0.55, 0.55));
+      var most = h < 4 ? 0.04 : h < 12 ? 0.18 : h < LEGS_AT ? SAFE_TILT * m.safeTilt : 0.55;
+      lean = clamp(lean, -most, most);
+      var diff = lean - rk.a;
+      return { up: up, rate: Math.abs(diff) < 0.02 ? 0 : clamp(diff * 7, -1, 1) * TURN * m.turn, aimed: true };
     }
     if (input.mode === "touch") lastMode = "touch"; else if (input.mode === "pad") lastMode = "pad"; else if (input.left || input.right || input.up) lastMode = "keys";
     var steer = input.steer || ((input.right ? 1 : 0) - (input.left ? 1 : 0));
@@ -611,6 +633,10 @@
     var fuel = PTS.fuel * clamp(r.fuel / r.cap, 0, 1);
     var base = PTS.land + soft + cross + fuel;
     var total = Math.round(base * (s.mult || 1) * m.pay);
+    // the flying itself, before the upgrades take their cut: what the stamp goes by
+    run.flight += Math.round(base * (s.mult || 1));
+    run.cut += Math.round(base * (s.mult || 1)) - total;
+    run.landedSince = true;
     run.score += total;
     run.stageScore += total;
     run.landed++;
@@ -638,13 +664,13 @@
     sfx.land(word === CALL.perfect || word === CALL.feather);
     shake = Math.max(shake, clamp(impact / 10, 0.05, 0.3));
     for (var i = 0; i < 8; i++) puffAt(r.x + rand(-4, 4), r.y + rand(0.2, 1), rand(0.8, 1.6), (Math.random() < 0.5 ? -1 : 1) * rand(2, 5), rand(0.3, 1.2), 1.4);
-    if (s.scene === "mars") earthSay(EARTH.landed);
+    if (s.scene === "mars") earthSay(EARTH.landed, "point");
     else {
       boss.pose = "cheer"; boss.mood = "grin";
       bossSay(word === CALL.perfect || word === CALL.feather ? BOSS.perfect : word === CALL.off ? BOSS.offcross : word === CALL.firm ? BOSS.firm : BOSS.landed, true);
     }
     if (s.scene === "party") guests.forEach(function (g) { g.cheer = 1.5; });
-    phase = "beat"; beatKind = "landed"; beatT = 0;
+    phase = "beat"; beatKind = "landed"; beatT = 0; beatLen = BEAT.landed; skipAfter = SKIP_AFTER;
   }
 
   // Everything that isn't a landing
@@ -653,8 +679,10 @@
     var fire = kind === "crash" || kind === "marquee" || kind === "cake";
     r.state = kind;
     r.thrust = 0;
+    beatLen = BEAT[kind === "splash" || kind === "pool" ? "splash" : kind === "lost" ? "lost" : "crash"];
+    skipAfter = SKIP_AFTER;
     run.crashes++;
-    if (m.crashPay) { run.score += m.crashPay; run.stageScore += m.crashPay; }
+    if (m.crashPay) { run.score += m.crashPay; run.stageScore += m.crashPay; run.tests += m.crashPay; }
     var word;
     if (kind === "splash") word = CALL.sea;
     else if (kind === "pool") word = CALL.pool;
@@ -663,8 +691,10 @@
     else if (kind === "cake") word = CALL.cake;
     else if (kind === "dent") word = CALL.dent;
     else if (kind === "lost") word = CALL.lost;
-    else { word = run.firstCrash ? "Scrubbed" : pick(CALL.crash); }
-    if (kind !== "lost") run.firstCrash = false;
+    // the first fire of a run is always the joke the game is named for
+    var firstFire = kind === "crash" && !run.scrubbed;
+    if (firstFire) { run.scrubbed = true; word = "Scrubbed"; }
+    else if (!word) word = pick(CALL.crash);
     if (m.crashPay) receipt = { t: 0, total: m.crashPay, rows: [["Test", m.crashPay]] };
     shell.callout(word, { ms: 1500 });
     if (kind === "tip") {
@@ -682,18 +712,31 @@
       explode(r.x, Math.max(r.y, surf.y), kind === "dent");
     }
     // what he says
-    if (s.scene === "mars") earthSay(EARTH.crash);
+    if (s.scene === "mars") earthSay(EARTH.crash, "cheer");
     else {
       boss.pose = "point"; boss.mood = "smug";
       var list = kind === "splash" ? BOSS.sea : kind === "pool" ? BOSS.pool : kind === "tip" ? (s.scene === "sea" ? BOSS.edge : BOSS.tipped) :
                  kind === "marquee" ? BOSS.marquee : kind === "cake" ? BOSS.cake : kind === "lost" ? BOSS.lost :
                  r.dry ? BOSS.fuel : s.scene === "party" ? BOSS.partyCrash : BOSS.crash;
+      if (firstFire) list = "Good data.";
       if (kind !== "tip") after(0.35, function () { bossSay(list, true); });
       else after(1.0, function () { bossSay(list, true); });
       boss.viewers *= 1.4 + Math.random() * 0.5;   // a fire gets the views
-      // now and then the stream drops, and off air he's less relaxed
-      if (run.crashes >= 2 && Math.random() < 0.4 && fire) {
-        after(1.25, function () { boss.air = false; boss.pose = "shout"; boss.mood = "shout"; bossSay(BOSS.offair, true, true); });
+      // the stream drops and, off air, he's less relaxed: once a round for
+      // certain (the first fire after a landing, or the third fire if nothing
+      // has landed), then now and then, never twice running
+      if (fire) {
+        var off = !firstFire && (OFFAIR || (!run.offairs ? (run.landedSince || run.fires >= 2) : (!run.lastOff && Math.random() < 0.3)));
+        run.fires++;
+        run.landedSince = false;
+        run.lastOff = off;
+        if (off) {
+          // static, then him, off air, turning on the camera; this beat runs longer so it can be read
+          run.offairs++;
+          after(1.0, function () { boss.air = false; pip.staticT = PIP_STATIC; });
+          after(1.0 + PIP_STATIC, function () { boss.pose = "shout"; boss.mood = "shout"; bossSay(BOSS.offair, true, true); });
+          beatLen = 3.5; skipAfter = 2.4;
+        }
       }
     }
     if (s.scene === "party" && (fire || kind === "pool")) guests.forEach(function (g) { g.duck = Math.max(g.duck, 1.6); });
@@ -820,8 +863,8 @@
   // After an outcome: let it land, then the next booster (or the stage's end)
   function beat(dt, pressed) {
     beatT += dt;
-    var skip = pressed && beatT > SKIP_AFTER && !AUTO;
-    if (beatT >= BEAT[beatKind] || skip) {
+    var skip = pressed && beatT > skipAfter && !AUTO;
+    if (beatT >= beatLen || skip) {
       run.flown++;
       st.booster++;
       bubbles = bubbles.filter(function (b) { return b.who !== "boss" || !b.offair; });
@@ -841,17 +884,21 @@
   // ---------------------------------------------------------------------------
   // Warnings near the deck, and the arrow (DESIGN.md, section 10)
   // ---------------------------------------------------------------------------
+  // The tag: the speed, and the one thing that's wrong, in words. Below 20 up
+  // any speed over the landing limit is too fast; higher up, only when
+  // stopping in time would take half the engine or more.
   var tag = null;
   function warnings(dt) {
     var r = rk, m = run.mods, h = heightAbove(r), u = under(r.x, clock);
-    var fall = -(r.vy - u.vy);
+    var fall = -(r.vy - u.vy), limit = SAFE_VY * m.safeVy;
     tag = null;
     var stop = THRUST * m.thrust * Math.cos(r.a) - stage().g;
-    var need = (fall * fall - Math.pow(SAFE_VY * m.safeVy * 0.8, 2)) / (2 * Math.max(0.5, h - 0.5));
-    if (fall > SAFE_VY * m.safeVy && (need > stop * 0.5 || h < 3)) tag = { word: "Too fast", bad: true };
+    var need = (fall * fall - Math.pow(limit * 0.8, 2)) / (2 * Math.max(0.5, h - 0.5));
+    if (fall > limit && (h < 20 || need > stop * 0.5)) tag = { word: "Too fast: speed " + Math.ceil(fall), bad: true, fast: true };
     else if (h < 18 && Math.abs(r.a + u.angle) > SAFE_TILT * m.safeTilt) tag = { word: "Not upright", bad: true };
     else if (h < 14 && Math.abs(r.vx) > SAFE_VX) tag = { word: "Drifting", bad: true };
-    else tag = { word: "Speed " + Math.max(0, Math.round(fall)), bad: false };
+    else if (h < 9 && u.vy > 0.9) tag = { word: "Deck rising", bad: true };
+    else tag = { word: "Speed " + Math.max(0, Math.min(Math.round(fall), Math.floor(limit))), bad: false };
     if (tag.bad && h < 20) {
       r.warn -= dt;
       if (r.warn <= 0) { r.warn = 0.32; sfx.warn(); }
@@ -868,11 +915,11 @@
     var r = rk, i = run.stage, b = st.booster, h = heightAbove(r);
     var mode = touching() ? "touch" : lastMode;
     if (i === 0 && b === 0 && r.burned < 0.6 && !AUTO) {
-      hint = { at: "rocket", word: mode === "touch" ? "Hold Thrust" : mode === "mouse" ? "Hold the button" : mode === "pad" ? "Hold A" : "Hold Up" };
+      hint = { at: "rocket", word: mode === "touch" ? "Hold Thrust" : mode === "mouse" ? "Hold the button" : mode === "pad" ? "Hold A" : "Hold Up arrow" };
       return;
     }
     if (i === 0 && b === 0 && r.leaned < 0.3 && Math.abs(r.x - crossX()) > 3 && !AUTO) {
-      hint = { at: "rocket", word: mode === "touch" ? "Lean: arrows" : mode === "mouse" ? "Point to lean" : "Lean: left, right" };
+      hint = { at: "rocket", word: mode === "touch" ? "Lean: arrows" : mode === "mouse" ? "Point where to go" : "Lean: left, right" };
       return;
     }
     if (i === 0 && b === 0 && h < 50 && h > 14 && !said.landed) { hint = { at: "cross", word: "Land here" }; return; }
@@ -921,8 +968,11 @@
       bossSay(BOSS.flee, true);
     }
     if (st.flee) {
-      st.bossX += dt * 6;
-      guests.forEach(function (g, i) { g.x += dt * (6.5 + i * 0.8); g.duck = 1; });
+      // they stop at the edge of the screen, still filming, in a huddle
+      var edge = cam.x + (W / 2 - 8) / cam.z - 1.4;
+      var go = function (x, v, spot) { return Math.max(x, Math.min(x + dt * v, edge - spot * 2.3)); };
+      st.bossX = go(st.bossX, 6, 4);
+      guests.forEach(function (g, i) { g.x = go(g.x, 6.5 + i * 0.8, 3 - i); g.duck = 1; });
     }
     guests.forEach(function (g) {
       // duck when it comes anywhere near the terrace
@@ -940,7 +990,7 @@
   }
 
   function marsTalk() {
-    if (!said.earth && clock > st.earthAt) { said.earth = true; earthSay(EARTH.start); }
+    if (!said.earth && clock > st.earthAt) { said.earth = true; earthSay(EARTH.start, "film"); }
   }
 
   // ---------------------------------------------------------------------------
@@ -995,8 +1045,11 @@
   function end() {
     var score = Math.round(run.score);
     var rec = shell.record(score);
+    // The stamp goes by the flying: the landings before the upgrades take
+    // their cut, so the beta and the PR team cost points, never the stamp
     var rank;
-    if (run.landed >= TOTAL - 1 && run.marsLanded && score >= APPROVE) rank = 1;
+    var near = run.landed >= TOTAL - 1 && run.marsLanded;
+    if (near && run.flight >= APPROVE) rank = 1;
     else if (run.landed >= 5) rank = 2;
     else if (run.landed >= 1) rank = 3;
     else rank = 4;
@@ -1010,13 +1063,18 @@
       { label: "Score", value: fmt(score) },
       { label: "Landed", value: run.landed + " of " + TOTAL }
     ];
-    if (run.closest != null) stats.push({ label: "Closest to the cross", value: (run.closest * 1.5).toFixed(1) + "m" });
+    // what the upgrades took, said out loud
+    if (run.cut > 0) stats.push({ label: run.taken.indexOf("beta") >= 0 && run.taken.indexOf("pr") >= 0 ? "Taken by upgrades" : run.taken.indexOf("beta") >= 0 ? "Credit taken" : "PR fee", value: fmt(run.cut) });
+    // nearly there: how far off Approved it was
+    if (rank === 2 && run.landed >= TOTAL - 1) stats.push({ label: "Approved needs", value: !run.marsLanded ? "Mars" : fmt(APPROVE - run.flight) + " more" });
+    else if (run.closest != null) stats.push({ label: "Closest to the cross", value: (run.closest * 1.5).toFixed(1) + "m" });
     stats.push({ label: rec.isNew ? (run.daily ? "New best today" : "New best") : (run.daily ? "Best today" : "Best"),
                  value: fmt(rec.isNew ? score : rec.best || 0), highlight: rec.isNew });
     if (run.daily) stats.unshift({ label: "Run", value: shell.today });
+    var data = TOTAL - run.landed;
     shell.finish({
       place: rank, total: 4, heading: heading, line: line, stats: stats, delay: 1300,
-      share: fmt(score) + " points, " + run.landed + " of " + TOTAL + " landed"
+      share: run.landed + " of " + TOTAL + " landed, " + (data ? data + " described as data, " : "") + fmt(score) + " points"
     });
   }
 
@@ -1066,8 +1124,10 @@
     bubbles.push({ who: "boss", text: text, t: 0, life: 2.2 + text.length * 0.03, offair: !!offair });
     voice("boss", text);
   }
-  function earthSay(list) {
+  // Mars: what he says, and how he looks saying it, fourteen minutes ago
+  function earthSay(list, pose) {
     var text = pick(list);
+    boss.mars = pose || "film";
     bubbles = bubbles.filter(function (b) { return b.who !== "earth"; });
     bubbles.push({ who: "earth", text: text, t: 0, life: 2.6 + text.length * 0.03 });
     voice("earth", text);
@@ -1080,11 +1140,13 @@
   }
   function tickBubbles(dt) {
     bubbles = bubbles.filter(function (b) { b.t += dt; return b.t < b.life; });
-    // quiet on the final approach: nobody talks over the landing
-    if (phase === "fly" && rk && heightAbove(rk) < 20) bubbles.forEach(function (b) { if (b.t < b.life - 0.4) b.life = b.t + 0.4; });
+    // quiet on the final approach: nobody down there talks over the landing
+    // (his stream is up in the sky, out of the way)
+    if (phase === "fly" && rk && heightAbove(rk) < 20) bubbles.forEach(function (b) { if (b.who === "guest" && b.t < b.life - 0.4) b.life = b.t + 0.4; });
   }
   function bossTick(dt) {
     boss.t += dt;
+    pip.staticT = Math.max(0, pip.staticT - dt);
     if (phase === "fly" && rk && rk.t > 0.6 && rk.t < 0.7 && !said["s" + run.stage + "b" + st.booster] && stage().scene !== "mars") {
       said["s" + run.stage + "b" + st.booster] = true;
       var s = stage();
@@ -1248,56 +1310,90 @@
   // The camera: the rocket and the whole landing area together, clear of the
   // HUD above and the buttons below, easing in as the rocket comes down
   // ---------------------------------------------------------------------------
+  // On a tall screen the far ends that don't matter (the windsock's end of
+  // the deck, most of the marquee, the back of his boat) are left out, so
+  // everything else is bigger; the rocket brings them back if it goes there.
   function sceneBox() {
-    var s = stage();
-    if (s.scene === "sea") return { x0: -s.deck / 2 - 4, x1: Math.max(s.deck / 2 + 4, boatX() + 6.5), y0: -SEA_DROP - 1.6, y1: 9 };
-    if (s.scene === "party") return { x0: A.PARTY.marquee[0] - 1.5, x1: A.PARTY.terrace[1] + 1, y0: -2.2, y1: 13.5 };
+    var s = stage(), tall = H > W * 1.25;
+    if (s.scene === "sea") return { x0: -s.deck / 2 - (tall ? 1 : 4), x1: tall ? boatX() + 4.2 : Math.max(s.deck / 2 + 4, boatX() + 6.5), y0: -SEA_DROP - 1.6, y1: 9 };
+    if (s.scene === "party") return { x0: tall ? -18 : A.PARTY.marquee[0] - 1.5, x1: A.PARTY.terrace[1] + 1, y0: -2.2, y1: 13.5 };
     return { x0: -20, x1: 17, y0: -2.4, y1: 9 };
   }
   function boatX() { return stage().deck / 2 + 9.5; }
-  // The notice card sits along the bottom while it's up, so the scene stands
-  // on top of it during the countdown, then settles once it's gone
-  var briefEl = null;
+  // The free space: under the HUD, over the touch buttons (or between them
+  // on a landscape phone, where they sit in the corners), and over the
+  // notice while it's up
+  var briefEl = null, countEl = null;
   function margins() {
-    var boxes = hudBoxes(), top = 8;
-    boxes.forEach(function (b) { top = Math.max(top, b.bottom + 8); });
-    var bottom = touching() ? 92 : 10;
+    var boxes = hudBoxes(), M = { top: 8, bottom: 10, left: 10, right: 10, brief: false };
+    boxes.forEach(function (b) { if (!b.pad) M.top = Math.max(M.top, b.bottom + 8); });
+    if (touching()) {
+      if (W > H * 1.3) {
+        boxes.forEach(function (b) {
+          if (!b.pad) return;
+          if (b.left < W / 2) M.left = Math.max(M.left, b.right + 8); else M.right = Math.max(M.right, W - b.left + 8);
+        });
+      } else M.bottom = 92;
+    }
     briefEl = briefEl || root.querySelector(".kit-brief");
     if (briefEl && briefEl.classList.contains("is-on")) {
       var base = root.getBoundingClientRect(), r = briefEl.getBoundingClientRect();
-      if (r.height) bottom = Math.max(bottom, base.bottom - r.top + 8);
+      if (r.height) { M.bottom = Math.max(M.bottom, base.bottom - r.top + 8); M.brief = true; }
     }
-    return { top: top, bottom: bottom, side: 10 };
+    return M;
+  }
+  // Where the countdown's stamp is while one is up (it lands high in the middle)
+  function countBox() {
+    countEl = countEl || root.querySelector(".kit-count");
+    var cs = countEl && countEl.firstElementChild;
+    return cs ? { left: cs.offsetLeft, right: cs.offsetLeft + cs.offsetWidth, bottom: cs.offsetTop + cs.offsetHeight } : null;
   }
   // The camera keeps a box that must be on screen: the landing area and the
   // rocket. It grows at once (the rocket is never off screen) and shrinks
   // smoothly (easing in as it comes down). Zoom and position both come from
   // that box, so the scene always stands on the bottom of the free space.
+  //
+  // After a crash or a landing it pushes in on the rocket (the big moment,
+  // big), and it never goes out so far that the scene is a sliver: a rocket
+  // still higher than that waits off the top, with its tag at the top of the
+  // screen pointing up at it.
   function frame(dt) {
     if (!rk) return;
     var b = sceneBox(), M = margins();
     var rx = rk.gone && wreck ? wreck.x : rk.x, ry = rk.gone && wreck ? wreck.y : rk.y;
     var want = { x0: Math.min(b.x0, rx - 5), x1: Math.max(b.x1, rx + 5), y0: b.y0, y1: Math.max(b.y1, ry + RH + 3) };
+    var close = phase === "beat" && beatT > 0.1 && rk.state !== "lost";
+    if (close) {
+      var half = rk.state === "landed" ? 17 : 13;
+      want = { x0: rx - half, x1: rx + half, y0: b.y0, y1: Math.max(b.y1, ry + RH + 4) };
+    }
     var B = cam.box;
     if (!B || cam.snap || !dt) { B = cam.box = { x0: want.x0, x1: want.x1, y0: want.y0, y1: want.y1 }; cam.snap = false; }
     else {
-      var k = 1 - Math.exp(-dt * 2.2);
+      var k = 1 - Math.exp(-dt * (close ? 2.6 : 2.2));
       B.x0 = Math.min(want.x0, B.x0 + (want.x0 - B.x0) * k);
       B.x1 = Math.max(want.x1, B.x1 + (want.x1 - B.x1) * k);
       B.y1 = Math.max(want.y1, B.y1 + (want.y1 - B.y1) * k);
       B.y0 = want.y0;
     }
-    // the free space can move (the notice going), so the margins are eased too
-    var mb = cam.mb == null || !dt ? M.bottom : cam.mb + (M.bottom - cam.mb) * (1 - Math.exp(-dt * 5));
-    cam.mb = mb;
-    var aw = Math.max(40, W - M.side * 2), ah = Math.max(40, H - M.top - mb);
-    var zMax = Math.min(W, H) / 34, zMin = Math.min(W, H) / 300;
-    var z = clamp(Math.min(aw / (B.x1 - B.x0), ah / (B.y1 - B.y0)), zMin, zMax);
+    // the free space can move (the notice or the countdown going), so the
+    // margins are eased too
+    var ease = 1 - Math.exp(-dt * 5);
+    var mb = cam.mb == null || !dt ? M.bottom : cam.mb + (M.bottom - cam.mb) * ease;
+    var mt = cam.mt == null || !dt ? M.top : cam.mt + (M.top - cam.mt) * ease;
+    cam.mb = mb; cam.mt = mt;
+    var aw = Math.max(40, W - M.left - M.right), ah = Math.max(40, H - mt - mb);
+    var zMax = Math.min(W, H) / (close ? 26 : 34);
+    // never so far out that the scene is a sliver: it fills at least 30% of
+    // the width (42% while the notice is up, when the rocket hasn't moved yet)
+    var share = M.brief ? 0.42 : 0.3;
+    cam.share = cam.share == null || !dt ? share : cam.share + (share - cam.share) * ease;
+    var zFloor = Math.max(Math.min(W, H) / 300, cam.share * aw / (b.x1 - b.x0));
+    var z = clamp(Math.min(aw / (B.x1 - B.x0), ah / (B.y1 - B.y0)), zFloor, Math.max(zMax, zFloor));
     cam.z = z;
-    cam.x = (B.x0 + B.x1) / 2;
+    // the box's middle in the middle of the free space, standing on its bottom
+    cam.x = (B.x0 + B.x1) / 2 - (M.left + aw / 2 - W / 2) / z;
     cam.y = B.y0 + (H / 2 - mb) / z;
-    // too tall to fit even far out: keep the rocket in view instead
-    if ((B.y1 - B.y0) * z > ah + 1) cam.y = Math.max(cam.y, ry + RH + 2 - (H / 2 - M.top) / z);
   }
   function toScreen(x, y) { return { x: W / 2 + (x - cam.x) * cam.z, y: H / 2 - (y - cam.y) * cam.z }; }
 
@@ -1306,9 +1402,9 @@
     if (hudBox) return hudBox;
     var base = root.getBoundingClientRect();
     hudBox = [];
-    Array.prototype.forEach.call(root.querySelectorAll(".kit-hud-tl, .kit-hud-tr, .kit-bar"), function (el) {
+    Array.prototype.forEach.call(root.querySelectorAll(".kit-hud-tl, .kit-hud-tr, .kit-bar, .kit-pad"), function (el) {
       var r = el.getBoundingClientRect();
-      if (r.width) hudBox.push({ left: r.left - base.left, right: r.right - base.left, bottom: r.bottom - base.top, top: r.top - base.top });
+      if (r.width) hudBox.push({ left: r.left - base.left, right: r.right - base.left, bottom: r.bottom - base.top, top: r.top - base.top, pad: el.classList.contains("kit-pad") });
     });
     return hudBox;
   }
@@ -1363,24 +1459,109 @@
     else drawMars(c);
     drawStreaks(c);
     drawPuffs(c, true);
+    // his live stream: over the sky, under the rocket, so the rocket is
+    // never lost behind it
+    var live = state !== "interlude" && state !== "results";
+    if (live) { c.setTransform(DPR, 0, 0, DPR, 0, 0); drawPip(c, dt); world(c); }
     drawRocket(c);
     drawWreck(c);
     drawDebris(c);
     drawPuffs(c, false);
     drawFx(c);
     if (s.scene === "sea") drawNearSea(c);
-    // screen things: the tag, the arrow, the bubbles, the receipt
+    // screen things: the arrow, the tag, the receipt, the bubbles
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    if (state === "interlude" || state === "results") return;
+    if (!live) return;
     var placed = [];
     var rr = rocketRect();
     if (rr) placed.push(rr);
-    drawTag(c, placed);
-    drawLive(c, placed);
+    if (pip.rect) placed.push({ x: pip.rect.x - 4, y: pip.rect.y - 4, w: pip.rect.w + 8, h: pip.rect.h + 8, solid: true });
+    var cb = calloutBox();
+    if (cb) placed.push(cb);
     var arrow = drawHint(c, placed);
+    drawTag(c, placed);
     drawReceipt(c, placed);
     bubbles.forEach(function (b) { drawBubble(c, b, placed); });
     if (arrow) arrow();
+  }
+
+  // The stamp callout, if one is up, so words keep off it
+  var calloutEl = null;
+  function calloutBox() {
+    calloutEl = calloutEl || root.querySelector(".kit-callouts");
+    var s = calloutEl && calloutEl.firstElementChild;
+    if (!s) return null;
+    var base = root.getBoundingClientRect(), r = s.getBoundingClientRect();
+    return { x: r.left - base.left - 6, y: r.top - base.top - 6, w: r.width + 12, h: r.height + 12, solid: true };
+  }
+
+  // ---------------------------------------------------------------------------
+  // His live stream (the picture-in-picture): a phone in the sky under the
+  // HUD, on the side away from where the rocket came in, showing his
+  // selfie-cam. Smug while it falls, wincing when the tag goes red, arms up
+  // for a landing, pointing at the fire for "Good data.", static and then
+  // shouting when the stream drops. On Mars it's fourteen minutes old and
+  // reacts to the wrong thing. His bubbles come from it.
+  // ---------------------------------------------------------------------------
+  function pipTarget() {
+    var short = H < 460;
+    var w = Math.round(clamp(Math.min(W, H) * (short ? 0.25 : 0.28), 80, 150));
+    var h = Math.round(w * (short ? 1.3 : 1.55));
+    var x = pip.side < 0 ? 10 : W - w - 10, top = 8;
+    hudBoxes().forEach(function (b) {
+      if (!b.pad && b.right > x - 8 && b.left < x + w + 8) top = Math.max(top, b.bottom + 10);
+    });
+    return { x: x, y: top, w: w, h: h };
+  }
+  function pipPose() {
+    if (stage().scene === "mars") return boss.mars;
+    if (!boss.air) return "shout";
+    if (phase === "beat" && rk) return rk.state === "landed" ? "cheer" : rk.state === "lost" ? "film" : "point";
+    if (st.flee) return "flee";
+    if (phase === "fly" && tag && tag.bad && shell.state() === "playing") return "wince";
+    return "film";
+  }
+  function drawPip(c, dt) {
+    var to = pipTarget();
+    if (pip.x == null || !dt || shell.reduceMotion) { pip.x = to.x; pip.y = to.y; }
+    else { var k = 1 - Math.exp(-dt * 6); pip.x += (to.x - pip.x) * k; pip.y += (to.y - pip.y) * k; }
+    var s = stage(), pose = pipPose(), still = shell.reduceMotion;
+    var sway = still ? 0 : Math.sin(vis * 1.3) * 1.2 + (pose === "flee" ? Math.sin(vis * 23) * 2.5 : pose === "wince" ? Math.sin(vis * 31) * 0.8 : 0);
+    var fire = s.scene === "party" ? st.lit : !!(wreck && !wreck.dust && wreck.t < 3.5);
+    A.setView(DPR, 1);
+    var scr = A.selfie(c, {
+      x: pip.x, y: pip.y, w: to.w, h: to.h, pose: pose, dir: -pip.side,
+      scene: s.scene === "mars" ? "earth" : s.scene, fire: fire, t: still ? 0 : vis, sway: sway,
+      noise: pip.staticT > 0, seed: still ? 7 : 1 + Math.floor(vis * 24), bands: s.scene === "mars" && !still
+    });
+    pip.rect = { x: pip.x, y: pip.y, w: to.w, h: to.h, screen: scr };
+    // the tag on his screen: Live and the viewers, Off air, or how old it is
+    var size = 12;
+    c.font = size + "px " + T.display;
+    c.textBaseline = "middle";
+    c.textAlign = "left";
+    if (s.scene === "mars") {
+      var l1 = "EARTH:", l2 = "14 MINUTES AGO";
+      var mw = Math.max(c.measureText(l1).width, c.measureText(l2).width) + 10;
+      A.rrect(c, scr.x + 3, scr.y + 3, mw, 31, 3);
+      c.fillStyle = T.paper; c.fill(); c.lineWidth = 1.5; c.strokeStyle = T.ink; c.stroke();
+      c.fillStyle = T.ink;
+      c.fillText(l1, scr.x + 8, scr.y + 11);
+      c.fillText(l2, scr.x + 8, scr.y + 25);
+      return;
+    }
+    var onAir = boss.air;
+    var text = onAir ? "LIVE " + boss.viewers.toFixed(1) + "M" : "OFF AIR";
+    var tw = c.measureText(text).width + (onAir ? 22 : 12);
+    A.rrect(c, scr.x + 3, scr.y + 3, tw, 18, 3);
+    c.fillStyle = onAir ? T.red : T.paper; c.fill();
+    c.lineWidth = 1.5; c.strokeStyle = T.ink; c.stroke();
+    c.fillStyle = onAir ? T.paper : T.ink;
+    if (onAir) {
+      c.beginPath(); c.arc(scr.x + 11, scr.y + 12, 3, 0, Math.PI * 2);
+      if (Math.floor(vis * 2) % 2 || still) c.fill();
+    }
+    c.fillText(text, scr.x + (onAir ? 18 : 9), scr.y + 13);
   }
 
   // The night: stars and sparkles that drift a little with the camera
@@ -1410,9 +1591,11 @@
     c.restore();
   }
 
+  // the moon (or Mars's sun) keeps to the other side from his stream
   function moonAt() {
     var mars = stage().scene === "mars";
-    return { x: W * (mars ? 0.78 : 0.2) - cam.x * cam.z * 0.03, y: H * (mars ? 0.3 : 0.27) + cam.y * cam.z * 0.02 };
+    var across = pip.rect ? 1 - (pip.x + pip.rect.w / 2) / W : 0.8;
+    return { x: W * clamp(across, 0.15, 0.85) - cam.x * cam.z * 0.03, y: H * (mars ? 0.3 : 0.27) + cam.y * cam.z * 0.02 };
   }
   function drawSea(c) {
     var s = stage(), sw = swell(clock);
@@ -1469,9 +1652,9 @@
     for (var i = 0; i < rows; i++) {
       var k = (i + 0.5) / rows;
       var y = yTop + (yBot - yTop) * k;
-      var gap = 3 + k * 4, len = 0.8 + k * 1.4;
-      A.ink(c, A.thick(0.08 + k * 0.08, 1), T.paper);
-      c.globalAlpha = near ? 0.9 : 0.4 + k * 0.4;
+      // full-strength paper, thinner and sparser further off (never a grey)
+      var gap = (near ? 3 : 4) + k * 4, len = (near ? 0.8 : 0.6) + k * 1.4;
+      A.ink(c, A.thick(near ? 0.08 + k * 0.08 : 0.04 + k * 0.08, 1), T.paper);
       c.beginPath();
       var off = (i * 1.7 + vis * (0.4 + k)) % gap;
       for (var x3 = Math.floor(v.x0 / gap) * gap - off; x3 < v.x1 + gap; x3 += gap) {
@@ -1481,7 +1664,6 @@
         c.quadraticCurveTo(xx, y - bob - len * 0.45, xx + len, y - bob);
       }
       c.stroke();
-      c.globalAlpha = 1;
     }
   }
   // The barge's name on its hull, in screen pixels, if it can be 12px
@@ -1691,15 +1873,14 @@
   function drawStreaks(c) {
     if (!streaks.length) return;
     A.ink(c, A.thick(0.1, 1.2), T.paper);
+    // full-strength paper dashes that grow and shrink, rather than fading through grey
     streaks.forEach(function (s) {
       var k = s.t / s.life;
-      c.globalAlpha = Math.sin(k * Math.PI) * 0.7;
       c.beginPath();
       c.moveTo(s.x, -s.y);
-      c.lineTo(s.x - s.v * 0.35, -s.y);
+      c.lineTo(s.x - s.v * 0.3 * Math.sin(k * Math.PI), -s.y);
       c.stroke();
     });
-    c.globalAlpha = 1;
   }
 
   // The rocket's box on screen, so words keep off it
@@ -1709,18 +1890,50 @@
     return { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y };
   }
 
-  // A tag beside the rocket: its speed, or what's wrong
+  // A tag beside the rocket: its speed, or what's wrong. On whichever side
+  // keeps it clear of his stream and the arrow. When the rocket is above the
+  // top of the screen, it waits at the top with an arrow up and the height.
   function drawTag(c, placed) {
-    if (phase !== "fly" || !rk || rk.state !== "fly" || !tag || shell.state() !== "playing") return;
+    var state = shell.state();
+    if (phase !== "fly" || !rk || rk.state !== "fly" || (state !== "playing" && state !== "countdown")) return;
     var p = toScreen(rk.x, rk.y + RH * 0.5);
     var size = clamp(Math.min(W, H) * 0.036, 12, 15);
     c.font = size + "px " + T.display;
-    var text = tag.word.toUpperCase(), tw = c.measureText(text).width;
+    // above the screen, or hidden behind the countdown's stamp
+    var nose = toScreen(rk.x, rk.y + RH).y, top = cam.mt != null ? cam.mt : 8, cb = countBox();
+    var above = nose < top - 2;
+    if (cb && nose < cb.bottom && p.x > cb.left - 40 && p.x < cb.right + 40) { above = true; top = cb.bottom + 8; }
+    // during the countdown, only the marker for a rocket above the screen
+    if (state === "countdown") { if (!above) return; tag = tag || { word: "Speed " + Math.round(-rk.vy), bad: false }; }
+    if (!tag) return;
+    var text = (above ? Math.round(heightAbove(rk)) + " up, " + (tag.fast ? "too fast" : tag.word) : tag.word).toUpperCase();
+    var tw = c.measureText(text).width;
     var w = tw + size * 0.9, h = size * 1.45;
-    var side = p.x > W * 0.62 ? -1 : 1;
-    var x = side > 0 ? p.x + 3.6 * cam.z + 6 : p.x - 3.6 * cam.z - 6 - w;
-    x = clamp(x, 4, W - w - 4);
-    var y = clamp(p.y - h / 2, 8, H - h - 8);
+    var x, y;
+    if (above) {
+      // off the top: the tag waits under the HUD, an arrow pointing up at it
+      x = clamp(p.x - w / 2, 4, W - w - 4);
+      y = top + 18;
+      var ax = clamp(p.x, x + 8, x + w - 8);
+      c.beginPath();
+      c.moveTo(ax, y - 16); c.lineTo(ax + 8, y - 5); c.lineTo(ax + 3, y - 5); c.lineTo(ax + 3, y); c.lineTo(ax - 3, y); c.lineTo(ax - 3, y - 5); c.lineTo(ax - 8, y - 5); c.closePath();
+      c.fillStyle = T.paper; c.fill(); c.lineWidth = 2; c.strokeStyle = T.ink; c.lineJoin = "round"; c.stroke();
+    } else {
+      var right = p.x + 3.6 * cam.z + 6, left = p.x - 3.6 * cam.z - 6 - w;
+      y = clamp(p.y - h / 2, 8, H - h - 8);
+      var crowd = function (xx) {
+        var sum = 0;
+        xx = clamp(xx, 4, W - w - 4);
+        placed.forEach(function (o) {
+          if (!o.solid) return;
+          var ow = Math.min(xx + w, o.x + o.w) - Math.max(xx, o.x), oh = Math.min(y + h, o.y + o.h) - Math.max(y, o.y);
+          if (ow > 0 && oh > 0) sum += ow * oh;
+        });
+        return sum;
+      };
+      var first = p.x > W * 0.62 ? left : right, second = first === right ? left : right;
+      x = clamp(crowd(second) < crowd(first) ? second : first, 4, W - w - 4);
+    }
     A.rrect(c, x, y, w, h, 4);
     c.fillStyle = tag.bad ? T.red : T.paper;
     c.fill();
@@ -1728,45 +1941,11 @@
     c.fillStyle = tag.bad ? T.paper : T.ink;
     c.textAlign = "center"; c.textBaseline = "middle";
     c.fillText(text, x + w / 2, y + h / 2 + 1);
-    placed.push({ x: x, y: y, w: w, h: h });
+    placed.push({ x: x, y: y, w: w, h: h, solid: true });
   }
 
-  // His Live tag, with the viewers, or Off air
-  function bossAt() {
-    var s = stage();
-    if (s.scene === "sea") {
-      var bx = boatX(), by = seaY(bx, clock);
-      return toScreen(bx + 2.2, by - A.BOAT_DECK + 6.2);
-    }
-    if (s.scene === "party") return toScreen(st.bossX, 1.4 + 6.2);
-    return toScreen(13, marsY(st.mars.ground, 13) + 4.6);
-  }
-  var liveTop = null;
-  function drawLive(c, placed) {
-    var s = stage();
-    var p = bossAt();
-    var size = 12;
-    c.font = size + "px " + T.display;
-    var text = s.scene === "mars" ? "Earth: 14 minutes ago" : boss.air ? "Live " + boss.viewers.toFixed(1) + "m" : "Off air";
-    text = text.toUpperCase();
-    var tw = c.measureText(text).width, w = tw + 12 + (boss.air && s.scene !== "mars" ? 8 : 0), h = 18;
-    var x = clamp(p.x - w / 2, 4, W - w - 4), y = clamp(p.y - h - 4, 4, H - h - 4);
-    A.rrect(c, x, y, w, h, 3);
-    var live = boss.air && s.scene !== "mars";
-    c.fillStyle = live ? T.red : T.paper;
-    c.fill();
-    c.lineWidth = 1.5; c.strokeStyle = T.ink; c.stroke();
-    c.fillStyle = live ? T.paper : T.ink;
-    c.textAlign = "left"; c.textBaseline = "middle";
-    if (live) {
-      c.beginPath(); c.arc(x + 8, y + h / 2, 3, 0, Math.PI * 2);
-      if (Math.floor(vis * 2) % 2 || shell.reduceMotion) c.fill();
-    }
-    c.fillText(text, x + (live ? 15 : 6), y + h / 2 + 1);
-    placed.push({ x: x, y: y, w: w, h: h, live: true });
-    liveTop = { x: x + w / 2, y: y };
-  }
-
+  // The bobbing arrow at the one thing to deal with (DESIGN.md, section 10).
+  // Drawn last, but placed first, so the tag and the bubbles keep off it.
   function drawHint(c, placed) {
     if (!hint || shell.state() !== "playing") return null;
     var p;
@@ -1781,21 +1960,23 @@
     if (!p) return null;
     var bob = shell.reduceMotion ? 0 : -Math.abs(Math.sin(vis * 4)) * 5;
     var x = clamp(p.x, 40, W - 40), y = Math.max(44, p.y - 4);
-    placed.push({ x: x - 50, y: y - 46, w: 100, h: 50 });
+    placed.push({ x: x - 50, y: y - 46, w: 100, h: 50, solid: true });
     return function () { A.arrow(c, x, y + bob, hint.word, 1); };
   }
 
-  // A speech bubble, drawn in screen pixels so it stays readable on a phone
+  // A speech bubble, drawn in screen pixels so it stays readable on a phone.
+  // His come from his stream (beside it, or under it); the guests' from
+  // over their heads. Two short lines at most.
   function drawBubble(c, b, placed) {
-    var spot;
-    if (b.who === "boss" || b.who === "earth") spot = liveTop || bossAt();
-    else if (b.who === "guest" && b.g) spot = toScreen(b.g.x, 1.4 + 6.4);
-    if (!spot) return;
-    var ax = spot.x, ay = spot.y;
+    var fromPip = b.who === "boss" || b.who === "earth";
+    var P = pip.rect, ax, ay;
+    if (fromPip) { if (!P) return; }
+    else if (b.who === "guest" && b.g) { var g = toScreen(b.g.x, 1.4 + 6.4); ax = g.x; ay = g.y; }
+    else return;
     var size = clamp(Math.min(W, H) * 0.04, 12, N.flags.clip ? 18 : 16);
     c.font = size + "px " + T.display;
     var words = b.text.toUpperCase().split(" "), lines = [""];
-    var maxChars = W < 420 ? 18 : 24;
+    var maxChars = W < 420 ? 22 : 24;
     words.forEach(function (w) {
       var line = lines[lines.length - 1] ? lines[lines.length - 1] + " " + w : w;
       if (line.length > maxChars && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = line;
@@ -1805,46 +1986,76 @@
     var pad = size * 0.5, lh = size * 1.02;
     var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.3;
     var boxes = hudBoxes();
-    var want = { x: clamp(ax - bw / 2, 4, W - bw - 4), y: ay - bh - 12 };
     function topAt(x) {
       var t = 6;
-      boxes.forEach(function (r) { if (x < r.right + 4 && x + bw > r.left - 4) t = Math.max(t, r.bottom + 4); });
+      boxes.forEach(function (r) { if (!r.pad && x < r.right + 4 && x + bw > r.left - 4) t = Math.max(t, r.bottom + 4); });
       return t;
     }
     function overlap(x, y) {
       var sum = 0;
       placed.forEach(function (o) {
-        // the tail hangs below the bubble, so it needs room too
-        var w = Math.min(x + bw + 4, o.x + o.w + 4) - Math.max(x, o.x), h = Math.min(y + bh + size, o.y + o.h + 4) - Math.max(y, o.y);
+        var w = Math.min(x + bw + 4, o.x + o.w + 4) - Math.max(x, o.x), h = Math.min(y + bh + 4, o.y + o.h + 4) - Math.max(y, o.y);
         if (w > 0 && h > 0) sum += w * h;
       });
       return sum;
     }
-    var spots = [want, { x: want.x - bw * 0.6, y: want.y }, { x: want.x + bw * 0.6, y: want.y }, { x: want.x, y: want.y - bh - 8 }];
-    placed.forEach(function (o) {
-      spots.push({ x: want.x, y: o.y - bh - 6 }, { x: o.x - bw - 6, y: want.y }, { x: o.x + o.w + 6, y: want.y });
+    var spots = [];
+    if (fromPip) {
+      // beside his stream, level with his mouth, the tail to the frame; or under it
+      var inner = pip.side < 0 ? 1 : -1, mouth = P.y + P.h * 0.68;
+      var sx = inner > 0 ? P.x + P.w + 12 : P.x - 12 - bw, ex = inner > 0 ? P.x + P.w + 1 : P.x - 1;
+      spots.push({ x: sx, y: mouth - bh * 0.6, tail: { dir: inner > 0 ? "left" : "right", x: ex, y: mouth } });
+      spots.push({ x: sx, y: P.y + 2, tail: { dir: inner > 0 ? "left" : "right", x: ex, y: mouth } });
+      spots.push({ x: sx, y: mouth + 6, tail: { dir: inner > 0 ? "left" : "right", x: ex, y: mouth } });
+      spots.push({ x: pip.side < 0 ? P.x : P.x + P.w - bw, y: P.y + P.h + 12, tail: { dir: "up", x: P.x + P.w * 0.5, y: P.y + P.h + 1 } });
+    } else {
+      var want = { x: ax - bw / 2, y: ay - bh - 12 };
+      [want, { x: want.x - bw * 0.6, y: want.y }, { x: want.x + bw * 0.6, y: want.y }, { x: want.x, y: want.y - bh - 8 }].forEach(function (s) {
+        spots.push({ x: s.x, y: s.y, tail: { dir: "down", x: ax, y: ay } });
+      });
+      placed.forEach(function (o) {
+        spots.push({ x: want.x, y: o.y - bh - 6, tail: { dir: "down", x: ax, y: ay } });
+      });
+    }
+    var best = null, first = spots[0];
+    spots.forEach(function (s, i) {
+      var x = clamp(s.x, 4, W - bw - 4);
+      var y = clamp(s.y, topAt(x), H - bh - 4);
+      var cost = overlap(x, y) * 50 + Math.abs(x - first.x) + Math.abs(y - first.y) * 1.2 + i * 6;
+      if (!best || cost < best.cost) best = { x: x, y: y, cost: cost, tail: s.tail };
     });
-    var best = null;
-    spots.forEach(function (p) {
-      var x = clamp(p.x, 4, W - bw - 4);
-      var y = clamp(p.y, topAt(x), H - bh - 4);
-      var cost = overlap(x, y) * 50 + Math.abs(x - want.x) + Math.abs(y - want.y) * 1.2;
-      if (!best || cost < best.cost) best = { x: x, y: y, cost: cost };
-    });
-    var bx = best.x, by = best.y;
-    placed.push({ x: bx, y: by, w: bw, h: bh });
+    var bx = best.x, by = best.y, tail = best.tail;
+    placed.push({ x: bx, y: by, w: bw, h: bh, solid: true });
     var pop = shell.reduceMotion ? 1 : clamp(b.t * 8, 0, 1);
     c.globalAlpha = Math.min(pop, clamp((b.life - b.t) * 3, 0, 1));
     var r = Math.min(8, bh / 2);
+    // the tail only where it can reach: a side tail needs the bubble beside
+    // the frame, a down tail needs the speaker below it
+    if (tail.dir === "down" && !(by + bh < tail.y - 4)) tail = null;
+    else if (tail.dir === "left" && bx < tail.x + 4) tail = null;
+    else if (tail.dir === "right" && bx + bw > tail.x - 4) tail = null;
+    else if (tail.dir === "up" && by < tail.y + 4) tail = null;
     c.beginPath();
     c.moveTo(bx + r, by);
+    if (tail && tail.dir === "up") {
+      var t1 = clamp(tail.x, bx + r + 7, bx + bw - r - 7);
+      c.lineTo(t1 - 6, by); c.lineTo(clamp(tail.x, t1 - 8, t1 + 8), Math.max(tail.y, by - size * 0.9)); c.lineTo(t1 + 6, by);
+    }
     c.arcTo(bx + bw, by, bx + bw, by + bh, r);
+    if (tail && tail.dir === "right") {
+      var t2 = clamp(tail.y, by + r + 6, by + bh - r - 6);
+      c.lineTo(bx + bw, t2 - 6); c.lineTo(Math.min(tail.x, bx + bw + size), clamp(tail.y, t2 - 8, t2 + 8)); c.lineTo(bx + bw, t2 + 6);
+    }
     c.arcTo(bx + bw, by + bh, bx, by + bh, r);
-    if (by + bh < ay - 4) {
-      var tx = clamp(ax, bx + 12, bx + bw - 12);
-      c.lineTo(tx + 6, by + bh); c.lineTo(clamp(ax, tx - 8, tx + 8), Math.min(ay - 2, by + bh + size * 0.9)); c.lineTo(tx - 5, by + bh);
+    if (tail && tail.dir === "down") {
+      var t3 = clamp(tail.x, bx + 12, bx + bw - 12);
+      c.lineTo(t3 + 6, by + bh); c.lineTo(clamp(tail.x, t3 - 8, t3 + 8), Math.min(tail.y - 2, by + bh + size * 0.9)); c.lineTo(t3 - 5, by + bh);
     }
     c.arcTo(bx, by + bh, bx, by, r);
+    if (tail && tail.dir === "left") {
+      var t4 = clamp(tail.y, by + r + 6, by + bh - r - 6);
+      c.lineTo(bx, t4 + 6); c.lineTo(Math.max(tail.x, bx - size), clamp(tail.y, t4 - 8, t4 + 8)); c.lineTo(bx, t4 - 6);
+    }
     c.arcTo(bx, by, bx + bw, by, r);
     c.closePath();
     c.fillStyle = T.paper;
@@ -1866,7 +2077,7 @@
   }
 
   // What a landing paid, beside the rocket, for a moment: on the side of it
-  // with the most room, clear of his Live tag
+  // with the most room, clear of his stream and the tags
   function drawReceipt(c, placed) {
     if (!receipt || receipt.t > 2.3 || !rk) return;
     var k = receipt.t;
@@ -1919,10 +2130,11 @@
     var s = stage(), title = "Stage " + (run.stage + 1) + ": " + s.name;
     var go = 250 + 3 * (shell.reduceMotion ? 650 : 700);
     if (N.flags.clip) { shell.brief({ title: title, ms: go }); return; }
-    var touch = touching();
+    var how = touching() ? "touch" : lastMode;
     var text = {
-      barge: touch ? "Hold Thrust to slow down. The arrows lean the rocket. Land on the cross, slowly and upright."
-                   : "Hold Up or Space to slow down. Left and right lean the rocket. Land on the cross, slowly and upright.",
+      barge: how === "touch" ? "Hold Thrust to slow down. Touch down at speed 6 or less, upright, on the cross. To move sideways, lean with the arrows, then thrust."
+           : how === "mouse" ? "Hold the mouse button to slow down. Touch down at speed 6 or less, upright, on the cross. Point where you want it to go, and thrust to get there."
+           : "Hold Up or Space to slow down. Touch down at speed 6 or less, upright, on the cross. To move sideways, lean with left and right, then thrust.",
       weather: "Wind, stronger higher up. The streaks and the windsock show which way. Lean into it. A smaller barge.",
       swell: "The deck rides the waves. Land as it sinks, not as it rises. Smaller again.",
       party: "His own lawn. Land on the cross, not the marquee or the pool. Balloons give you a shove.",
@@ -1936,6 +2148,8 @@
   // ---------------------------------------------------------------------------
   root.addEventListener("pointerdown", function (e) {
     var s = shell && shell.state();
+    // pressing start with a mouse: the first notice talks about the mouse
+    if (e.pointerType === "mouse" && s === "title") lastMode = "mouse";
     if (s !== "playing" && s !== "countdown") return;
     if (e.pointerType !== "mouse" || e.button !== 0) return;
     if (e.target && e.target.closest && e.target.closest(".kit-panel, .kit-bar, .kit-pad, button, a")) return;
@@ -1959,7 +2173,7 @@
     tilt: -6,
     note: "Eight rockets. A barge that keeps getting smaller. He'll call it a success either way.",
     hints: {
-      keys: "Up, W or Space to thrust. Left and right, or A and D, to lean. Or hold the mouse button to thrust, and it leans towards the pointer. P to pause.",
+      keys: "Up, W or Space to thrust. Left and right, or A and D, to lean. Or point where it should go and hold the mouse button to thrust. P to pause.",
       touch: "Hold Thrust. Lean with the arrows."
     },
     againLabel: "Fly again",
@@ -2003,7 +2217,8 @@
           h: rk.y - u.y, hCross: rk.y - cu.y, surfVy: cu.vy, surfAngle: cu.angle, cross: crossX(),
           g: s.g, drag: s.drag, push: THRUST * m.thrust, turn: TURN * m.turn, wind: windAt(clock, rk.y - u.y) * m.windK,
           safeVy: SAFE_VY * m.safeVy, safeTilt: SAFE_TILT * m.safeTilt, scene: s.scene, deck: s.deck || 18,
-          screen: { x: sp.x, y: sp.y, w: W, h: H }, reach: MOUSE_REACH, tag: tag && tag.word, score: run.score, landed: run.landed, flown: run.flown
+          screen: { x: sp.x, y: sp.y, w: W, h: H }, cam: { x: cam.x, z: cam.z }, tag: tag && tag.word, score: run.score, landed: run.landed, flown: run.flown,
+          flight: run.flight, pip: pip.rect && { x: pip.rect.x, y: pip.rect.y, w: pip.rect.w, h: pip.rect.h, side: pip.side }
         };
       }
     };

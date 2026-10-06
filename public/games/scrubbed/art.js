@@ -169,7 +169,7 @@
         // one up, one level: pleased with himself
         var up = s === (o.gaze >= 0 ? 1 : -1) ? r * 0.16 : 0;
         c.moveTo(ox, y - r * 0.44 - top - up); c.quadraticCurveTo((ox + ix) / 2, y - r * 0.56 - top - up, ix, y - r * 0.46 - top - up * 0.6);
-      } else if (mood === "worried") {
+      } else if (mood === "worried" || mood === "wince") {
         c.moveTo(ox, y - r * 0.36 - top); c.lineTo(ix, y - r * 0.54 - top);
       } else if (mood === "calm") {
         c.moveTo(ox, y - r * 0.43 - top); c.lineTo(ix, y - r * 0.47 - top);
@@ -203,6 +203,14 @@
     } else if (mood === "worried") {
       ink(c, lw * 0.95);
       c.beginPath(); c.moveTo(mx - r * 0.16, my + r * 0.06); c.quadraticCurveTo(mx, my - r * 0.04, mx + r * 0.16, my + r * 0.06); c.stroke();
+    } else if (mood === "wince") {
+      // teeth clenched: a wide paper grimace with the gaps drawn in
+      rrect(c, mx - r * 0.3, my - r * 0.09, r * 0.6, r * 0.2, r * 0.06);
+      c.fillStyle = T.paper; c.fill(); ink(c, lw * 0.8); c.stroke();
+      c.beginPath();
+      for (var tth = -1; tth <= 1; tth++) { c.moveTo(mx + tth * r * 0.12, my - r * 0.09); c.lineTo(mx + tth * r * 0.12, my + r * 0.11); }
+      c.moveTo(mx - r * 0.3, my + r * 0.01); c.lineTo(mx + r * 0.3, my + r * 0.01);
+      ink(c, lw * 0.5); c.stroke();
     } else if (mood === "calm") {
       ink(c, lw * 0.9);
       c.beginPath(); c.moveTo(mx - r * 0.17, my); c.quadraticCurveTo(mx, my + r * 0.06, mx + r * 0.17, my); c.stroke();
@@ -360,6 +368,153 @@
   }
 
   // ---------------------------------------------------------------------------
+  // His live stream: a phone (ink with a paper edge) and, on its screen, his
+  // selfie-cam close-up: the cut-out from the chest up, in his sunglasses
+  // and flight jacket, with whatever is behind him. In CSS pixels, so call
+  // setView(dpr, 1) first. Returns the screen's rect.
+  // o: { x, y, w, h, pose: film | wince | flee | cheer | point | shout,
+  //      dir (-1 or 1: which way the barge is, for pointing), scene: sea |
+  //      party | earth, fire (what's behind him is on fire), t, sway,
+  //      noise (static instead of him), seed, bands (Mars: the signal
+  //      breaking up) }
+  // ---------------------------------------------------------------------------
+  function selfie(c, o) {
+    var x = o.x, y = o.y, w = o.w, h = o.h, t = o.t || 0;
+    var R = Math.max(8, w * 0.14);
+    rrect(c, x, y, w, h, R);
+    c.fillStyle = T.ink; c.fill();
+    ink(c, Math.max(2.2, w * 0.028), T.paper); c.stroke();
+    var bz = Math.max(4, w * 0.06);
+    var sx = x + bz, sy = y + bz, sw = w - bz * 2, sh = h - bz * 2;
+    var dir = o.dir || 1;
+    c.save();
+    rrect(c, sx, sy, sw, sh, R * 0.55);
+    c.clip();
+    c.fillStyle = T.ink;
+    c.fillRect(sx, sy, sw, sh);
+
+    if (o.noise) {
+      // static: paper dashes on ink, and bands of halftone
+      var n = o.seed || 1;
+      var rnd = function () { n = (n * 16807) % 2147483647; return (n - 1) / 2147483646; };
+      c.fillStyle = T.paper;
+      for (var i = 0; i < sw * sh / 70; i++) c.fillRect(sx + rnd() * sw, sy + rnd() * sh, 2 + rnd() * 12, 1.5 + rnd());
+      c.fillStyle = dots(c, T.paper, 2.2);
+      for (var b = 0; b < 3; b++) c.fillRect(sx, sy + rnd() * sh, sw, 4 + rnd() * 10);
+      c.restore();
+      return { x: sx, y: sy, w: sw, h: sh };
+    }
+
+    var square = o.pose === "cheer" || o.pose === "shout";
+    var Rh = sw * 0.32 * (o.pose === "shout" ? 1.1 : 1);
+    // he leans away from the barge, so it shows over his shoulder; arms up
+    // or shouting, he's square to the camera
+    var cx = sx + sw * (square ? 0.5 : 0.5 - dir * 0.09) + (o.sway || 0);
+    var bottom = sy + sh;
+    var sink = o.pose === "wince" || o.pose === "flee" ? Rh * 0.14 : 0;
+    var hy = bottom - Rh * 2.02 + sink;
+    var lw = Math.max(2, Rh * 0.1);
+    var hz = sy + sh * 0.56;
+
+    // what's behind him
+    if (o.scene === "party") {
+      // the marquee: red and paper stripes, bunting across the top
+      c.fillStyle = T.paper; c.fillRect(sx, sy + sh * 0.18, sw, sh);
+      c.fillStyle = T.red;
+      for (var mx = sx + sw * 0.05; mx < sx + sw; mx += sw * 0.2) c.fillRect(mx, sy + sh * 0.18, sw * 0.1, sh);
+      ink(c, lw * 0.7); c.beginPath(); c.moveTo(sx, sy + sh * 0.18); c.lineTo(sx + sw, sy + sh * 0.18); c.stroke();
+      c.beginPath(); c.moveTo(sx, sy + sh * 0.06); c.quadraticCurveTo(sx + sw / 2, sy + sh * 0.16, sx + sw, sy + sh * 0.06);
+      ink(c, 1.2, T.paper); c.stroke();
+      for (var f = 1; f < 6; f++) {
+        var fx = sx + sw * f / 6, fy = sy + sh * 0.06 + Math.sin(Math.PI * f / 6) * sh * 0.05;
+        c.beginPath(); c.moveTo(fx - 4, fy); c.lineTo(fx + 4, fy); c.lineTo(fx, fy + 8); c.closePath();
+        c.fillStyle = [T.red, T.paper, T.accent][f % 3]; c.fill(); ink(c, 1); c.stroke();
+      }
+      if (o.fire) for (var k = 0; k < 4; k++) fire(c, sx + sw * (0.1 + k * 0.27), sy + sh * 0.5, sh * 0.2 + Math.sin(t * 6 + k) * 3, sw * 0.08, t + k, lw * 0.8);
+    } else if (o.scene === "earth") {
+      // his studio on Earth, fourteen minutes ago: an accent backdrop and his sparkle
+      c.fillStyle = T.accent; c.fillRect(sx, sy, sw, sh);
+      c.fillStyle = shade(c, 0.5); c.fillRect(sx, sy, sw, sh);
+      c.fillStyle = shade(c, 0.32); c.fillRect(sx, sy + sh * 0.5, sw, sh * 0.5);
+      sparkle(c, sx + sw * (dir > 0 ? 0.82 : 0.18), sy + sh * 0.3, sw * 0.13, T.paper);
+    } else {
+      // the sea at night from his boat, and the barge behind him
+      c.fillStyle = T.paper;
+      [[0.1, 0.1], [0.32, 0.24], [0.6, 0.07], [0.86, 0.19], [0.18, 0.4], [0.74, 0.36], [0.46, 0.16]].forEach(function (p) { c.fillRect(sx + p[0] * sw, sy + p[1] * sh, 1.6, 1.6); });
+      sparkle(c, sx + sw * 0.8, sy + sh * 0.12, 3.6, T.paper);
+      c.fillStyle = dots(c, T.paper, 0.9); c.fillRect(sx, hz, sw, 3);
+      ink(c, 1.4, T.paper); c.beginPath(); c.moveTo(sx, hz); c.lineTo(sx + sw, hz); c.stroke();
+      ink(c, 1.2, T.paper);
+      c.beginPath();
+      for (var row = 0; row < 3; row++) {
+        var wy = hz + 8 + row * 9, gap = 13 + row * 5;
+        for (var wx = sx + ((row * 7 + t * 6) % gap) - gap; wx < sx + sw + gap; wx += gap) { c.moveTo(wx - 3, wy); c.quadraticCurveTo(wx, wy - 2.4, wx + 3, wy); }
+      }
+      c.stroke();
+      // the barge on the horizon, on the side he points at, with a fire on it if there's been a fire
+      var bx = sx + sw * (dir > 0 ? 0.9 : 0.1), bw2 = sw * 0.36;
+      c.beginPath(); c.moveTo(bx - bw2 / 2, hz - 1); c.lineTo(bx + bw2 / 2, hz - 1); c.lineTo(bx + bw2 / 2 - 2, hz + 5); c.lineTo(bx - bw2 / 2 + 2, hz + 5); c.closePath();
+      c.fillStyle = T.ink; c.fill(); ink(c, 1.4, T.paper); c.stroke();
+      c.fillStyle = T.red; c.fillRect(bx - bw2 / 2 + 2, hz + 1, bw2 - 4, 1.6);
+      if (o.fire) for (var q = 0; q < 3; q++) fire(c, bx - bw2 * 0.25 + q * bw2 * 0.22, hz - 1, 9 + q % 2 * 4 + Math.sin(t * 7 + q) * 2, 3.2, t + q, 1.2);
+    }
+
+    // his arms and body: the jacket, out of the bottom of the frame
+    var pose = o.pose || "film";
+    var aw = Rh * 0.42;
+    if (pose === "cheer") {
+      arm(c, cx - Rh * 1.15, bottom - Rh * 0.5, cx - Rh * 1.32, hy - Rh * 0.78, lw, aw, T.accent);
+      arm(c, cx + Rh * 1.15, bottom - Rh * 0.5, cx + Rh * 1.32, hy - Rh * 0.78, lw, aw, T.accent);
+    }
+    var by = bottom + Rh * 0.4, brx = Rh * 1.8, bry = Rh * 1.3;
+    var body = new Path2D();
+    body.ellipse(cx, by, brx, bry, 0, 0, Math.PI * 2);
+    c.fillStyle = T.accent;
+    c.fill(body);
+    crescent(c, body, cx, by, brx, bry, Rh * 0.15);
+    ink(c, lw);
+    c.stroke(body);
+    // the collar and the zip
+    c.beginPath(); c.moveTo(cx - Rh * 0.55, by - bry + Rh * 0.1); c.lineTo(cx, by - bry + Rh * 0.62); c.lineTo(cx + Rh * 0.55, by - bry + Rh * 0.1); c.closePath();
+    c.fillStyle = T.paper; c.fill(); ink(c, lw * 0.7); c.stroke();
+    c.beginPath(); c.moveTo(cx + Rh * 0.04, by - bry + Rh * 0.62); c.lineTo(cx + Rh * 0.08, bottom); ink(c, lw * 0.6); c.stroke();
+    // the mission patch: red, with the sparkle
+    var px = cx + Rh * 0.78 * dir, py = by - bry * 0.62;
+    oval(c, px, py, Rh * 0.25, Rh * 0.25, T.red, lw * 0.6);
+    sparkle(c, px, py, Rh * 0.16, T.paper);
+    if (pose === "point") {
+      arm(c, cx + dir * Rh * 1.1, bottom - Rh * 0.45, cx + dir * Rh * 2.0, hy + Rh * 0.4, lw, aw, T.accent);
+      oval(c, cx + dir * Rh * 2.32, hy + Rh * 0.32, Rh * 0.2, Rh * 0.1, T.paper, lw * 0.8, null, dir * -0.25);
+    } else if (pose === "shout") {
+      arm(c, cx + Rh * 1.15, bottom - Rh * 0.4, cx + Rh * 1.42, hy - Rh * 0.3, lw, aw * 1.1, T.accent);
+    } else if (pose !== "cheer") {
+      // holding the camera: the arm comes out towards us
+      arm(c, cx - dir * Rh * 1.15, bottom - Rh * 0.42, cx - dir * Rh * 1.75, bottom + Rh * 0.6, lw, aw * 1.2, T.accent);
+    }
+
+    // his head
+    var mood = { film: "smug", wince: "wince", flee: "wince", cheer: "grin", point: "grin", shout: "shout" }[pose] || "smug";
+    head(c, cx, hy, Rh, { mood: mood, gaze: pose === "point" ? dir * 0.7 : square ? 0 : dir * 0.15, look: "shades", lw: lw });
+    if (pose === "wince" || pose === "flee") {
+      // a bead of sweat
+      var dx = cx + Rh * 0.95 * dir, dy = hy - Rh * 0.42;
+      c.beginPath(); c.moveTo(dx, dy - Rh * 0.22); c.quadraticCurveTo(dx + Rh * 0.15, dy + Rh * 0.02, dx, dy + Rh * 0.1); c.quadraticCurveTo(dx - Rh * 0.15, dy + Rh * 0.02, dx, dy - Rh * 0.22); c.closePath();
+      c.fillStyle = T.paper; c.fill(); ink(c, lw * 0.6); c.stroke();
+    }
+
+    if (o.bands) {
+      // the signal from Earth, breaking up as it comes
+      for (var j = 0; j < 2; j++) {
+        var yy = sy + ((t * 22 + j * sh * 0.55) % (sh + 12)) - 6;
+        c.fillStyle = dots(c, T.paper, 1.6); c.fillRect(sx, yy, sw, 5);
+        c.fillStyle = T.paper; c.fillRect(sx, yy + 5, sw, 1);
+      }
+    }
+    c.restore();
+    return { x: sx, y: sy, w: sw, h: sh };
+  }
+
+  // ---------------------------------------------------------------------------
   // The rocket: the same one as in Thonglets. A white bullet, a red nose cone,
   // red fins, and an accent porthole with a cardboard cut-out of him in it,
   // with landing legs and an engine bell added for coming back down. Drawn
@@ -412,9 +567,10 @@
       c.fill(); ink(c, lw); c.stroke();
     });
 
-    // the engine bell
+    // the engine bell (a bigger one for the bigger engine)
+    var bell = m.engine ? 1.3 : 1;
     c.beginPath();
-    c.moveTo(-5, -12); c.lineTo(5, -12); c.lineTo(7.4, -4.5); c.lineTo(-7.4, -4.5); c.closePath();
+    c.moveTo(-5 * bell, -12); c.lineTo(5 * bell, -12); c.lineTo(7.4 * bell, -4.5 + (bell - 1) * 3); c.lineTo(-7.4 * bell, -4.5 + (bell - 1) * 3); c.closePath();
     c.fillStyle = T.ink; c.fill();
     ink(c, lw * 0.75, T.paper); c.stroke();
 
@@ -924,7 +1080,7 @@
 
   window.ScrubbedArt = {
     init: init, setView: setView, thick: thick, dots: dots, shade: shade, ink: ink, oval: oval, rrect: rrect, sparkle: sparkle,
-    head: head, billionaire: billionaire, guest: guest, rocket: rocket, flame: flame, fire: fire, burst: burst, puff: puff,
+    head: head, billionaire: billionaire, guest: guest, selfie: selfie, rocket: rocket, flame: flame, fire: fire, burst: burst, puff: puff,
     barge: barge, windsock: windsock, boat: boat, lawn: lawn, party: party, balloon: balloon, mars: mars, flag: flag, dish: dish,
     sign: sign, arrow: arrow,
     LEG_X: LEG_X, LEG_WIDE: LEG_WIDE, DECK_UP: DECK_UP, HULL: HULL, BOAT_DECK: BOAT_DECK, BOAT_STAND: BOAT_STAND, PARTY: PARTY
