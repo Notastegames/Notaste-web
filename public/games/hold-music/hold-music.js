@@ -20,7 +20,7 @@
 // 3. Complaints. Two questions, five options, and "our options have
 //    changed": the numbers come in any order. Halfway through the hold the
 //    fast version starts, in a new key, with extra notes and gaps.
-// 4. Cancellations. Three questions, the options the other way round ("For
+// 4. Cancellations. Two questions, the options the other way round ("For
 //    a boat, press 7"), and the fast version is faster.
 //
 // THE MENU. Each question is two beats, each option two beats, then "Please
@@ -31,26 +31,34 @@
 // Pressing before you're allowed just buzzes; 0, * and # are never options.
 // Spoken numbers are their keypad tones.
 //
-// HOLD. A count-in bar, then you're number N in the queue: one bar off the
-// queue for every bar you stay on the line. Notes run along the beat pad
-// into a ring; tap as each one gets there. Each note owns the taps near it
+// HOLD. A count-in bar, with your place in the queue read over it, then one
+// bar off the queue for every bar you stay on the line. The notes you tap
+// are the tune's own (line.js), and they ride the curly cord from the phone
+// to a ring at your handset: tap as each one gets there, while you nod, the
+// bobble bounces and your free mitten drums. Each note owns the taps near it
 // (up to 0.4 of a beat, never past halfway to its neighbours): the first
 // decides it, a hit in the window or a miss (early or late) outside it,
 // and any more are ignored, so a late tap is one mistake, not two. The
 // signal has four bars: a missed note costs one, a stray tap (in no note's
 // zone) costs one, once per gap between notes, and two hits in a row win
 // one back. Lose all four and you're cut off: a dial tone, a redial, and two
-// more places in the queue.
+// more places in the queue. Back from a pause or a tab switch mid-hold, the
+// notes still to come are let off and the hold picks up at the start of its
+// bar after a fresh count-in: a pause never costs anything.
 //
 // PATIENCE. Three to start, five at most. A wrong number, a dropped call or
 // a cut-off each cost one. Run out and you hang up, and the round ends.
 //
-// BETWEEN CALLS (shell.interlude) pick one of three ways to get ready, each
-// with a cost: Put the kettle on (one more patience, a longer queue), Put it
-// on speaker (wider timing, half the beat points), Press 0 a lot (skip a
-// question, faster music), Say you're a new customer (half the queue, one
-// less patience), Find a pen (your number on the note, half the menu points),
-// Ask for a callback (nothing).
+// BETWEEN CALLS (shell.interlude) pick one of three ways to get ready. Each
+// helps a different kind of caller and costs something, and its card says
+// what: Put the kettle on (one more patience, for someone about to run out;
+// the queue is three longer), Put it on speaker (the beat 40ms more
+// forgiving, for unsteady hands; no clean-line bonus), Press 0 a lot (skip
+// the first question and its points, faster music; a clean line pays 250
+// more, a bet for steady hands), Say you're a new customer (half the queue;
+// one less patience), Find a pen (your number on the note as it's read, for
+// a poor memory; the menu scores half), Ask for a callback (nothing). Tested
+// with scripted callers of different skills: no single pick wins for all.
 //
 // TIMING. line.js keeps a transport clock that follows the audio context
 // one for one, schedules every sound 0.15s ahead, and works out heard time
@@ -110,7 +118,7 @@
   var RESTORE = 2;             // hits in a row to win a bar back
   var CUT_QUEUE = 2;           // places added to the queue when you're cut off
   var AHEAD = 0.2;             // the next part of a call is queued this soon
-  var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100, zero: 150 };
+  var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100, zero: 250 };
   var APPROVED = 4300, PENDING = 3400;
   var DIAL = "08004655";       // the number you dial (it's not a real one)
 
@@ -147,7 +155,7 @@
       lock: false, scatter: false, flip: false, vo: false, arr: { please: "easy" },
       welcome: "Thank you for calling A Company.",
       agent: { name: "Sam", look: "glasses", lines: ["Sam, Billing. Oh, that's a fault.", "I'll put you through to Faults."] },
-      brief: "Find your problem on the note. When the menu reads it out, press its number. On hold, tap on the beat to keep your signal up.",
+      brief: "Find your problem on the note. When the menu reads it out, press its number. On hold, tap as each note reaches the ring at your ear.",
       done: "Sam was lovely. Sam couldn't help. Sam has put you through to Faults." },
     { dept: "Faults", menuBpm: 104, hold: [100], key: [0, 0], fastAt: null, queue: 5, cats: ["place", "light"], opts: 4,
       lock: true, scatter: false, flip: false, vo: true, arr: { please: "tune" },
@@ -213,7 +221,7 @@
       apply: function (m, r) { r.patience = Math.min(PATIENCE_MAX, r.patience + 1); m.queue += 3; m.kettle = true; } },
     { id: "speaker", label: "Put it on speaker", detail: "The beat is 40ms more forgiving. The whole house can hear it: no clean-line bonus.",
       apply: function (m) { m.speaker = true; } },
-    { id: "zero", label: "Press 0 a lot", detail: "Skips the first question and its points. The hold pays 150 more, and the music is faster.",
+    { id: "zero", label: "Press 0 a lot", detail: "Skips the first question and its points. A clean line pays 250 more. The music is faster.",
       apply: function (m) { m.skip = true; m.bpm += 8; m.zero = true; } },
     { id: "new", label: "Say you're a new customer", detail: "Sales answer quickly: half the queue. They sell you broadband: one less patience.",
       apply: function (m, r) { m.half = true; r.patience = Math.max(1, r.patience - 1); } },
@@ -531,7 +539,7 @@
     agent: function (p) {
       var c = info(), t = p.t0 + 0.35;
       if (st.clean && !mods.speaker) {
-        run.score += PTS.clean;
+        run.score += PTS.clean + (mods.zero ? PTS.zero : 0);
         p.clean = true;
         setTimeout(function () { if (shell.state() === "playing") shell.callout("Clean line", { tilt: -4 }); }, 250);
       }
@@ -594,8 +602,8 @@
     }
     return n;
   }
-  // what this call's hold is worth (more after pressing 0 a lot)
-  function holdWorth() { return PTS.hold + (mods.zero ? PTS.zero : 0); }
+  // what this call's hold is worth, however long the queue
+  function holdWorth() { return PTS.hold; }
 
   function queueLength() {
     var q = info().queue + mods.queue;
@@ -1030,6 +1038,8 @@
       var ready = info().lock ? p.unlock : right.heard1;
       var r = prof.react[0] + Math.random() * (prof.react[1] - prof.react[0]);
       var wrongP = p.retry ? (prof.wrong[call] || 0) * 0.4 : (prof.wrong[call] || 0);
+      // with a pen, the number's on the note
+      if (mods.pen) wrongP = 0;
       var wrong = Math.random() < wrongP;
       if (clip && call === 1 && !p.retry && !run.clipWrong) { wrong = true; run.clipWrong = true; }
       var key = String(right.n);
@@ -1783,7 +1793,7 @@
       if (h < v.deptAt) D.text(c, "Transferring", l.x + l.w / 2, py, s * 1.15);
       else if (h < v.end - menuBeat() * 2) {
         D.text(c, "Through to", l.x + l.w / 2, l.y + s * 0.95, s * 0.85);
-        D.text(c, v.dept.name, l.x + l.w / 2, py + s * 0.55, s * 1.25);
+        D.text(c, v.dept.name, l.x + l.w / 2, py + s * 0.55, fit(c, v.dept.name, s * 1.25, l.w - s));
       } else D.text(c, "Menu", l.x + l.w / 2, py, s * 1.3);
     } else if (v.kind === "hold") {
       var left = queueLeft(v, h);
@@ -1797,8 +1807,9 @@
     } else if (v.kind === "agent") {
       var a = info().agent;
       D.agentFace(c, px, py + l.h * 0.04, l.h * 0.84, a.look, mouth);
-      D.text(c, a.name || "Connected", mid, l.y + s * 1.05, s * 1.05);
-      D.text(c, info().dept, mid, py + s * 0.75, s * 0.85);
+      var room = l.w - l.h * 1.1 - s * 0.6;
+      D.text(c, a.name || "Connected", mid, l.y + s * 1.05, fit(c, a.name || "Connected", s * 1.05, room));
+      D.text(c, info().dept, mid, py + s * 0.75, fit(c, info().dept, s * 0.85, room));
     } else if (v.kind === "dead") {
       if (h < v.toneAt) D.text(c, "Call ended", l.x + l.w / 2, py, s * 1.2);
       else if (h < v.againAt) D.text(c, "", l.x + l.w / 2, py, s);
@@ -1808,6 +1819,12 @@
     }
     c.restore();
     D.ink(c, 0.7); c.stroke(screen);
+  }
+
+  // a size for a word on the phone's screen that fits in maxW, never under 12px
+  function fit(c, str, size, maxW) {
+    var w = D.measure(c, str, size);
+    return w > maxW ? Math.max(Lay.tmin, size * maxW / w) : size;
   }
 
   function talkingNow(h) {
