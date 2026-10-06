@@ -30,8 +30,10 @@
 //
 // SAYING WHAT TO DO. A notice with the countdown (steer early, brake before
 // the arrow boards). On the first two laps a pointer says Brake when you
-// arrive at a proper corner far too fast, until you've braked into one, and
-// Gas the first time it's full, until you've used it.
+// arrive at a proper corner far too fast, until you've braked into one (or
+// it has told you at three corners), and Gas the first time it's full, until
+// you've used it. Braking isn't always quickest: a driver who can hold two
+// wheels without tipping over goes faster, which is the skill.
 //
 // TODAY'S RACE. Everyone gets the same form, the same grid chatter and the
 // same rivals' moods and mistakes, from seeded streams (shell.random, and
@@ -397,7 +399,7 @@
       k.hopWait = 2;
       if (Math.random() < 0.4) {
         k.vz = 170;
-        if (k.player) say("Airborne. Briefly", 2);
+        if (k.player) say("Airborne. Briefly", 2, 20);
       }
     }
     k.hopWait -= dt;
@@ -647,7 +649,7 @@
     }
     if (vn > 70) {
       impact(k, vn * 0.75, k.x + nx * R, k.y + ny * R, -nx, -ny, true);
-      if (k.player && vn > 110) say(pick(WALL_LINES), 0);
+      if (k.player && vn > 110) say(pick(WALL_LINES), 0, 12, "wall");
     }
   }
 
@@ -672,7 +674,7 @@
                    z: 0, vz: 160, rot: 0, vr: 14, life: 2.6, max: 2.6 });
       if (k.player) say("Wheel: optional", 2);
     } else if (k.player && strength > 150) {
-      say("Physics has given up", 1);
+      say("Physics has given up", 1, 20);
     }
   }
 
@@ -699,7 +701,7 @@
           if ((a.player || b.player) && -rv > 50) {
             var other = a.player ? b : a;
             talk(other, pick(BUMPED), true);
-            if (-rv > 90) say(["Sorry, " + other.name, "Contact. Approved", "Insurance: pending review"][Math.floor(Math.random() * 3)], 0);
+            if (-rv > 90) say(["Sorry, " + other.name, "Contact. Approved", "Insurance: pending review"][Math.floor(Math.random() * 3)], 0, 12, "contact");
           }
         }
       }
@@ -1033,11 +1035,16 @@
   // ---------------------------------------------------------------------------
   // Callouts and camera shake
   // ---------------------------------------------------------------------------
-  var calloutPriority = 0;
-  function say(text, priority) {
+  // every: a routine one (a hop off a kerb, a knock) doesn't come round again
+  // within that many seconds, counted by key or by its words
+  var calloutPriority = 0, saidAt = {};
+  function say(text, priority, every, key) {
     if (!shell || shell.state() !== "playing") return;
     var since = raceTime - lastCallout;
     if (since < 1.3 && priority <= calloutPriority) return;
+    key = key || text;
+    if (every && saidAt[key] != null && raceTime - saidAt[key] < every) return;
+    saidAt[key] = raceTime;
     lastCallout = raceTime;
     calloutPriority = priority;
     shell.callout(text, { sound: priority >= 2 });
@@ -1070,6 +1077,7 @@
     finishers = 0;
     lastCallout = -10;
     calloutPriority = 0;
+    saidAt = {};
     lastPlace = 4;
     flags = {};
     cam.x = player.x + Math.cos(player.a) * 60;
@@ -1173,6 +1181,12 @@
       if (speed > Math.sqrt(safe * safe + BRAKE * 0.6 * u) + 10) late = true;
     }
     if (input.down && corner && speed > 120) { learned.brake = true; flags.brakeHint = 0; return; }
+    // three corners' worth of telling is enough: anyone still not braking
+    // after that either can't hear it or doesn't need to
+    if (late && flags.brakeHint <= 0) {
+      learned.told = (learned.told || 0) + 1;
+      if (learned.told > 3) { learned.brake = true; return; }
+    }
     if (late) flags.brakeHint = 1;
   }
 
@@ -1906,7 +1920,7 @@
       var bp = touch && padBox("down");
       if (bp) a = { x: bp.x - 6, y: bp.y + bp.h / 2, dir: "right", word: "Brake" };
       else {
-        var at = window.HeavyTraffic.placeOnScreen(view, player.x, player.y, 58);
+        var at = window.HeavyTraffic.placeOnScreen(view, player.x, player.y, 52);
         if (at) a = { x: at.x, y: at.y - 4, dir: "down", word: "Brake: press Down" };
       }
     } else if (!learned.gas && player.gas >= 1 && raceTime > 3 && player.lap <= 2) {
