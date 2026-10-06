@@ -1956,10 +1956,10 @@
     title: "Scrubbed",
     stamp: "Good data",
     tilt: -6,
-    note: "Eight reusable rockets, five stages, one barge that keeps getting smaller. He'll call it a success either way.",
+    note: "Eight rockets. A barge that keeps getting smaller. He'll call it a success either way.",
     hints: {
       keys: "Up, W or Space to thrust. Left and right, or A and D, to lean. Or hold the mouse button to thrust, and it leans towards the pointer. P to pause.",
-      touch: "Hold Thrust on the right. Lean with the arrows on the left."
+      touch: "Hold Thrust. Lean with the arrows."
     },
     againLabel: "Fly again",
     aim: true,
