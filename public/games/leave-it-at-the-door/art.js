@@ -102,13 +102,14 @@
     var fpx = Math.max(size * k, (opts.min || 0) * dpr);
     c.save();
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.font = fpx.toFixed(2) + "px " + (opts.font || T.display);
+    var wt = opts.weight ? opts.weight + " " : "";
+    c.font = wt + fpx.toFixed(2) + "px " + (opts.font || T.display);
     c.textAlign = opts.align || "center";
     c.textBaseline = opts.base || "middle";
     var s = opts.upper === false ? str : String(str).toUpperCase();
     if (opts.max) {
       var w = c.measureText(s).width;
-      if (w > opts.max * k) { fpx *= opts.max * k / w; c.font = fpx.toFixed(2) + "px " + (opts.font || T.display); }
+      if (w > opts.max * k) { fpx *= opts.max * k / w; c.font = wt + fpx.toFixed(2) + "px " + (opts.font || T.display); }
     }
     if (opts.stroke) {
       c.lineWidth = opts.stroke * k;
@@ -905,10 +906,88 @@
     solid(c, ell(x, y, s * 0.26, s * 0.26), lit ? T.accent : T.ink, 2);
   }
 
+  // A letterbox: a plate, a slot, a flap; on, it's open and shouting
+  function letterbox(c, cx, cy, s, on) {
+    var w = s * 0.95, h = s * 0.42;
+    solid(c, rr(cx - w / 2, cy - h / 2, w, h, s * 0.08), T.paper, 2.2);
+    solid(c, rr(cx - w * 0.38, cy - h * 0.16, w * 0.76, h * 0.32, s * 0.04), T.ink, 0);
+    if (on) {
+      solid(c, poly([[cx - w * 0.38, cy - h * 0.16], [cx + w * 0.38, cy - h * 0.16], [cx + w * 0.34, cy - h * 0.62], [cx - w * 0.34, cy - h * 0.62]]), T.paper, 2);
+      [-1, 0, 1].forEach(function (k) { line(c, [[cx + k * w * 0.22, cy + h * 0.35], [cx + k * w * 0.36, cy + h * 0.85]], 2.2); });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // A resident at the door, full height: the head and look from person(),
+  // a cardigan or a gown, tube arms with mittens, legs, slippers. Feet on
+  // (x, y), h tall, CSS pixels. o: { pose: hips | wave | shout | baby,
+  //   shout (0..1), awake (the baby), look (eyes), brows }
+  // ---------------------------------------------------------------------------
+  function resident(c, x, y, h, look, o) {
+    o = o || {};
+    var R = h * 0.125, lw = Math.max(2, R * 0.1);
+    var hy = y - h + R * 1.05;
+    var shY = hy + R * 1.45, hipY = shY + h * 0.36;
+    var top = look === "scarf" ? T.red : look === "gown" || look === "curlers" || look === "baby" ? T.accent : T.paper;
+    var pose = o.pose || "hips";
+    if (look === "baby") pose = pose === "shout" ? "shout" : "baby";
+    function arm(pts, flip) {
+      line(c, pts, R * 0.62, T.ink);
+      line(c, pts, R * 0.62 - lw * 2, top);
+      var p = pts[pts.length - 1];
+      mitten(c, p[0], p[1], R * 0.36, T.paper, flip, lw);
+    }
+    // legs and slippers
+    [-1, 1].forEach(function (s) {
+      var lx = x + s * R * 0.5;
+      line(c, [[lx, hipY - R * 0.2], [lx + s * R * 0.08, y - R * 0.35]], R * 0.55, T.ink);
+      line(c, [[lx, hipY - R * 0.2], [lx + s * R * 0.08, y - R * 0.35]], R * 0.55 - lw * 2, T.paper);
+      solid(c, ell(lx + s * R * 0.22, y - R * 0.2, R * 0.5, R * 0.26), T.red, lw);
+    });
+    // the body: a cardigan, or a gown with a belt
+    var body = new Path2D();
+    body.moveTo(x - R * 1.15, shY - R * 0.1);
+    body.lineTo(x + R * 1.15, shY - R * 0.1);
+    body.lineTo(x + R * 1.35, hipY + R * 0.3);
+    body.lineTo(x - R * 1.35, hipY + R * 0.3);
+    body.closePath();
+    solid(c, body, top, lw);
+    if (top === T.paper) shade(c, body, box(x + R * 0.4, shY - R, R * 1.5, h), R * 0.16, T.ink);
+    line(c, [[x, shY + R * 0.3], [x, hipY + R * 0.25]], lw * 0.8);
+    if (top === T.accent) line(c, [[x - R * 1.25, hipY - R * 0.5], [x + R * 1.25, hipY - R * 0.5]], lw * 2.2, T.paper);
+    // the arm at the back first
+    var L0 = [x - R * 1.0, shY + R * 0.2], R0 = [x + R * 1.0, shY + R * 0.2];
+    if (pose === "baby") arm([L0, [x - R * 1.7, shY + R * 1.4], [x - R * 0.6, hipY - R * 0.2]], false);
+    else if (pose === "shout") arm([L0, [x - R * 1.9, shY - R * 0.4], [x - R * 1.6, hy - R * 1.0]], false);
+    else arm([L0, [x - R * 2.0, shY + R * 1.3], [x - R * 1.25, hipY - R * 0.15]], false);
+    // the head and the one thing each (the baby goes on the hip, not the sling)
+    person(c, x, hy, R, look === "baby" ? "curlers" : look, { shout: o.shout || 0, brows: o.brows, look: o.look || 0, smile: o.smile });
+    if (pose === "baby") {
+      var bx = x - R * 1.35, by = hipY - R * 0.75;
+      solid(c, ell(bx, by + R * 0.4, R * 0.8, R * 0.7), T.paper, lw);
+      shade(c, ell(bx, by + R * 0.4, R * 0.8, R * 0.7), null, R * 0.18, T.ink);
+      solid(c, ell(bx - R * 0.1, by - R * 0.55, R * 0.62, R * 0.58), T.paper, lw);
+      if (o.awake) {
+        solid(c, ell(bx - R * 0.1, by - R * 0.38, R * 0.22, R * 0.17), T.ink, 0);
+        line(c, [[bx - R * 0.38, by - R * 0.72], [bx - R * 0.2, by - R * 0.64]], lw);
+        line(c, [[bx + R * 0.18, by - R * 0.72], [bx, by - R * 0.64]], lw);
+      } else {
+        c.beginPath(); c.arc(bx - R * 0.3, by - R * 0.62, R * 0.12, 0.2, Math.PI - 0.2); ink(c, lw * 0.8); c.stroke();
+        c.beginPath(); c.arc(bx + R * 0.1, by - R * 0.62, R * 0.12, 0.2, Math.PI - 0.2); c.stroke();
+      }
+      arm([L0, [x - R * 1.9, shY + R * 1.0], [x - R * 0.7, hipY - R * 0.2]], false);
+    }
+    // the arm at the front
+    if (pose === "wave") arm([R0, [x + R * 2.0, shY - R * 0.3], [x + R * 2.2, hy - R * 1.1]], true);
+    else if (pose === "shout") arm([R0, [x + R * 1.5, shY + R * 0.3], [x + R * 0.85, hy + R * 0.6]], true);
+    else arm([R0, [x + R * 2.0, shY + R * 1.3], [x + R * 1.25, hipY - R * 0.15]], true);
+  }
+
   window.LeaveArt = {
     init: init, dots: dots, ink: ink, rr: rr, box: box, ell: ell, poly: poly, solid: solid, shade: shade, line: line,
     text: text, measure: measure, wrap: wrap, face: face, mitten: mitten, bubble: bubble, arrow: arrow, brackets: brackets,
     bakeTown: bakeTown, car: car, rider: rider, logo: logo, pin: pin, person: person, LOOKS: LOOKS, icon: icon,
-    frontDoor: frontDoor, doorbell: doorbell, tree: tree, puddle: puddle, helmet: helmet
+    frontDoor: frontDoor, doorbell: doorbell, tree: tree, puddle: puddle, helmet: helmet,
+    letterbox: letterbox, resident: resident
   };
 })();

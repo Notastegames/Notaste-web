@@ -65,22 +65,25 @@
 
   var SPEED = 27;          // units a second
   var BAG = 3;
-  var START = 4.9, FLOOR = 4.5;
+  var START = 4.7, FLOOR = 4.4;
+  var CANCEL = 5;           // minutes late before the app cancels it
+  var PULL = 1.5;           // an idle rider gets the next order this soon after the last
+  var LAST = 6;             // no new orders in a rush's last minutes
   var SKID = 3.0;            // in the rain, a turn pressed this close to the junction skids past it
   if (DEBUG && params.has("skid")) SKID = +params.get("skid");
   var APPROVE = { rating: 4.8, delivered: 24 };
 
   var STAGES = [
-    { key: "lunch", name: "Lunch", start: 12 * 60, len: 40, gap: [4.9, 5.9], types: { bell: 3, knock: 3, code: 2 },
+    { key: "lunch", name: "Lunch", start: 12 * 60, len: 40, gap: [4.9, 5.9], types: { bell: 3, knock: 3, shout: 2, code: 2 },
       k: 1.7, slack: 5, shrink: 0.3, batch: 0.15, prep: [1.6, 3.4],
       brief: "Orders arrive by themselves. Ride to the pickup, then the door: arrow keys steer, or tap where to go. At the door, read the note and press when it shows what they asked for." },
-    { key: "rain", name: "Rain", start: 15 * 60, len: 40, gap: [4.3, 5.3], types: { bell: 2, knock: 2, code: 2, photo: 3 },
+    { key: "rain", name: "Rain", start: 15 * 60, len: 40, gap: [4.3, 5.3], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 3 },
       k: 1.65, slack: 5, shrink: 0.45, batch: 0.22, prep: [1.5, 3.2], rain: true,
       brief: "Rain. Press your turn before the junction or you'll skid past it. Puddles soak the food. The app has added a 10p weather bonus for you, and a rain fee for them." },
-    { key: "friday", name: "Friday night", start: 19 * 60, len: 40, gap: [3.9, 4.8], types: { bell: 2, knock: 2, code: 2, photo: 2, back: 3 },
+    { key: "friday", name: "Friday night", start: 19 * 60, len: 40, gap: [3.9, 4.8], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 2, back: 3 },
       k: 1.6, slack: 4, shrink: 0.55, batch: 0.3, prep: [1.4, 3.0], oneway: true, cars: true,
       brief: "Friday night. One-way streets: go the wrong way and you push. Parked cars open their doors: when the light comes on, wait. Some flats are round the back. The app's pin isn't." },
-    { key: "final", name: "Cup final", start: 20 * 60, len: 40, gap: [3.2, 4.0], types: { bell: 2, knock: 3, code: 2, photo: 2, back: 2 },
+    { key: "final", name: "Cup final", start: 20 * 60, len: 40, gap: [3.2, 4.0], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 2, back: 2 },
       k: 1.55, slack: 4, shrink: 0.6, batch: 0.35, prep: [1.3, 2.8], oneway: true, cars: true, precinct: true, goals: 2,
       brief: "Cup final. Everyone orders at once, and again at every goal. The high street is a precinct: walk your bike through it." }
   ];
@@ -92,18 +95,19 @@
   var NOTES = {
     bell: ["Ring the bell. I'm upstairs.", "Ring the bell. Loudly.", "Bell works. Ring it.", "Ring the bell. Ignore the dog."],
     knock: ["Don't ring. Baby asleep.", "Bell's broken. Knock.", "Don't ring the bell. Knock.", "Knock. The dog goes mad at the bell.", "Don't ring. Night shift. Knock."],
+    shout: ["Bell's broken. Don't knock, the dog. Shout through the letterbox.", "Shout through the letterbox. I'm in the bath.", "Don't ring, don't knock. Shout through the letterbox."],
     code: ["Gate code {code}.", "Code for the gate is {code}.", "Buzz in. Code {code}."],
     photo: ["Leave it at the door. We're {no}.", "Leave it at the door. Photo please. {no}, not next door."],
-    back: ["Flat {flat}. Round the back through the bins. {bk}", "Flat {flat}. Round the back, past the bins. {bk}"]
+    back: ["{flat}. Round the back through the bins. {bk}", "{flat}. Round the back, past the bins. {bk}"]
   };
   var BACK_BK = { Bell: "Ring.", Knock: "Knock." };
   var LINES = {
-    onTime: ["The app said you were outside.", "Ta. The app said you'd been.", "Cheers. Is it hot.", "Lovely. Is there sauce.", "The app said ten past. It's ten past.", "Thanks. Sorry about the stairs."],
+    onTime: ["The app said you were outside.", "Ta. The app said you'd been.", "It says here you're a {r}. You look like a {r2}.", "The app said ten past. It's ten past.", "Thanks. Sorry about the stairs.", "On the app you were a little car."],
     late: ["The app said twelve minutes.", "The app had you in the canal.", "It said you were outside. Twice.", "Cold. Not your fault. Still cold.", "The map had you going round the park."],
-    baby: ["That's the baby up. Brilliant.", "The baby. You absolute melon."],
+    baby: ["That's the baby up. Brilliant.", "The note said. The note."],
     soggy: ["Why is it wet.", "It's soup now. It wasn't soup."],
     gate: ["That's not the code, you lemon.", "Wrong code. Try the right one."],
-    trap: ["Round the back, you plonker.", "Not this door. Read the note."],
+    trap: ["The app always sends them to the front.", "Round the back, love. The app never knows."],
     final: ["Did you see that goal.", "Quick. It's extra time."]
   };
   var CHOICES = [
@@ -130,7 +134,7 @@
   var W = 1, H = 1, DPR = 1, L = null;
   var townCanvas = null, townKey = "";
   var stageIdx = 0, stage = null, clock = 0, rng = null, carRng = null;
-  var rider, route, orders, deals, dealAt, nextTag;
+  var rider, route, orders, deals, dealAt, nextTag, nextDealT, lastDealT, pulledTold;
   var rating, earned, fees, delivered, onTime, lateCount, cancelled, babies;
   var stageStats, owned, toasts, mapBubbles, fx, doorstep, taught, prev, hudEls, briefed, ended, goalsAt, toldOutside;
   var pointerDown = null, autoT = 0, autoDoorT = 0, autoWrong = false;
@@ -173,6 +177,7 @@
     route = null;
     orders = [];
     toasts = [];
+    banners = []; bannerNow = null; bannerGap = 0;
     mapBubbles = [];
     fx = [];
     doorstep = null;
@@ -181,7 +186,7 @@
     toldOutside = false;
     stageStats = { delivered: 0, onTime: 0, late: 0, earned: 0, fees: 0, rating0: rating, cancelled: 0 };
     dealStage();
-    toast(stageIdx === 0 ? "You're online. Orders will be accepted for you." : stageIdx === 1 ? "Weather bonus: 10p. Stay safe out there." :
+    banner(stageIdx === 0 ? "You're online. Orders will be accepted for you." : stageIdx === 1 ? "Weather bonus: 10p. Stay safe out there." :
           stageIdx === 2 ? "It's Friday. Demand is high. Pay is not." : "Cup final tonight. Big match fee for customers: £2.99.");
     if (stageIdx >= 1 && owned.ebike) charge(500, "E-bike rental");
     if (stageIdx >= 1 && owned.plus) charge(600, "Rider Plus");
@@ -206,21 +211,37 @@
     return keys[0];
   }
   function dealStage() {
+    // a queue of orders, each with the gap before the next; a rider with
+    // nothing on gets the next one early (faster riders get more orders)
     deals = [];
-    var t = 0.8, gapK = owned.all ? 0.75 : 1;
+    var gapK = owned.all ? 0.75 : 1;
+    for (var i = 0; i < 40; i++) deals.push({ gap: (stage.gap[0] + rng() * (stage.gap[1] - stage.gap[0])) * gapK, d: makeDeal() });
     // goals in the cup final: two bursts
     goalsAt = [];
-    if (stage.goals) { goalsAt = [12 + rng() * 6, 27 + rng() * 6]; }
-    while (t < stage.len - 7) {
-      deals.push({ t: t, d: makeDeal() });
-      t += (stage.gap[0] + rng() * (stage.gap[1] - stage.gap[0])) * gapK;
+    if (stage.goals) {
+      [12 + rng() * 5, 25 + rng() * 5].forEach(function (g) { goalsAt.push({ t: g, ds: [makeDeal(), makeDeal()], done: false }); });
+    }
+    dealAt = 0;
+    nextDealT = 0.8;
+    lastDealT = -99;
+    pulledTold = false;
+  }
+  function dealOrders() {
+    if (clock >= stage.len - LAST) return;
+    var load = orders.filter(function (o) { return o.state === "assigned" || o.state === "bag"; }).length;
+    var early = load <= 1 && dealAt > 0 && clock - lastDealT >= PULL && clock < nextDealT;
+    if ((clock >= nextDealT || early) && dealAt < deals.length) {
+      var entry = deals[dealAt++];
+      lastDealT = clock;
+      nextDealT = clock + entry.gap;
+      deal(entry);
+      if (early && !pulledTold && stageIdx === 0) { pulledTold = true; banner("Faster riders get more orders. Same rate."); }
     }
     goalsAt.forEach(function (g) {
-      for (var i = 0; i < 2; i++) deals.push({ t: g + i * 0.3, d: makeDeal(), goal: i === 0 });
+      if (g.done || clock < g.t) return;
+      g.done = true;
+      g.ds.forEach(function (d, i) { deal({ d: d, goal: i === 0 }); });
     });
-    deals.sort(function (a, b) { return a.t - b.t; });
-    // the first order of the shift comes from near the start, so the first ride is short
-    dealAt = 0;
   }
   function makeDeal() {
     var r = rng;
@@ -278,13 +299,13 @@
     };
     // the note, and what the doorstep will cycle through
     var tmpl = NOTES[type][deal.note % NOTES[type].length];
-    if (type === "bell" || type === "knock") {
-      o.options = deal.opt < 0.5 ? ["Bell", "Knock"] : ["Knock", "Bell"];
-      o.answer = type === "bell" ? "Bell" : "Knock";
+    if (type === "bell" || type === "knock" || type === "shout") {
+      o.options = rotate(["Bell", "Knock", "Letterbox"], Math.floor(deal.opt * 3));
+      o.answer = type === "bell" ? "Bell" : type === "knock" ? "Knock" : "Letterbox";
     } else if (type === "back") {
-      o.options = deal.opt < 0.5 ? ["Bell", "Knock"] : ["Knock", "Bell"];
+      o.options = rotate(["Bell", "Knock", "Letterbox"], Math.floor(deal.opt * 3));
       o.answer = deal.bk;
-      tmpl = tmpl.replace("{flat}", String(house.flatNo + 1) + (house.block === "court" ? "B" : "A")).replace("{bk}", BACK_BK[deal.bk]);
+      tmpl = tmpl.replace("{flat}", flatName(house)).replace("{bk}", BACK_BK[deal.bk]);
     } else if (type === "code") {
       var c = deal.code.slice();
       if (c[0] === c[1]) c[1] = (c[1] + 3) % 10;
@@ -303,6 +324,9 @@
       tmpl = tmpl.replace("{no}", o.answer);
     }
     o.note = tmpl;
+    // a baby on the note means a baby on the hip; no baby, no baby
+    if (/[Bb]aby/.test(tmpl)) o.look = "baby";
+    else if (o.look === "baby") o.look = "curlers";
     // the promise: how long a decent ride would take, times the app's optimism
     var est = travel(riderPlace(), rest.stop) + Math.max(0, o.readyAt - clock) * 0.6 + travel(rest.stop, realStop(Object.assign({}, o, { state: "bag" }))) + 1.5;
     var queued = orders.filter(function (q) { return q.state === "assigned" || q.state === "bag"; }).length;
@@ -314,16 +338,17 @@
     return o;
   }
   function rotate(a, n) { return a.slice(n).concat(a.slice(0, n)); }
+  function flatName(hs) { return "Flat " + (hs.flatNo + 1) + (hs.block === "court" ? "B" : "A"); }
+  function where(hs) { return hs.kind === "flat" ? flatName(hs) + ", " + hs.street : hs.no + " " + hs.street; }
 
-  function deal(i) {
-    var d = deals[i];
+  function deal(d) {
     var o = assign(d.d);
     if (!o) return;
     sfx("ping");
     if (d.goal) {
       shell.callout("Goal", { tilt: -4 });
       sfx("crowd");
-      toast("Goal. Everyone has ordered chips.");
+      banner("Goal. Everyone has ordered chips.");
     } else {
       toast("New order: " + o.brand + ". Accepted for you.");
     }
@@ -335,6 +360,23 @@
   function toast(text) {
     toasts.unshift({ text: text, t: 0 });
     if (toasts.length > 3) toasts.length = 3;
+  }
+  // The app's best lines go up on a banner over the town, rationed: one at a
+  // time, a gap between them, two waiting at most (the rest stay on the phone)
+  var banners = [], bannerNow = null, bannerGap = 0, BANNER_T = 3.8, BANNER_GAP = 2.5;
+  function banner(text) {
+    toast(text);
+    if (bannerNow && bannerNow.text === text) return;
+    if (banners.some(function (b) { return b === text; })) return;
+    if (banners.length >= 2) return;
+    banners.push(text);
+  }
+  function animateBanner(dt) {
+    if (bannerNow) {
+      bannerNow.t += dt;
+      if (bannerNow.t >= BANNER_T) { bannerNow = null; bannerGap = BANNER_GAP; }
+    } else if (bannerGap > 0) bannerGap -= dt;
+    else if (banners.length) bannerNow = { text: banners.shift(), t: 0 };
   }
   function say(x, y, line, who) {
     mapBubbles = mapBubbles.filter(function (b) { return b.who !== who; });
@@ -369,7 +411,8 @@
     orders.forEach(function (o) {
       if (o.state === "assigned" && room) act[o.rest.stop.id] = true;
       if (o.state === "bag") {
-        if (o.type === "back") { act[o.house.back.id] = true; if (!o.frontTried) act[o.house.front.id] = true; }
+        // round the back: the front only stops you if you rode to the app's pin
+        if (o.type === "back") { act[o.house.back.id] = true; if (!o.frontTried && route && route.stop === o.house.front.id) act[o.house.front.id] = true; }
         else act[o.house.front.id] = true;
       }
     });
@@ -673,7 +716,7 @@
     // the app batches more on, whether you like it or not
     var r = o.deal.batch;
     var pending = deals.length - dealAt;
-    if (r < stage.batch && !o.batched && pending > 0 && clock < stage.len - 9 && bagCount() < bagSize()) {
+    if (r < stage.batch && !o.batched && pending > 0 && clock < stage.len - LAST - 2 && bagCount() < bagSize()) {
       var d = deals.splice(dealAt + Math.floor(o.deal.first * Math.min(3, pending)), 1)[0];
       var b = assign(d.d, true, o.rest);
       if (b) {
@@ -709,7 +752,9 @@
   var STEP = [0.72, 0.64, 0.58, 0.54];
   function startDoor(o, st) {
     var opts = o.options;
-    doorstep = { o: o, st: st, opts: opts, at: Math.floor(o.deal.perm * 7) % opts.length, stepT: 0, step: STEP[stageIdx],
+    var at0 = Math.floor(o.deal.perm * 7) % opts.length;
+    if (opts[at0] === o.answer) at0 = (at0 + 1) % opts.length;
+    doorstep = { o: o, st: st, opts: opts, at: at0, stepT: 0, step: STEP[stageIdx],
                  t: 0, done: false, doneT: 0, wrongs: 0, flash: 0, line: null, shout: false, awake: false, slide: 0 };
     rider.busy = { kind: "door", stop: st, t: 0 };
     sfx("brake");
@@ -731,7 +776,11 @@
       var n = d.opts.length, seq = [], i;
       for (i = 0; i < n; i++) seq.push(i);
       for (i = n - 2; i > 0; i--) seq.push(i);
-      var k = d.stepT / d.step, idx = Math.floor(k) % seq.length, f = k - Math.floor(k);
+      if (d.seq0 == null) {
+        d.seq0 = 0;
+        for (i = 0; i < seq.length; i++) if (d.opts[seq[i]] !== d.o.answer) { d.seq0 = i; break; }
+      }
+      var k = d.stepT / d.step + d.seq0, idx = Math.floor(k) % seq.length, f = k - Math.floor(k);
       var a = seq[idx], b = seq[(idx + 1) % seq.length];
       var was = Math.round(d.slide);
       d.slide = a + (b - a) * (f < 0.62 ? 0 : (f - 0.62) / 0.38);
@@ -744,11 +793,12 @@
   }
   function press() {
     var d = doorstep;
-    if (!d || d.done || d.t < 0.3) return;
+    if (!d || d.done || d.t < 0.05) return;
     var o = d.o, shown = showing();
     if (shown === o.answer) {
-      if (o.type === "bell" || (o.type === "back" && shown === "Bell")) sfx("bell");
-      else if (o.type === "knock" || o.type === "back") sfx("knock");
+      if (shown === "Bell") sfx("bell");
+      else if (shown === "Knock") sfx("knock");
+      else if (shown === "Letterbox") sfx("shout");
       else if (o.type === "code") sfx("buzz");
       else sfx("shutter");
       deliver(o, d.wrongs ? "fixed" : "ok");
@@ -757,8 +807,8 @@
     d.wrongs++;
     d.flash = 0.5;
     if (o.type === "knock" || (o.type === "back" && o.answer === "Knock")) {
-      if (shown === "Bell") {
-        sfx("bell");
+      if (shown === "Bell" || shown === "Letterbox") {
+        sfx(shown === "Bell" ? "bell" : "shout");
         sfx("baby");
         d.awake = true;
         babies++;
@@ -767,9 +817,9 @@
         return;
       }
     }
-    if (o.type === "bell" || o.type === "back") { sfx("knock"); rare("noanswer", "No answer", 2); return; }
+    if (o.type === "bell" || o.type === "back" || o.type === "shout") { sfx(shown === "Bell" ? "bell" : shown === "Knock" ? "knock" : "shout"); rare("noanswer", "No answer", 2); return; }
     if (o.type === "code") { sfx("buzzWrong"); d.line = pick(LINES.gate); rare("gate", "Gate: shut", 2); return; }
-    if (o.type === "photo") { sfx("shutter"); rate(-0.04); rare("photo", "Wrong door", 2); toast("Customer says it isn't there. You photographed next door."); }
+    if (o.type === "photo") { sfx("shutter"); rate(-0.04); rare("photo", "Wrong door", 2); banner("Customer says it isn't there. You photographed next door."); }
   }
 
   // ---------------------------------------------------------------------------
@@ -789,7 +839,7 @@
     o.state = "done";
     var late = Math.max(0, Math.ceil(now() - o.due));
     var lines = late > 0 ? LINES.late : stageIdx === 3 && o.deal.tip < 0.4 ? LINES.final : LINES.onTime;
-    var line = pick(lines);
+    var line = pick(lines).replace("{r2}", Math.max(1, rating - 0.3).toFixed(1)).replace("{r}", rating.toFixed(1));
     if (how === "baby") line = pick(LINES.baby);
     else if (o.soggy) line = pick(LINES.soggy);
     d.line = line;
@@ -799,10 +849,10 @@
     stageStats.earned += o.pay; stageStats.fees += o.fees;
     if (late > 0) {
       lateCount++; stageStats.late++;
-      rate(-(0.03 + Math.min(0.08, late * 0.01)));
+      rate(-(0.04 + Math.min(0.06, late * 0.012)));
     } else {
       onTime++; stageStats.onTime++;
-      rate(0.025 + (o.due - now() >= 3 ? 0.01 : 0));
+      rate(o.due - now() >= 3 ? 0.02 : 0.012);
     }
     if (o.soggy) rate(-0.03);
     if (!taught.door) taught.door = true;
@@ -813,11 +863,11 @@
     sfx(late > 0 || how === "baby" ? "low" : "coin");
     // the app has something to say about it
     var tip = o.deal.tip;
-    if (tip < 0.22) toast(o.name + " tipped 0p. Say thanks.");
-    else if (tip < 0.32) { toast(o.name + " tipped £1. Your pay has been adjusted by -£1. Tip included."); }
+    if (tip < 0.22) banner(o.name + " tipped 0p. Say thanks.");
+    else if (tip < 0.32) { banner(o.name + " tipped £1. Your pay has been adjusted by -£1. Tip included."); }
     else if (late > 0) toast("You were " + late + " minute" + (late > 1 ? "s" : "") + " late. The customer has been told it was you.");
     else if (tip < 0.5) toast("Delivered. The customer paid " + money(o.fees) + " in fees. You earned " + money(o.pay) + ".");
-    else if (tip < 0.62) toast("Great job. Your pay is unchanged.");
+    else if (tip < 0.62) banner("Great job. Your pay is unchanged.");
     paintHud();
   }
 
@@ -825,7 +875,7 @@
     if (ended) return;
     ended = true;
     paintHud();
-    toast("Your account is under review. This decision was made automatically.");
+    banner("Your account is under review. This decision was made automatically.");
     shell.callout("Account: under review", { tilt: -5 });
     sfx("low");
     endRound(false);
@@ -838,7 +888,7 @@
     if (shell.state() !== "playing" || ended) { animate(dt); return; }
     clock += dt;
     // orders arriving
-    while (dealAt < deals.length && deals[dealAt].t <= clock) { deal(dealAt); dealAt++; }
+    dealOrders();
     // input
     var auto = N.flags.autopilot ? autopilot(dt) : null;
     if (DEBUG && window.__leaveBot) { window.__leaveBot(dt); auto = {}; }
@@ -856,18 +906,18 @@
       }
       if (o.shrunk > 0) o.shrunk -= dt;
       if (!o.wentLate && now() > o.due) { o.wentLate = true; sfx("late"); }
-      if (now() - o.due > 9 && !(doorstep && doorstep.o === o)) {
+      if (now() - o.due > CANCEL && !(doorstep && doorstep.o === o)) {
         var wasBag = o.state === "bag";
         o.state = "cancelled";
         cancelled++; stageStats.cancelled++;
-        toast(wasBag ? "Cancelled. The food is yours now. It's cold." : "Order cancelled. The customer has had cereal.");
+        banner(wasBag ? "Cancelled. The food is yours now. It's cold." : "Order cancelled. The customer has had cereal.");
         rare("cancel", "Cancelled", 3);
         rate(-0.1);
         if (route && route.stop === stopOf(o).id) route = null;
       }
       if (o.state === "bag" && !toldOutside && clock - o.pickedAt > 1.2 && clock - o.pickedAt < 2) {
         toldOutside = true;
-        toast("We've told " + o.name + " you're outside.");
+        banner("We've told " + o.name + " you're outside.");
       }
     });
     if (ended) return;
@@ -890,6 +940,7 @@
   }
   function animate(dt) {
     toasts.forEach(function (t) { t.t += dt; });
+    animateBanner(dt);
     mapBubbles.forEach(function (b) { b.t += dt; });
     mapBubbles = mapBubbles.filter(function (b) { return b.t < 2.4; });
     fx.forEach(function (f) { f.t += dt; });
@@ -910,8 +961,24 @@
       if (input[k] && !prev[k]) queue(d);
       prev[k] = input[k];
     });
-    if (input.action && !prev.action) press();
+    // Space or Enter: at a door, the button; anywhere else, ride to the
+    // highlighted order. 1 to 4: ride to that order on the phone.
+    if (input.action && !prev.action) {
+      if (doorstep && !doorstep.done) press();
+      else { var f = focusOrder(); if (f && !(doorstep && doorstep.o === f)) routeToOrder(f); }
+    }
     prev.action = input.action;
+    ["o1", "o2", "o3", "o4"].forEach(function (k, i) {
+      if (input[k] && !prev[k]) {
+        var o = listed()[i];
+        if (o && !(doorstep && !doorstep.done)) routeToOrder(o);
+      }
+      prev[k] = input[k];
+    });
+  }
+  // The orders as the phone lists them: soonest due first
+  function listed() {
+    return orders.filter(function (o) { return o.state === "assigned" || o.state === "bag"; }).sort(function (a, b) { return a.due - b.due; });
   }
 
   // ---------------------------------------------------------------------------
@@ -919,8 +986,8 @@
   // ---------------------------------------------------------------------------
   function endStage() {
     if (ended) return;
-    var left = orders.filter(function (o) { return o.state === "bag"; }).length;
-    if (left) { rate(-0.03 * left); toast(left + " order" + (left > 1 ? "s" : "") + " reassigned. The app noted it."); }
+    var left = orders.filter(function (o) { return o.state === "bag" || o.state === "assigned"; }).length;
+    if (left) { rate(-0.05 * left); toast(left + " order" + (left > 1 ? "s" : "") + " reassigned. The app noted it."); }
     if (ended) return;
     if (stageIdx >= STAGES.length - 1) { endRound(true); return; }
     var share = stageStats.delivered ? stageStats.onTime / stageStats.delivered : 0;
@@ -1098,7 +1165,7 @@
     fx.push({ kind: "tap", x: wx, y: wy, t: 0 });
   }
   function routeToOrder(o) {
-    var st = stopOf(o);
+    var st = realStop(o);
     routeTo({ e: st.e, s: st.s }, st.id);
   }
 
@@ -1128,25 +1195,36 @@
   // ---------------------------------------------------------------------------
   function layout() {
     var top = W < 440 ? 46 : 52, pad = 8;
-    var full = Math.min((W - pad * 2) / 100, (H - top - pad) / 80);
-    var colW = clamp(W * 0.3, 190, 290);
+    var o = { top: top, bannerH: 46 };
+    // a column beside the town on a wide screen, the phone under it on a tall one
+    var colW = clamp(W * 0.3, 200, 224);
     var sCol = Math.min((W - colW - pad * 3) / 100, (H - top - pad) / 80);
-    var sBot = Math.min((W - pad * 2) / 100, (H - top - 170 - pad * 2) / 80);
-    var o = { top: top };
-    if (sCol >= sBot && sCol >= full * 0.7 && W > 520) {
+    var sBot = Math.min((W - pad * 2) / 100, (H - top - 96 - pad * 2) / 80);
+    if (W > 520 && sCol >= sBot * 0.9) {
       o.mode = "col"; o.S = sCol;
-      o.mapX = pad; o.mapY = top + Math.max(0, (H - top - pad - 80 * sCol) / 2);
-      o.panel = { x: pad * 2 + 100 * sCol, y: top, w: W - 100 * sCol - pad * 3, h: H - top - pad };
-    } else if (sBot >= full * 0.82) {
+      var used = 100 * sCol + colW + pad;
+      var x0 = Math.max(pad, (W - used) / 2);
+      var free = H - top - pad - 80 * sCol;
+      // the banner goes in the black over the town when there's room for it
+      o.bannerIn = free >= o.bannerH + 6;
+      o.mapX = x0;
+      o.mapY = top + (o.bannerIn ? Math.max(o.bannerH + 6, free / 2 + o.bannerH / 2) : free / 2);
+      if (o.mapY + 80 * sCol > H - pad) o.mapY = H - pad - 80 * sCol;
+      o.panel = { x: x0 + 100 * sCol + pad, y: top, w: colW, h: H - top - pad };
+      o.banner = o.bannerIn ? { x: o.mapX + 6, y: o.mapY - o.bannerH - 4, w: 100 * sCol - 12, h: o.bannerH } :
+        { x: o.mapX + 10, y: o.mapY + 6, w: 100 * sCol - 20, h: o.bannerH };
+    } else {
       o.mode = "bot"; o.S = sBot;
       o.mapX = (W - 100 * sBot) / 2; o.mapY = top;
-      o.panel = { x: pad, y: top + 80 * sBot + pad, w: W - pad * 2, h: H - top - 80 * sBot - pad * 2 };
-    } else {
-      var strip = 66;
-      o.mode = "strip"; o.S = Math.min((W - pad * 2) / 100, (H - top - strip - pad * 2) / 80);
-      o.mapX = (W - 100 * o.S) / 2; o.mapY = top;
-      o.panel = { x: pad, y: top + 80 * o.S + pad, w: W - pad * 2, h: H - top - 80 * o.S - pad * 2 };
+      var under = H - top - 80 * sBot - pad * 2;
+      // a tall phone has room for the banner between the town and the phone
+      o.bannerIn = under >= 96 + o.bannerH + 6;
+      var py = top + 80 * sBot + pad + (o.bannerIn ? o.bannerH + 6 : 0);
+      o.panel = { x: pad, y: py, w: W - pad * 2, h: H - py - pad };
+      o.banner = o.bannerIn ? { x: pad, y: top + 80 * sBot + pad, w: W - pad * 2, h: o.bannerH } :
+        { x: o.mapX + 8, y: o.mapY + 4, w: 100 * sBot - 16, h: o.bannerH };
     }
+    o.W = W; o.H = H;
     return o;
   }
 
@@ -1156,12 +1234,18 @@
     L = layout();
     townKey = "";
     if (shell) {
-      // over the map column, in the black above the town where there is
-      // some, so the phone's numbers stay readable
-      if (L.mode === "col") shell.placeCallouts({ top: L.top + Math.max(0, Math.min(20, L.mapY - L.top - 44)), left: 0, right: W - L.panel.x });
-      // between the town and the phone, over the bottom street at worst
-      else if (L.mode === "bot") shell.placeCallouts({ top: L.panel.y - 40, left: 0, right: 0 });
-      else shell.placeCallouts({ top: L.mapY + 2, left: 0, right: 0 });
+      // stamps land on the town's top edge, clear of the phone's numbers
+      var right = L.mode === "col" ? W - L.panel.x : 0;
+      shell.placeCallouts({ top: L.mapY + (L.bannerIn || L.mode === "col" ? 4 : L.bannerH + 10), left: L.mode === "col" ? L.mapX : 0, right: right });
+      // the stage's notice goes over the phone, not the town
+      if (L.mode === "col") {
+        root.style.setProperty("--leave-brief-x", Math.round(L.panel.x + L.panel.w / 2) + "px");
+        root.style.setProperty("--leave-brief-w", Math.round(L.panel.w - 8) + "px");
+        root.style.setProperty("--leave-brief-top", "auto");
+        root.style.setProperty("--leave-brief-bottom", Math.round(H - L.panel.y - L.panel.h + 4) + "px");
+      } else {
+        ["x", "w", "top", "bottom"].forEach(function (k) { root.style.removeProperty("--leave-brief-" + k); });
+      }
     }
   }
 
@@ -1174,7 +1258,7 @@
     townCanvas.height = Math.ceil(80 * L.S * DPR);
     var c = townCanvas.getContext("2d");
     c.setTransform(DPR * L.S, 0, 0, DPR * L.S, 0, 0);
-    A.bakeTown(c, { bunting: !!stage.precinct });
+    A.bakeTown(c, { bunting: !!stage.precinct, labelMin: 12.5 / L.S });
   }
 
   // ---------------------------------------------------------------------------
@@ -1186,7 +1270,8 @@
     tNow += dt || 0;
     if (!briefed && shell.state() === "countdown") {
       briefed = true;
-      shell.brief({ title: stage.name + ", " + hhmm(stage.start), text: N.flags.clip ? "" : stage.brief, ms: N.flags.clip ? 1800 : 7000 });
+      // a clip has no room for it: the countdown and the banner say it
+      if (!N.flags.clip) shell.brief({ title: stage.name + ", " + hhmm(stage.start), text: stage.brief, ms: 7000 });
     }
     hits = [];
     bake();
@@ -1201,13 +1286,13 @@
     c.setTransform(DPR * L.S, 0, 0, DPR * L.S, DPR * (L.mapX + sx), DPR * (L.mapY + sy));
     drawWorld(c);
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    drawPanel(c);
-    if (doorstep && L.mode === "strip") drawDoorCard(c, overlayBox(), true);
-  }
-
-  function overlayBox() {
-    var w = Math.min(330, W - 20), h = Math.min(190, 80 * L.S - 10);
-    return { x: (W - w) / 2, y: L.mapY + 80 * L.S - h - 4, w: w, h: h };
+    // under the stage screen and the results, the phone keeps quiet
+    var quiet = /^(interlude|results|title)$/.test(root.dataset.kit || "");
+    drawPanel(c, quiet);
+    if (!quiet) {
+      if (doorstep) drawDoorstep(c);
+      drawBanner(c);
+    }
   }
 
   function minSize() { return 12.5 / L.S; }
@@ -1225,6 +1310,8 @@
     });
     // fans in the precinct
     if (stage.precinct) drawCrowd(c, t);
+    // the car park's sign, one restaurant at a time
+    drawBrandSign(c, t);
     // effects under the rider
     fx.forEach(function (f) {
       if (f.kind === "splash") {
@@ -1242,7 +1329,7 @@
     // the rider
     var p = TW.point(TW.edges[rider.e], rider.s);
     var lateNow = orders.some(function (o) { return o.state === "bag" && now() > o.due; });
-    A.rider(c, p.x, p.y, rider.facing, { k: 1.22, pedal: rider.pedal, still: rider.dir === 0, push: rider.push, late: lateNow, wobble: rider.wobble, t: t });
+    A.rider(c, p.x, p.y, rider.facing, { k: 1.7, pedal: rider.pedal, still: rider.dir === 0, push: rider.push, late: lateNow, wobble: rider.wobble, t: t });
     if (rider.busy && rider.busy.kind === "rest") {
       var o = orders.filter(function (q) { return q.state === "assigned" && q.rest.stop.id === rider.busy.stop.id; })[0];
       if (o) {
@@ -1289,15 +1376,47 @@
   }
 
   function drawCrowd(c, t) {
+    // fans in scarves, arms up when they're singing
     var y = TW.YS[2];
-    for (var i = 0; i < 14; i++) {
-      var x = 30 + ((i * 7.3 + t * (i % 2 ? 1.2 : -1.0)) % 40 + 40) % 40;
-      if (x > 47 && x < 53) continue;
-      var yy = y + (i % 2 ? 1.4 : -1.4) + Math.sin(t * 5 + i) * 0.15;
-      var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(t * 6 + i)) * 0.3;
-      A.solid(c, A.ell(x, yy - bob, 0.75, 0.75), T.paper, 0.18);
-      A.solid(c, A.rr(x - 0.75, yy - bob + 0.35, 1.5, 0.4, 0.15), i % 3 ? T.accent : T.red, 0.1);
+    for (var i = 0; i < 12; i++) {
+      var x = 30 + ((i * 8.1 + t * (i % 2 ? 1.1 : -0.9)) % 40 + 40) % 40;
+      if (x > 46 && x < 54) continue;
+      var yy = y + (i % 2 ? 1.6 : -1.2);
+      var still = shell.reduceMotion;
+      var bob = still ? 0 : Math.abs(Math.sin(t * 6 + i)) * 0.35;
+      var up = still ? i % 3 === 0 : Math.sin(t * 2.2 + i * 1.7) > 0.1;
+      var shirt = i % 3 ? T.accent : T.red;
+      var hy = yy - 2.2 - bob;
+      // arms, then the body, the scarf, the head
+      [-1, 1].forEach(function (sd) {
+        var hand = up ? [x + sd * 1.25, hy - 0.9] : [x + sd * 1.15, yy - 0.2 - bob];
+        A.line(c, [[x + sd * 0.55, hy + 1.2], hand], 0.55, T.ink);
+        A.line(c, [[x + sd * 0.55, hy + 1.2], hand], 0.3, shirt);
+        A.solid(c, A.ell(hand[0], hand[1], 0.32, 0.32), T.paper, 0.14);
+      });
+      A.solid(c, A.rr(x - 0.8, hy + 0.7, 1.6, 2.0 + bob * 0.5, 0.45), shirt, 0.18);
+      A.solid(c, A.rr(x - 0.75, hy + 0.65, 1.5, 0.42, 0.15), T.paper, 0.12);
+      A.solid(c, A.ell(x, hy, 0.78, 0.78), T.paper, 0.18);
+      c.fillStyle = T.ink;
+      c.beginPath(); c.arc(x - 0.25, hy - 0.05, 0.11, 0, 7); c.arc(x + 0.25, hy - 0.05, 0.11, 0, 7); c.fill();
+      if (up) A.solid(c, A.ell(x, hy + 0.36, 0.2, 0.17), T.ink, 0);
     }
+  }
+
+  // Twelve restaurants, one container: the sign rolls through them
+  function drawBrandSign(c, t) {
+    var B = null;
+    TW.blocks.forEach(function (b) { if (b.kind === "carpark") B = b.box; });
+    if (!B) return;
+    var names = TW.DARK_BRANDS;
+    var i = Math.floor(t / 1.4) % names.length;
+    var size = Math.max(2.2, minSize());
+    var w = A.measure(c, names[i], size) + size * 1.1;
+    var h = size * 1.5;
+    var cx = clamp((B.x0 + B.x1) / 2 - 1.5, w / 2 + 0.5, 99.5 - w / 2), y = B.y0 + 0.4;
+    A.line(c, [[cx, y + h], [cx, y + h + 1.6]], 0.35, T.paper);
+    A.solid(c, A.rr(cx - w / 2, y, w, h, size * 0.25), T.ink, 0.3, T.paper);
+    A.text(c, names[i], cx, y + h / 2 + size * 0.06, size, { colour: i % 3 === 0 ? T.accent : i % 3 === 1 ? T.paper : T.red });
   }
 
   function drawRain(c, t) {
@@ -1386,80 +1505,90 @@
   function coarse() { return shell.input.mode === "touch"; }
 
   // ---------------------------------------------------------------------------
-  // The phone: the app's notifications, the two numbers, the orders, the
-  // note (or the doorstep)
+  // The phone: the app, the two numbers, the orders, the note. On a short
+  // phone: the app, the two numbers and the note in one line.
   // ---------------------------------------------------------------------------
-  function drawPanel(c) {
+  function drawPanel(c, quiet) {
     var P = L.panel;
-    if (L.mode === "strip") { drawStrip(c, P); return; }
-    // the phone
     A.solid(c, A.rr(P.x, P.y, P.w, P.h, 14), T.ink, 2, T.paper);
-    var x = P.x + 8, y = P.y + 8, w = P.w - 16, h = P.h - 16;
+    if (quiet) return;
+    var x = P.x + 8, y = P.y + 8, w = P.w - 16, bottom = P.y + P.h - 8;
     // header: the app
-    A.solid(c, A.rr(x, y, w, 26, 6), T.accent, 0);
-    A.logo(c, x + 14, y + 13, 8);
-    A.text(c, "A Delivery App", x + 27, y + 14, 13, { align: "left", colour: T.ink });
-    A.text(c, "Online", x + w - 8, y + 14, 12, { align: "right", colour: T.ink });
-    y += 32;
-    // the latest notification
-    var tt = toasts[0];
-    var nh = 38;
-    if (tt) {
-      var fresh = tt.t < 0.25 ? tt.t / 0.25 : 1;
-      c.globalAlpha = 0.4 + 0.6 * fresh;
-      var lines = A.wrap(c, tt.text, 12.5, w - 30, T.body, false);
-      nh = Math.max(38, lines.length * 15 + 10);
-      if (lines.length > 3) lines = lines.slice(0, 3);
-      A.solid(c, A.rr(x, y, w, nh, 6), T.ink, 1.5, T.paper);
-      A.solid(c, A.ell(x + 11, y + 12, 4, 4), tt.t < 3 ? T.accent : T.ink, 1.2, T.paper);
-      lines.forEach(function (l, i) { A.text(c, l, x + 22, y + 12 + i * 15, 12.5, { align: "left", colour: T.paper, font: T.body, upper: false }); });
-      c.globalAlpha = 1;
-    }
-    y += nh + 8;
-    // the two numbers
+    A.solid(c, A.rr(x, y, w, 24, 6), T.accent, 0);
+    A.logo(c, x + 13, y + 12, 7.5);
+    A.text(c, "A Delivery App", x + 25, y + 13, 13, { align: "left", colour: T.ink, max: w - 80 });
+    A.text(c, "Online", x + w - 8, y + 13, 12, { align: "right", colour: T.ink });
+    y += 30;
+    // the two numbers, always
     var half = (w - 8) / 2;
     [["Fees they paid", fees, T.paper], ["You earned", earned, T.accent]].forEach(function (m, i) {
       var mx = x + i * (half + 8);
-      A.text(c, m[0], mx, y + 7, 12, { align: "left", colour: T.accent, max: half, upper: false, font: T.body });
-      A.text(c, money(m[1]), mx, y + 27, 22, { align: "left", colour: m[2] });
+      A.text(c, m[0], mx, y + 7, 12, { align: "left", colour: T.accent, upper: false, font: T.body });
+      A.text(c, money(m[1]), mx, y + 26, 21, { align: "left", colour: m[2] });
     });
-    y += 46;
-    // orders
-    var list = orders.filter(function (o) { return o.state === "assigned" || o.state === "bag"; }).sort(function (a, b) { return a.due - b.due; });
-    var rowH = 36;
-    // the card takes what four orders leave, within reason
-    var cardMin = clamp(P.y + P.h - 8 - (y + 18 + rowH * 4 + 8), 150, 250);
-    var room = Math.max(0, Math.floor((P.y + P.h - 8 - cardMin - 8 - y - 18) / rowH));
-    A.text(c, "Your orders " + bagCount() + "/" + bagSize() + " in the bag", x, y + 6, 12, { align: "left", colour: T.paper, upper: false, font: T.body });
-    y += 16;
+    y += 44;
+    var left = bottom - y;
     var focus = focusOrder();
-    list.slice(0, room).forEach(function (o, i) {
-      var ry = y + i * rowH;
-      var sel = route && route.stop === stopOf(o).id;
+    if (left < 120) {
+      // short: the note, in one line
+      var one = focus ? (focus.state === "assigned" ? "Pick up: " + focus.brand : "“" + focus.note + "”") : "Looking for orders near you.";
+      var ls = A.wrap(c, one, 13, w);
+      var shown = ls[0] + (ls.length > 1 ? "..." : "");
+      A.solid(c, A.rr(x, y, w, Math.min(left, 26), 5), T.paper, 0);
+      A.text(c, shown, x + 6, y + Math.min(left, 26) / 2 + 1, 13, { align: "left", colour: T.ink });
+      if (left >= 46) {
+        var fo = focus ? (focus.state === "bag" ? where(focus.house) + ": " : "") + (now() > focus.due ? "late" : minutesLeft(focus) + " min") + ". " : "";
+        A.text(c, fo + bagCount() + "/" + bagSize() + " in the bag", x, y + 38, 12, { align: "left", colour: T.paper, font: T.body, upper: false, max: w });
+      }
+      return;
+    }
+    // the latest notification, where there's plenty of room
+    if (left >= 360 && toasts[0]) {
+      var tt = toasts[0];
+      var tl = A.wrap(c, tt.text, 12.5, w - 26, T.body, false).slice(0, 2);
+      var nh = tl.length * 15 + 10;
+      A.solid(c, A.rr(x, y, w, nh, 6), T.ink, 1.2, T.paper);
+      A.solid(c, A.ell(x + 10, y + 11, 3.5, 3.5), tt.t < 3 ? T.accent : T.ink, 1, T.paper);
+      tl.forEach(function (l, i) { A.text(c, l, x + 19, y + 11 + i * 15, 12.5, { align: "left", colour: T.paper, font: T.body, upper: false }); });
+      y += nh + 8;
+      left = bottom - y;
+    }
+    // the orders, soonest first, with the key that rides to each
+    var list = listed();
+    var rowH = coarse() ? 58 : 42;
+    var room = Math.max(1, Math.floor((left - 104 - 8 - 18) / rowH));
+    var rowsUsed = Math.max(1, Math.min(room, 4, list.length));
+    // the note takes what the rows leave, up to a point
+    var noteH = Math.min(250, left - 18 - rowsUsed * rowH - 8);
+    if (noteH < 104) noteH = 0;   // no room for the note: the rows win
+    A.text(c, "Your orders, " + bagCount() + "/" + bagSize() + " in the bag", x, y + 6, 12, { align: "left", colour: T.paper, upper: false, font: T.body, max: w });
+    y += 16;
+    list.slice(0, Math.min(room, 4)).forEach(function (o, i) {
+      var ry = y + i * rowH, rh = rowH - 4;
+      var sel = route && route.stop === realStop(o).id || route && route.stop === stopOf(o).id;
       var lateBy = now() - o.due;
-      var row = A.rr(x, ry, w, rowH - 4, 6);
+      var row = A.rr(x, ry, w, rh, 6);
       A.solid(c, row, T.ink, sel ? 2.4 : 1.2, sel ? T.accent : T.paper);
       if (o === focus && !sel) { A.ink(c, 1.2, T.accent); c.setLineDash([4, 3]); c.stroke(row); c.setLineDash([]); }
-      // state icon
-      if (o.state === "bag") A.solid(c, A.rr(x + 6, ry + 6, 18, 18, 3), T.accent, 1.4);
-      else { A.icon(c, "bag", x + 15, ry + 16, 9); }
+      // its number: in the bag, a mint key; to collect, a paper one
+      var kx = x + 6, ky = ry + rh / 2 - 10;
+      A.solid(c, A.rr(kx, ky, 20, 20, 4), o.state === "bag" ? T.accent : T.paper, 1.2);
+      A.text(c, String(i + 1), kx + 10, ky + 11, 14, { colour: T.ink });
       var mins = Math.ceil(o.due - now());
-      var name = o.state === "assigned" ? o.brand : (o.house.kind === "flat" ? "Flat, " : o.house.no + " ") + o.house.street;
-      A.text(c, name, x + 31, ry + 10, 13, { align: "left", colour: T.paper, max: w - 31 - 64 });
+      var name = o.state === "assigned" ? o.brand : where(o.house);
+      var midY = ry + rh / 2;
+      A.text(c, name, x + 33, midY - 7, 13, { align: "left", colour: T.paper, max: w - 33 - 58 });
       var sub = o.state === "assigned" ? (o.readyAt <= clock ? "Ready" : "Being prepared") + (o.batched ? ". Batched" : "") :
         "In the bag" + (o.soggy ? ". Soggy" : "");
-      A.text(c, sub, x + 31, ry + 24, 12, { align: "left", colour: T.accent, font: T.body, upper: false, max: w - 31 - 64 });
-      A.text(c, lateBy > 0 ? "Late " + Math.ceil(lateBy) : mins + " min", x + w - 8, ry + 11, 15, { align: "right", colour: lateBy > 0 ? T.red : o.shrunk > 0 ? T.red : T.paper });
-      A.text(c, money(o.pay), x + w - 8, ry + 25, 12, { align: "right", colour: T.paper, font: T.body });
-      hits.push({ x: x, y: ry, w: w, h: rowH - 4, fn: function () { routeToOrder(o); } });
+      A.text(c, sub, x + 33, midY + 8, 12, { align: "left", colour: T.accent, font: T.body, upper: false, max: w - 33 - 58 });
+      A.text(c, lateBy > 0 ? "Late " + Math.ceil(lateBy) : mins + " min", x + w - 8, midY - 7, 15, { align: "right", colour: lateBy > 0 || o.shrunk > 0 ? T.red : T.paper });
+      A.text(c, money(o.pay), x + w - 8, midY + 8, 12, { align: "right", colour: T.paper, font: T.body });
+      hits.push({ x: x, y: ry, w: w, h: rh, fn: function () { routeToOrder(o); } });
     });
-    if (list.length > room && room > 0) A.text(c, "+" + (list.length - room) + " more", x + w - 8, y + room * rowH - 2, 12, { align: "right", colour: T.paper });
+    var shownN = Math.min(room, 4, list.length);
+    if (list.length > shownN && shownN > 0) A.text(c, "+" + (list.length - shownN) + " more", x + w - 8, y + shownN * rowH + 4, 12, { align: "right", colour: T.paper, font: T.body, upper: false });
     if (!list.length) A.text(c, "Looking for orders near you.", x, y + 14, 12.5, { align: "left", colour: T.paper, font: T.body, upper: false });
-    // the note, or the doorstep
-    var cardY = P.y + P.h - 8 - cardMin;
-    var box = { x: x, y: cardY, w: w, h: cardMin };
-    if (doorstep) drawDoorCard(c, box, false);
-    else drawNote(c, box, focus);
+    if (noteH) drawNote(c, { x: x, y: bottom - noteH, w: w, h: noteH }, focus);
   }
 
   function drawNote(c, b, o) {
@@ -1472,158 +1601,195 @@
     c.fillStyle = T.accent;
     c.fillRect(b.x + 1, b.y + 1, b.w - 2, 6);
     var head = o.state === "assigned" ? "Pick up: " + o.brand : "Note from " + o.name;
-    A.text(c, head, b.x + 12, b.y + 22, 13, { align: "left", colour: T.ink, max: b.w - 24 });
-    var where = o.house.kind === "flat" ? (o.type === "back" ? "Flat " : "Flat ") + (o.house.flatNo + 1) + ", " + o.house.street : o.house.no + " " + o.house.street;
-    A.text(c, "To " + where, b.x + 12, b.y + 39, 12, { align: "left", colour: T.ink, font: T.body, upper: false, max: b.w - 24 });
-    var size = b.w < 230 ? 16 : 18;
-    var lines = A.wrap(c, "“" + o.note + "”", size, b.w - 24);
-    lines.slice(0, 4).forEach(function (l, i) { A.text(c, l, b.x + 12, b.y + 62 + i * (size + 2), size, { align: "left", colour: T.ink }); });
+    A.text(c, head, b.x + 10, b.y + 20, 13, { align: "left", colour: T.ink, max: b.w - 20 });
+    A.text(c, "To " + where(o.house), b.x + 10, b.y + 36, 12, { align: "left", colour: T.ink, font: T.body, upper: false, max: b.w - 20 });
+    // as big as the card allows: the note is the thing to read
+    var size = 15, lines = A.wrap(c, "“" + o.note + "”", size, b.w - 20);
+    for (var sz = 24; sz > 15; sz -= 1) {
+      var tryL = A.wrap(c, "“" + o.note + "”", sz, b.w - 20);
+      if (tryL.length * (sz + 2) <= b.h - 52 - 22) { size = sz; lines = tryL; break; }
+    }
+    var fit = Math.max(1, Math.floor((b.h - 52 - 22) / (size + 2)));
+    lines.slice(0, fit).forEach(function (l, i) { A.text(c, l, b.x + 10, b.y + 56 + i * (size + 2), size, { align: "left", colour: T.ink }); });
     var foot = o.state === "assigned" ? (o.readyAt <= clock ? "Ready to collect." : "Being prepared.") : "Due " + hhmm(o.due) + ". Promised " + hhmm(o.promised) + ".";
-    A.text(c, foot, b.x + 12, b.y + b.h - 13, 12, { align: "left", colour: T.ink, font: T.body, upper: false, max: b.w - 24 });
+    A.text(c, foot, b.x + 10, b.y + b.h - 11, 12, { align: "left", colour: T.ink, font: T.body, upper: false, max: b.w - 20 });
   }
 
-  function drawStrip(c, P) {
-    // a narrow screen: the note on the left, the two numbers on the right
-    A.solid(c, A.rr(P.x, P.y, P.w, P.h, 8), T.ink, 1.5, T.paper);
-    var o = focusOrder();
-    var mw = Math.min(118, P.w * 0.36);
-    var nx = P.x + 8, nw = P.w - mw - 22;
-    if (o) {
-      var lines = A.wrap(c, o.note, 13, nw);
-      var head = o.state === "assigned" ? "Pick up: " + o.brand : (o.house.kind === "flat" ? "Flat " + (o.house.flatNo + 1) : "No " + o.house.no) + ": " + minutesLeft(o) + " min";
-      A.text(c, head, nx, P.y + 13, 12, { align: "left", colour: T.accent, max: nw });
-      lines.slice(0, Math.max(1, Math.floor((P.h - 22) / 15))).forEach(function (l, i) { A.text(c, l, nx, P.y + 30 + i * 15, 13, { align: "left", colour: T.paper, max: nw }); });
-    } else {
-      A.text(c, toasts[0] ? toasts[0].text : "Looking for orders.", nx, P.y + P.h / 2, 12, { align: "left", colour: T.paper, font: T.body, upper: false, max: nw });
-    }
-    var mx = P.x + P.w - mw - 6;
-    A.text(c, "Fees " + money(fees), mx, P.y + 16, 13, { align: "left", colour: T.paper, max: mw });
-    A.text(c, "You " + money(earned), mx, P.y + 34, 13, { align: "left", colour: T.accent, max: mw });
-    A.text(c, bagCount() + "/" + bagSize() + " in bag", mx, P.y + 52, 12, { align: "left", colour: T.paper, max: mw });
-  }
-
-  // The doorstep card: the note at the top, the choices cycling below
-  function drawDoorCard(c, b, overlay) {
-    var d = doorstep, o = d.o;
-    var card = A.rr(b.x, b.y, b.w, b.h, 8);
-    A.solid(c, card, T.paper, 2);
+  // ---------------------------------------------------------------------------
+  // The banner: the app's best lines, one at a time, big enough to read
+  // ---------------------------------------------------------------------------
+  function drawBanner(c) {
+    if (!bannerNow) return;
+    var b = L.banner, t = bannerNow.t;
+    var a = shell.reduceMotion ? 1 : Math.min(1, t / 0.2, (BANNER_T - t) / 0.3);
+    if (a <= 0) return;
+    c.globalAlpha = Math.max(0, a);
+    var dy = shell.reduceMotion ? 0 : (1 - Math.min(1, t / 0.2)) * -8;
+    var p = A.rr(b.x, b.y + dy, b.w, b.h, 8);
+    A.solid(c, p, T.ink, 2, T.paper);
     c.fillStyle = T.accent;
-    c.fillRect(b.x + 1, b.y + 1, b.w - 2, 6);
-    hits.push({ x: b.x, y: b.y, w: b.w, h: b.h, fn: function () { press(); } });
-    var size = b.w < 230 ? 14 : 15;
-    var lines = A.wrap(c, "“" + o.note + "”", size, b.w - 20);
-    lines = lines.slice(0, 3);
-    lines.forEach(function (l, i) { A.text(c, l, b.x + 10, b.y + 20 + i * (size + 1), size, { align: "left", colour: T.ink }); });
-    var top = b.y + 20 + lines.length * (size + 1) + 4;
-    var bottom = b.y + b.h - 20;
-    var area = { x: b.x + 8, y: top, w: b.w - 16, h: bottom - top };
+    c.fillRect(b.x + 2, b.y + dy + 2, 8, b.h - 4);
+    A.logo(c, b.x + 28, b.y + dy + b.h / 2, 10);
+    var size = 14.5;
+    var lines = A.wrap(c, bannerNow.text, size, b.w - 56, T.body, false).slice(0, 2);
+    var lh = 17;
+    lines.forEach(function (l, i) {
+      A.text(c, l, b.x + 46, b.y + dy + b.h / 2 + (i - (lines.length - 1) / 2) * lh + 1, size, { align: "left", colour: T.paper, font: T.body, weight: 600, upper: false });
+    });
+    c.globalAlpha = 1;
+  }
+
+  // ---------------------------------------------------------------------------
+  // The doorstep: a card over the town (you've stopped, so the town can
+  // wait). The note at the top; the door and the choices under it, cycling;
+  // then the door opens and they come to it.
+  // ---------------------------------------------------------------------------
+  function doorBox() {
+    var mw = 100 * L.S, mh = 80 * L.S;
+    var w = Math.min(mw - 12, 470), h = Math.min(mh - 12, 340);
+    return { x: L.mapX + (mw - w) / 2, y: L.mapY + (mh - h) / 2, w: w, h: h };
+  }
+  function drawDoorstep(c) {
+    var d = doorstep, o = d.o, b = doorBox();
+    var fade = d.done ? clamp((1.6 - d.doneT) / 0.35, 0, 1) : 1;
+    if (fade <= 0) return;
+    c.globalAlpha = fade;
+    var card = A.rr(b.x, b.y, b.w, b.h, 10);
+    A.solid(c, card, T.paper, 3);
+    c.fillStyle = T.accent;
+    c.fillRect(b.x + 2, b.y + 2, b.w - 4, 7);
+    if (!d.done) hits.push({ x: b.x, y: b.y, w: b.w, h: b.h, fn: function () { press(); } });
+    // the note
+    var who = (o.type === "back" ? "Round the back. " : "") + "Note from " + o.name;
+    A.text(c, who, b.x + 12, b.y + 22, 12, { align: "left", colour: T.ink, font: T.body, upper: false, max: b.w - 24 });
+    var size = b.w < 330 ? 16 : 19;
+    var lines = A.wrap(c, "“" + o.note + "”", size, b.w - 24).slice(0, 3);
+    lines.forEach(function (l, i) { A.text(c, l, b.x + 12, b.y + 42 + i * (size + 2), size, { align: "left", colour: T.ink }); });
+    var top = b.y + 42 + lines.length * (size + 2) + 2;
+    var hintH = d.done ? 6 : 20;
+    var area = { x: b.x + 10, y: top, w: b.w - 20, h: b.y + b.h - hintH - top - 4 };
     if (d.done) drawDoorDone(c, area, d);
-    else if (o.type === "code") drawCode(c, area, d);
     else if (o.type === "photo") drawPhoto(c, area, d);
-    else drawBellKnock(c, area, d);
-    var hint = d.done ? "" : (shell.input.mode === "touch" ? "Tap" : shell.input.mode === "mouse" ? "Click" : "Space") + " when it's the right one";
-    if (hint) A.text(c, hint, b.x + b.w / 2, b.y + b.h - 10, 12, { colour: T.ink, font: T.body, upper: false });
-    if (d.flash > 0 && !d.done) {
-      A.ink(c, 3, T.red);
-      c.globalAlpha = Math.min(1, d.flash * 3);
-      c.stroke(card);
-      c.globalAlpha = 1;
+    else {
+      // the door on the left, the choices on the right
+      var dw = Math.min(area.h * 0.5, area.w * 0.3);
+      if (o.type === "code") drawGate(c, area.x + 4, area.y + 2, dw, area.h - 4, false);
+      else A.frontDoor(c, area.x + 4 + dw * 0.1, area.y + area.h * 0.04, dw * 0.8, area.h * 0.86, o.type === "back" ? null : o.house.no, false, o.type === "back");
+      var ch = { x: area.x + dw + 16, y: area.y, w: area.w - dw - 16, h: area.h };
+      if (o.type === "code") drawCode(c, ch, d);
+      else drawBellKnock(c, ch, d);
     }
+    if (!d.done) {
+      var hint = (coarse() ? "Tap" : shell.input.mode === "mouse" ? "Click" : "Space") + " when it shows what the note says";
+      A.text(c, hint, b.x + b.w / 2, b.y + b.h - 12, 12, { colour: T.ink, font: T.body, upper: false, max: b.w - 20 });
+    }
+    if (d.flash > 0 && !d.done) {
+      A.ink(c, 4, T.red);
+      c.globalAlpha = Math.min(1, d.flash * 3) * fade;
+      c.stroke(card);
+    }
+    c.globalAlpha = 1;
     // first time: point at the note
     if (!taught.note && !N.flags.clip && !d.done) {
-      A.arrow(c, b.x + b.w - 34, b.y + 6, "Read this", tNow, 13, shell.reduceMotion);
+      A.arrow(c, b.x + b.w - 50, b.y + 10, "Read this", tNow, 14, shell.reduceMotion);
     }
   }
 
-  function tileBox(area, n, i) {
-    var gap = 8, tw = Math.min(110, (area.w - gap * (n - 1)) / n);
-    var total = tw * n + gap * (n - 1);
-    return { x: area.x + (area.w - total) / 2 + i * (tw + gap), y: area.y + 2, w: tw, h: Math.max(30, area.h - 4) };
-  }
   function drawBellKnock(c, area, d) {
+    var n = d.opts.length, gap = 8;
+    var tw = Math.min(118, (area.w - gap * (n - 1)) / n), th = Math.min(area.h - 6, tw * 1.5);
+    var total = tw * n + gap * (n - 1);
+    var x0 = area.x + (area.w - total) / 2, y0 = area.y + (area.h - th) / 2;
     d.opts.forEach(function (opt, i) {
-      var tb = tileBox(area, d.opts.length, i);
+      var tx = x0 + i * (tw + gap);
       var on = i === d.at;
-      A.solid(c, A.rr(tb.x, tb.y, tb.w, tb.h, 6), on ? T.accent : T.paper, 2);
-      var cx = tb.x + tb.w / 2, cy = tb.y + (tb.h - 16) / 2;
-      var s = Math.min(tb.h - 22, tb.w * 0.5);
-      if (opt === "Bell") A.doorbell(c, cx, cy, s * 0.9, on);
-      else {
-        A.mitten(c, cx + s * 0.1, cy, s * 0.32, T.paper, false, 2);
-        [-1, 0, 1].forEach(function (k) { A.line(c, [[cx - s * 0.42, cy + k * s * 0.25], [cx - s * 0.62, cy + k * s * 0.32]], 2); });
-      }
-      A.text(c, opt, cx, tb.y + tb.h - 9, 13, { colour: T.ink });
-      if (on) A.brackets(c, tb.x - 3, tb.y - 3, tb.w + 6, tb.h + 6, 9, 3);
+      A.solid(c, A.rr(tx, y0, tw, th, 7), on ? T.accent : T.paper, 2.5);
+      var cx = tx + tw / 2, cy = y0 + (th - 18) / 2 + 2;
+      var s = Math.min(th - 30, tw * 0.62);
+      if (opt === "Bell") A.doorbell(c, cx, cy, s * 0.85, on);
+      else if (opt === "Knock") {
+        A.mitten(c, cx + s * 0.12, cy, s * 0.3, T.paper, false, 2);
+        [-1, 0, 1].forEach(function (k) { A.line(c, [[cx - s * 0.36, cy + k * s * 0.24], [cx - s * 0.56, cy + k * s * 0.3]], 2.2); });
+      } else A.letterbox(c, cx, cy, s, on);
+      A.text(c, opt, cx, y0 + th - 11, tw < 80 ? 12 : 14, { colour: T.ink, max: tw - 6 });
+      if (on) A.brackets(c, tx - 4, y0 - 4, tw + 8, th + 8, 10, 3.5);
     });
+  }
+  function drawGate(c, x, y, w, h, open) {
+    // railings and a keypad on a post
+    for (var i = 0; i < 5; i++) {
+      var gx = x + i * w / 4.4;
+      A.line(c, [[gx, y + h * 0.12], [open ? gx - w * 0.25 : gx, y + h]], 3);
+      A.solid(c, A.poly([[gx - 3, y + h * 0.12], [gx, y + h * 0.04], [gx + 3, y + h * 0.12]]), T.ink, 0);
+    }
+    A.line(c, [[x - 2, y + h * 0.3], [x + w * 0.95, y + h * 0.3]], 3);
+    A.line(c, [[x - 2, y + h * 0.75], [x + w * 0.95, y + h * 0.75]], 3);
   }
   function drawCode(c, area, d) {
-    var w = Math.min(190, area.w), h = Math.max(34, area.h - 4);
-    var x = area.x + (area.w - w) / 2, y = area.y + 2;
-    A.solid(c, A.rr(x, y, w, h, 6), T.ink, 2);
-    A.solid(c, A.rr(x + 8, y + 6, w - 16, h - 20, 4), T.accent, 1.5);
-    A.text(c, d.opts[d.at].split("").join(" "), x + w / 2, y + 6 + (h - 20) / 2, Math.min(26, (h - 20) * 0.75), { colour: T.ink });
+    var w = Math.min(210, area.w), h = Math.min(area.h - 6, 120);
+    var x = area.x + (area.w - w) / 2, y = area.y + (area.h - h) / 2;
+    A.solid(c, A.rr(x, y, w, h, 7), T.ink, 2.5);
+    A.solid(c, A.rr(x + 9, y + 8, w - 18, h - 30, 4), T.accent, 1.5);
+    A.text(c, d.opts[d.at].split("").join(" "), x + w / 2, y + 8 + (h - 30) / 2, Math.min(30, (h - 30) * 0.7), { colour: T.ink });
     // which of the codes this is
     d.opts.forEach(function (o, i) {
-      A.solid(c, A.ell(x + w / 2 + (i - (d.opts.length - 1) / 2) * 12, y + h - 7, 3, 3), i === d.at ? T.paper : T.ink, 1.2, T.paper);
+      A.solid(c, A.ell(x + w / 2 + (i - (d.opts.length - 1) / 2) * 14, y + h - 11, 3.5, 3.5), i === d.at ? T.paper : T.ink, 1.2, T.paper);
     });
-    A.brackets(c, x - 3, y - 3, w + 6, h + 6, 9, 3);
+    A.brackets(c, x - 4, y - 4, w + 8, h + 8, 10, 3.5);
   }
   function drawPhoto(c, area, d) {
-    var n = d.opts.length, gap = 10;
-    var dw = Math.min(54, (area.w - gap * (n - 1)) / n * 0.8), dh = Math.max(28, area.h - 18);
-    var step = (area.w - dw) / (n - 1) * 0.8;
+    var n = d.opts.length, gap = 14;
+    var dh = area.h - 14, dw = Math.min(dh * 0.55, (area.w - gap * (n - 1)) / n * 0.8);
+    var step = Math.min((area.w - dw) / (n - 1), dw + 40);
     var x0 = area.x + (area.w - (step * (n - 1) + dw)) / 2;
     d.opts.forEach(function (num, i) {
-      A.frontDoor(c, x0 + i * step, area.y + 6, dw, dh - 6, num, false, i % 2 === 1);
+      A.frontDoor(c, x0 + i * step, area.y + 8, dw, dh - 8, num, false, i % 2 === 1);
     });
     // the viewfinder
-    var fx2 = x0 + d.slide * step - 6, fy = area.y;
-    A.ink(c, 2, T.ink);
-    A.brackets(c, fx2, fy, dw + 12, dh + 6, 10, 3, T.red);
-    A.solid(c, A.ell(fx2 + dw + 4, fy + 6, 3, 3), T.red, 0);
+    var fx2 = x0 + d.slide * step - 8, fy = area.y;
+    A.brackets(c, fx2, fy, dw + 16, dh + 8, 12, 3.5, T.red);
+    A.solid(c, A.ell(fx2 + dw + 6, fy + 8, 3.5, 3.5), T.red, 0);
   }
   function drawDoorDone(c, area, d) {
     var o = d.o;
     if (o.type === "photo") {
       // the photo, on file
-      var ph = area.h - 4, pw = Math.min(ph * 0.85, area.w * 0.5);
-      var x = area.x + (area.w - pw) / 2, y = area.y + 2;
+      var ph = area.h - 4, pw = Math.min(ph * 0.8, area.w * 0.45);
+      var x = area.x + area.w * 0.3 - pw / 2, y = area.y + 2;
       c.save();
       c.translate(x + pw / 2, y + ph / 2);
       c.rotate(-0.06);
-      A.solid(c, A.rr(-pw / 2, -ph / 2, pw, ph, 2), T.paper, 2);
-      A.solid(c, A.box(-pw / 2 + 5, -ph / 2 + 5, pw - 10, ph * 0.74), T.ink, 1.5);
-      A.frontDoor(c, -pw * 0.2, -ph / 2 + 10, pw * 0.4, ph * 0.62, o.answer, false, false);
-      A.icon(c, "bag", pw * 0.27, ph * 0.12, 8);
-      A.text(c, "On file", 0, ph / 2 - ph * 0.11, 12, { colour: T.ink });
+      A.solid(c, A.rr(-pw / 2, -ph / 2, pw, ph, 2), T.paper, 2.5);
+      A.solid(c, A.box(-pw / 2 + 6, -ph / 2 + 6, pw - 12, ph * 0.74), T.ink, 1.5);
+      A.frontDoor(c, -pw * 0.2, -ph / 2 + 12, pw * 0.4, ph * 0.6, o.answer, false, false);
+      A.icon(c, "bag", pw * 0.27, ph * 0.12, 9);
+      A.text(c, "On file", 0, ph / 2 - ph * 0.1, 13, { colour: T.ink });
       c.restore();
-      return;
-    }
-    // the door opens and they come to it (the gate's intercom, for a code)
-    var dh = area.h - 4, dw = Math.min(dh * 0.62, area.w * 0.32);
-    var dx = area.x + 6, dy = area.y + 2;
-    var R = dw * 0.36;
-    if (o.type === "code") {
-      // the gate, open, and the intercom
-      for (var i = 0; i < 5; i++) A.line(c, [[dx + i * dw / 4.5, dy + dh * 0.1], [dx + i * dw / 4.5 - dw * 0.2, dy + dh]], 3);
-      A.line(c, [[dx - dw * 0.2, dy + dh * 0.55], [dx + dw * 0.8, dy + dh * 0.45]], 3);
-      A.solid(c, A.rr(dx + dw * 0.8, dy + dh * 0.15, dw * 0.45, dh * 0.5, 4), T.ink, 2);
-      for (var g = 0; g < 4; g++) A.line(c, [[dx + dw * 0.88, dy + dh * 0.24 + g * dh * 0.07], [dx + dw * 1.17, dy + dh * 0.24 + g * dh * 0.07]], 1.5, T.paper);
       if (d.line) {
-        var l2 = A.wrap(c, d.line, 13, area.w - dw * 1.5 - 20);
-        A.bubble(c, area.x + dw * 1.3 + (area.w - dw * 1.3) / 2, area.y + area.h * 0.4, l2.slice(0, 3), 13, dx + dw * 1.25, dy + dh * 0.3, { lw: 2 });
+        var pl = A.wrap(c, "Photo sent. " + (d.shout ? "Customer is typing." : "Customer has seen it."), 13, area.w * 0.4);
+        A.text(c, pl[0], area.x + area.w * 0.62, area.y + area.h * 0.45, 13, { colour: T.ink, max: area.w * 0.4 });
+        if (pl[1]) A.text(c, pl[1], area.x + area.w * 0.62, area.y + area.h * 0.45 + 16, 13, { colour: T.ink, max: area.w * 0.4 });
       }
       return;
     }
-    A.frontDoor(c, dx, dy, dw, dh * 0.94, null, true, o.type === "back");
-    c.save();
-    c.beginPath(); c.rect(dx, dy, dw, dh * 0.94); c.clip();
-    A.person(c, dx + dw * 0.6, dy + dh * 0.36, R, o.look, { shout: d.shout ? 0.6 : 0, brows: d.shout ? 1 : 0.5, look: 1, awake: d.awake, smile: !d.shout });
-    c.restore();
+    // the door opens and they come to it, all of them
+    var dh = area.h - 2, dw = Math.min(dh * 0.6, area.w * 0.36);
+    var dx = area.x + 4, dy = area.y;
+    if (o.type === "code") {
+      drawGate(c, dx, dy, dw, dh, true);
+      A.resident(c, dx + dw * 0.9, dy + dh, dh * 0.92, o.look, { pose: d.shout ? "shout" : "wave", shout: d.shout, awake: d.awake });
+    } else {
+      A.frontDoor(c, dx, dy + dh * 0.02, dw, dh * 0.94, null, true, o.type === "back");
+      c.save();
+      c.beginPath(); c.rect(dx - 6, dy - 30, dw * 2, dh + 30); c.clip();
+      A.resident(c, dx + dw * 0.6, dy + dh * 0.96, dh * 0.94, o.look, { pose: d.shout ? "shout" : d.awake ? "baby" : "hips", shout: d.shout, awake: d.awake });
+      c.restore();
+    }
     if (d.line) {
-      var bw = area.w - dw - 22;
-      var lines = A.wrap(c, d.line, 13, bw - 16);
-      A.bubble(c, dx + dw + 14 + bw / 2, area.y + area.h * 0.38, lines.slice(0, 3), 13, dx + dw * 0.85, dy + dh * 0.3, { lw: 2 });
+      var bw = area.w - dw - 30;
+      var bs = 15;
+      var lines = A.wrap(c, d.line, bs, bw - 20);
+      A.bubble(c, dx + dw + 22 + bw / 2, area.y + area.h * 0.32, lines.slice(0, 3), bs, dx + dw * 0.8, dy + dh * 0.2, { lw: 2.5 });
     }
   }
 
@@ -1652,6 +1818,7 @@
       case "thunk": s.tone(120, 0.15, { type: "sine", slide: 60, vol: 0.3 }); s.noise(0.1, { freq: 600, vol: 0.25 }); break;
       case "click": s.tone(1500, 0.02, { vol: 0.03 }); break;
       case "nope": s.tone(330, 0.1, { vol: 0.06 }); s.tone(262, 0.18, { vol: 0.06, delay: 0.1 }); break;
+      case "shout": s.tone(260, 0.25, { type: "sawtooth", slide: 340, vol: 0.06 }); s.tone(300, 0.3, { type: "sawtooth", slide: 220, vol: 0.06, delay: 0.26 }); break;
       case "brake": s.noise(0.12, { type: "bandpass", freq: 3200, q: 4, vol: 0.06 }); break;
       case "crowd":
         s.noise(1.4, { type: "bandpass", freq: 600, q: 0.5, vol: 0.3 });
@@ -1691,14 +1858,15 @@
     note: "One shift. Four rushes. The pay is the joke.",
     pitch: "Deliver the food. The app has promised it was already here.",
     hints: {
-      keys: "Arrow keys or WASD to ride, a click to go somewhere. Space at the door. P to pause.",
+      keys: "1 to 4 rides to an order, or steer with the arrow keys. Space at the door. P to pause.",
       touch: "Tap where to go, or swipe to turn. Tap the doorstep at the door."
     },
     againLabel: "Log on again",
     daily: true,
     smallCallouts: true,
     fullOnTouch: true,
-    keys: { up: ["ArrowUp", "KeyW"], down: ["ArrowDown", "KeyS"], left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"], action: ["Space", "Enter"] },
+    keys: { up: ["ArrowUp", "KeyW"], down: ["ArrowDown", "KeyS"], left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"], action: ["Space", "Enter"],
+            o1: ["Digit1", "Numpad1"], o2: ["Digit2", "Numpad2"], o3: ["Digit3", "Numpad3"], o4: ["Digit4", "Numpad4"] },
     pad: { action: [0, 2] },
     reset: reset,
     update: function (dt, input) {
