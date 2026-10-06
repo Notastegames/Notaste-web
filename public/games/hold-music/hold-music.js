@@ -83,9 +83,9 @@
 // 4,450 or more, Pending review at 3,400 or more, Not approved below that.
 // Hang up on Complaints or Cancellations: Not approved. Hang up any sooner:
 // Rejected. Tuned with scripted callers picking from what they're offered:
-// flawless ones are Approved, good ones about one run in five (nearly
-// always when they bet on Press 0 a lot and keep a clean line), average
-// ones Pending review, beginners Not approved.
+// good ones are Approved about one run in four (nearly always when they bet
+// on Press 0 a lot and keep a clean line), average ones Pending review,
+// beginners Not approved.
 //
 // TODAY'S RUN gives everyone the same problem, the same menus (the same
 // options in the same order with the same numbers), the same announcements
@@ -167,13 +167,13 @@
       agent: { name: "Jo", look: "bun", lines: ["Jo, Faults. I can see it from here.", "It has to be a complaint first."] },
       brief: "The keypad now stays locked until every option has been read, so remember your number. On hold, lose all your signal and you're cut off.",
       done: "Jo can see the fault from her desk. Jo is not allowed to touch it." },
-    { dept: "Complaints", menuBpm: 112, hold: [104, 120], key: [0, 2], fastAt: 3, queue: 6, cats: ["since", "topic"], opts: 5,
+    { dept: "Complaints", menuBpm: 112, hold: [104, 120], key: [0, 2], fastAt: 3, queue: 5, cats: ["since", "topic"], opts: 5,
       lock: true, scatter: true, flip: false, vo: true, arr: { please: "tune", fast: "medium" },
       welcome: "Our options have changed.",
       agent: { name: "Dee", look: "perm", lines: ["Dee, Complaints. Honestly, I'd leave.", "I didn't say that. Cancellations next."] },
       brief: "Our options have changed: the numbers come in any order. Halfway through the hold the fast version starts, with extra notes and gaps.",
       done: "Dee agrees with you completely. Dee has been asked not to." },
-    { dept: "Cancellations", menuBpm: 120, hold: [112, 132], key: [0, 3], fastAt: 3, queue: 6, cats: ["tried", "place"], opts: 5,
+    { dept: "Cancellations", menuBpm: 120, hold: [112, 132], key: [0, 3], fastAt: 3, queue: 5, cats: ["tried", "place"], opts: 5,
       lock: true, scatter: true, flip: true, vo: true, arr: { please: "tune", fast: "hard" },
       welcome: "Thanks for calling. Again.",
       agent: { name: "", look: "none", lines: ["Cancellations. Hello, my name is"] },
@@ -555,7 +555,7 @@
         var span = 0.45 + n * 0.18;
         speak(t, span, "agent", line);
         p.lines.push({ t: t, end: t + span });
-        t += span + (i < c.agent.lines.length - 1 ? 0.45 : 0.2);
+        t += span + (i < c.agent.lines.length - 1 ? 0.35 : 0.2);
       });
       p.end = t;
       p.next = function (t1) {
