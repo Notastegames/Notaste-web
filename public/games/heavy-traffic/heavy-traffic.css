@@ -1,0 +1,31 @@
+/*
+  Heavy Traffic: what this game does differently on the page. Everything
+  else is the kit's (games/kit/kit.css).
+*/
+
+/* Callouts land in the HUD's row, just under the pause bar, on the sky:
+   in a chase camera the middle of the screen is the road ahead and the
+   other drivers, which is what you're looking at when one lands. */
+body[data-game="heavy-traffic"] .kit-callouts { inset: 3rem 0 auto; }
+
+/* Touch: the four buttons sit in the two bottom corners and leave the middle
+   of the road clear. Steering side by side under the left thumb; Gas over
+   Brake under the right, with Brake in the corner. */
+body[data-game="heavy-traffic"] .kit-touch { padding: 0 0.6rem 0.6rem; }
+body[data-game="heavy-traffic"] .kit-touch-side { gap: 0.5rem; }
+body[data-game="heavy-traffic"] .kit-touch-right { flex-direction: column; }
+
+/* No text on the screen under 12px: the labels over the results' numbers
+   (kit.css sets them at 11.5px, and 9.9px on a phone) */
+body[data-game="heavy-traffic"] .kit-stats dt { font-size: 0.75rem; }
+
+/* A phone: 56px buttons, so the pair fits a 320px phone's screen with room
+   between the corners. The HUD's small labels ("Lap", "of") and the notice's
+   text are held at 12px too (kit.css sets them smaller on small screens). */
+@container kit (max-width: 440px) or (max-height: 420px) {
+  body[data-game="heavy-traffic"] .kit-pad { width: 3.5rem; height: 3.5rem; }
+  body[data-game="heavy-traffic"] .kit-pad-face { font-size: 1rem; }
+  body[data-game="heavy-traffic"] .kit-callouts { inset: 2.75rem 0 auto; }
+  body[data-game="heavy-traffic"] .kit-stat:not(.kit-stat-big) small { font-size: max(12px, 0.62em); }
+  body[data-game="heavy-traffic"] .kit-brief-text { font-size: 0.75rem; }
+}

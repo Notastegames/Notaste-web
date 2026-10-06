@@ -1,0 +1,9 @@
+/*
+  Just the Recipe: the one thing this game does differently on the page.
+  The hand points down the page and everything that matters is at its
+  fingertip or below it, so in-game stamps land above the fist, between it
+  and the pause bar, over the page you've already read. The game sets
+  --jtr-callouts for each screen shape. Everything else is the kit's
+  (games/kit/kit.css).
+*/
+body[data-game="just-the-recipe"] .kit-callouts { inset: var(--jtr-callouts, 12%) 0 auto; }
