@@ -9,6 +9,7 @@ Last updated: 6 October 2026.
 ## Where we are
 
 - **Playable (10):** Thonglets, Heavy Traffic, Slop Cannon, Unexpected Item, Reply All, Terms and Conditions, Just the Recipe, Hold Music, On Mute and Scrubbed. Phase 3 is done.
+- **Extra:** Thirty Days (mint, sorting), the owner's own idea after phase 3: thirty days of fast food, with your insides as a council office. Live on 6 October 2026. It isn't one of the edgier five, so those are still 11 to 15 in their own order.
 - **Next:** the owner's notes on the ten (see "Left over" in Phase 3), then phase 4 (the site at ten games), then phase 5 (the socials).
 - **Built:** the shared game kit (with today's run, Share result and a clip mode for filming), the starter game, the automatic play-through, `DESIGN.md`, per-game share images, a privacy note, and the preview-then-approve process.
 - **Not yet:** the socials (accounts partly set up, not linked yet), a shop link, and a homepage designed for ten games (for now the posters run in pairs, with a wide one at the top and the bottom).

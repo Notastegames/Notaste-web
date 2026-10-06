@@ -20,7 +20,8 @@
     { slug: "just-the-recipe", title: "Just the Recipe", accent: "#c2643a", stamp: "Rejected", pitch: "Scroll down to the recipe. The page has other ideas.", status: "Playable now. Three courses, one life story." },
     { slug: "on-mute",       title: "On Mute",       accent: "#7a5cd6", stamp: "You're on mute", pitch: "Four meetings, one spreadsheet and a cat. Nod when you hear your name.", status: "Playable now." },
     { slug: "hold-music",    title: "Hold Music",    accent: "#c452b5", stamp: "Please hold",    pitch: "Phone a company. Remember the menu. Keep time with the hold music.", status: "Playable now. Four calls." },
-    { slug: "scrubbed",      title: "Scrubbed",      accent: "#e8892b", stamp: "Good data",      pitch: "Land a billionaire's reusable rocket on a barge. He'll call it a success either way.", status: "Playable now. Five stages, eight rockets." }
+    { slug: "scrubbed",      title: "Scrubbed",      accent: "#e8892b", stamp: "Good data",      pitch: "Land a billionaire's reusable rocket on a barge. He'll call it a success either way.", status: "Playable now. Five stages, eight rockets." },
+    { slug: "thirty-days",   title: "Thirty Days",   accent: "#5ccfa8", stamp: "Go large",       pitch: "Thirty days of fast food. Your insides are a council office, and the in-trays are full.", status: "Playable now. Four meals and a doctor's note." }
   ];
 
   var current = document.body.getAttribute("data-game");
