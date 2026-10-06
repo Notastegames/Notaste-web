@@ -14,6 +14,12 @@ body[data-game="scrubbed"] .scrubbed-fuel.is-low .kit-meter-label { color: var(-
   body[data-game="scrubbed"] .scrubbed-fuel.is-low .kit-meter-bar > span { animation: kit-pulse 0.35s ease-in-out infinite alternate; }
 }
 
+/* On a narrow screen his stream fills a top corner, so the stamps land
+   just under it rather than across it */
+@container kit (max-width: 440px) {
+  body[data-game="scrubbed"] .kit-callouts { inset: 15.5rem 0 auto; }
+}
+
 /* Between stages, a tall phone (the round goes full-window) has room for
    the joke and the numbers, which the kit leaves out on narrow screens */
 @container kit (max-width: 440px) and (min-height: 600px) {

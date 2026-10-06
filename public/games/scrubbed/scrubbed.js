@@ -787,7 +787,8 @@
   function explode(x, y, dust) {
     var r = rk;
     var side = stage().scene === "sea" ? (x > 0 ? -1 : 1) : (r.a >= 0 ? 1 : -1);
-    if (stage().scene === "party" && x > 0 && x < A.PARTY.pool[0]) side = -1;
+    // at the party, a fire on the right-hand side spreads left, away from the terrace
+    if (stage().scene === "party" && x > 0) side = -1;
     wreck = { x: x, y: y, a: side * Math.PI / 2 * 0.94, t: 0, dust: dust, side: side };
     r.gone = true;
     if (!dust) {
@@ -998,9 +999,11 @@
       bossSay(BOSS.flee, true);
     }
     if (st.flee) {
-      // they stop at the edge of the screen, still filming, in a huddle
-      var edge = cam.x + (W / 2 - 8) / cam.z - 1.4;
-      var go = function (x, v, spot) { return Math.max(x, Math.min(x + dt * v, edge - spot * 2.3)); };
+      // they stop at the edge of the open screen (clear of the buttons),
+      // still filming, in a huddle
+      // (or off it, if the edge is too near where the rocket is coming down)
+      var edge = cam.x + (W / 2 - (cam.right || 10)) / cam.z - 1.4, near = (rk ? rk.x : 0) + 9;
+      var go = function (x, v, spot) { var stop = edge - spot * 2.3; return stop < near ? x + dt * v : Math.max(x, Math.min(x + dt * v, stop)); };
       st.bossX = go(st.bossX, 6, 4);
       guests.forEach(function (g, i) { g.x = go(g.x, 6.5 + i * 0.8, 3 - i); g.duck = 1; });
     }
@@ -1411,7 +1414,7 @@
     var ease = 1 - Math.exp(-dt * 5);
     var mb = cam.mb == null || !dt ? M.bottom : cam.mb + (M.bottom - cam.mb) * ease;
     var mt = cam.mt == null || !dt ? M.top : cam.mt + (M.top - cam.mt) * ease;
-    cam.mb = mb; cam.mt = mt;
+    cam.mb = mb; cam.mt = mt; cam.right = M.right;
     var aw = Math.max(40, W - M.left - M.right), ah = Math.max(40, H - mt - mb);
     var zMax = Math.min(W, H) / (close ? 26 : 34);
     // never so far out that the scene is a sliver: it fills at least 30% of
@@ -1628,6 +1631,9 @@
   // the moon (or Mars's sun) keeps to the other side from his stream
   function moonAt() {
     var mars = stage().scene === "mars";
+    // (on a tall screen, under his stream instead: that's the side the
+    // rocket isn't coming in on)
+    if (pip.rect && H > W * 1.3) return { x: pip.x + pip.rect.w * 0.5 - cam.x * cam.z * 0.03, y: pip.y + pip.rect.h + H * 0.09 + cam.y * cam.z * 0.02 };
     var across = pip.rect ? 1 - (pip.x + pip.rect.w / 2) / W : 0.8;
     return { x: W * clamp(across, 0.15, 0.85) - cam.x * cam.z * 0.03, y: H * (mars ? 0.3 : 0.27) + cam.y * cam.z * 0.02 };
   }
@@ -1945,9 +1951,15 @@
     var w = tw + size * 0.9, h = size * 1.45;
     var x, y;
     if (above) {
-      // off the top: the tag waits under the HUD, an arrow pointing up at it
+      // off the top: the tag waits under the HUD, an arrow pointing up at
+      // it, beside anything already there (the arrow, his stream)
       x = clamp(p.x - w / 2, 4, W - w - 4);
       y = top + 18;
+      placed.forEach(function (o) {
+        if (!o.solid || x + w + 4 < o.x || x > o.x + o.w + 4 || y + h + 4 < o.y || y - 18 > o.y + o.h) return;
+        var r = o.x + o.w + 6, l = o.x - w - 6;
+        x = clamp(Math.abs(r - x) < Math.abs(l - x) && r + w < W - 4 ? r : l, 4, W - w - 4);
+      });
       var ax = clamp(p.x, x + 8, x + w - 8);
       c.beginPath();
       c.moveTo(ax, y - 16); c.lineTo(ax + 8, y - 5); c.lineTo(ax + 3, y - 5); c.lineTo(ax + 3, y); c.lineTo(ax - 3, y); c.lineTo(ax - 3, y - 5); c.lineTo(ax - 8, y - 5); c.closePath();
