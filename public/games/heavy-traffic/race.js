@@ -124,7 +124,7 @@
   var FORM = [
     { power: 0.84, corner: 0.84, pace: 150 },
     { power: 0.73, corner: 0.85, pace: 0 },
-    { power: 0.67, corner: 0.86, pace: -320 }
+    { power: 0.65, corner: 0.86, pace: -320 }
   ];
   var YOU = { power: 1, corner: 1, pace: 0 };
 
