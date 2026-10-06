@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <!--
+    Game page for a playable game. To add a game: copy /games/starter/ to
+    /games/<slug>/, rewrite the script as the new game (built with the kit in
+    /games/kit/), change everything marked EDIT on this page, then add one
+    line to GAMES in /games/game.js, a poster on the homepage and a line in
+    the sitemap. The full checklist is at the end of DESIGN.md.
+  -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- EDIT: title, description and the og: tags -->
+  <title>Scrubbed: Notaste Games</title>
+  <meta name="description" content="Land a billionaire's reusable rocket on a barge at sea, then on his lawn, then on Mars. He'll call it a success either way. A free browser game in poor taste from Notaste Games.">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <link rel="preload" href="/fonts/notaste-display.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/games/game.css">
+  <link rel="stylesheet" href="/games/kit/kit.css">
+  <link rel="stylesheet" href="/games/scrubbed/scrubbed.css">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Notaste Games">
+  <meta property="og:title" content="Scrubbed">
+  <meta property="og:description" content="Land a billionaire's reusable rocket on a barge. He'll call it a success either way. Free in your browser.">
+  <meta property="og:url" content="https://notastegames.com/games/scrubbed/">
+  <meta property="og:image" content="https://notastegames.com/art/og-scrubbed.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<!--
+  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
+  --accent is the game's colour (same as its GAMES entry and its homepage poster).
+-->
+<body class="game" data-game="scrubbed" style="--accent: #e8892b">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="top-inner wrap">
+      <a class="top-logo" href="/" aria-label="Notaste Games home">
+        <img src="/brand/logo-on-dark.svg" alt="No Taste" width="557" height="166">
+      </a>
+      <nav class="top-nav" aria-label="Main">
+        <a href="/#games">Games</a>
+        <a href="/#about">About</a>
+        <a href="/#follow">Follow</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="game-page wrap">
+
+      <!-- EDIT: title, stamp (and its tilt), state, pitch -->
+      <div class="game-head">
+        <h1>Scrubbed</h1>
+        <div class="game-meta">
+          <span class="stamp-label" style="--tilt: -6deg">Good data</span>
+          <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now</p>
+        </div>
+        <p class="game-pitch">Land a billionaire's reusable rocket on a barge at sea. Then on his lawn. Then on Mars, where nobody is watching. He'll call it a success either way.</p>
+      </div>
+
+      <section class="cabinet" aria-label="Game screen">
+        <div class="screen">
+          <!-- EDIT: cover art path -->
+          <img class="screen-art" src="/art/scrubbed.svg" alt="" width="800" height="600">
+
+          <!-- The game. /games/kit/kit.js builds the screens in here, scrubbed.js is the game. -->
+          <div id="game-root">
+            <noscript><p class="kit-noscript">Scrubbed needs JavaScript switched on. The launch has been delayed. He's calling it a test.</p></noscript>
+          </div>
+        </div>
+        <p class="cabinet-strip"><span>Notaste Games</span><span>Free play</span></p>
+      </section>
+
+      <div class="game-info">
+        <h2>How to play</h2>
+        <!-- EDIT: two or three short lines -->
+        <ul class="how">
+          <li>Hold Up, W or Space (or the Thrust button) to fire the engine and slow down. Left and right (or the arrow buttons) lean the rocket: lean, then thrust, to move sideways. With a mouse, point where you want it to go and hold the button to thrust.</li>
+          <li>Touch down at speed 6 or less, upright, with both legs on the deck. Any faster and it's a large fire, which he will describe as data. Points for landing, for a soft touch, for the cross and for fuel left.</li>
+          <li>Eight boosters over five stages: wind, a swell, a smaller barge, his launch party and Mars. Pick an upgrade between stages; each one costs something. Today's run is the same flight for everyone.</li>
+        </ul>
+        <div class="share">
+          <button class="btn-line" id="share" type="button">Share</button>
+          <span class="share-status" id="share-status" role="status"></span>
+        </div>
+      </div>
+    </div>
+
+    <section class="more wrap" aria-labelledby="more-heading">
+      <div class="section-head">
+        <h2 id="more-heading">More games</h2>
+        <p class="section-note">Also unfinished. Also in poor taste.</p>
+      </div>
+      <!-- Filled from GAMES in /games/game.js -->
+      <ul class="more-list" id="more-list"></ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-inner wrap">
+      <img class="foot-mark" src="/brand/mark-on-dark.svg" alt="" width="183" height="166">
+      <div>
+        <p>Notaste Games makes satire. Real people, brands and events that appear in our games are being made fun of, not described.</p>
+        <p>&copy; <span id="year">2026</span> Notaste Games. <a href="/privacy/">Privacy</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/games/game.js" defer></script>
+  <script src="/games/kit/kit.js" defer></script>
+  <script src="/games/scrubbed/art.js" defer></script>
+  <script src="/games/scrubbed/scrubbed.js" defer></script>
+</body>
+</html>

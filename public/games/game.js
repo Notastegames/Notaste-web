@@ -19,7 +19,8 @@
     { slug: "terms-and-conditions", title: "Terms and Conditions", accent: "#f2b48c", stamp: "Unread", pitch: "Read the terms. Strike out the bad bits. Accept anyway. There is no other button.", status: "Playable now." },
     { slug: "just-the-recipe", title: "Just the Recipe", accent: "#c2643a", stamp: "Rejected", pitch: "Scroll down to the recipe. The page has other ideas.", status: "Playable now. Three courses, one life story." },
     { slug: "on-mute",       title: "On Mute",       accent: "#7a5cd6", stamp: "You're on mute", pitch: "Four meetings, one spreadsheet and a cat. Nod when you hear your name.", status: "Playable now." },
-    { slug: "hold-music",    title: "Hold Music",    accent: "#c452b5", stamp: "Please hold",    pitch: "Phone a company. Remember the menu. Keep time with the hold music.", status: "Playable now. Four calls." }
+    { slug: "hold-music",    title: "Hold Music",    accent: "#c452b5", stamp: "Please hold",    pitch: "Phone a company. Remember the menu. Keep time with the hold music.", status: "Playable now. Four calls." },
+    { slug: "scrubbed",      title: "Scrubbed",      accent: "#e8892b", stamp: "Good data",      pitch: "Land a billionaire's reusable rocket on a barge. He'll call it a success either way.", status: "Playable now. Five stages, eight rockets." }
   ];
 
   var current = document.body.getAttribute("data-game");
