@@ -22,6 +22,7 @@
     { slug: "hold-music",    title: "Hold Music",    accent: "#c452b5", stamp: "Please hold",    pitch: "Phone a company. Remember the menu. Keep time with the hold music.", status: "Playable now. Four calls." },
     { slug: "scrubbed",      title: "Scrubbed",      accent: "#e8892b", stamp: "Good data",      pitch: "Land a billionaire's reusable rocket on a barge. He'll call it a success either way.", status: "Playable now. Five stages, eight rockets." },
     { slug: "thirty-days",   title: "Thirty Days",   accent: "#5ccfa8", stamp: "Go large",       pitch: "Thirty days of fast food. Your insides are a council office, and the in-trays are full.", status: "Playable now. Four meals and a doctor's note." }
+    { slug: "speak-to-a-human", title: "Speak to a Human", accent: "#93a7f5", stamp: "Case closed", pitch: "Your food never came. The help chat is a bot. Get past it.", status: "Playable now. Four orders and a Dave." }
   ];
 
   var current = document.body.getAttribute("data-game");
