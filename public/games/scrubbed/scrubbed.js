@@ -4,17 +4,30 @@
 // THE JOKE. Billionaire space races, and the PR that comes with them. He
 // films the whole thing from a boat, live, and whatever happens he calls it
 // a success: a rocket that lands is his ("I did that."), and a rocket that
-// turns into a large fire is "Good data." Now and then the stream drops,
-// and off air he's less relaxed about it. He is the invented Space
-// Billionaire from Thonglets (DESIGN.md, section 2), never a real person:
-// the same rocket, the same face in its porthole, the same sunglasses.
+// turns into a large fire is "Good data." Once a round, at least, the
+// stream drops, and off air he's less relaxed about it. He is the invented
+// Space Billionaire from Thonglets (DESIGN.md, section 2), never a real
+// person: the same rocket, the same face in its porthole, the same
+// sunglasses.
+//
+// HIS STREAM. He's on screen big as his own live stream: a phone in the
+// sky under the HUD, on the side away from where the rocket comes in, with
+// his selfie-cam close-up on it (art.js, selfie). It's a fixed screen
+// element, so it reads at every size and in the clip frame, and it shows
+// the actual joke: he's filming himself, not the rocket. Smug while it
+// falls, wincing when the tag goes red, arms up for a landing, pointing at
+// the fire behind him for "Good data.", static and then shouting when it
+// goes off air. On Mars it's fourteen minutes old and reacts to the wrong
+// thing. His bubbles come from it.
 //
 // THE CONTROLS. Thrust (Up, W, Space, the Thrust button, a held mouse
 // button, A or the right trigger) pushes along the rocket. Left and right
 // (arrows, A and D, the arrow buttons, the stick) lean it, at a steady rate,
-// and it stays where you leave it. With a mouse it leans towards the
-// pointer instead, more the further the pointer is to one side. Thrust is
-// all or nothing, so you feather it.
+// and it stays where you leave it; leaning only moves it while the engine
+// is on. With a mouse, the pointer is where to go: it leans to head there,
+// easing off as it arrives, and comes upright near the deck (the
+// autopilot's own rule), but only gets there under thrust. Thrust is all or
+// nothing, so you feather it.
 //
 // THE PHYSICS. World units, about a metre and a half each: the rocket is 13
 // tall. Gravity 7.5 a second a second (Mars 3). The engine pushes 18 along
@@ -42,26 +55,33 @@
 // with a foot over the edge stands for a moment, then tips over. On Mars
 // there's no air, so no fire: a dent. Every crash is over quickly: a burst,
 // a fire, his line, and the next booster is on its way in two seconds
-// (press thrust to skip the last of it).
+// (press thrust to skip the last of it). The first fire of a run is always
+// "Scrubbed" and "Good data."; the one where his stream drops runs three
+// and a half seconds, so his off-air line can be read.
 //
-// THE CAMERA. It frames the rocket and the whole landing area together
-// (barge, his boat, the windsock), with the HUD clear above and the touch
-// buttons clear below. It keeps a box that grows at once when a booster
-// comes in high and shrinks smoothly as it comes down, so it eases in, and
-// the scene always stands on the bottom of the free space. On a square
-// phone the scene sits low with the sky above it; on a touch screen the
-// round goes full-window (a tall descent wants the height), and in the 4:5
-// clip frame the extra height becomes sky. While the notice is up the scene
-// stands on top of it.
+// THE CAMERA. It frames the rocket and the landing area together (barge,
+// his boat, the windsock), with the HUD clear above and the touch buttons
+// clear below (between them, on a landscape phone). It keeps a box that
+// grows at once when a booster comes in high and shrinks smoothly as it
+// comes down, so it eases in, and the scene always stands on the bottom of
+// the free space. After a crash or a landing it pushes in on the rocket. It
+// never goes so far out that the scene is a sliver: a rocket higher than
+// that waits off the top, and its tag waits at the top of the screen with
+// an arrow up and the height. A tall screen leaves out the ends that don't
+// matter. While the notice is up the scene stands on top of it, and the
+// sky above it is his stream's.
 //
 // THE STAGES. Eight boosters over five stages, each new thing with a notice:
 //   1. The barge (two boosters). A big barge called Told You So, calm sea.
-//      The first booster starts gently, close, with arrows to teach thrust,
-//      lean and the cross.
+//      Both boosters come in close and straight down; the first low,
+//      nearly at rest and on the left (clear of the countdown's stamps),
+//      with arrows to teach thrust, lean and the cross. The notice gives
+//      the one number: touch down at speed 6 or less.
 //   2. Weather (two). Wind, stronger higher up, in gusts, shown by streaks
 //      and the windsock. A smaller barge.
 //   3. Swell (two). The deck heaves and rolls on the waves: land as it
-//      sinks, not as it rises. Smaller again, with some wind.
+//      sinks, not as it rises (the tag says "Deck rising"). Smaller again,
+//      with some wind.
 //   4. Launch party (one). His own lawn, between a marquee and a heated
 //      pool, his guests filming from the terrace. Balloons drift up through
 //      the descent and nudge you. The marquee and the cake can catch fire;
@@ -106,8 +126,9 @@
 //
 // ?debug exposes window.__scrubbed for test players, and takes &stage=N to
 // start at stage N, &take=beta,pr to start with those upgrades, &seed=N and
-// &fly=late|drift|sea to make the autopilot fly badly on purpose, or &aim=X
-// to send it somewhere else.
+// &fly=late|drift|sea to make the autopilot fly badly on purpose, &aim=X
+// to send it somewhere else, or &offair to drop his stream on every fire
+// after the first.
 //
 // Built on the shared kit (/games/kit/kit.js): the intro, screens,
 // controls, sound and saving. art.js draws everything.
@@ -644,6 +665,7 @@
     run.fuelLeft += r.fuel / r.cap;
     if (run.closest == null || dx < run.closest) run.closest = dx;
     if (s.scene === "mars") run.marsLanded = true;
+    if (DEBUG && run.log && run.log.length) run.log[run.log.length - 1].out = "landed";
     said.landed = true;
     // the receipt: each part, then what Mars adds and what the upgrades take
     var rows = [["Landed", Math.round(PTS.land)], ["Soft", Math.round(soft)], ["Cross", Math.round(cross)], ["Fuel", Math.round(fuel)]];
@@ -681,6 +703,7 @@
     r.thrust = 0;
     beatLen = BEAT[kind === "splash" || kind === "pool" ? "splash" : kind === "lost" ? "lost" : "crash"];
     skipAfter = SKIP_AFTER;
+    if (DEBUG) { run.log = run.log || []; if (kind === "lost" || !run.log.length || run.log[run.log.length - 1].out) run.log.push({ s: run.stage, b: st.booster, kind: kind }); run.log[run.log.length - 1].out = kind; }
     run.crashes++;
     if (m.crashPay) { run.score += m.crashPay; run.stageScore += m.crashPay; run.tests += m.crashPay; }
     var word;
