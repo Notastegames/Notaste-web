@@ -139,13 +139,13 @@
 // as it was 200 to 450ms ago, misjudge speed and height, aim off, overshoot
 // their lean taps, and play through real key presses, real touches on the
 // buttons, or a real mouse; skilled ones time the swell as the notice says.
-// 71 rounds, October 2026, after the review's fixes:
-//   good and expert, normal speed, 25 rounds over keys, touch and mouse:
-//     3,200 to 8,200, three to eight landed. Approved 7 times in 25 (keys
-//     3 in 9, touch 3 in 9, mouse 1 in 4): all four that landed all eight,
-//     and three of the six sevens with Mars. Mars is the wall (landed about
-//     three times in five), then the swell (about three in four); the rest
-//     about nine in ten.
+// 77 rounds, October 2026, after the review's fixes:
+//   good and expert, normal speed, 31 rounds over keys, touch and mouse:
+//     2,400 to 8,200, three to eight landed. Approved 7 times in 31 (keys
+//     3 in 11, touch 3 in 11, mouse 1 in 9): all four that landed all
+//     eight, and three of the seven sevens with Mars. Mars and the swell
+//     are the walls (each landed a little over half the time); the rest
+//     about five times in six.
 //   average: 500 to 5,400, none to six landed. Not approved or Pending.
 //   novice: 0 to 1,800, none or one landed. Rejected or Not approved.
 //   first-timers who keep the speed shown under 6, as the notice says,
