@@ -2,16 +2,16 @@
 
 Where the site is going in the short term. Plain order of work, not dates. Change it whenever the plan changes.
 
-Last updated: 2 October 2026.
+Last updated: 6 October 2026.
 
 ---
 
 ## Where we are
 
-- **Playable (5):** Thonglets, Heavy Traffic (still labelled an early prototype), Slop Cannon, Reply All and Unexpected Item.
-- **In progress:** Terms and Conditions, Just the Recipe and Hold Music (see "Resume here" in Phase 3).
+- **Playable (10):** Thonglets, Heavy Traffic, Slop Cannon, Unexpected Item, Reply All, Terms and Conditions, Just the Recipe, Hold Music, On Mute and Scrubbed. Phase 3 is done.
+- **Next:** the owner's notes on the ten (see "Left over" in Phase 3), then phase 4 (the site at ten games), then phase 5 (the socials).
 - **Built:** the shared game kit (with today's run, Share result and a clip mode for filming), the starter game, the automatic play-through, `DESIGN.md`, per-game share images, a privacy note, and the preview-then-approve process.
-- **Not yet:** the socials (accounts partly set up, not linked yet), a shop link, and a homepage that works with more than three games.
+- **Not yet:** the socials (accounts partly set up, not linked yet), a shop link, and a homepage designed for ten games (for now the posters run in pairs, with a wide one at the top and the bottom).
 
 ## The goals
 
@@ -34,7 +34,7 @@ A game counts towards the ten only when all of this is true:
 - [ ] It passes the automatic play-through (phase 2, once that exists).
 - [ ] A preview has been published and approved.
 
-Heavy Traffic needs one polish pass against this list before it drops the prototype label.
+All ten games meet this list. Heavy Traffic had its polish pass on 6 October and dropped the prototype label. Batches 2 and 3 went live together on 6 October, as the owner asked ("merge all together once complete"); their playable previews are still there to play.
 
 ---
 
@@ -56,58 +56,50 @@ Do this before game 3, so every game after it gets these for free.
 - [x] **A clip mode.** `?clip` shows the game in a tall 9:16 frame, with no cabinet and the autopilot playing, ready for screen recording. This is where the social clips come from.
 - [x] **An automatic play-through.** `node tools/playtest.mjs` checks every page at 375px and desktop width and plays every kit game to its results screen with the autopilot. It fails on console errors, failed or third-party requests, or sideways scrolling. It's for checking only and never ships.
 
-## Phase 3: games 3 to 10
+## Phase 3: games 3 to 10 (done)
 
-Eight new games and a polish pass on Heavy Traffic, so the site has ten. The briefs are below; swap any of them freely.
+Eight new games and a polish pass on Heavy Traffic, so the site has ten. All live on 6 October 2026. The briefs are kept below for reference.
 
 | # | Game | Type | Accent | Status |
 | --- | --- | --- | --- | --- |
 | 1 | Thonglets | God game | lilac | Live |
-| 2 | Heavy Traffic | Kart racing | teal | Live; polish pass in batch 3, not started |
+| 2 | Heavy Traffic | Kart racing | teal | Live; polished (#23) |
 | 3 | Slop Cannon | Arcade artillery | slime | Live (#14) |
 | 4 | Unexpected Item | Timing | checkout green | Live (#16) |
 | 5 | Reply All | Whack-a-mole | sky | Live (#15) |
-| 6 | Terms and Conditions | Spot it | peach | Built, reviewed, fixes done; final check left |
-| 7 | Just the Recipe | Vertical dodger | rust | Built; review half done |
-| 8 | Hold Music | Rhythm and memory | magenta | Designed; build not started |
-| 9 | On Mute | Multitasking | violet | Batch 3, not started |
-| 10 | Scrubbed | Lander physics | orange | Batch 3, not started |
+| 6 | Terms and Conditions | Spot it | peach | Live (#18) |
+| 7 | Just the Recipe | Vertical dodger | rust | Live (#20) |
+| 8 | Hold Music | Rhythm and memory | magenta | Live (#22) |
+| 9 | On Mute | Multitasking | violet | Live (#21) |
+| 10 | Scrubbed | Lander physics | orange | Live (#24) |
 
 All fifteen accents (these and the edgier five) are in `DESIGN.md` section 3.
 
-### Resume here
+### Left over
 
-Paused on 3 October 2026 at the owner's request; picking up after the usage limit resets. Do these in order.
+Nothing in Phase 3 is half done. What's left is notes and small things, none of them blocking.
 
-1. **The owner's notes first.** Any notes on the three games that went live on 4 October (Slop Cannon, Reply All, Unexpected Item) become fixes on a fresh `claude/game-<slug>` branch from `main`, before new work.
-2. **Turn the check-in back on.** The routine "Notaste Phase 3 check-in" (every two hours) restarts stopped helpers. Run three helpers at a time: four hit the usage limit.
-3. **Terms and Conditions** (`claude/game-terms-and-conditions`, at 4fa032f): the review's fixes are done and its play-through passes.
-    - Merge `main` in: the kit fixes it was written against are now live.
-    - Check that `fullOnTouch` takes a phone round full-window, and that `terms.css` doesn't shrink panels a second time on top of the kit's small-screen rules.
-    - Look over its phone screenshots, run the full `node tools/playtest.mjs`, then publish a preview and open a pull request for the owner.
-4. **Just the Recipe** (`claude/game-just-the-recipe`, at 4ce3fe6): built.
-    - Finish the review from `docs/phase3/just-the-recipe-review-so-far.md`, which lists what it hasn't covered yet.
-    - A fixer then works through the whole review, then a final check, a preview and a pull request.
-5. **Hold Music:** nothing built yet. A builder builds it from `docs/phase3/hold-music-design.md`, then review, fixes, a preview and a pull request.
-6. **Batch 3:** On Mute, Scrubbed, and the Heavy Traffic polish pass, through the same steps.
-7. **As each game merges:**
-    - Bring the branch up to date with `main`; the `GAMES` line, poster and sitemap line usually conflict, so keep every game.
-    - Run the full play-through.
-    - Add the game's stamp words to `DESIGN.md` section 6, and update the table above.
+1. **The owner's notes on the ten.** Each becomes a fix on a fresh `claude/game-<slug>` branch from `main`, before phase 4.
+2. **Kit follow-ups** the reviews found, for every game at once:
+    - On a touch screen, leaving full-window mid-round should pause and offer to go back in.
+    - An option to place callouts somewhere other than the middle of the screen (Heavy Traffic, Unexpected Item and Hold Music each move them in their own CSS).
+    - The notice shouldn't block taps on what's under it.
+    - An option for a count-in when coming back from a pause.
+    - At 320×568 the results stamp is cut off at the top and "All games" falls off the bottom.
+    - The notice's timer keeps running while paused.
+3. **Each game's "still weak" list** is at the end of its pull request. The ones worth a real phone: the frame rate in Just the Recipe's full window and On Mute's all-hands, and Hold Music's tap timing through Bluetooth headphones.
+4. **Loose ends:**
+    - The homepage's own share image (`public/og-image.png`) still shows the old Slop Cannon art.
+    - A few share images are heavy (Slop Cannon's is 593KB, Scrubbed's 357KB).
+    - Thonglets' autopilot sometimes fails an early stage in the play-through. That's chance, not a fault.
 
-Helpers are briefed with `docs/phase3/builder-rules.md` (builders and fixers) and `docs/phase3/reviewer-rules.md` (reviewers), plus the game's brief below.
-
-Loose ends:
-- The homepage's own share image (`public/og-image.png`) still shows the old Slop Cannon art.
-- A few share images are heavy (Slop Cannon's is 593KB).
-- Two reviews asked for a kit option to place callouts somewhere other than the middle of the screen.
-- Thonglets' autopilot sometimes fails an early stage in the play-through. That's chance, not a fault.
+Helpers are briefed with `docs/phase3/builder-rules.md` (builders and fixers) and `docs/phase3/reviewer-rules.md` (reviewers), plus the game's brief below. The same briefs work for games 11 to 15.
 
 ### How it runs
 
 - **One branch and one pull request per game:** `claude/game-<slug>`, pushed as it goes, so nothing is lost if a session stops.
 - **Batches of three.** Each game gets a builder, which designs and builds it from its brief, then a reviewer, which plays it cold against `DESIGN.md` and the standard Thonglets and Heavy Traffic set. The builder fixes what the reviewer finds, then a final check, a playable preview and a pull request.
-- **Nothing merges until the owner has played it and said yes.** Expect a round or two of notes per game; that's where "as good as the first two" comes from.
+- **Nothing merges until the owner has played it and said yes.** Expect a round or two of notes per game; that's where "as good as the first two" comes from. (For batches 2 and 3 the owner said to merge them all together once everything was finished.)
 - **If a session stops** (a usage limit, a restart), a check-in every couple of hours picks the work back up from the branches, the open pull requests and this list.
 - **The homepage** gets a poster for each game as it merges; the pair of posters under the featured one wraps into a grid. Phase 4 redesigns it properly.
 
@@ -143,7 +135,7 @@ Loose ends:
 
 ## Phase 4: the site at ten games
 
-- [ ] A games grid in place of the three-poster layout: "New", "Today's runs", then everything. Possibly a `/games/` page.
+- [ ] A games grid in place of the poster list: "New", "Today's runs", then everything. Possibly a `/games/` page.
 - [ ] A **Shop** link in the header and footer to the existing hoodie and T-shirt shop. Just a link: no embedded store, no shop scripts.
 - [ ] A press page: logo, screenshots, one-line pitches, contact.
 - [ ] An RSS feed of new games (a static file, no third parties).

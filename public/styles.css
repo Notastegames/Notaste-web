@@ -608,6 +608,8 @@ h1, h2, h3 {
   gap: 3rem;
   margin-top: 3.5rem;
 }
+/* a wide poster after the pairs, when the count is odd */
+.poster-pair + .poster--feature { margin-top: 3.5rem; }
 
 @media (hover: hover) {
   .poster:hover .poster-art img { transform: scale(1.035); }
