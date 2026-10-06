@@ -114,7 +114,7 @@
     face.ellipse(x, y, r, r, 0, 0, Math.PI * 2);
     c.fillStyle = T.paper;
     c.fill(face);
-    crescent(c, face, x, y, r, r, r * 0.22);
+    crescent(c, face, x, y, r, r, o.dot || r * 0.22);
     ink(c, lw);
     c.stroke(face);
 
@@ -385,8 +385,11 @@
     c.fillStyle = T.ink; c.fill();
     ink(c, Math.max(2.2, w * 0.028), T.paper); c.stroke();
     var bz = Math.max(4, w * 0.06);
-    var sx = x + bz, sy = y + bz, sw = w - bz * 2, sh = h - bz * 2;
+    var sx = x + bz, sy = y + bz * 1.5, sw = w - bz * 2, sh = h - bz * 2.5;
     var dir = o.dir || 1;
+    // the speaker slot in the top edge, so it reads as a phone
+    rrect(c, x + w / 2 - w * 0.09, y + bz * 0.55, w * 0.18, Math.max(2, bz * 0.38), 2);
+    c.fillStyle = T.paper; c.fill();
     c.save();
     rrect(c, sx, sy, sw, sh, R * 0.55);
     c.clip();
@@ -406,7 +409,7 @@
     }
 
     var square = o.pose === "cheer" || o.pose === "shout";
-    var Rh = sw * 0.32 * (o.pose === "shout" ? 1.1 : 1);
+    var Rh = sw * 0.35 * (o.pose === "shout" ? 1.08 : 1);
     // he leans away from the barge, so it shows over his shoulder; arms up
     // or shouting, he's square to the camera
     var cx = sx + sw * (square ? 0.5 : 0.5 - dir * 0.09) + (o.sway || 0);
@@ -483,8 +486,10 @@
     oval(c, px, py, Rh * 0.25, Rh * 0.25, T.red, lw * 0.6);
     sparkle(c, px, py, Rh * 0.16, T.paper);
     if (pose === "point") {
-      arm(c, cx + dir * Rh * 1.1, bottom - Rh * 0.45, cx + dir * Rh * 2.0, hy + Rh * 0.4, lw, aw, T.accent);
-      oval(c, cx + dir * Rh * 2.32, hy + Rh * 0.32, Rh * 0.2, Rh * 0.1, T.paper, lw * 0.8, null, dir * -0.25);
+      // pointing over his shoulder at the barge: a finger out of the mitten
+      var hx = cx + dir * Rh * 1.38, hy2 = hy + Rh * 0.3;
+      oval(c, hx + dir * Rh * 0.3, hy2 - Rh * 0.2, Rh * 0.24, Rh * 0.09, T.paper, lw * 0.8, null, -dir * 0.6);
+      arm(c, cx + dir * Rh * 1.05, bottom - Rh * 0.45, hx, hy2, lw, aw, T.accent);
     } else if (pose === "shout") {
       arm(c, cx + Rh * 1.15, bottom - Rh * 0.4, cx + Rh * 1.42, hy - Rh * 0.3, lw, aw * 1.1, T.accent);
     } else if (pose !== "cheer") {
@@ -494,7 +499,7 @@
 
     // his head
     var mood = { film: "smug", wince: "wince", flee: "wince", cheer: "grin", point: "grin", shout: "shout" }[pose] || "smug";
-    head(c, cx, hy, Rh, { mood: mood, gaze: pose === "point" ? dir * 0.7 : square ? 0 : dir * 0.15, look: "shades", lw: lw });
+    head(c, cx, hy, Rh, { mood: mood, gaze: pose === "point" ? dir * 0.7 : square ? 0 : dir * 0.15, look: "shades", lw: lw, dot: Math.max(3, Rh * 0.13) });
     if (pose === "wince" || pose === "flee") {
       // a bead of sweat
       var dx = cx + Rh * 0.95 * dir, dy = hy - Rh * 0.42;
@@ -1080,7 +1085,7 @@
 
   window.ScrubbedArt = {
     init: init, setView: setView, thick: thick, dots: dots, shade: shade, ink: ink, oval: oval, rrect: rrect, sparkle: sparkle,
-    head: head, billionaire: billionaire, guest: guest, selfie: selfie, rocket: rocket, flame: flame, fire: fire, burst: burst, puff: puff,
+    head: head, arm: arm, crescent: crescent, billionaire: billionaire, guest: guest, selfie: selfie, rocket: rocket, flame: flame, fire: fire, burst: burst, puff: puff,
     barge: barge, windsock: windsock, boat: boat, lawn: lawn, party: party, balloon: balloon, mars: mars, flag: flag, dish: dish,
     sign: sign, arrow: arrow,
     LEG_X: LEG_X, LEG_WIDE: LEG_WIDE, DECK_UP: DECK_UP, HULL: HULL, BOAT_DECK: BOAT_DECK, BOAT_STAND: BOAT_STAND, PARTY: PARTY

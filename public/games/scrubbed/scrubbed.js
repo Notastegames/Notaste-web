@@ -533,15 +533,15 @@
     if (AUTO) return { up: auto.out.up, rate: auto.out.steer * TURN * m.turn };
     var up = input.up || input.action || held;
     // a mouse: the pointer is where to go. The rocket leans to head there,
-    // easing off as it arrives (as the autopilot does), never more than it
-    // could land with near the deck; the engine does the moving, so it only
-    // gets there while the button is held
+    // easing off as it arrives (as the autopilot does), and comes upright
+    // near the deck, so it never arrives leaning; the engine does the
+    // moving, so it only gets there while the button is held
     if (input.mode === "mouse" && input.aim.on && !input.left && !input.right) {
       lastMode = "mouse";
       var h = heightAbove(rk), dx = cam.x + (input.aim.x - W / 2) / cam.z - rk.x;
       var vxWant = h < 10 ? clamp(dx * 0.3, -2, 2) : clamp(dx * 0.42, -9, 9);
       var lean = Math.asin(clamp((vxWant - rk.vx) * 1.1 / (THRUST * m.thrust), -0.55, 0.55));
-      var most = h < 4 ? 0.04 : h < 12 ? 0.18 : h < LEGS_AT ? SAFE_TILT * m.safeTilt : 0.55;
+      var most = h < 4 ? 0.04 : h < 12 ? 0.18 : 0.5;
       lean = clamp(lean, -most, most);
       var diff = lean - rk.a;
       return { up: up, rate: Math.abs(diff) < 0.02 ? 0 : clamp(diff * 7, -1, 1) * TURN * m.turn, aimed: true };
@@ -898,7 +898,7 @@
     else if (h < 18 && Math.abs(r.a + u.angle) > SAFE_TILT * m.safeTilt) tag = { word: "Not upright", bad: true };
     else if (h < 14 && Math.abs(r.vx) > SAFE_VX) tag = { word: "Drifting", bad: true };
     else if (h < 9 && u.vy > 0.9) tag = { word: "Deck rising", bad: true };
-    else tag = { word: "Speed " + Math.max(0, Math.min(Math.round(fall), Math.floor(limit))), bad: false };
+    else tag = { word: "Speed " + Math.max(0, h < 20 ? Math.min(Math.round(fall), Math.floor(limit)) : Math.round(fall)), bad: false };
     if (tag.bad && h < 20) {
       r.warn -= dt;
       if (r.warn <= 0) { r.warn = 0.32; sfx.warn(); }
@@ -1406,7 +1406,10 @@
       var r = el.getBoundingClientRect();
       if (r.width) hudBox.push({ left: r.left - base.left, right: r.right - base.left, bottom: r.bottom - base.top, top: r.top - base.top, pad: el.classList.contains("kit-pad") });
     });
-    return hudBox;
+    // the HUD not laid out yet (the first frames of a round): measure again next frame
+    var found = hudBox;
+    if (!found.some(function (b) { return !b.pad; })) hudBox = null;
+    return found;
   }
 
   // ---------------------------------------------------------------------------
@@ -1523,7 +1526,8 @@
   }
   function drawPip(c, dt) {
     var to = pipTarget();
-    if (pip.x == null || !dt || shell.reduceMotion) { pip.x = to.x; pip.y = to.y; }
+    // it slides across between boosters; anywhere else it just sits where it belongs
+    if (pip.x == null || !dt || shell.reduceMotion || shell.state() !== "playing") { pip.x = to.x; pip.y = to.y; }
     else { var k = 1 - Math.exp(-dt * 6); pip.x += (to.x - pip.x) * k; pip.y += (to.y - pip.y) * k; }
     var s = stage(), pose = pipPose(), still = shell.reduceMotion;
     var sway = still ? 0 : Math.sin(vis * 1.3) * 1.2 + (pose === "flee" ? Math.sin(vis * 23) * 2.5 : pose === "wince" ? Math.sin(vis * 31) * 0.8 : 0);
