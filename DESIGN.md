@@ -276,7 +276,7 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 1. Pick a name, a slug, a one-line pitch and an accent colour. Add the accent to section 3 (games on the roadmap already have one).
 2. Copy `public/games/starter/` to `public/games/<slug>/`, rename `starter.js` and rewrite it as the new game. In Tray is a whole small game on the kit (HUD, keys, aim, a touch button, callouts, a notice, today's run, bests, share, autopilot), so keep what fits and replace the rest. Delete the page's `robots` line.
 3. Fill in the page: title, description, share tags, `data-game`, `--accent`, stamp word, how-to-play lines.
-4. Add the game to `GAMES` in `public/games/game.js` and add a poster on the homepage.
+4. Add the game to `GAMES` in `public/games/game.js`, and put it in the wide featured slot on the homepage (the newest game always has it). The game it replaces becomes the first tile in the grid under it, which runs newest first.
 5. Draw the 800×600 cover and the 1200×630 share image (section 7).
 6. Use the kit for intro, screens, controls, sound and saving. Draw with `Notaste.tokens()` colours. Give it today's run, a `share` line in the results and an autopilot.
 7. Write the copy in the house voice (section 2) and check the punch-down rule.
