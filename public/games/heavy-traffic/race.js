@@ -1846,7 +1846,7 @@
       if (bd < 20 || bd > view.fogFar) continue;
       items.push({ depth: bd, bar: bar, draw: drawBarrierAt });
     }
-    karts.forEach(function (k) { add(k.x, k.y, function (d) { fogged(d, function () { HTL.drawKart(c, k, view, looks[k.name], T, DPR); }); }); });
+    karts.forEach(function (k) { add(k.x, k.y, function (d) { fogged(d, function () { HTL.drawKart(c, k, view, looks[k.name], T, DPR); }, !k.player); }); });
     parts.forEach(function (p) { add(p.x, p.y, function (d) { fogged(d, function () { drawPart3D(c, p); }); }); });
     items.sort(function (a, b) { return b.depth - a.depth; });
     items.forEach(function (it) { it.draw(it.depth, it.bar); });
@@ -2028,9 +2028,11 @@
 
   // things fade into the dark with distance, like the road does
   // ...and anything right up at the camera fades out rather than filling the screen
-  function fogged(depth, draw) {
+  // ...and a rival between the camera and your kart fades sooner, so one
+  // tucked in behind you doesn't fill a phone's screen and hide the road
+  function fogged(depth, draw, near) {
     var t = clamp((depth - view.fogNear) / (view.fogFar - view.fogNear), 0, 1);
-    var a = Math.min(1 - t * t * (3 - 2 * t), clamp((depth - 48) / 14, 0, 1));
+    var a = Math.min(1 - t * t * (3 - 2 * t), near ? clamp((depth - 58) / 34, 0, 1) : clamp((depth - 48) / 14, 0, 1));
     if (a <= 0.02) return;
     ctx.globalAlpha = a;
     draw();
