@@ -1,8 +1,9 @@
 /*
-  Scrubbed: the two things this game does differently on the page. The
+  Scrubbed: the three things this game does differently on the page. The
   Thrust button is the one you hold all round, so it's bigger than the lean
-  buttons; and the fuel meter says when it's running low, with a pulse.
-  Everything else is the kit's (games/kit/kit.css).
+  buttons; the fuel meter says when it's running low, with a pulse; and a
+  tall phone keeps the joke and the numbers between stages. Everything else
+  is the kit's (games/kit/kit.css).
 */
 body[data-game="scrubbed"] .kit-pad[data-key="up"] { width: 5.25rem; height: 5.25rem; }
 body[data-game="scrubbed"] .kit-pad[data-key="up"] .kit-pad-face { font-size: 1.05rem; }
@@ -10,4 +11,11 @@ body[data-game="scrubbed"] .scrubbed-fuel .kit-meter-bar { width: 5.5rem; }
 body[data-game="scrubbed"] .scrubbed-fuel.is-low .kit-meter-label { color: var(--paper); }
 @media (prefers-reduced-motion: no-preference) {
   body[data-game="scrubbed"] .scrubbed-fuel.is-low .kit-meter-bar > span { animation: kit-pulse 0.35s ease-in-out infinite alternate; }
+}
+
+/* Between stages, a tall phone (the round goes full-window) has room for
+   the joke and the numbers, which the kit leaves out on narrow screens */
+@container kit (max-width: 440px) and (min-height: 600px) {
+  body[data-game="scrubbed"] .kit-inter .kit-line { display: block; }
+  body[data-game="scrubbed"] .kit-inter .kit-stats { display: flex; }
 }

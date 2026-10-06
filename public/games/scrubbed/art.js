@@ -887,14 +887,15 @@
     c.restore();
   }
 
-  // A sign on a post
-  function sign(c, x, y, w) {
+  // A sign on a post: a paper plate w wide and h tall, its bottom 2.8 up
+  function sign(c, x, y, w, h) {
     var lw = thick(0.12, 1.1);
+    h = h || 1.8;
     ink(c, lw * 1.6); c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - 3.2); c.stroke();
     ink(c, lw * 0.6, T.paper); c.stroke();
-    rrect(c, x - w / 2, y - 4.6, w, 1.8, 0.15);
+    rrect(c, x - w / 2, y - 2.8 - h, w, h, 0.15);
     c.fillStyle = T.paper; c.fill(); ink(c, lw); c.stroke();
-    return { x: x, y: y - 3.7 };
+    return { x: x, y: y - 2.8 - h / 2 };
   }
 
   // A bobbing arrow pointing down with a word over it (DESIGN.md, section 10),

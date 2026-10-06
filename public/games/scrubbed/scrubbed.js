@@ -105,7 +105,9 @@
 // not all of it.
 //
 // ?debug exposes window.__scrubbed for test players, and takes &stage=N to
-// start at stage N.
+// start at stage N, &take=beta,pr to start with those upgrades, &seed=N and
+// &fly=late|drift|sea to make the autopilot fly badly on purpose, or &aim=X
+// to send it somewhere else.
 //
 // Built on the shared kit (/games/kit/kit.js): the intro, screens,
 // controls, sound and saving. art.js draws everything.
@@ -219,12 +221,15 @@
             "Nominal.", "Most of it is on the barge."],
     sea: ["Water landing. On purpose.", "The sea was in the way.", "It'll wash up somewhere. Probably mine.", "Delete that."],
     edge: ["It was nearly on.", "That's a landing. Then a swim."],
+    tipped: ["It stood up for a bit. Count it.", "Upright, then flat. Both count."],
     fuel: ["Fuel is a mindset.", "We're testing gravity now."],
     lost: ["It's in orbit now. Probably.", "Gone to a better place. Mine."],
     offair: ["Who was flying that, you plonker.", "Find out who that was.", "That was my favourite, you pillock.",
              "I can see the share price from here.", "Don't clip that, you absolute weapon."],
     party: ["Everyone important is here. Land it nicely.", "Land it by the cake. For the photos.", "Mind the pool. It's heated."],
-    partyCrash: ["The marquee was old anyway.", "Good data. Good party.", "Nobody tell the insurance."],
+    partyCrash: ["Good data. Good party.", "Nobody tell the insurance.", "Fireworks. As planned."],
+    marquee: ["The marquee was old anyway.", "That marquee was rented, you lemon."],
+    flee: ["Stay calm. I'm leaving first.", "Keep the stream on. I'm running."],
     pool: ["Pool landing. Very exclusive.", "That pool was heated, you plonker."],
     cake: ["The cake was a test as well."],
     balloon: ["Those balloons were for the photos.", "Mind the balloons, you lemon."]
@@ -304,6 +309,10 @@
     if (DEBUG && params.get("seed")) { sh.seed = parseInt(params.get("seed"), 10) || 1; sh.random = N.seeded(sh.seed); }
     run = { stage: FIRST, mods: newMods(), score: 0, landed: 0, flown: 0, crashes: 0, taken: [], closest: null,
             stageScore: 0, stageLanded: 0, daily: sh.daily, marsLanded: false, firstCrash: true, fuelLeft: 0 };
+    // ?debug&take=beta,pr starts with those upgrades
+    if (DEBUG && params.get("take")) params.get("take").split(",").forEach(function (id) {
+      UPGRADES.forEach(function (u) { if (u.id === id) { run.taken.push(id); u.apply(run.mods); } });
+    });
     said = {};
     noticed = false;
     held = false;
@@ -366,6 +375,8 @@
     noticed = false;
     st.cake = true;
     st.lit = false;
+    st.flee = false;
+    st.bossX = 23.6;
     spawn();
   }
 
@@ -419,6 +430,7 @@
     auto = { t: 0, out: { up: false, steer: 0 }, bias: p.bias * (AUTO ? 1 : 0),
              windSense: p.sloppy < 0.1 || FORCE === "drift" ? 0.2 : 0.85, late: p.sloppy > 0.88 || FORCE === "late", prevUp: false };
     if (FORCE === "sea") auto.bias = (p.x > 0 ? 1 : -1) * ((stage().deck || 30) / 2 + 3);
+    if (DEBUG && params.get("aim")) auto.bias = parseFloat(params.get("aim")) || 0;
     boss.pose = "film"; boss.mood = "smug"; boss.air = true;
   }
 
@@ -596,8 +608,8 @@
     var soft = PTS.soft * clamp(1 - (impact - SOFT) / (safeVy - SOFT), 0, 1) * (1 - 0.5 * clamp(lean / safeTilt, 0, 1));
     var cross = PTS.cross * Math.pow(clamp(1 - dx / CROSS_R, 0, 1), 1.2);
     var fuel = PTS.fuel * clamp(r.fuel / r.cap, 0, 1);
-    var mult = (s.mult || 1) * m.pay;
-    var total = Math.round((PTS.land + soft + cross + fuel) * mult);
+    var base = PTS.land + soft + cross + fuel;
+    var total = Math.round(base * (s.mult || 1) * m.pay);
     run.score += total;
     run.stageScore += total;
     run.landed++;
@@ -606,9 +618,19 @@
     if (run.closest == null || dx < run.closest) run.closest = dx;
     if (s.scene === "mars") run.marsLanded = true;
     said.landed = true;
-    receipt = { t: 0, total: total, rows: [
-      ["Landed", Math.round(PTS.land)], ["Soft", Math.round(soft)], ["Cross", Math.round(cross)], ["Fuel", Math.round(fuel)]
-    ], mult: mult !== 1 ? (s.mult ? "Mars x2" : "") + (m.pay !== 1 ? (s.mult ? ", " : "") + "less a fifth" : "") : "" };
+    // the receipt: each part, then what Mars adds and what the upgrades take
+    var rows = [["Landed", Math.round(PTS.land)], ["Soft", Math.round(soft)], ["Cross", Math.round(cross)], ["Fuel", Math.round(fuel)]];
+    var sum = rows.reduce(function (n, row) { return n + row[1]; }, 0), v = base;
+    if (s.mult) { var add = Math.round(base * (s.mult - 1)); rows.push(["Mars x2", add, "+"]); sum += add; v = base * s.mult; }
+    var cuts = [];
+    if (m.beta) cuts.push("Credit taken");
+    if (m.pr) cuts.push("PR fee");
+    cuts.forEach(function (label, i) {
+      var cut = i === cuts.length - 1 ? total - sum : -Math.round(v * 0.2);
+      v *= 0.8; sum += cut;
+      rows.push([label, cut]);
+    });
+    receipt = { t: 0, total: total, rows: rows };
     var word = dx < 0.5 ? CALL.perfect : impact < SOFT ? CALL.feather : dx > 4 ? CALL.off : impact > safeVy * 0.8 ? CALL.firm : CALL.landed;
     if (s.scene === "mars") word = CALL.nobody;
     shell.callout(word, { ms: 1500 });
@@ -642,7 +664,7 @@
     else if (kind === "lost") word = CALL.lost;
     else { word = run.firstCrash ? "Scrubbed" : pick(CALL.crash); }
     if (kind !== "lost") run.firstCrash = false;
-    if (m.crashPay) receipt = { t: 0, total: m.crashPay, rows: [["Test", m.crashPay]], mult: "" };
+    if (m.crashPay) receipt = { t: 0, total: m.crashPay, rows: [["Test", m.crashPay]] };
     shell.callout(word, { ms: 1500 });
     if (kind === "tip") {
       // it stands for a moment, then goes over: off the nearer edge, or the way it leans
@@ -662,8 +684,8 @@
     if (s.scene === "mars") earthSay(EARTH.crash);
     else {
       boss.pose = "point"; boss.mood = "smug";
-      var list = kind === "splash" ? BOSS.sea : kind === "pool" ? BOSS.pool : kind === "tip" ? BOSS.edge :
-                 kind === "marquee" ? BOSS.partyCrash : kind === "cake" ? BOSS.cake : kind === "lost" ? BOSS.lost :
+      var list = kind === "splash" ? BOSS.sea : kind === "pool" ? BOSS.pool : kind === "tip" ? (s.scene === "sea" ? BOSS.edge : BOSS.tipped) :
+                 kind === "marquee" ? BOSS.marquee : kind === "cake" ? BOSS.cake : kind === "lost" ? BOSS.lost :
                  r.dry ? BOSS.fuel : s.scene === "party" ? BOSS.partyCrash : BOSS.crash;
       if (kind !== "tip") after(0.35, function () { bossSay(list, true); });
       else after(1.0, function () { bossSay(list, true); });
@@ -853,7 +875,7 @@
       return;
     }
     if (i === 0 && b === 0 && h < 50 && h > 14 && !said.landed) { hint = { at: "cross", word: "Land here" }; return; }
-    if (i === 1 && b === 0 && clock < 3.5) { hint = { at: "sock", word: "Wind" }; return; }
+    if (i === 1 && b === 0 && clock < 3.5 && h > 20) { hint = { at: "sock", word: "Wind" }; return; }
     if (h < 14) return;
     if (i === 2 && b === 0 && clock < 3.5) { hint = { at: "cross", word: "It moves" }; return; }
     if (i === 3 && clock < 3.5) { hint = { at: "cross", word: "Land here" }; return; }
@@ -891,6 +913,16 @@
       }
       return b.y < 140;
     });
+    // coming down over the terrace: everyone runs for it, still filming, so
+    // nobody at the party is ever under it
+    if (!st.flee && rk && rk.state === "fly" && rk.x > 16 && heightAbove(rk) < 34) {
+      st.flee = true;
+      bossSay(BOSS.flee, true);
+    }
+    if (st.flee) {
+      st.bossX += dt * 6;
+      guests.forEach(function (g, i) { g.x += dt * (6.5 + i * 0.8); g.duck = 1; });
+    }
     guests.forEach(function (g) {
       // duck when it comes anywhere near the terrace
       if (rk && rk.state === "fly" && rk.x > 14 && rk.y < 32) {
@@ -1219,7 +1251,7 @@
     var s = stage();
     if (s.scene === "sea") return { x0: -s.deck / 2 - 4, x1: Math.max(s.deck / 2 + 4, boatX() + 6.5), y0: -SEA_DROP - 1.6, y1: 9 };
     if (s.scene === "party") return { x0: A.PARTY.marquee[0] - 1.5, x1: A.PARTY.terrace[1] + 1, y0: -2.2, y1: 13.5 };
-    return { x0: -19, x1: 17, y0: -2.4, y1: 9 };
+    return { x0: -20, x1: 17, y0: -2.4, y1: 9 };
   }
   function boatX() { return stage().deck / 2 + 9.5; }
   // The notice card sits along the bottom while it's up, so the scene stands
@@ -1338,6 +1370,7 @@
     if (s.scene === "sea") drawNearSea(c);
     // screen things: the tag, the arrow, the bubbles, the receipt
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (state === "interlude" || state === "results") return;
     var placed = [];
     var rr = rocketRect();
     if (rr) placed.push(rr);
@@ -1486,9 +1519,10 @@
     A.lawn(c, v.x0 - 2, v.x1 + 2, v.y1 + 2);
     A.party(c, { t: vis, lit: st.lit, cake: st.cake });
     // him on the terrace with his guests
-    c.save(); c.translate(23.6, -1.4); drawBoss(c, -1); c.restore();
-    guests.forEach(function (g) {
-      c.save(); c.translate(g.x, -1.4); c.scale(0.95, 0.95);
+    var hop = function (i) { return st.flee && !shell.reduceMotion ? -Math.abs(Math.sin(vis * 11 + i * 1.3)) * 0.35 : 0; };
+    c.save(); c.translate(st.bossX, -1.4 + hop(9)); drawBoss(c, st.flee ? 1 : -1); c.restore();
+    guests.forEach(function (g, i) {
+      c.save(); c.translate(g.x, -1.4 + hop(i)); c.scale(0.95, 0.95);
       A.guest(c, { look: g.look, top: g.top, duck: clamp(g.duck, 0, 1), gaze: g.gaze, phone: g.phone && !g.cheer, mood: g.cheer ? "calm" : "cross" });
       c.restore();
     });
@@ -1525,22 +1559,41 @@
     c.stroke();
     A.mars(c, st.mars, v.x0 - 2, v.x1 + 2, v.y1 + 2);
     A.flag(c, -13, -marsY(st.mars.ground, -13));
-    A.sign(c, -16.5, -marsY(st.mars.ground, -16.5), 6.2);
-    signText(c, -16.5, marsY(st.mars.ground, -16.5) + 3.7, "Private planet", 5.6);
+    var sy = marsY(st.mars.ground, -16.6);
+    A.sign(c, -16.6, -sy, 5.6, 3.4);
+    signText(c, -16.6, sy + 2.8 + 1.7, ["Private", "planet"], 5.6, 3.4);
     A.dish(c, 13, -marsY(st.mars.ground, 13), vis);
   }
-  function signText(c, x, y, words, w) {
-    var p = toScreen(x, y);
-    var size = Math.min(1.1 * cam.z, w * cam.z / (words.length * 0.55));
-    if (size < 12) return;
+  // Words on a sign, in screen pixels, if they can be 12px; if not, ink
+  // lines where they'd be, so the sign never stands blank
+  function signText(c, x, y, lines, w, h) {
+    var lh = h / lines.length, n = lines.length;
     c.save();
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    c.font = size + "px " + T.display;
-    c.textAlign = "center"; c.textBaseline = "middle";
-    c.fillStyle = T.ink;
-    c.fillText(words.toUpperCase(), p.x, p.y + 1);
+    c.font = "100px " + T.display;
+    var widest = 0;
+    lines.forEach(function (l) { widest = Math.max(widest, c.measureText(l.toUpperCase()).width / 100); });
+    var size = Math.min(lh * 0.8 * cam.z, w * 0.84 * cam.z / widest);
+    if (size >= 12) {
+      var p = toScreen(x, y);
+      c.font = size + "px " + T.display;
+      c.textAlign = "center"; c.textBaseline = "middle";
+      c.fillStyle = T.ink;
+      lines.forEach(function (l, i) { c.fillText(l.toUpperCase(), p.x, p.y + 1 + (i - (n - 1) / 2) * lh * cam.z); });
+      c.restore();
+      world(c);
+      return;
+    }
     c.restore();
     world(c);
+    var longest = Math.max.apply(null, lines.map(function (l) { return l.length; }));
+    A.ink(c, A.thick(0.22, 1.5));
+    c.beginPath();
+    lines.forEach(function (l, i) {
+      var ly = -y + (i - (n - 1) / 2) * lh, half = w * 0.36 * l.length / longest;
+      c.moveTo(x - half, ly); c.lineTo(x + half, ly);
+    });
+    c.stroke();
   }
 
   function drawBoss(c, face) {
@@ -1684,7 +1737,7 @@
       var bx = boatX(), by = seaY(bx, clock);
       return toScreen(bx + 2.2, by - A.BOAT_DECK + 6.2);
     }
-    if (s.scene === "party") return toScreen(23.6, 1.4 + 6.2);
+    if (s.scene === "party") return toScreen(st.bossX, 1.4 + 6.2);
     return toScreen(13, marsY(st.mars.ground, 13) + 4.6);
   }
   var liveTop = null;
@@ -1760,7 +1813,8 @@
     function overlap(x, y) {
       var sum = 0;
       placed.forEach(function (o) {
-        var w = Math.min(x + bw + 4, o.x + o.w + 4) - Math.max(x, o.x), h = Math.min(y + bh + 4, o.y + o.h + 4) - Math.max(y, o.y);
+        // the tail hangs below the bubble, so it needs room too
+        var w = Math.min(x + bw + 4, o.x + o.w + 4) - Math.max(x, o.x), h = Math.min(y + bh + size, o.y + o.h + 4) - Math.max(y, o.y);
         if (w > 0 && h > 0) sum += w * h;
       });
       return sum;
@@ -1810,41 +1864,51 @@
     c.globalAlpha = 1;
   }
 
-  // What a landing paid, beside the rocket, for a moment
+  // What a landing paid, beside the rocket, for a moment: on the side of it
+  // with the most room, clear of his Live tag
   function drawReceipt(c, placed) {
     if (!receipt || receipt.t > 2.3 || !rk) return;
     var k = receipt.t;
     var size = clamp(Math.min(W, H) * 0.034, 12, 14);
-    var rows = receipt.rows;
-    var w = size * 8.6, lh = size * 1.25;
-    var h = (rows.length + 1) * lh + size * 0.9 + (receipt.mult ? lh : 0);
+    var rows = receipt.rows.map(function (row) {
+      var v = row[1];
+      return [row[0].toUpperCase(), typeof v === "number" ? (v < 0 ? "-" + fmt(-v) : (row[2] || "") + fmt(v)) : String(v)];
+    });
+    var total = "+" + fmt(receipt.total);
+    c.font = size + "px " + T.display;
+    var wl = 0, wn = c.measureText(total).width;
+    rows.concat([["TOTAL", ""]]).forEach(function (row) { wl = Math.max(wl, c.measureText(row[0]).width); wn = Math.max(wn, c.measureText(row[1]).width); });
+    var lh = size * 1.25;
+    var w = Math.max(size * 8.6, wl + wn + size * 2), h = (rows.length + 1) * lh + size * 0.9;
     var p = toScreen(rk.onX != null ? rk.onX : rk.x, rk.y + RH * 0.75);
-    var side = p.x < W * 0.5 ? 1 : -1;
-    var x = side > 0 ? p.x + 4.8 * cam.z + 8 : p.x - 4.8 * cam.z - 8 - w;
-    if (x < 4 || x + w > W - 4) x = side > 0 ? p.x - 4.8 * cam.z - 8 - w : p.x + 4.8 * cam.z + 8;
-    x = clamp(x, 4, W - w - 4);
     var y = clamp(p.y - h / 2 - (shell.reduceMotion ? 0 : k * 6), 8, H - h - 8);
+    var right = clamp(p.x + 4.8 * cam.z + 8, 4, W - w - 4), left = clamp(p.x - 4.8 * cam.z - 8 - w, 4, W - w - 4);
+    function crowd(x) {
+      var sum = 0;
+      placed.forEach(function (o) {
+        var ow = Math.min(x + w, o.x + o.w) - Math.max(x, o.x), oh = Math.min(y + h, o.y + o.h) - Math.max(y, o.y);
+        if (ow > 0 && oh > 0) sum += ow * oh;
+      });
+      return sum;
+    }
+    var first = p.x < W * 0.5 ? right : left, second = first === right ? left : right;
+    var x = crowd(second) < crowd(first) - 1 ? second : first;
     c.globalAlpha = clamp(k * 6, 0, 1) * clamp((2.3 - k) * 3, 0, 1);
     A.rrect(c, x, y, w, h, 3);
     c.fillStyle = T.paper; c.fill();
     c.lineWidth = 2; c.strokeStyle = T.ink; c.stroke();
     c.fillStyle = T.accent; c.fillRect(x + 1, y + 1, w - 2, 4);
-    c.font = size + "px " + T.display;
     c.textBaseline = "middle";
+    c.fillStyle = T.ink;
     rows.forEach(function (row, i) {
       var ry = y + size * 0.7 + lh * (i + 0.5);
-      c.fillStyle = T.ink;
-      c.textAlign = "left"; c.fillText(row[0].toUpperCase(), x + size * 0.6, ry);
-      c.textAlign = "right"; c.fillText(String(row[1]), x + w - size * 0.6, ry);
+      c.textAlign = "left"; c.fillText(row[0], x + size * 0.6, ry);
+      c.textAlign = "right"; c.fillText(row[1], x + w - size * 0.6, ry);
     });
     var yy = y + size * 0.7 + lh * rows.length;
-    if (receipt.mult) {
-      c.textAlign = "left"; c.fillText(receipt.mult.toUpperCase(), x + size * 0.6, yy + lh * 0.5);
-      yy += lh;
-    }
     c.fillRect(x + size * 0.5, yy + 1, w - size, 1.5);
-    c.textAlign = "left"; c.fillText("Total".toUpperCase(), x + size * 0.6, yy + lh * 0.6);
-    c.textAlign = "right"; c.fillText("+" + fmt(receipt.total), x + w - size * 0.6, yy + lh * 0.6);
+    c.textAlign = "left"; c.fillText("TOTAL", x + size * 0.6, yy + lh * 0.6);
+    c.textAlign = "right"; c.fillText(total, x + w - size * 0.6, yy + lh * 0.6);
     c.globalAlpha = 1;
     placed.push({ x: x, y: y, w: w, h: h });
   }
