@@ -1,0 +1,17 @@
+/*
+  Speak to a Human: the one thing this game adds to the page. Patience in
+  the HUD is a row of pips (filled in the game's colour, empty ones
+  outlined). The notice and the
+  callouts are placed by speak-to-a-human.js for each screen shape.
+  Everything else is the kit's (games/kit/kit.css).
+*/
+.sth-patience { display: flex; align-items: center; }
+.sth-pips { display: inline-flex; gap: 0.22em; }
+.sth-pip {
+  width: 0.62em;
+  height: 0.62em;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  box-shadow: 0 2px 0 var(--ink);
+}
+.sth-pip.is-on { background: var(--accent); }
