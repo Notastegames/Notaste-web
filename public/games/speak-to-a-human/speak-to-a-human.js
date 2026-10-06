@@ -64,7 +64,8 @@
 // replies and places, the same tricks in the same order and the same ways
 // to get ready, each order from its own stream (planRun).
 //
-// TEST FLAGS (with ?debug): &stage=3 starts at that order, &dave starts at
+// TEST FLAGS (with ?debug, which also exposes window.__speakToAHuman for
+// test players): &stage=3 starts at that order, &dave starts at
 // Dave, &hp=20 starts the bar there, &skill=0.4 sets the autopilot's skill
 // (0 to 1) with ?autopilot.
 //
@@ -848,7 +849,7 @@
     }
     if (sg.bossOut > 0) sg.bossOut = Math.min(1, sg.bossOut + dt / 0.5);
     if (sg.bossIn > 0 && sg.bossIn < 1) sg.bossIn = Math.min(1, sg.bossIn + dt / 0.5);
-    if (sg.closing > 0) sg.closing = Math.min(1, sg.closing + dt / 0.9);
+    if (sg.closing > 0) sg.closing = Math.min(1.6, sg.closing + dt / 0.9);
     if (sg.glitch > 0) sg.glitch -= dt;
 
     if (sg.phase === "track") {
@@ -1055,7 +1056,11 @@
       brief.style.left = Math.round(Lay.chat.x + Lay.chat.w / 2) + "px";
       brief.style.width = "min(25rem, " + Math.round(Lay.chat.w - 12) + "px)";
     }
-    if (Lay.wide) shell.placeCallouts({ top: Math.round(Lay.bar.y + Lay.bar.h + 26), left: 0, right: W - Lay.boss.w });
+    if (Lay.wide) {
+      // under the bar, or over the bot's head where there's no room under it (a landscape phone)
+      var below = Math.round(Lay.bar.y + Lay.bar.h + 26);
+      shell.placeCallouts({ top: H - below < 76 ? Math.round(Lay.boss.y + 4) : below, left: 0, right: W - Lay.boss.w });
+    }
     else shell.placeCallouts({ top: Math.round(Lay.head.y + 2), left: 0, right: 0 });
   }
 
@@ -1580,6 +1585,8 @@
       if (f.where === "bar") { x = b.x + b.w * clamp(sg.hp / 100, 0, 1) + 6; y = b.y + b.h + 20; }
       else if (f.where === "heal") { x = b.x + b.w * clamp(sg.hp / 100, 0, 1); y = b.y + b.h + 20; color = T.red; }
       else { x = Lay.chat.x + Lay.chat.w - 40; y = Lay.chat.y + Lay.chat.h - 30; size = 14; color = T.accent; }
+      // clear of the streak pips under the middle of the bar on a wide screen
+      if (Lay.wide && (f.where === "bar" || f.where === "heal") && Math.abs(x - (b.x + b.w / 2)) < Math.max(4, b.h * 0.3) * 4 + 30) y += 22;
       y -= (calm ? 0 : k * 16);
       ctx.save();
       ctx.globalAlpha = 1 - clamp((a - 0.5) / 0.4, 0, 1);
@@ -1762,7 +1769,15 @@
       var cy = Lay.col.y + Lay.col.h / 2;
       ctx.fillRect(0, Lay.col.y, W, (cy - Lay.col.y) * k);
       ctx.fillRect(0, cy + (Lay.col.y + Lay.col.h - cy) * (1 - k), W, (Lay.col.y + Lay.col.h - cy) * k + 2);
-      if (k > 0.9) { ctx.fillStyle = T.paper; ctx.fillRect(W * 0.2, cy - 1, W * 0.6, 2); }
+      // then the line shrinks to nothing, so it's gone before the results
+      var lw = W * 0.6 * (1 - clamp((sg.closing - 1) / 0.5, 0, 1));
+      if (k > 0.9 && lw > 1) { ctx.fillStyle = T.paper; ctx.fillRect(W / 2 - lw / 2, cy - 1, lw, 2); }
+    }
+    // between orders and on the results the chat sits back, so the panel over it reads
+    if (st === "interlude" || st === "results") {
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ctx.fillStyle = "rgba(0,0,0,0.72)";
+      ctx.fillRect(0, 0, W, H);
     }
   }
 
@@ -1912,4 +1927,27 @@
   });
   T = shell.tokens;
   A.init(T);
+
+  // ?debug: what's on screen, for test players (which reply is true, and
+  // where each one is, in page pixels)
+  if (DEBUG) {
+    window.__speakToAHuman = {
+      state: function () { return shell.state(); },
+      phase: function () { return sg ? sg.phase : null; },
+      boss: function () { return sg ? sg.boss : null; },
+      patience: function () { return run ? run.patience : null; },
+      open: function () {
+        if (!ex || ex.state !== "open" || !sg || sg.phase !== "chat") return null;
+        var box = root.getBoundingClientRect();
+        return {
+          kind: ex.kind, t: ex.t, focus: focus,
+          chips: ex.chips.filter(function (c) { return !c.gone; }).map(function (c) {
+            var r = chipRect(c);
+            return { slot: c.slot, honest: !!c.honest, kind: c.kind || "",
+              x: box.left + r.x, y: box.top + r.y, w: r.w, h: r.h };
+          })
+        };
+      }
+    };
+  }
 })();
