@@ -1,0 +1,115 @@
+/*
+  On Mute: the few things the kit doesn't already style.
+  Loads after /games/kit/kit.css on this page only.
+*/
+
+/* The meeting's clock and your reputation share a line, top left */
+.om-line { display: flex; align-items: center; gap: 0.6rem; }
+
+/* Reputation: a pip each, filled while you still have it */
+.om-rep { display: flex; align-items: center; font-size: 0.85rem; }
+.om-pips { display: inline-flex; gap: 0.22rem; margin-left: 0.1rem; }
+.om-pip {
+  width: 0.62rem;
+  height: 0.62rem;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  box-shadow: 0 1px 0 var(--ink);
+}
+.om-pip.is-on { background: var(--accent); border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) {
+  .om-pip.is-lost { animation: om-lost 600ms cubic-bezier(0.2, 0.7, 0.3, 1); }
+}
+@keyframes om-lost {
+  0%   { transform: scale(1.9); background: var(--red); border-color: var(--red); }
+  60%  { transform: scale(0.9); background: var(--red); border-color: var(--red); }
+  100% { transform: scale(1); }
+}
+
+/*
+  Five touch buttons in one row along the bottom: paste left and right in
+  the corners, under the thumbs, and the call's three (Nod, Mic, Cam) in
+  the middle. The kit puts them in two groups; here they share one row.
+*/
+#game-root .kit-touch { justify-content: center; gap: 0.5rem; padding: 0 0.6rem 0.6rem; }
+#game-root .kit-touch-side { display: contents; }
+/* never under 56px: the gaps give way instead (DESIGN.md, section 10) */
+#game-root .kit-pad { pointer-events: auto; width: 3.75rem; height: 3.75rem; flex-shrink: 0; }
+#game-root .kit-pad[data-key="left"],
+#game-root .kit-pad[data-key="right"] { width: 4.25rem; height: 4.25rem; }
+/* the corners push out, so the call's three sit together in the middle */
+#game-root .kit-pad[data-key="left"] { order: 1; margin-right: auto; }
+#game-root .kit-pad[data-key="nod"] { order: 2; }
+#game-root .kit-pad[data-key="mic"] { order: 3; }
+#game-root .kit-pad[data-key="cam"] { order: 4; }
+#game-root .kit-pad[data-key="right"] { order: 5; margin-left: auto; }
+#game-root .kit-pad[data-key="nod"] .kit-pad-face,
+#game-root .kit-pad[data-key="mic"] .kit-pad-face,
+#game-root .kit-pad[data-key="cam"] .kit-pad-face { font-size: 1.05rem; }
+/* live: the mic is open and the dishwasher can be heard */
+#game-root .kit-pad.om-live .kit-pad-face { background: var(--accent); border-color: var(--paper); }
+/* the camera's off: a line through it */
+#game-root .kit-pad.om-off .kit-pad-face { text-decoration: line-through; text-decoration-thickness: 2px; border-style: dashed; }
+/* the one they want right now, until you've shown you know */
+#game-root .kit-pad.om-call .kit-pad-face { border-color: var(--accent); border-width: 3px; }
+
+@container kit (max-width: 360px) {
+  #game-root .kit-touch { gap: 0.25rem; padding: 0 0.35rem 0.45rem; }
+  #game-root .kit-pad,
+  #game-root .kit-pad[data-key="left"],
+  #game-root .kit-pad[data-key="right"] { width: 3.5rem; height: 3.5rem; }
+}
+/*
+  A phone in the page (out of full-window) under 310px: five 56px buttons
+  don't fit, so the paste buttons go. Tapping a box pastes into it, and the
+  touch hint says so.
+*/
+@container kit (max-width: 309px) {
+  #game-root .kit-pad[data-key="left"],
+  #game-root .kit-pad[data-key="right"] { display: none; }
+  #game-root .kit-pad[data-key="nod"] { margin-left: auto; }
+  #game-root .kit-pad[data-key="cam"] { margin-right: auto; }
+}
+
+/* Callouts land in a lane of their own, sized by the game to fit it */
+#game-root .kit-callouts .stamp-label { font-size: var(--om-callout, 0.9rem); }
+
+/*
+  The kit fits its panels to the screen (kit.css, @container kit). Its
+  smallest labels drop under 12px on a phone, so they stop at 12px here.
+*/
+#game-root .kit-stats dt,
+#game-root .kit-choice-detail,
+#game-root .kit-brief-text { font-size: max(0.75rem, 12px); }
+#game-root .kit-stat small { font-size: max(0.62em, 0.75rem); }
+
+/*
+  Between meetings the notetaker's summary is the joke, so a phone that has
+  the height (full-window) keeps it and the numbers, which the kit drops on
+  narrow screens (kit.css hides them under 440px wide)
+*/
+@container kit (max-width: 440px) and (min-height: 540px) {
+  #game-root .kit-inter .kit-line { display: block; }
+  #game-root .kit-inter .kit-stats { display: flex; }
+}
+
+/* phones: the reputation's label goes, the pips stay */
+@container kit (max-width: 440px) {
+  .om-rep small {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .om-pips { gap: 0.16rem; margin-left: 0; }
+  .om-pip { width: 0.55rem; height: 0.55rem; border-width: 1.5px; }
+}
+
+/*
+  The clip frame (?clip) puts a phone-sized screen on a desktop-sized page.
+  The kit sizes the HUD's numbers by the page, so here they get the phone sizes.
+*/
+html.kit-clip-on .kit-stat { font-size: 1.05rem; }
+html.kit-clip-on .kit-stat-big { font-size: 2rem; }
