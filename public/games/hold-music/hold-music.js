@@ -1162,7 +1162,8 @@
     // where the cord leaves the handset: at your ear, or on the table on speaker
     Lay.earCord = { x: y.x + f * R * 1.02, y: y.y - R * 0.6 };
     if (!Lay.flat) Lay.flat = { x: y.x + f * R * 1.35, y: y.y + (Lay.tableTop ? R * 0.42 : -R * 0.12) };
-    Lay.flatCord = { x: Lay.flat.x + f * R * 0.95, y: Lay.flat.y + R * 0.05 };
+    var fk = Lay.flat.k || R;
+    Lay.flatCord = { x: Lay.flat.x + f * fk * 0.95, y: Lay.flat.y + fk * 0.05 };
     Lay.noteR = Math.max(13 / U, Lay.noteR);
     Lay.lane = lanePath(Lay.earCord);
     Lay.laneFlat = lanePath(Lay.flatCord);
@@ -1233,6 +1234,8 @@
     var p = Lay.phone;
     Lay.table = p.y - 4;
     Lay.tableTop = true;
+    // the cord leaves the phone below its screen, so the notes never cover the queue
+    Lay.jack.y = p.y + p.h * 0.5;
     // you, as big as the room allows, with a band over your hat for your bubble
     var R = clamp((Lay.table - Lay.noteBottom - 14) / 4.05, 11.5, 18);
     var yx = R * 1.95 + 2.5;
@@ -1265,7 +1268,7 @@
     }
     Lay.portrait = P;
     // on speaker the handset lies on the table in front of you
-    Lay.flat = { x: yx - R * 0.45, y: Lay.table + R * 0.75 };
+    Lay.flat = { x: yx - R, y: Lay.table + R * 0.7, k: R * 0.8 };
     Lay.noteR = 3.2;
     // from the phone's side, down across the table and up to your ear
     Lay.laneCtl = function (j, e) { return [[j.x - 16, WH - 2], [Math.max(1, e.x - 15), WH + 8]]; };
@@ -1557,10 +1560,10 @@
     D.mitten(c, r.x, r.y - lift, r.r, T.paper, !y.flip);
     if (hit > 0.3 && !calm) D.burst(c, r.x, r.y + r.r * 0.3, r.r * 1.3, r.r * 2.3, Math.max(0.3, R * 0.05), 6, -Math.PI * 0.95);
     if (me.flat) {
-      D.handsetFlat(c, Lay.flat.x, Lay.flat.y, R, y.flip, me.slam && !calm && (h - v.t0) < 0.8);
+      D.handsetFlat(c, Lay.flat.x, Lay.flat.y, Lay.flat.k || R, y.flip, me.slam && !calm && (h - v.t0) < 0.8);
       if (me.slam) {
         // the mitten that put it down, still on it
-        D.mitten(c, Lay.flat.x, Lay.flat.y - R * 0.3, R * 0.4, T.paper, !y.flip);
+        D.mitten(c, Lay.flat.x, Lay.flat.y - (Lay.flat.k || R) * 0.3, R * 0.4, T.paper, !y.flip);
       } else if (me.rest2) {
         var r2 = me.rest2;
         D.mitten(c, r2.x, r2.y - (calm ? 0 : lift * 0.6), r2.r, T.paper, y.flip);
