@@ -66,7 +66,7 @@
   var SPEED = 27;          // units a second
   var BAG = 3;
   var START = 4.9, FLOOR = 4.5;
-  var SKID = 3.6;            // in the rain, a turn pressed this close to the junction skids past it
+  var SKID = 3.0;            // in the rain, a turn pressed this close to the junction skids past it
   var APPROVE = { rating: 4.8, delivered: 26 };
 
   var STAGES = [
@@ -163,7 +163,7 @@
     clock = 0;
     rng = N.seeded(stage.seed);
     carRng = N.seeded(stage.seed ^ 0x5bd1e995);
-    TW.setStage({ puddles: stageIdx >= 1, oneway: !!stage.oneway, cars: !!stage.cars, precinct: !!stage.precinct });
+    TW.setStage({ puddles: !!stage.rain, oneway: !!stage.oneway, cars: !!stage.cars, precinct: !!stage.precinct });
     TW.edges.forEach(function (e) { e.cars.forEach(function (c, i) { c.wait = 1.5 + carRng() * 4 + i * 0.6; c.state = "parked"; c.t = 0; c.col = Math.floor(carRng() * 2); }); });
     TW.plan({ precinct: owned.bell ? 1.5 : 2.2 });
     var start = TW.placeAt(73, TW.YS[2] - 6, false);
@@ -390,6 +390,14 @@
       rider.facing = d;
       rider.q = null;
       return;
+    }
+    // just past a junction in the dry: a turn pressed a moment late still
+    // takes it (forgiving by default). In the rain it's too late, and you know it.
+    if (rider.dir && !fromRoute && !stage.rain) {
+      var behind = rider.dir > 0 ? e.a : e.b;
+      var since = rider.dir > 0 ? rider.s : e.len - rider.s;
+      var along = e.h ? (d === "L" || d === "R") : (d === "U" || d === "D");
+      if (!along && since < 3.4 && TW.nodes[behind].adj[d] != null) { take(behind, d); return; }
     }
     rider.q = d;
     rider.qLate = rider.dir !== 0 && toJunction() < SKID && !fromRoute;
@@ -768,6 +776,7 @@
   // ---------------------------------------------------------------------------
   function rate(dv) {
     rating = clamp(rating + dv, 0, 5);
+    if (DEBUG) (window.__rateLog = window.__rateLog || []).push(stageIdx + ":" + clock.toFixed(1) + " " + dv.toFixed(3) + " " + (new Error().stack.split("\n")[2] || "").trim().split(" ")[1]);
     if (rating < FLOOR) deactivate();
   }
   function deliver(o, how) {
@@ -794,7 +803,7 @@
       onTime++; stageStats.onTime++;
       rate(0.025 + (o.due - now() >= 3 ? 0.01 : 0));
     }
-    if (o.soggy) rate(-0.04);
+    if (o.soggy) rate(-0.03);
     if (!taught.door) taught.door = true;
     if (how !== "baby") taught.note = true;
     // the stamp
@@ -1405,7 +1414,7 @@
     y += nh + 8;
     // the two numbers
     var half = (w - 8) / 2;
-    [["Customers paid in fees", fees, T.paper], ["You earned", earned, T.accent]].forEach(function (m, i) {
+    [["Fees they paid", fees, T.paper], ["You earned", earned, T.accent]].forEach(function (m, i) {
       var mx = x + i * (half + 8);
       A.text(c, m[0], mx, y + 7, 12, { align: "left", colour: T.accent, max: half, upper: false, font: T.body });
       A.text(c, money(m[1]), mx, y + 27, 22, { align: "left", colour: m[2] });

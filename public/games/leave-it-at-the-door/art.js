@@ -38,6 +38,7 @@
         x.arc(p[0], p[1], Math.max(0.6, n * r), 0, Math.PI * 2);
         x.fill();
       });
+      tile.__dot = { colour: colour, n: n, r: Math.max(0.6, n * r) };   // for tools that redraw the art as vectors
       tiles[key] = tile;
     }
     var pat = c.createPattern(tile, "repeat");
