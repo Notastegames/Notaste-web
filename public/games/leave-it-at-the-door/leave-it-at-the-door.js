@@ -19,24 +19,28 @@
 // things: which pickup first, what to drop on the way, when to wait.
 //
 // THE DOORS. At every door the customer's note says what to do, and the
-// doorstep cycles through the choices: the bell or a knock ("Don't ring,
-// baby asleep"), a gate code ("Gate code 2741"), the right door for the
+// doorstep cycles through the choices: the bell, a knock or the letterbox
+// ("Don't ring, baby asleep"), a gate code ("Gate code 2741"), the right door for the
 // photo ("Leave it at the door. We're 14B"). Press when it shows what the
 // note asked for. One rule for the one button, everywhere. Some flats are
 // round the back through the bins, and the app's pin is at the front.
 //
-// THE CONTROLS. Arrow keys or WASD steer along the streets like a tram
-// with opinions: press a turn before the junction and it's taken there;
-// press back the other way to turn round. Space (or Enter) at a door. A
+// THE CONTROLS. 1 to 4 ride to that order's next stop (Space or Enter
+// away from a door rides to the highlighted one). Arrow keys or WASD steer
+// along the streets like a tram with opinions: press a turn before the
+// junction and it's taken there; press back the other way to turn round.
+// Space (or Enter) at a door. A
 // click or a tap on the map rides there along the streets (on a pin, to
 // that stop); a tap on an order on the phone rides to its next stop; a
 // swipe steers like a key. At a door, a tap or a click on the doorstep is
 // the button. Nothing needs both hands.
 //
-// RATING. Starts at 4.90. On time nudges it up, late takes it down by how
-// late, a woken baby, soggy food or a wrong photo take a bit, a cancelled
-// order takes more. Under 4.50 the account is deactivated and the shift
-// ends. Approved needs the whole shift, 4.80 or better and 24 deliveries.
+// RATING. Starts at 4.70. On time nudges it up, late takes it down by how
+// late, a woken baby, soggy food or a wrong photo take a bit, an order five
+// minutes late is cancelled and takes more, and what's left at the end of a
+// rush is reassigned and noted. Under 4.40 the account is deactivated and
+// the shift ends. Approved needs the whole shift, 4.75 or better and 22
+// deliveries. Idle riders get the next order early: more orders, same rate.
 //
 // THE STAGES. Lunch (bell, knock and gate codes), Rain (late turns skid,
 // puddles soak the food, photos at the door), Friday night (one-way
@@ -80,10 +84,10 @@
     { key: "rain", name: "Rain", start: 15 * 60, len: 40, gap: [4.3, 5.3], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 3 },
       k: 1.65, slack: 5, shrink: 0.45, batch: 0.22, prep: [1.5, 3.2], rain: true,
       brief: "Rain. Press your turn before the junction or you'll skid past it. Puddles soak the food. The app has added a 10p weather bonus for you, and a rain fee for them." },
-    { key: "friday", name: "Friday night", start: 19 * 60, len: 40, gap: [3.9, 4.8], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 2, back: 3 },
+    { key: "friday", name: "Friday night", start: 19 * 60, len: 40, gap: [4.4, 5.3], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 2, back: 3 },
       k: 1.6, slack: 4, shrink: 0.55, batch: 0.3, prep: [1.4, 3.0], oneway: true, cars: true,
       brief: "Friday night. One-way streets: go the wrong way and you push. Parked cars open their doors: when the light comes on, wait. Some flats are round the back. The app's pin isn't." },
-    { key: "final", name: "Cup final", start: 20 * 60, len: 40, gap: [3.6, 4.4], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 2, back: 2 },
+    { key: "final", name: "Cup final", start: 20 * 60, len: 40, gap: [5.0, 6.0], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 2, back: 2 },
       k: 1.55, slack: 4, shrink: 0.6, batch: 0.35, prep: [1.3, 2.8], oneway: true, cars: true, precinct: true, goals: 2,
       brief: "Cup final. Everyone orders at once, and again at every goal. The high street is a precinct: walk your bike through it." }
   ];
@@ -812,7 +816,7 @@
         sfx("baby");
         d.awake = true;
         babies++;
-        rate(-0.08);
+        rate(-0.05);
         deliver(o, "baby");
         return;
       }
@@ -989,7 +993,7 @@
     // what's left is reassigned: never collected costs more than in the bag
     var unpicked = orders.filter(function (o) { return o.state === "assigned"; }).length;
     var left = unpicked + bagCount();
-    if (left) { rate(-0.03 * unpicked - 0.015 * (left - unpicked)); toast(left + " order" + (left > 1 ? "s" : "") + " reassigned. The app noted it."); }
+    if (left) { rate(-Math.min(0.08, 0.03 * unpicked + 0.015 * (left - unpicked))); toast(left + " order" + (left > 1 ? "s" : "") + " reassigned. The app noted it."); }
     if (ended) return;
     if (stageIdx >= STAGES.length - 1) { endRound(true); return; }
     var share = stageStats.delivered ? stageStats.onTime / stageStats.delivered : 0;
@@ -1181,7 +1185,7 @@
   function buildHud() {
     shell.hud.innerHTML =
       '<div class="kit-hud-tl"><p class="kit-stat"><small data-stage>Lunch</small><span data-clock>12:00</span></p></div>' +
-      '<div class="kit-hud-tr"><p class="kit-stat"><small>Rating</small><span data-rating>4.90</span></p></div>';
+      '<div class="kit-hud-tr"><p class="kit-stat"><small>Rating</small><span data-rating>4.70</span></p></div>';
     hudEls = {
       stage: shell.hud.querySelector("[data-stage]"),
       clock: shell.hud.querySelector("[data-clock]"),
