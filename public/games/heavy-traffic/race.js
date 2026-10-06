@@ -1134,7 +1134,7 @@
   // The clock keeps running after the player finishes: the others carry on
   function step(dt, input) {
     raceTime += dt;
-    if (!flags.concerns && raceTime > 1.6) { flags.concerns = true; say("The car has concerns", 1); }
+    if (!flags.concerns && raceTime > 4) { flags.concerns = true; say("The car has concerns", 1); }   // once the notice is down
 
     for (var i = 0; i < karts.length; i++) {
       var k = karts[i];
