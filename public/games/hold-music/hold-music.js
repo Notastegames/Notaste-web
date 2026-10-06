@@ -227,7 +227,7 @@
       apply: function (m) { m.speaker = true; } },
     { id: "zero", label: "Press 0 a lot", detail: "Skips the first question and its points. A clean line pays 200 more. The music is faster.",
       apply: function (m) { m.skip = true; m.bpm += 8; m.zero = true; } },
-    { id: "new", label: "Say you're a new customer", detail: "Sales answer quickly: half the queue, and no fast version. They sell you broadband: 100 points.",
+    { id: "new", label: "Say you're a new customer", detail: "Sales answer quickly: half the queue, no fast version. They sell you broadband: 100 points.",
       apply: function (m) { m.half = true; } },
     { id: "pen", label: "Find a pen", detail: "Your number goes on the note as it's read. The menu scores half.",
       apply: function (m) { m.pen = true; } },
