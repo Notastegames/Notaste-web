@@ -242,7 +242,7 @@
   var call = 0, ph = null, prevPh = null;
   var talks = [], floats = [], presses = [], keyFlash = {}, lcdFlash = null, cues = [];
   var signal = SIGNAL, hitRun = 0, strayGap = -1;
-  var react = { shout: 0, steam: 0, drum: 0, lift: 0, bob: 0, said: null, saidT: 0, sweatT: 0 };
+  var react = { shout: 0, steam: 0, drum: 0, puff: 0, cut: 0, said: null, saidT: 0, sweatT: 0 };
   var shake = 0, clockMin = 540, clockT = 0, animT = 0;
   var learned = { beat: 0, menu: false }, briefed = -1;
   var hudEls = null, back = null, front = null, bot = null;
@@ -790,6 +790,8 @@
     run.streak = 0;
     hitRun = 0;
     laneFloat("miss", how || "Missed", 0.7);
+    // a puff of steam from one ear
+    react.puff = 0.7;
     st.clean = false;
     soundNow(function (a) { Line.inst.miss(a, "fx"); });
     return loseSignal();
@@ -995,6 +997,8 @@
     react.shout = Math.max(0, react.shout - dt);
     react.steam = Math.max(0, react.steam - dt);
     react.drum = Math.max(0, react.drum - dt * 7);
+    react.puff = Math.max(0, (react.puff || 0) - dt);
+    react.cut = Math.max(0, (react.cut || 0) - dt * 1.4);
     react.saidT += dt;
     react.sweatT = (react.sweatT + dt * 0.7) % 1;
     shake = Math.max(0, shake - dt * 3);
@@ -1106,15 +1110,20 @@
   // Layout: where everything sits, in world units (100 across the shorter
   // side). Three shapes:
   //   wide (desktop, 4:3 and wider): you on the left, the phone on the right,
-  //     the note and the bubbles on the wall above, and the cord hanging
-  //     across the room between you.
-  //   tall (a phone, full-window): the note and the clock at the top, you in
-  //     the middle, the phone at the bottom right where your thumbs are, and
-  //     the cord hooking round from the phone up to the handset at your ear.
-  //   square (a phone in the page, the clip frame): the phone on the right,
-  //     you on the left, the note and the bubbles above.
+  //     the note on the wall between, and the cord hanging in a long loop
+  //     down the phone's side, along the front of the table and up to your
+  //     ear.
+  //   tall (a phone, full-window): the note at the top, you on the left with
+  //     the handset at your left ear, the phone at the bottom right under your
+  //     thumbs, and the cord running from the phone down across the table and
+  //     up to your ear. The phone's bubble sits over the phone; yours over
+  //     your hat, or beside you on a short screen.
+  //   square (the clip frame, a phone in the page): the phone on the right,
+  //     you on the left, the note and the bubbles above, the cord looping
+  //     along the bottom.
   // On hold the notes of the tune ride the cord from the phone to a ring at
-  // your handset, so the cord is the lane: Lay.lane is its path.
+  // your handset, so the cord is the lane: Lay.lane is its path. Every box
+  // here is in world units: { x, y, right, bottom }.
   // ---------------------------------------------------------------------------
   function layout() {
     var clip = N.flags.clip;
@@ -1126,15 +1135,18 @@
     Lay.shape = wide ? "wide" : tall ? "tall" : "square";
     // the HUD's top left block (the call and your patience)
     Lay.top = (clip ? 64 : narrow ? 46 : 72) / U;
-    if (wide) layWide(); else if (tall) layTall(coarse); else laySquare(coarse, clip);
+    // the note's lettering, and how tall the note gets (two facts and a title)
+    Lay.noteSize = wide ? Math.max(Lay.tmin, 4.2) : tall ? Math.max(Lay.tmin, 4.8) : Math.max(13 / U, 3.1);
+    Lay.noteBottom = Lay.top + 1.5 + Lay.noteSize * 4.7;
+    if (wide) layWide(coarse); else if (tall) layTall(coarse); else laySquare(coarse, clip);
     var y = Lay.you, R = y.R, f = y.flip ? -1 : 1;
-    Lay.hatTop = y.y - R * 3.85;
+    Lay.hatTop = y.y - R * 4.05;
     Lay.mouth = { x: y.x + f * R * 0.15, y: y.y - R * 2.05 + R * 0.62 };
     // where the cord leaves the handset: at your ear, or on the table on speaker
     Lay.earCord = { x: y.x + f * R * 1.02, y: y.y - R * 0.6 };
-    Lay.flat = { x: y.x + f * R * 1.35, y: y.y + (Lay.tableTop ? R * 0.42 : -R * 0.12) };
+    if (!Lay.flat) Lay.flat = { x: y.x + f * R * 1.35, y: y.y + (Lay.tableTop ? R * 0.42 : -R * 0.12) };
     Lay.flatCord = { x: Lay.flat.x + f * R * 0.95, y: Lay.flat.y + R * 0.05 };
-    Lay.noteR = clamp(Lay.shape === "tall" ? 3.1 : 2.5, 13 / U, 24 / U);
+    Lay.noteR = Math.max(13 / U, Lay.noteR);
     Lay.lane = lanePath(Lay.earCord);
     Lay.laneFlat = lanePath(Lay.flatCord);
     // callouts land on the keypad: it's never needed when one lands (after a
@@ -1143,7 +1155,7 @@
     var k = Lay.keys;
     root.style.setProperty("--hm-callouts-left", Math.round(k.x * U) + "px");
     root.style.setProperty("--hm-callouts-right", Math.round((WW - k.x - k.w) * U) + "px");
-    root.style.setProperty("--hm-callouts-top", Math.round((k.y + k.h * 0.32) * U) + "px");
+    root.style.setProperty("--hm-callouts-top", Math.round((k.y + k.h * 0.3) * U) + "px");
   }
 
   // The phone: keys kk across with gaps, pad around, a screen lcdH high,
@@ -1155,58 +1167,97 @@
     Lay.phone = { x: px, y: py, w: pw, h: phH, pad: pad };
     Lay.lcd = { x: px + pad, y: py + pad, w: gridW, h: lcdH };
     Lay.keys = { x: px + pad, y: py + pad + lcdH + pad, w: gridW, h: gridH, kk: kk, gap: gap, star: star };
-    Lay.jack = { x: px + 0.2, y: py + pad + lcdH * 0.75 };
+    Lay.jack = { x: px + 0.2, y: py + pad + lcdH * 0.8 };
   }
 
-  function layWide() {
-    var kk = 10;
-    phoneAt(kk, kk * 0.08, Math.max(2, kk * 0.16), 14, true, 4, 2.5);
+  // The phone's own bubble over the phone, its tail down to the screen
+  function phoneBubble(x, y, right, bottom) {
+    var l = Lay.lcd;
+    Lay.bubble = { x: x, y: y, right: right, bottom: bottom, side: "down",
+                   anchor: { x: l.x + l.w * 0.55, y: Lay.phone.y - 3.4 } };
+  }
+
+  function layWide(coarse) {
+    // a phone on its side (a landscape phone) still gets 56px keys
+    var kk = coarse ? Math.max(10, 56 / U + 0.25) : 10;
+    phoneAt(kk, kk * 0.08, Math.max(2, kk * 0.16), 14, !coarse, 4, 2.5);
     var p = Lay.phone;
-    Lay.table = 82;
+    Lay.table = Math.max(p.y + p.h * 0.62, Math.min(82, p.y + p.h * 0.74));
     Lay.tableTop = false;
-    var R = clamp(Math.min(WW * 0.11, (p.x - 8) * 0.2), 12, 17);
-    var yx = Math.max(R * 1.6 + 8, WW * 0.21);
+    var R = clamp(Math.min(WW * 0.115, (p.x - 8) * 0.2, (Lay.table - Lay.top - 4) / 4.4), 11, 17);
+    var yx = Math.max(R * 1.5 + 6, WW * 0.2);
     Lay.you = { x: yx, y: Lay.table, R: R, flip: false };
     var hy = Lay.table - R * 2.05;
     Lay.clock = { x: Math.max(7, yx - R * 1.75), y: Lay.top + 17, r: 5.5 };
     Lay.note = { x: yx + R * 1.3, y: Lay.top + 1, w: Math.min(48, p.x - yx - R * 1.3 - 4) };
-    // the phone's bubble over the phone, yours beside your head
-    Lay.bubble = { x: p.x - 4, y: Lay.top + 0.5, right: WW - 2, bottom: p.y - 4, side: "down" };
-    Lay.youBubble = { x: yx + R * 1.2, y: hy - R * 0.95, right: p.x - 4, bottom: hy + R * 0.25, side: "left" };
-    Lay.portrait = { x: yx + R * 1.75, y: Lay.top + 1.5, w: Math.min(36, p.x - yx - R * 1.75 - 7) };
-    Lay.portrait.h = Math.min(Lay.portrait.w * 1.22, Lay.table - 8 - Lay.portrait.y);
-    Lay.agentBubble = { x: Lay.portrait.x + Lay.portrait.w + 2.5, y: Lay.top + 0.5, right: WW - 2, bottom: p.y - 4, side: "left" };
+    phoneBubble(p.x - 4, Lay.top + 0.5, WW - 2, p.y - 4);
+    // yours beside your head, between you and the phone
+    Lay.youBubble = { x: yx + R * 1.3, y: Math.max(Lay.noteBottom - 2, hy - R * 1.3), right: p.x - 4, bottom: hy + R * 0.5, side: "left",
+                      anchor: { x: yx + R * 0.75, y: hy + R * 0.5 } };
+    // the agent's frame on the wall, where the note was, their bubble beside it
+    var P = { x: yx + R * 1.3, y: Lay.top + 1, w: Math.min(38, p.x - yx - R * 1.3 - 7) };
+    P.h = Math.min(P.w * 1.22, Lay.table - 9 - P.y);
+    P.w = Math.min(P.w, P.h / 1.1);
+    Lay.portrait = P;
+    Lay.agentBubble = { x: P.x + P.w + 2.5, y: Lay.top + 0.5, right: WW - 2, bottom: p.y - 4, side: "left" };
     Lay.mug = { x: Math.max(5.5, yx - R * 1.95), y: Lay.table + R * 0.12, k: R * 0.16 };
+    Lay.flat = null;
+    Lay.noteR = 3;
+    // the cord drops down the phone's side, runs along the front of the
+    // table and climbs to your ear
+    Lay.laneCtl = function (j, e) { return [[j.x - 4, WH + 12], [e.x + 6, WH + 16]]; };
   }
 
   function layTall(coarse) {
-    var kk = coarse ? Math.max(56 / U + 0.25, 12) : 13;
-    phoneAt(kk, 1, 1.7, 17, false, 2, 1.5);
+    // keys at least 56px under your thumbs, bigger on a long screen: the beat
+    // pad is the same size
+    var kk = Math.max(coarse ? 56 / U + 0.3 : 14, Math.min(19, 12 + (WH - 170) * 0.2));
+    phoneAt(kk, 1.2, 1.7, 17, false, 2, 2);
     var p = Lay.phone;
-    Lay.table = p.y - 5;
+    Lay.table = p.y - 4;
     Lay.tableTop = true;
-    // the note at the top left, then you as big as the room allows
-    var R = clamp((Lay.table - Lay.top - 36) / 3.95, 11, 22);
-    var yx = R * 1.62 + 1.5;
+    // you, as big as the room allows, with a band over your hat for your bubble
+    var R = clamp((Lay.table - Lay.noteBottom - 14) / 4.05, 11.5, 18);
+    var yx = R * 1.95 + 2.5;
     Lay.you = { x: yx, y: Lay.table, R: R, flip: true };
-    var hy = Lay.table - R * 2.05;
+    var hatTop = Lay.table - R * 4.05, right = yx + R * 1.42;
     Lay.clock = { x: WW - 9.5, y: Lay.top + 8.5, r: 6 };
-    Lay.note = { x: 3, y: Lay.top + 1.5, w: Math.min(58, WW - 26) };
-    // a column of bubbles on the right: yours by your head, the phone's over the phone
-    var col = yx + R * 0.9;
-    Lay.youBubble = { x: col, y: Lay.top + 18, right: WW - 2, bottom: hy - R * 0.1, side: "left" };
-    Lay.bubble = { x: Math.min(col, WW - 46), y: hy - R * 0.2, right: WW - 2, bottom: p.y - 4, side: "down" };
-    Lay.portrait = { x: Math.min(col + 1, WW - 44), y: Lay.top + 17 };
-    Lay.portrait.w = WW - 3 - Lay.portrait.x;
-    Lay.portrait.h = Math.min(Lay.portrait.w * 1.3, p.y - 22 - Lay.portrait.y);
-    Lay.agentBubble = { x: 2, y: Lay.top + 1, right: Lay.portrait.x - 2, bottom: Lay.top + 40, side: "right" };
-    Lay.mug = { x: WW - 9, y: Lay.table + 0.4, k: Math.min(R * 0.15, 3.2) };
+    Lay.note = { x: 3, y: Lay.top + 1.5, w: Math.min(60, WW - 25) };
+    // the mug at the right-hand end of the table, the phone's bubble over it
+    var mk = Math.min(R * 0.15, 2.8);
+    Lay.mug = { x: WW - 2.5 - mk * 2.2, y: Lay.table + 0.4, k: mk };
+    phoneBubble(right + 1, Lay.noteBottom + 1, WW - 2, Lay.table - mk * 4.6 - 1.5);
+    if (hatTop - Lay.noteBottom >= 12) {
+      Lay.youBubble = { x: 2, y: Lay.noteBottom + 1, right: WW - 2, bottom: hatTop - 0.5, side: "down",
+                        anchor: { x: yx + R * 0.3, y: hatTop + R * 0.9 } };
+    } else {
+      Lay.youBubble = { x: right + 1, y: Lay.noteBottom + 1, right: WW - 2, bottom: Lay.table - R * 1.6, side: "left",
+                        anchor: { x: yx + R * 0.75, y: Lay.table - R * 1.45 } };
+    }
+    // the agent's frame: top left, where the note was, or in the right-hand
+    // column on a short screen, whichever is bigger
+    var aw = Math.min(56, (hatTop - 5 - (Lay.top + 1)) / 1.22);
+    var bx = right + 1.5, bw = Math.min(56, WW - 3 - bx, (Lay.table - 9 - (Lay.top + 1)) / 1.22);
+    var P;
+    if (aw >= bw) {
+      P = { x: 3, y: Lay.top + 1, w: aw, h: aw * 1.22 };
+      Lay.agentBubble = { x: P.x + P.w + 3, y: Lay.top + 1, right: WW - 2, bottom: Lay.table - 2, side: "left" };
+    } else {
+      P = { x: WW - 3 - bw, y: Lay.top + 1, w: bw, h: bw * 1.22 };
+      Lay.agentBubble = { x: 2, y: Lay.top + 1, right: P.x - 3, bottom: hatTop - 1, side: "right" };
+    }
+    Lay.portrait = P;
+    // on speaker the handset lies on the table in front of you
+    Lay.flat = { x: yx - R * 0.45, y: Lay.table + R * 0.75 };
+    Lay.noteR = 3.2;
+    // from the phone's side, down across the table and up to your ear
+    Lay.laneCtl = function (j, e) { return [[j.x - 16, WH - 2], [Math.max(1, e.x - 15), WH + 8]]; };
   }
 
   function laySquare(coarse, clip) {
     var gap = coarse ? 1 : 0, pad = coarse ? 1.7 : 0;
     var lcdH = Math.max(14, 46 / U);
-    var kk = coarse ? Math.max(56 / U + 0.25, 12) : clip ? 11.5 : 10.5;
+    var kk = coarse ? Math.max(56 / U + 0.25, 12) : clip ? 11 : 10.5;
     if (coarse) {
       // 56px keys, unless that would push the phone up under the score
       var room = WH - 46 / U - 2.8 - 1.2 - 3 * pad - lcdH - 2 * gap;
@@ -1216,47 +1267,63 @@
     }
     phoneAt(kk, gap, pad, lcdH, !coarse, 1.5, coarse ? 1.2 : 2.4);
     var p = Lay.phone;
-    Lay.table = p.y + p.h - 3;
+    Lay.table = coarse ? p.y + p.h - 3 : p.y + p.h * 0.6;
     Lay.tableTop = false;
-    var cw = p.x - 1;
-    var R = clamp(cw * 0.27, 8, WH > 112 ? 14 : 11.5);
-    var yx = Math.max(cw * 0.4, R * 1.4 + 1);
-    Lay.you = { x: yx, y: Lay.table, R: R, flip: false };
-    var hatTop = Lay.table - R * 3.85;
-    Lay.clock = WH > 112 ? { x: 9, y: Lay.top + 40, r: 5.5 } : null;
+    // you, with the handset at your left ear, as on a tall phone, so the
+    // cord can run from the foot of the phone, under you and up to your ear
+    var R = clamp(Math.min((p.x - 4) / 3.4, (Lay.table - Lay.noteBottom - 10) / 4.05), 8, 17);
+    var yx = R * 1.95 + 2.5;
+    Lay.you = { x: yx, y: Lay.table, R: R, flip: true };
+    Lay.jack.y = p.y + p.h * 0.74;
+    var hatTop = Lay.table - R * 4.05;
+    Lay.clock = WH > 112 ? { x: WW - 8.5, y: Lay.top + 7, r: 5 } : null;
     Lay.note = { x: 1.6, y: Lay.top + 0.5, w: p.x - 2.6 };
-    // the phone's bubble under the note, yours just above your hat
-    Lay.bubble = { x: 1.2, y: 0, right: p.x + p.pad - 1.2, bottom: hatTop - 0.5, side: "right" };
-    Lay.youBubble = { x: 1.2, y: Lay.top + 22, right: p.x - 1.5, bottom: hatTop - 1, side: "down" };
-    Lay.portrait = { x: 2, y: Lay.top + 1, w: Math.min(30, p.x - 5) };
-    Lay.portrait.h = Math.min(Lay.portrait.w * 1.25, hatTop - 2 - Lay.portrait.y);
-    Lay.agentBubble = null;
-    Lay.mug = { x: Math.max(5.5, yx - R * 2.15), y: Lay.table + R * 0.12, k: R * 0.16 };
+    // the phone's bubble over the phone; yours over your hat
+    phoneBubble(Math.min(yx + R * 1.2, p.x - 6), Lay.noteBottom + 1, WW - 1.5, p.y - 4.5);
+    if (coarse) {
+      // a phone in the page: the phone fills the right, so its bubble goes
+      // in the column under the note, its tail across to the screen
+      var l = Lay.lcd;
+      Lay.bubble = { x: 1.2, y: Lay.noteBottom + 1, right: p.x - 1, bottom: hatTop - 0.5, side: "right",
+                     anchor: { x: l.x + 1, y: l.y + l.h * 0.5 } };
+    }
+    Lay.youBubble = { x: 1.2, y: Lay.noteBottom + 0.5, right: p.x - 1.5, bottom: hatTop - 0.5, side: "down",
+                      anchor: { x: yx + R * 0.3, y: hatTop + R * 0.9 } };
+    // the agent's frame: on the wall over the phone, their bubble beside it
+    // over your hat, or (a phone in the page) where the note was
+    var P = { x: 2, y: Lay.top + 1, w: Math.min(34, p.x - 6) };
+    P.h = Math.min(P.w * 1.22, hatTop - 4 - P.y);
+    P.w = Math.min(P.w, P.h / 1.1);
+    var oh = p.y - 6.5 - (Lay.top + 0.5), ow = Math.min(oh / 1.15, WW - 3 - (yx + R * 1.2), 40);
+    if (ow > P.w) {
+      P = { x: WW - 1.5 - ow, y: Lay.top + 0.5, w: ow, h: Math.min(oh, ow * 1.22) };
+      Lay.agentBubble = { x: 1.2, y: Lay.top + 1, right: P.x - 3, bottom: hatTop - 0.5, side: "right" };
+    } else {
+      Lay.agentBubble = { x: P.x + P.w + 3, y: Lay.top + 1, right: WW - 1.5, bottom: p.y - 4.5, side: "left" };
+    }
+    Lay.portrait = P;
+    // the mug between you and the phone
+    Lay.mug = { x: Math.min(p.x - 3.5, yx + R * 1.75), y: Lay.table + R * 0.12, k: Math.min(R * 0.14, 2.6) };
+    Lay.flat = { x: yx - R * 0.2, y: Lay.table + R * 0.05 };
+    Lay.noteR = clip ? 2.8 : 2.6;
+    // out of the foot of the phone, along the bottom under you, and up to your ear
+    Lay.laneCtl = function (j, e) { return [[j.x - 14, WH + 6], [Math.max(1, e.x - 14), WH + 6]]; };
   }
 
   // The cord's path from the phone to the handset, as points, with the
   // distance along it from the handset end (where the ring is)
   function lanePath(end) {
-    var j = Lay.jack, sh = Lay.shape;
-    var dx = j.x - end.x, P1, P2;
-    if (sh === "tall") {
-      // out of the phone's side, down round the table and up to your ear
-      P1 = [j.x - 14, j.y + 36];
-      P2 = [end.x - 12, end.y + 46];
-    } else {
-      // hanging across the room
-      var sag = sh === "wide" ? 26 : 16;
-      P1 = [j.x - dx * 0.3, j.y + sag];
-      P2 = [end.x + dx * 0.32, end.y + sag * 0.75];
-    }
-    var pts = [], P0 = [j.x, j.y], P3 = [end.x, end.y];
-    for (var i = 0; i <= 64; i++) {
-      var t = i / 64, u = 1 - t;
+    var j = Lay.jack;
+    var ctl = Lay.laneCtl(j, end);
+    var P0 = [j.x, j.y], P1 = ctl[0], P2 = ctl[1], P3 = [end.x, end.y];
+    var pts = [];
+    for (var i = 0; i <= 96; i++) {
+      var t = i / 96, u = 1 - t;
       pts.push([u * u * u * P0[0] + 3 * u * u * t * P1[0] + 3 * u * t * t * P2[0] + t * t * t * P3[0],
                 u * u * u * P0[1] + 3 * u * u * t * P1[1] + 3 * u * t * t * P2[1] + t * t * t * P3[1]]);
     }
-    // keep it off the bottom edge
-    pts.forEach(function (q) { q[1] = Math.min(q[1], WH - 2.5); });
+    // keep it on the screen: along the bottom edge rather than off it
+    pts.forEach(function (q) { q[1] = Math.min(q[1], WH - 3); q[0] = Math.max(q[0], 2.5); });
     var cum = [0];
     for (var k = pts.length - 2; k >= 0; k--) cum.unshift(cum[0] + Math.hypot(pts[k + 1][0] - pts[k][0], pts[k + 1][1] - pts[k][1]));
     return { pts: pts, cum: cum, len: cum[0], end: end };
@@ -1276,8 +1343,9 @@
   }
 
   function lane() { return mods && mods.speaker ? Lay.laneFlat : Lay.lane; }
-  // seconds of notes the lane shows: about 180 pixels a second, so quavers keep apart
-  function laneAhead() { return clamp(lane().len * U / 180, 1.5, 2.6); }
+  // seconds of notes the lane shows: at least 200 pixels a second, so quavers
+  // keep apart, and never less than a second and a half
+  function laneAhead() { return clamp(lane().len * U / 200, 1.5, 2.6); }
 
   // ---------------------------------------------------------------------------
   // Drawing (DESIGN.md, section 7)
@@ -1361,7 +1429,8 @@
     c.setTransform(DPR * U, 0, 0, DPR * U, sx * DPR, sy * DPR);
     if (Lay.clock) D.clock(c, Lay.clock.x, Lay.clock.y, Lay.clock.r, clockMin);
     var agentOn = portraitOn(v, h);
-    if (!agentOn || Lay.shape !== "square") drawNote(c, v, h);
+    // the agent's frame goes up where the note was
+    if (!agentOn) drawNote(c, v, h);
     var me = drawYou(c, v, h);
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.drawImage(front, sx * DPR, sy * DPR);
@@ -1410,9 +1479,9 @@
     var ph01 = calm ? null : beatPhase(v, h);
     var bob = 0, bobble = 0;
     if (ph01 != null) {
-      bob = Math.max(0, 1 - ph01 * 3.2) * R * 0.06;
+      bob = Math.max(0, 1 - ph01 * 3.2) * R * 0.1;
       // the bobble lags the nod: thrown up just after the beat, back by the next
-      bobble = Math.sin(Math.min(1, ph01 * 1.6) * Math.PI) * 0.22;
+      bobble = Math.sin(Math.min(1, ph01 * 1.6) * Math.PI) * 0.34;
     }
     if (!calm && react.cut > 0) bobble = Math.max(bobble, react.cut * 0.5);
     // look at the note while a question is read, at the phone otherwise
@@ -1459,14 +1528,17 @@
     if (!calm) {
       // up between taps, down hard on each one
       var ph01 = beatPhase(v, h);
-      lift = hit > 0 ? 0 : ph01 != null ? R * 0.28 * Math.sin(ph01 * Math.PI) : 0;
+      lift = hit > 0 ? 0 : ph01 != null ? R * 0.42 * Math.sin(ph01 * Math.PI) : 0;
     }
     var r = me.rest;
     D.mitten(c, r.x, r.y - lift, r.r, T.paper, !y.flip);
-    if (hit > 0.35 && !calm) D.burst(c, r.x, r.y, r.r * 1.35, r.r * 2.1, Math.max(0.25, R * 0.04), 5, -Math.PI * 0.9);
+    if (hit > 0.3 && !calm) D.burst(c, r.x, r.y + r.r * 0.3, r.r * 1.3, r.r * 2.3, Math.max(0.3, R * 0.05), 6, -Math.PI * 0.95);
     if (me.flat) {
       D.handsetFlat(c, Lay.flat.x, Lay.flat.y, R, y.flip, me.slam && !calm && (h - v.t0) < 0.8);
-      if (me.rest2 && !me.slam) {
+      if (me.slam) {
+        // the mitten that put it down, still on it
+        D.mitten(c, Lay.flat.x, Lay.flat.y - R * 0.3, R * 0.4, T.paper, !y.flip);
+      } else if (me.rest2) {
         var r2 = me.rest2;
         D.mitten(c, r2.x, r2.y - (calm ? 0 : lift * 0.6), r2.r, T.paper, y.flip);
       }
@@ -1588,7 +1660,7 @@
   }
 
   function drawNote(c, v, h) {
-    var n = Lay.note, size = Lay.shape === "square" ? Math.max(13 / U, 3.1) : Math.max(Lay.tmin, Lay.shape === "tall" ? 5 : 4.2);
+    var n = Lay.note, size = Lay.noteSize;
     var lines = noteLines();
     var title = "My problem";
     var tw = 0;
@@ -1830,15 +1902,15 @@
         if (!kr) return;
         x = kr.x + kr.w / 2; y = kr.y - 1;
       } else {
-        // above the ring, on the phone's side of it
-        x = ring.x + (Lay.you.flip ? nr * 2.4 : -nr * 0.5);
-        y = ring.y - nr * 2.4;
+        // beside the ring, on the side away from you, clear of your face
+        x = ring.x + nr * 2.3;
+        y = Math.min(ring.y + (Lay.you.flip ? nr * 3.2 : -nr * 0.2), WH - 1.5);
       }
       c.save();
       c.globalAlpha = 1 - k * k;
       // with reduced motion the words fade where they are
       var rise = shell.reduceMotion ? 0 : k * 3;
-      D.text(c, f.text, x, y - rise, size, { base: "bottom", stroke: size * 0.3, align: f.key ? "center" : Lay.you.flip ? "left" : "center",
+      D.text(c, f.text, x, y - rise, size, { base: "bottom", stroke: size * 0.3, align: f.key ? "center" : "left",
         colour: f.kind === "miss" || f.kind === "stray" ? T.red : f.kind === "perfect" || f.kind === "good" ? T.accent : T.paper });
       c.restore();
     });
@@ -1856,7 +1928,10 @@
   }
 
   // The phone's bubble (whoever's on the line), the agent's from their frame,
-  // and yours, each in its own place on every shape of screen
+  // and yours, each in its own box on every shape of screen (see layout)
+  function boxPx(b) { return { x: b.x * U, y: b.y * U, w: (b.right - b.x) * U, bottom: b.bottom * U }; }
+  function ptPx(q) { return { x: q.x * U, y: q.y * U }; }
+
   function drawBubbles(c, v, h, placed, agentOn) {
     var cur = null;
     for (var i = talks.length - 1; i >= 0; i--) {
@@ -1867,47 +1942,35 @@
     // yours first, so the phone's makes way
     if (mine) {
       var yb = Lay.youBubble;
-      var top = yb.y;
-      if (Lay.shape === "square") top = Math.max(yb.y, Lay.note.y + (Lay.note.h || 0) + 2);
-      if (Lay.shape === "wide") top = Math.max(yb.y, Lay.note.y + (Lay.note.h || 0) + 1.5);
-      var anchor = yb.side === "down" ? { x: (Lay.you.x + Lay.you.R * 0.3) * U, y: (Lay.hatTop + Lay.you.R * 0.5) * U }
-                                      : { x: (Lay.mouth.x + (Lay.you.flip ? -1 : 1) * Lay.you.R * 0.45) * U, y: Lay.mouth.y * U };
-      bubble(c, react.said.toUpperCase(), { x: yb.x * U, y: top * U, w: (yb.right - yb.x) * U, bottom: yb.bottom * U }, anchor, yb.side,
+      bubble(c, react.said.toUpperCase(), boxPx(yb), ptPx(yb.anchor), yb.side,
         clamp((2.4 - react.saidT) * 4, 0, 1) * (shell.reduceMotion ? 1 : clamp(react.saidT * 9, 0, 1)), false, placed);
     }
     if (!cur) return;
     var fade = clamp((cur.end + 0.5 - h) * 4, 0, 1);
     var alpha = Math.min(fade, shell.reduceMotion ? 1 : clamp((h - cur.t) * 9, 0, 1));
     var text = cur.text.toUpperCase();
-    if (cur.who === "agent" && agentOn && Lay.portraitMouth) {
+    if (cur.who === "agent" && agentOn) {
       // the agent speaks from their frame
-      var P = Lay.portrait;
-      if (Lay.agentBubble) {
-        var ab = Lay.agentBubble;
-        bubble(c, text, { x: ab.x * U, y: ab.y * U, w: (ab.right - ab.x) * U, bottom: ab.bottom * U },
-          { x: (ab.side === "left" ? P.x + P.w - 1 : P.x + 1) * U, y: (P.y + P.h * 0.4) * U }, ab.side, alpha, false, placed);
-      } else {
-        // square: under the frame, on the wall
-        bubble(c, text, { x: (P.x + P.w + 2) * U, y: (P.y + 2) * U, w: (Lay.phone.x - P.x - P.w - 3) * U, bottom: (Lay.hatTop - 1) * U },
-          { x: (P.x + P.w - 1) * U, y: (P.y + P.h * 0.4) * U }, "left", alpha, false, placed);
-      }
+      var P = Lay.portrait, ab = Lay.agentBubble;
+      var anc = { x: ab.side === "left" ? P.x + P.w - 1 : P.x + 1, y: P.y + P.h * 0.42 };
+      bubble(c, text, boxPx(ab), ptPx(anc), ab.side, alpha, false, placed);
       return;
     }
     var b = Lay.bubble;
-    var btop = b.side === "right" ? Lay.note.y + (Lay.note.h || 0) + 2.4 : b.y;
-    var bx0 = b.x;
-    if (Lay.shape === "wide" && Lay.note.dw) bx0 = Math.max(b.x, Lay.note.x + Lay.note.dw + 2);
-    var box = { x: bx0 * U, y: btop * U, w: (b.right - bx0) * U, bottom: b.bottom * U };
-    var anc = { x: (Lay.lcd.x + 1) * U, y: (Lay.lcd.y + Lay.lcd.h * 0.5) * U };
-    if (b.side === "down") anc = { x: (Lay.lcd.x + Lay.lcd.w * 0.3) * U, y: (Lay.phone.y - 3.2) * U };
-    bubble(c, text, box, anc, b.side, alpha, cur.who === "dept", placed);
+    var box = boxPx(b);
+    // on a wide screen the phone's bubble keeps clear of the note
+    if (Lay.shape === "wide" && Lay.note.dw && !agentOn) {
+      var nx = (Lay.note.x + Lay.note.dw + 2) * U;
+      if (nx > box.x) { box.w -= nx - box.x; box.x = nx; }
+    }
+    bubble(c, text, box, ptPx(b.anchor), b.side, alpha, cur.who === "dept", placed);
   }
 
   // A speech bubble: paper, a thick ink outline, a tail to the speaker
   // (DESIGN.md, section 7). box: the room it has, in CSS pixels. side: where
   // the tail comes out ("down", "right" or "left").
   function bubble(c, text, box, anchor, side, alpha, dashed, placed) {
-    var size = N.flags.clip ? clamp(U * 3.6, 12, U * 4.2) : clamp(U * 3.3, 12, 20);
+    var size = N.flags.clip ? clamp(U * 3.6, 12, U * 4.2) : clamp(U * (Lay.shape === "tall" ? 3.8 : 3.3), 12, 20);
     var lines;
     for (;;) {
       c.font = size + "px " + T.display;
@@ -1921,9 +1984,9 @@
     var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.15;
     var bx, by;
     if (side === "right") {
-      bx = box.x + Math.max(0, (box.w - bw) / 2);
-      by = box.y;
-      if (box.bottom && by + bh > box.bottom) by = Math.max(box.y - (by + bh - box.bottom), box.y - size);
+      // as near the speaker as the box allows
+      bx = box.x + Math.max(0, box.w - bw);
+      by = clamp(anchor.y - bh * 0.5, box.y, Math.max(box.y, (box.bottom || anchor.y) - bh));
     } else if (side === "left") {
       bx = box.x;
       by = clamp(anchor.y - bh * 0.6, box.y, Math.max(box.y, (box.bottom || anchor.y) - bh));
@@ -2048,6 +2111,8 @@
     },
     againLabel: "Call again",
     daily: true,
+    // a phone gets the whole screen: room for 56px keys, a big beat pad and a long cord
+    fullOnTouch: true,
     smallCallouts: true,
     keys: { up: [], down: [], left: [], right: [], action: ["Space"], beat: [] },
     // a gamepad's face buttons and shoulders tap the beat
