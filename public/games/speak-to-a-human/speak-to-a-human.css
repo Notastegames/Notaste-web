@@ -1,17 +1,42 @@
 /*
-  Speak to a Human: the one thing this game adds to the page. Patience in
-  the HUD is a row of pips (filled in the game's colour, empty ones
-  outlined). The notice and the
+  Speak to a Human: the one thing this game adds to the page. The phone's
+  battery in the HUD: a paper cell with a nub, filled in the game's colour,
+  blinking under 20% (steady with reduced motion). The notice and the
   callouts are placed by speak-to-a-human.js for each screen shape.
   Everything else is the kit's (games/kit/kit.css).
 */
-.sth-patience { display: flex; align-items: center; }
-.sth-pips { display: inline-flex; gap: 0.22em; }
-.sth-pip {
-  width: 0.62em;
-  height: 0.62em;
+.sth-battery { display: flex; align-items: center; gap: 0.3em; }
+.sth-cell {
+  position: relative;
+  display: inline-block;
+  width: 2.1em;
+  height: 0.95em;
   border: 2px solid var(--paper);
-  border-radius: 50%;
+  border-radius: 3px;
   box-shadow: 0 2px 0 var(--ink);
+  padding: 1px;
+  margin-right: 0.25em;
 }
-.sth-pip.is-on { background: var(--accent); }
+.sth-cell::after {
+  content: "";
+  position: absolute;
+  right: -0.32em;
+  top: 50%;
+  width: 0.2em;
+  height: 0.42em;
+  transform: translateY(-50%);
+  background: var(--paper);
+  border-radius: 0 2px 2px 0;
+}
+.sth-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+  border-radius: 1px;
+}
+.sth-battery.is-low .sth-fill { animation: sth-blink 0.8s steps(2, jump-none) infinite; }
+@keyframes sth-blink { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) {
+  .sth-battery.is-low .sth-fill { animation: none; }
+}
