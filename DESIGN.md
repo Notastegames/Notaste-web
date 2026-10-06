@@ -282,7 +282,25 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 
 ## 13. The games
 
-Each game's own rules: its characters, its stamp words and callouts, and anything only it does. Everything above still applies. Heavy Traffic's and Thonglets' notes are in sections 6, 7 and 10, where they were first written.
+Each game's own rules: its characters, its stamp words and callouts, and anything only it does. Everything above still applies. Thonglets' notes are in sections 6, 7 and 10, where they were first written. Heavy Traffic's first ones are there too (its drivers and circuit in 7, its sounds in 9, its barriers in 10), and the rest are below.
+
+### Heavy Traffic
+
+Kart racing: three laps against three other drivers, seen from just behind your kart. The joke is the fit and the car's suffering, never the drivers: the car is too small, the suspension has died, a wheel has left, and the Gas button is marked Gas.
+
+**The rivals.** Gaz (a teal kart, a red shirt, bald with a teal sweatband and three loyal hairs), Lorraine (a white kart called Pamela, a teal top, red trousers and a red perm) and Derek (a black kart, a white shirt, a flat cap and a moustache). Each believes they own the road and is at one with their kart: Gaz pays road tax, Lorraine will speak to your manager, Derek has it all on dashcam. Get close and they turn round, shake a fist and shout about your driving. Their bubbles stack rather than overlap, keep clear of the HUD, the minimap and the pointer, and are never under 12px.
+
+**Form.** Each race deals out one quick rival, one middling and one slow (the same deal for everyone in today's race, along with their moods and the order of their mistakes), so there's always someone to beat and someone to chase. On the first two laps anyone well ahead eases off out of sight and anyone behind finds a bit, each settling at their own distance from you so they don't travel as a wall. The final lap is a straight race at everyone's own pace: where you finish is down to how you drive it. Now and then a rival saves up a mistake and spends it on the next proper corner.
+
+**Saying what to do.** The notice goes up with the countdown: steer early (the car takes a moment to agree), brake before the arrow boards, not in the corner. It comes down soon after Go, a little later the first time, since on a phone it sits over your kart; filming a clip it's only the title. On the first two laps the pointer says Brake when you arrive at a proper corner far too fast, early enough to do it, until you've braked into one; and Gas the first time it's full, until you've used it. On a touch screen it points at the button.
+
+**Touch.** It accelerates by itself. Steering sits side by side in the bottom-left corner and Gas over Brake in the bottom-right, 56px on a phone, so the middle of the road stays clear and your kart sits above the buttons. The Gas button fills as it charges, and the HUD's gas meter steps aside. A small phone scrolls the whole screen into view when a race starts. In full window on a phone held upright the camera goes up and in a little, so the road gets the height and the sky doesn't.
+
+**Callouts** are the small ones, in the HUD's row on the sky, never over the road ahead or the other drivers. Routine ones are rationed: Gas is stamped the first time and then only now and then when it gets somebody (their bubble is the joke), and overtakes no more than once every few seconds. Lap 2 and Final lap always land.
+
+**Stamp words.** Not approved (the game's stamp). Callouts: The car has concerns, Spun out, Wheel: optional, Wheel found, Two wheels. Plenty, Airborne. Briefly, Suspension: deceased, The car is praying, That's gravel, Wrong way, Barrier: consulted, The wall has been informed, Contact with the scenery, Physics has given up, Towed. Invoice to follow, Recovered. Reluctantly, Put back. Like a trolley, Overtake approved, Lead: provisional, Slipstream: unpleasant, Contact. Approved, Insurance: pending review, Sorry, (name), Gas deployed, Nobody will forget that, Windows down, everyone, That was not the engine, Lap 2, Final lap.
+
+**Results.** The ladder by place: first is Approved, second Pending review, third Not approved, last Rejected. One line for each, about the car ("Second. The car is being kept in overnight for observation.", "Last. The car has asked for some time apart."), and when you're beaten the winner has a word first, in their own conviction ("Derek won. He has the whole thing on dashcam."). The numbers are the time, the best lap and the best time; today's race adds the date.
 
 ### Slop Cannon
 
