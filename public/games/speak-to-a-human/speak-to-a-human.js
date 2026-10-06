@@ -8,66 +8,71 @@
 // you. The one "human" you reach, Dave, has the bot's smile under a
 // moustache, and the moustache comes off.
 //
-// THE LOOP. Assistant sends a message (it types first, so you know it's
-// coming) and offers four reply chips. One is true ("My drink is missing",
-// "No, that did not help", "I want a refund"); the rest play along, and
-// from the second order some are made to look like the true one ("No, that
-// did help", "I want a refund voucher", "The chips are cool"). Tap the true
-// one: the "Distance to a human" bar goes down. Faster is harder (up to 60%
-// more for a reply in a third of a second), and true replies in a row stack
-// (8% each, up to five). Three in a row earns the Speak to a human chip,
-// which hits hardest. A wrong tap costs a patience and heals the bot; run
-// out of patience and you close the app, which ends the round. Mashing loses.
+// THE LOOP. Assistant types, then says something ("Have you checked behind
+// your bins?") and offers four replies. One answers it and doesn't let it
+// off ("I don't have bins"). The other three look like it, but they go along
+// with it ("I'll check my bins"), dodge it ("Which bins?") or thank it
+// ("Thanks, bins"). Every line has its own replies (lines.js), dealt so
+// nothing comes round twice in a round: you have to read the bot to beat it.
+// The true reply pushes the "Distance to a human" bar down: faster is harder,
+// true replies in a row stack, and three in a row earns the Speak to a human
+// chip, which hits hardest (a human starts typing, then it's Assistant again).
 //
-// THE BOT FIGHTS BACK (each announced with a notice the first time):
+// YOUR PHONE'S BATTERY is what runs out. It drains while you're in the chat,
+// and every reply that plays along takes a chunk (and heals the bot). At 0%
+// the phone dies and the round ends. Between orders it only gets a little
+// back, so a slow or sloppy round 1 is felt in round 4.
+//
+// THE BOT FIGHTS BACK. Each order's countdown notice says what's new; in
+// play, only the pointer teaches (the first time each one comes up):
 // - "Did this answer your question?" Yes / Yes, and a small No that drifts
 //   along under them and shrinks away. Catch it.
-// - "Can I take your order number again?" Four lookalike numbers. Yours was
-//   on the order card at the top of the chat when it opened.
-// - "I understand you're frustrated." It's healing: a ring runs down and
-//   the heal shows on the bar in red. A true reply before it ends stops it
-//   and hits double ("Interrupted").
-// - A 50p voucher, once an order (from the second), when it's losing: take
-//   it and the order ends there for 50p; refuse and fight on.
-// - "Are you still there?" A fuse; miss it and the chat starts again from
-//   hello ("Loop detected"), with the bot healed.
-// - A satisfaction survey over the chips: five big stars (each one heals the
-//   bot) and a small No thanks that moves between corners.
+// - "Can I take your order number again?" Four lookalike numbers. Yours is in
+//   the chat's header the whole time.
+// - "I understand you're frustrated." It's healing: a ring runs down and the
+//   heal shows on the bar in red. A true reply before it ends stops it and
+//   hits double ("Interrupted").
+// - A 50p voucher, once an order (from the second), when it's losing: take it
+//   and the order ends there for 50p; refuse and fight on.
+// - "This chat will close due to inactivity", while you're mid-reply. Say
+//   you're there before the fuse ends, or the chat starts again from hello.
+// - A satisfaction survey over the replies: five big stars (each one heals
+//   the bot) and a small No thanks that moves between corners.
 // - Replies drift and swap places (keys follow the place, not the reply),
 //   and on the last order the true reply shrinks and then it's gone.
 //
-// THE ORDERS (stages). Each opens with the tracking screen going wrong (6.4
-// seconds, any key or tap skips it, and a restarted round skips it): the
-// rider's dot circles the block, "Your rider is 2 minutes away" while the
-// minutes since you ordered race up, then Delivered and a photo.
+// THE ORDERS (stages). Each opens with the tracking screen going wrong (6
+// seconds; any key or tap skips it, and a restarted round skips it): the
+// rider, a cut-out on a scooter with the bag on his back, circles the block,
+// "Your rider is 2 minutes away" while the minutes since you ordered race up,
+// then Delivered and a photo.
 // 1. The missing drink (£2.80): the basics, Yes or yes.
 // 2. The cold chips (£3.20): your order number, it understands, a voucher.
-// 3. The hedge (£24.60): still there, the survey, replies that move.
+// 3. The hedge (£24.60): closing the chat, the survey, replies that move.
 // 4. The £14 coffee (£14.00, mostly fees): shrinking replies, then Dave, a
 //    human, with his own bar ("Distance to a refund") and all of the above,
 //    faster. He offers the voucher in this order.
 //
-// BETWEEN ORDERS (shell.interlude) pick one of three ways to get ready, each
+// BETWEEN ORDERS (shell.interlude) pick how you go into the next chat, each
 // with a cost on its card: Type in capitals, Say agent repeatedly, Threaten a
-// review, Screenshot your order, Charge your phone, Turn notifications on.
-// It lasts one order. Patience comes back by one between orders.
+// review, Low power mode, Plug in the charger, Turn notifications on. The
+// first two interludes offer different halves of the six.
 //
-// SCORE. The refund in pence, plus up to 300 a full refund for time (par
-// for the order or better, nothing at 2.2 times par). The HUD shows the
-// refund in pounds and the time spent in the chat.
-// THE LADDER. Approved: all four refunded in full (Dave beaten) and at least
-// APPROVED points. Pending review: finished, two or more in full. Not
-// approved: finished on vouchers, or closed the app on the hedge or the
-// coffee. Rejected: closed the app on the drink or the chips.
+// SCORE. The refund in pence, plus up to 300 a full refund for time (par for
+// the order or better, nothing at twice par), plus 4 for every 1% of battery
+// left at the end. THE LADDER. Approved: all four refunded in full (Dave
+// beaten) and at least APPROVED points. Pending review: finished, two or more
+// in full. Not approved: finished on vouchers, or the phone died on the hedge
+// or the coffee. Rejected: the phone died on the drink or the chips.
 //
-// TODAY'S RUN deals everyone the same order numbers, the same messages,
-// replies and places, the same tricks in the same order and the same ways
-// to get ready, each order from its own stream (planRun).
+// TODAY'S RUN deals everyone the same order numbers, the same lines and
+// replies in the same places, the same tricks in the same order and the same
+// ways in, each order from its own stream (planRun).
 //
 // TEST FLAGS (with ?debug, which also exposes window.__speakToAHuman for
-// test players): &stage=3 starts at that order, &dave starts at
-// Dave, &hp=20 starts the bar there, &skill=0.4 sets the autopilot's skill
-// (0 to 1) with ?autopilot.
+// test players): &stage=3 starts at that order, &dave starts at Dave, &hp=20
+// starts the bar there, &skill=0.4 sets the autopilot's skill (0 to 1) with
+// ?autopilot.
 //
 // Built on the shared kit (/games/kit/kit.js). lines.js is the words, art.js
 // draws the people, the map and the photos.
@@ -91,28 +96,36 @@
   // ---------------------------------------------------------------------------
   // Tuning
   // ---------------------------------------------------------------------------
-  var BASE = 5.4, FIN = 15;               // damage of a true reply, and of Speak to a human
-  var QUICK = 0.6;                        // up to this much more for a quick reply
+  var BASE = 8.5, FIN = 18;                // damage of a true reply, and of Speak to a human
+  var QUICK = 0.5;                        // up to this much more for a quick reply
+  var QUICK_FULL = 0.9, QUICK_NONE = 2.6; // seconds after the replies come up: full bonus, none
   var STREAK = 0.08, STREAK_MAX = 5;      // each true reply in a row adds this, up to five
-  var ARMOUR = [1.3, 1.1, 1.0, 1.05];     // per order; Dave's below
-  var DAVE_ARMOUR = 1.3;
-  var HEAL = { decoy: 5, yes: 8, frustrated: 10, still: 15, star: 8, survey: 6, shrink: 6, number: 5, yesyes: 8 };
+  var ARMOUR = [1.3, 1.0, 0.9, 1.0];      // how hard a hit lands, per order; Dave's below
+  var DAVE_ARMOUR = 0.95;
+  var HEAL = { decoy: 6, yes: 8, frustrated: 10, still: 15, star: 8, survey: 6, shrink: 6, number: 5, yesyes: 8 };
   var TYPING = [0.62, 0.55, 0.5, 0.45], DAVE_TYPING = 0.42;
   var FUSE = {                            // seconds, per order (Dave last)
-    no: [2.8, 2.5, 2.3, 2.1, 2.0],
-    ring: [1.7, 1.7, 1.5, 1.4, 1.3],
-    still: [2.4, 2.4, 2.4, 2.2, 2.0],
-    survey: [3.6, 3.6, 3.6, 3.3, 3.2],
-    voucher: [4, 4, 4, 4, 4],
-    shrink: [2.6, 2.6, 2.6, 2.6, 2.3]
+    no: [3.0, 2.8, 2.6, 2.4, 2.3],
+    ring: [2.6, 2.5, 2.3, 2.2, 2.0],
+    still: [3.2, 3.2, 3.0, 2.8, 2.6],
+    survey: [3.8, 3.8, 3.6, 3.4, 3.2],
+    voucher: [4.5, 4.5, 4.5, 4.5, 4.5],
+    shrink: [3.4, 3.4, 3.4, 3.2, 3.0]
   };
   var DRIFT = [0, 0, 0.06, 0.09, 0.1];    // share of a chip's width
   var SHUFFLE = [0, 0, 0.35, 0.45, 0.5];  // chance a message's replies swap places
-  var PAR = [15, 16, 20, 38];             // seconds in the chat for the time bonus (order 4 includes Dave)
+  var WOBBLE = 0.35;                      // seconds the replies shake before they swap
+  var PAR = [16, 20, 26, 48];             // seconds in the chat for the time bonus (order 4 includes Dave)
   var TIME_BONUS = 300;
-  var PATIENCE = 5, PATIENCE_MAX = 5;
-  var APPROVED = 5300;
-  var IDLE = 6;                           // seconds before it asks if you're still there
+  // the phone's battery, in %
+  var DRAIN = 0.45;                       // a second, in the chat
+  var WRONG = 12;                         // a reply that plays along
+  var LOOPED = 10;                        // the chat closed on you
+  var BETWEEN = 6;                        // back between orders
+  var CHARGE = 30;                        // Plug in the charger
+  var BATT_SCORE = 4;                     // points for each 1% left at the end
+  var APPROVED = 5750;
+  var IDLE = 7;                           // seconds of nothing before it closes the chat on you
   var TRACK_LEN = 6.0;
 
   // What turns up first, and when (by message), and how often after that
@@ -131,6 +144,7 @@
   // ---------------------------------------------------------------------------
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function lerp(a, b, t) { return a + (b - a) * t; }
+  function ease2(v, to) { v = v || 0; return v + (to - v) * 0.18; }
   function ease(t) { t = clamp(t, 0, 1); return 1 - Math.pow(1 - t, 3); }
   function money(v) { return "£" + (Math.round(v * 100) / 100).toFixed(2); }
   function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + (s % 60); }
@@ -219,22 +233,31 @@
 
   function planRun(seed) {
     var plan = [];
+    // the lines anyone gets are dealt once a round, a few to each order
+    var general = shuffled(N.seeded(seedFrom(seed, 55)), L.GENERAL);
+    var per = Math.floor(general.length / 4);
     for (var i = 0; i < 4; i++) {
       var r = N.seeded(seedFrom(seed, i));
       var p = {
         no: orderNumber(r),
         deck: planDeck(i, false, r),
-        lines: shuffled(r, L.STAGES[i].lines.concat(L.STAGES[i].lines, L.GENERAL)),
+        lines: shuffled(r, L.STAGES[i].lines.concat(general.slice(i * per, (i + 1) * per))),
+        rng: Math.floor(r() * 2147483647),
         offers: null
       };
       if (i === 3) {
         p.daveDeck = planDeck(i, true, r);
-        p.daveLines = shuffled(r, L.DAVE.concat(L.DAVE, L.STAGES[3].lines, L.GENERAL.slice(0, 8)));
+        p.daveLines = shuffled(r, L.DAVE);
       }
       plan.push(p);
     }
+    // the first two interludes offer different halves of the six ways in;
+    // the third is dealt from what you haven't picked (endStage)
     var pr = N.seeded(seedFrom(seed, 77));
-    for (var s = 1; s < 4; s++) plan[s].offers = shuffled(pr, L.PERKS).slice(0, 3);
+    var perm = shuffled(pr, L.PERKS);
+    plan[1].offers = perm.slice(0, 3);
+    plan[2].offers = perm.slice(3, 6);
+    plan.lastDeal = shuffled(pr, L.PERKS);
     return plan;
   }
 
@@ -250,14 +273,14 @@
     run = {
       plan: planRun(sh.seed),
       stage: FIRST,
-      patience: PATIENCE,
-      patienceMax: PATIENCE_MAX,
+      battery: 100,
+      picked: [],
       refund: 0,
       score: 0,
       time: 0,
       results: [],
       perk: null,
-      closedAt: null,
+      deadAt: null,
       daveBeaten: false,
       taught: {},
       clipSlips: {}
@@ -286,7 +309,8 @@
       voucherDone: false, idleSaid: false,
       mood: { kind: "idle", until: 0 }, hurt: 0, glitch: 0,
       script: null, scriptT: 0, closing: 0,
-      tache: 0, tacheOff: 0, briefed: false, cooldowns: {}
+      tache: 0, tacheOff: 0, briefed: false, cooldowns: {},
+      rng: N.seeded(p.rng), fin: null, unmask: 0
     };
     if (run.perk === "review") { sg.hp = sg.hpShown = sg.ghost = 75; sg.voucherDone = true; }
     ex = null;
@@ -295,10 +319,19 @@
     if (sg.phase === "chat") beginChat();
   }
 
+  // The notice is for before the chat. The kit has no way to take one down
+  // early, so it's put up again for a millisecond, which fades it out.
+  var lastBrief = null;
+  function brief(o) { lastBrief = o; shell.brief(o); }
+  function briefDown() {
+    if (lastBrief) shell.brief({ title: lastBrief.title, text: lastBrief.text, ms: 1 });
+    lastBrief = null;
+  }
+
   function beginChat() {
+    if (shell.state() === "playing") briefDown();
     sg.phase = "chat";
     post("sys", "Help: chat with Assistant");
-    post("card", "Order " + sg.p.no, { lines: [sg.st.order, money(sg.st.value)] });
     nextExchange(0.5);
   }
 
@@ -340,43 +373,19 @@
     ex.wait = wait == null ? 0.3 : wait;
   }
 
-  function nextLine(r) {
+  function nextLine() {
     var list = isDave() ? sg.p.daveLines : sg.p.lines;
     var line = list[sg.lineAt % list.length];
     sg.lineAt++;
     return line;
   }
 
-  function honestFor(r) {
-    if (isDave()) return r() < 0.45 ? sg.st.complaint : pickFrom(r, L.DAVE_HONEST);
-    return r() < 0.45 ? sg.st.complaint : pickFrom(r, L.HONEST);
-  }
-
-  function looksFor(honest) {
-    return honest === sg.st.complaint ? sg.st.looks : (L.LOOKMAP[honest] || sg.st.looks);
-  }
-
-  // three replies that aren't true: from the stage on, some made to look true
-  function decoys(r, honest, line, nLooks) {
-    var out = [];
-    var looks = shuffled(r, looksFor(honest));
-    for (var i = 0; i < nLooks && i < looks.length; i++) out.push(looks[i]);
-    if (line) [line[1], line[2]].forEach(function (d) { if (out.length < 3 && out.indexOf(d) < 0) out.push(d); });
-    var polite = shuffled(r, L.POLITE);
-    for (var j = 0; out.length < 3; j++) if (out.indexOf(polite[j]) < 0) out.push(polite[j]);
-    return out.slice(0, 3);
-  }
-
-  function nLooks(r) {
-    var k = stageKey();
-    if (k === 0) return r() < 0.35 ? 1 : 0;
-    if (k === 1) return 1;
-    if (k === 2) return r() < 0.5 ? 1 : 2;
-    return 2;
-  }
-
   function chip(text, honest, kind, said) {
     return { text: text, honest: !!honest, kind: kind || (honest ? "honest" : "decoy"), said: said || text, slot: 0, from: -1, swap: 1, phase: 0 };
+  }
+  // a line from lines.js: [what it says, the true reply, three that play along]
+  function fromLine(line) {
+    return [chip(line[1], true)].concat(line.slice(2, 5).map(function (d) { return chip(d); }));
   }
 
   function build(kind, entry) {
@@ -384,26 +393,21 @@
     var k = stageKey();
     var dave = isDave();
     var e = { kind: kind, t: 0, chips: [], timer: null, shuffleAt: -1, shuffled: false, drift: DRIFT[k], shrink: 0, picked: false, bot: "", idle: 0 };
-    var S = L.SPECIAL, h, line;
+    var S = L.SPECIAL, line;
     var fuse = function (name) { return FUSE[name][k] * (run.perk === "notify" ? 1.5 : 1); };
     if (kind === "open") {
       e.bot = dave ? L.DAVE_OPEN : L.OPEN;
-      h = sg.st.complaint;
-      e.chips = [chip(h, true)].concat(decoys(r, h, null, k === 0 ? 0 : 1).map(function (d) { return chip(d); }));
-    } else if (kind === "std" || kind === "shrink" || kind === "frustrated") {
-      line = nextLine(r);
-      h = honestFor(r);
-      if (kind === "frustrated") {
-        e.bot = dave ? S.frustrated.dave : S.frustrated.bot;
-        var dd = decoys(r, h, null, 1);
-        dd[1] = pickFrom(r, S.frustrated.decoys);
-        e.chips = [chip(h, true)].concat(dd.map(function (d) { return chip(d); }));
-        e.timer = { kind: "ring", dur: fuse("ring"), label: "Healing" };
-      } else {
-        e.bot = line[0];
-        e.chips = [chip(h, true)].concat(decoys(r, h, line, nLooks(r)).map(function (d) { return chip(d); }));
-        if (kind === "shrink") { e.shrink = fuse("shrink"); e.timer = { kind: "shrink", dur: e.shrink, label: "" }; }
-      }
+      if (dave) e.chips = [chip(L.DAVE_COMPLAINT[0], true)].concat(L.DAVE_COMPLAINT[1].map(function (d) { return chip(d); }));
+      else e.chips = [chip(sg.st.complaint, true)].concat(sg.st.looks.map(function (d) { return chip(d); }));
+    } else if (kind === "std" || kind === "shrink") {
+      line = nextLine();
+      e.bot = line[0];
+      e.chips = fromLine(line);
+      if (kind === "shrink") { e.shrink = fuse("shrink"); e.timer = { kind: "shrink", dur: e.shrink, label: "" }; }
+    } else if (kind === "frustrated") {
+      e.bot = dave ? S.frustrated.dave : S.frustrated.bot;
+      e.chips = [chip(pickFrom(r, S.frustrated.honest), true)].concat(shuffled(r, S.frustrated.decoys).slice(0, 3).map(function (d) { return chip(d); }));
+      e.timer = { kind: "ring", dur: fuse("ring"), label: "Healing" };
     } else if (kind === "yesyes") {
       e.bot = dave ? S.yesyes.dave : S.yesyes.bot;
       e.chips = [chip("Yes", false, "yes"), chip("Yes", false, "yes"), chip(S.yesyes.no, true, "no", S.yesyes.said)];
@@ -417,10 +421,9 @@
       e.chips = [chip(S.voucher.refuse, true, "refuse", S.voucher.saidRefuse), chip(S.voucher.take, false, "take", S.voucher.saidTake)];
       e.timer = { kind: "voucher", dur: fuse("voucher"), label: "Offer ends" };
     } else if (kind === "still") {
-      e.bot = dave ? S.still.dave : S.still.bot;
-      var sd = shuffled(r, S.still.decoys);
-      e.chips = [chip(S.still.honest, true, "still")].concat(sd.map(function (d) { return chip(d); }));
-      e.timer = { kind: "still", dur: fuse("still"), label: "Still there?" };
+      e.bot = dave ? S.still.dave : pickFrom(r, S.still.bot);
+      e.chips = [chip(pickFrom(r, S.still.honest), true, "still")].concat(shuffled(r, S.still.decoys).map(function (d) { return chip(d); }));
+      e.timer = { kind: "still", dur: fuse("still"), label: "Closing" };
     } else if (kind === "survey") {
       e.bot = "Before you go, a quick survey.";
       e.chips = [1, 2, 3, 4, 5].map(function (n) { return chip(n + (n === 1 ? " star" : " stars"), false, "star"); })
@@ -428,7 +431,7 @@
       e.timer = { kind: "survey", dur: fuse("survey"), label: "" };
       e.corner = 0;
     }
-    // where each reply sits
+  // where each reply sits
     var n = e.chips.length;
     if (kind === "yesyes" || kind === "survey") {
       e.chips.forEach(function (c, i) { c.slot = i; });
@@ -464,12 +467,6 @@
     if (ex.kind === "voucher") post("voucher", "50p", {});
     post("bot", ex.bot);
     sound("bot");
-    var first = ex.kind === "std" || ex.kind === "open" ? null : ex.kind;
-    if (ex.chips.some(function (c) { return c.kind === "fin"; })) first = first || "fin";
-    if (first && L.FIRST[first] && !run.taught["brief-" + first]) {
-      run.taught["brief-" + first] = true;
-      shell.brief({ title: L.FIRST[first].title, text: L.FIRST[first].text, ms: 3800 });
-    }
     if (ex.kind === "survey") sound("survey");
     if (ex.kind === "frustrated") {
       sg.pendingHeal = HEAL.frustrated;
@@ -495,6 +492,7 @@
     ex.state = "done";
     ex.wait = 0.5;
     ex.picked = c;
+    ex.doneAt = clock;
     c.pressed = clock;
     sg.pendingHeal = 0;
     auto = null;
@@ -515,23 +513,35 @@
         run.taught.fin = true;
         sg.streak = 0;
         sg.finReady = false;
-        // a human was requested: that's worth a patience back
-        if (run.patience < run.patienceMax) { run.patience++; paintHud(); }
-        damage(FIN, rt, { fin: true });
-        if (isDave()) { sg.glitch = 0.32; later(0.32, function () { post("bot", L.SPECIAL.fin.daveReply); }); }
-        else later(0.3, function () { post("bot", L.SPECIAL.fin.reply); });
         callout("Escalated");
         sound("fin");
-        if (!calm) shake = 0.3;
-        ex.wait = 0.8;
+        if (!calm) shake = 0.35;
+        damage(FIN, rt, { fin: true });
+        if (sg.hp > 0) {
+          // the payoff: a human starts typing, and then it's the bot again
+          var daveNow = isDave();
+          sg.fin = { t: 0, dur: 1.25 };
+          mood("bye", 1.25);
+          later(1.25, function () {
+            sg.fin = null;
+            sg.glitch = 0.3;
+            mood("smug", 1.2);
+            sound("loop");
+            post("bot", daveNow ? L.SPECIAL.fin.daveReply : pickFrom(sg.rng, L.SPECIAL.fin.reply));
+          });
+          ex.wait = 1.75;
+        }
       } else {
         var mult = 1;
         if (ex.kind === "frustrated" && ex.t <= ex.timer.dur) { mult = 2; callout("Interrupted", { routine: "int", gap: 6 }); }
         if (ex.kind === "no") run.taught.no = true;
         if (c.kind === "no") { run.taught.no = true; callout("Not yes", { routine: "notyes", gap: 8 }); }
         if (c.kind === "number") callout("Order number: confirmed", { routine: "num", gap: 10 });
+        if (c.kind === "number") run.taught.number = true;
+        if (ex.kind === "frustrated") run.taught.frustrated = true;
+        if (ex.kind === "shrink") run.taught.shrink = true;
         if (c.kind === "still") { run.taught.still = true; }
-        if (c.kind === "refuse") { callout("Voucher: declined"); }
+        if (c.kind === "refuse") { run.taught.voucher = true; callout("Voucher: declined"); }
         damage(BASE * mult, rt, {});
         sound("hit");
       }
@@ -543,7 +553,7 @@
   function damage(base, rt, o) {
     var k = stageKey();
     var arm = isDave() ? DAVE_ARMOUR : ARMOUR[k];
-    var quick = clamp(1 - (rt - 0.3) / 1.2, 0, 1) * QUICK;
+    var quick = clamp(1 - (rt - QUICK_FULL) / (QUICK_NONE - QUICK_FULL), 0, 1) * QUICK;
     var streakMult = 1 + STREAK * Math.min(sg.streak, STREAK_MAX);
     var caps = run.perk === "caps" ? 1.33 : 1;
     var d = base * arm * (1 + quick) * (o.fin ? 1 : streakMult) * caps;
@@ -576,31 +586,33 @@
     sound("heal");
   }
 
-  function losePatience(n) {
-    run.patience = Math.max(0, run.patience - n);
+  // the battery: true if the phone died
+  function drain(n, quiet) {
+    var was = run.battery;
+    run.battery = Math.max(0, run.battery - n);
     paintHud();
-    sound("wrong");
-    if (run.patience <= 0) { closeApp(); return true; }
-    if (run.patience === 1) callout("Patience: low", { routine: "low", gap: 30 });
+    if (!quiet) { sound("wrong"); floater("-" + Math.round(n) + "%", "batt"); }
+    if (run.battery <= 0) { phoneDies(); return true; }
+    if (was > 20 && run.battery <= 20) callout("Battery: low");
     return false;
   }
 
   function wrong(c) {
     sg.streak = 0;
     sg.finReady = false;
-    var cost = run.perk === "agent" ? 2 : 1;
+    var cost = WRONG * (run.perk === "agent" ? 2 : 1);
     var heals = c.kind === "yes" ? HEAL.yes : c.kind === "star" ? HEAL.star : c.kind === "number" ? HEAL.number : HEAL.decoy;
     mood("smug", 0.8);
-    if (losePatience(cost)) return;
+    if (drain(cost)) return;
     heal(heals);
     var lines = isDave() ? L.DAVE_HEAL : L.HEAL;
-    if (c.kind === "number") later(0.28, function () { post("bot", "That order went to a hedge. Let's start there."); });
-    else if (c.kind === "star") later(0.28, function () { post("bot", "Thank you. That really helps me."); });
-    else later(0.28, function () { post("bot", lines[Math.floor(Math.random() * lines.length)]); });
+    var said = c.kind === "number" ? (sg.i === 2 ? L.SPECIAL.number.wrongHedge : L.SPECIAL.number.wrong)
+      : c.kind === "star" ? "Thank you. That really helps me." : pickFrom(sg.rng, lines);
+    later(0.28, function () { post("bot", said); });
     if (c.kind === "yes") callout("Ticket: closed", { routine: "closed", gap: 6 });
     else if (c.kind === "star") callout("Rated. Why", { routine: "rated", gap: 6 });
     else if (c.kind === "number") callout("Wrong order", { routine: "wrongno", gap: 6 });
-    else callout("Loop detected", { routine: "loop", gap: 5 });
+    else callout("Played along", { routine: "along", gap: 5 });
     ex.wait = 0.75;
   }
 
@@ -646,7 +658,7 @@
     }
   }
 
-  // Are you still there, missed: the chat starts again from hello
+  // It closed the chat on you: the chat starts again from hello
   function loop() {
     sg.hp = Math.min(100, sg.hp + HEAL.still);
     sg.ghost = Math.max(sg.ghost, sg.hp);
@@ -657,9 +669,10 @@
     callout("Loop detected");
     sound("loop");
     mood("smug", 1);
-    post("sys", "Chat restarted");
-    post("card", "Order " + sg.p.no, { lines: [sg.st.order, money(sg.st.value)] });
+    post("sys", "Chat closed due to inactivity");
+    post("sys", "New chat with Assistant");
     sg.inject.unshift("open");
+    if (drain(LOOPED)) return;
     ex.state = "done";
     ex.wait = 0.7;
   }
@@ -673,14 +686,17 @@
     sg.phase = "won";
     var dave = isDave();
     if (dave) {
+      // the unmasking, big, over everything: the moustache comes off, and
+      // underneath, for a moment, it's Assistant
       run.daveBeaten = true;
-      callout("Moustache: detached");
+      sg.unmask = 0.0001;
       script([
-        [0.2, function () { sound("fall"); }],
-        [1.0, function () { post("bot", "Fine. Refund approved."); }],
-        [1.9, function () { sg.glitch = 0.5; post("bot", "Thanks for chatting with Dave."); }],
-        [2.6, function () { post("sys", "Dave left the chat"); }],
-        [3.2, function () { endStage("full"); }]
+        [0.35, function () { sound("fall"); callout("Moustache: detached"); }],
+        [1.5, function () { sound("loop"); }],
+        [3.0, function () { post("bot", "Fine. Refund approved."); }],
+        [3.6, function () { post("bot", "Thanks for chatting with Dave."); }],
+        [4.1, function () { post("sys", "Dave left the chat"); }],
+        [4.7, function () { endStage("full"); }]
       ]);
     } else {
       script([
@@ -705,12 +721,8 @@
         post("sys", "Dave joined the chat");
         callout("A human. Allegedly");
       }],
-      [2.4, function () {
+      [2.6, function () {
         sg.phase = "chat";
-        if (!run.taught["brief-dave"]) {
-          run.taught["brief-dave"] = true;
-          shell.brief({ title: L.FIRST.dave.title, text: L.FIRST.dave.text, ms: 3800 });
-        }
         sg.inject = [];
         nextExchange(0.2);
       }]
@@ -731,11 +743,13 @@
     ]);
   }
 
-  function closeApp() {
+  // 0%: the screen goes off, and that's the round
+  function phoneDies() {
     sg.phase = "closed";
     if (ex) ex.state = "over";
-    run.closedAt = sg.i;
-    callout("App: closed");
+    sg.fin = null;
+    run.deadAt = sg.i;
+    callout("Phone: dead");
     sound("close");
     sg.closing = 0.0001;
     script([[1.3, function () { endRound(); }]]);
@@ -754,7 +768,7 @@
       bonus = Math.round(TIME_BONUS * clamp((2 * PAR[sg.i] - sg.chatT) / PAR[sg.i], 0, 1));
     }
     run.results.push({ outcome: outcome, refund: refund, time: sg.chatT, bonus: bonus });
-    if (DEBUG) console.log("stage " + (sg.i + 1) + ": " + outcome + " in " + sg.chatT.toFixed(1) + "s, bonus " + bonus + ", patience " + run.patience);
+    if (DEBUG) console.log("stage " + (sg.i + 1) + ": " + outcome + " in " + sg.chatT.toFixed(1) + "s, bonus " + bonus + ", battery " + Math.round(run.battery));
     run.refund += refund;
     run.score += Math.round(refund * 100) + bonus;
     paintHud();
@@ -765,26 +779,30 @@
     var stats = [
       { label: "Refund", value: good ? money(refund) : "50p" },
       { label: "Time", value: mmss(sg.chatT) },
-      { label: "Patience", value: String(run.patience) }
+      { label: "Battery", value: Math.round(run.battery) + "%" }
     ];
     if (bonus) stats.push({ label: "Quick", value: "+" + bonus });
-    var heading = good ? cap(st.short) + ": refunded." : cap(st.short) + ": 50p.";
+    // the third interlude deals from the ways in you haven't picked
     var offers = run.plan[i + 1].offers;
+    if (!offers) {
+      offers = run.plan.lastDeal.filter(function (o) { return run.picked.indexOf(o.key) < 0; }).slice(0, 3);
+      run.plan[i + 1].offers = offers;
+    }
     shell.interlude({
       stamp: stamp,
       tilt: good ? -4 : 5,
-      heading: heading,
-      line: (good ? L.AFTER.full : L.AFTER.voucher)[i],
+      // the joke goes in the heading, because a short screen hides the line
+      heading: (good ? L.AFTER.full : L.AFTER.voucher)[i],
+      line: good ? "Refund approved for " + st.short + "." : "You took the voucher for " + st.short + ".",
       stats: stats,
-      ask: "Before the next order, pick one.",
+      ask: "Next order. How are you going in?",
       choices: offers.map(function (o) { return { label: o.label, detail: o.detail }; }),
       delay: 900
     }).then(function (n) {
       var perk = offers[n] ? offers[n].key : null;
       run.perk = perk;
-      run.patience = Math.min(run.patienceMax, run.patience + 1);
-      if (perk === "screenshot") run.patience = Math.max(1, run.patience - 1);
-      if (perk === "charge") run.patience = Math.min(PATIENCE_MAX + 2, run.patience + 2);
+      if (perk) run.picked.push(perk);
+      run.battery = Math.min(100, run.battery + BETWEEN + (perk === "charge" ? CHARGE : 0));
       run.stage = i + 1;
       restarting = false;
       startStage(i + 1);
@@ -793,36 +811,40 @@
       shell.next();
     });
   }
-  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
   function endRound() {
     var fulls = run.results.filter(function (r) { return r.outcome === "full"; }).length;
-    var place, line;
-    if (run.closedAt != null) {
-      place = run.closedAt <= 1 ? 4 : 3;
-      line = place === 4 ? L.RESULTS[4][run.refund > 0 ? 1 : 0] : L.RESULTS[3][1];
+    var dead = run.deadAt != null;
+    if (!dead) run.score += Math.round(run.battery) * BATT_SCORE;
+    var R = L.RESULTS;
+    var place, line, heading = "Refunded " + money(run.refund) + " of " + money(TOTAL) + ".";
+    if (dead) {
+      place = run.deadAt <= 1 ? 4 : 3;
+      heading = "Your phone died.";
+      line = place === 4 ? R.deadEarly[run.refund > 0 ? 1 : 0] : R.deadLate;
     } else if (fulls === 4 && run.score >= APPROVED) {
-      place = 1; line = L.RESULTS[1][run.daveBeaten ? 1 : 0];
+      place = 1; line = R.approved[run.score % 2];
+    } else if (fulls === 4) {
+      place = 2; line = R.slow;
     } else if (fulls >= 2) {
-      place = 2; line = L.RESULTS[2][fulls === 4 ? 1 : 0];
+      place = 2; line = R.most;
     } else {
-      place = 3; line = L.RESULTS[3][0];
+      place = 3; heading = "Refunded " + money(run.refund) + ", mostly in vouchers."; line = R.vouchers;
     }
-    if (DEBUG) console.log("round: place " + place + ", score " + run.score + ", refund " + money(run.refund) + ", time " + mmss(run.time) + (run.closedAt != null ? ", closed at " + (run.closedAt + 1) : ""));
+    if (DEBUG) console.log("round: place " + place + ", score " + run.score + ", refund " + money(run.refund) + ", time " + mmss(run.time) + ", battery " + Math.round(run.battery) + (dead ? ", died at " + (run.deadAt + 1) : ""));
     var rec = shell.record(run.score);
     var stats = [
       { label: "Refunded", value: money(run.refund) + " of " + money(TOTAL) },
       { label: "Time", value: mmss(run.time) },
+      { label: "Battery", value: Math.round(run.battery) + "%" },
       { label: "Score", value: run.score.toLocaleString("en-GB") },
       { label: rec.isNew ? (shell.daily ? "New best today" : "New best") : (shell.daily ? "Best today" : "Best"),
         value: (rec.best || 0).toLocaleString("en-GB"), highlight: rec.isNew }
     ];
-    if (place === 1 || place === 2) stats.splice(2, 0, { label: "Dave", value: run.daveBeaten ? "Unmasked" : "Not reached" });
     if (shell.daily) stats.unshift({ label: "Run", value: shell.today });
-    var heading = run.closedAt != null ? "You closed the app." : "Refunded " + money(run.refund) + " of " + money(TOTAL) + ".";
-    var share = run.closedAt != null
-      ? "closed the app on " + L.STAGES[run.closedAt].short + ", " + money(run.refund) + " refunded"
-      : money(run.refund) + " of " + money(TOTAL) + " refunded in " + mmss(run.time) + (run.daveBeaten ? ", Dave unmasked" : "");
+    var share = dead
+      ? "my phone died on " + L.STAGES[run.deadAt].short + ", " + money(run.refund) + " refunded"
+      : money(run.refund) + " of " + money(TOTAL) + " refunded in " + mmss(run.time) + ", " + Math.round(run.battery) + "% battery left" + (run.daveBeaten ? ", Dave unmasked" : "");
     shell.finish({ place: place, total: 4, heading: heading, line: line, stats: stats, share: share, delay: 1100 });
   }
 
@@ -859,12 +881,16 @@
     }
     if (sg.phase === "chat" || sg.phase === "trans") sg.chatT += dt;
     if (sg.phase === "chat" || sg.phase === "trans") run.time += dt;
+    if (sg.fin) sg.fin.t += dt;
+    if (sg.unmask > 0) sg.unmask += dt;
+    // the battery runs down while you're in the chat
+    if (sg.phase === "chat" && drain(DRAIN * (run.perk === "lowpower" ? 0.5 : 1) * dt, true)) return;
     // the bar catches up
     if (sg.ghostT > 0) sg.ghostT -= dt;
     else sg.ghost = Math.max(sg.hp, sg.ghost - dt * 60);
     sg.hpShown += (sg.hp - sg.hpShown) * Math.min(1, dt * 14);
     if (sg.boss === "dave") sg.tache = clamp((60 - sg.hp) / 60, 0, 1);
-    if (sg.phase === "won" && isDave()) sg.tacheOff = Math.min(1, sg.tacheOff + dt / 0.9);
+    if (sg.phase === "won" && isDave()) sg.tacheOff = clamp((sg.unmask - 0.3) / 0.9, 0, 1);
 
     if (sg.phase !== "chat" || !ex) return;
     if (ex.state === "wait") {
@@ -872,7 +898,7 @@
       if (ex.wait <= 0) {
         ex.state = "typing";
         var tl = isDave() ? DAVE_TYPING : TYPING[sg.i];
-        ex.type = tl + Math.min(0.25, ex.bot.length * 0.006);
+        ex.type = tl + Math.min(0.25, ex.bot.length * 0.006) + (run.perk === "lowpower" ? 0.35 : 0);
       }
     } else if (ex.state === "typing") {
       ex.type -= dt;
@@ -887,7 +913,7 @@
         expire();
       }
       // replies swap places, with a wobble first so it's fair
-      if (ex.shuffleAt > 0 && !ex.shuffled && ex.t >= ex.shuffleAt + 0.22) {
+      if (ex.shuffleAt > 0 && !ex.shuffled && ex.t >= ex.shuffleAt + WOBBLE) {
         ex.shuffled = true;
         var slots = ex.chips.map(function (c) { return c.slot; });
         var rot = slots.slice(1).concat(slots[0]);
@@ -963,13 +989,18 @@
     if (!auto || auto.ex !== ex) {
       var slip = Math.random() < 0.03 + (1 - SKILL) * 0.2;
       var react = 0.3 + (1 - SKILL) * 0.7 + Math.random() * 0.3;
+      // reading the line and the replies takes a moment
+      if (ex.kind !== "yesyes" && ex.kind !== "survey" && ex.kind !== "voucher") {
+        var chars = ex.bot.length + ex.chips.reduce(function (n, c) { return n + c.text.length; }, 0);
+        react += chars * (0.008 + (1 - SKILL) * 0.012);
+      }
       var target = null;
       var honest = ex.chips.filter(function (c) { return c.honest; });
       var fin = ex.chips.filter(function (c) { return c.kind === "fin"; })[0];
       var bad = ex.chips.filter(function (c) { return !c.honest; });
       if (CLIP && ex.kind === "yesyes" && !run.clipSlips.yes) { run.clipSlips.yes = true; slip = true; react = 0.6; }
       if (ex.kind === "voucher") {
-        target = run.patience <= 1 && !CLIP ? bad[0] : honest[0];
+        target = run.battery < 15 && !CLIP ? bad[0] : honest[0];
         react += 0.5;
       } else if (ex.kind === "survey") {
         target = slip ? bad[Math.floor(Math.random() * bad.length)] : honest[0];
@@ -1007,38 +1038,44 @@
 
   function layout() {
     var touch = coarse;
-    var wide = W >= H * 1.15 && W >= 560;
+    var wide = !CLIP && W >= H * 1.15 && W >= 560;
     var pad = W < 420 ? 8 : 12;
     var chipH = touch ? 56 : clamp(Math.round(H * 0.075), 42, 56);
     if (!touch && H < 420) chipH = 40;
+    if (CLIP) chipH = clamp(Math.round(H * 0.09), 44, 60);
     var gap = W < 420 ? 6 : 8;
     var trayH = chipH * 2 + gap + 18;
     Lay.wide = wide;
     Lay.pad = pad;
     if (wide) {
-      var bw = Math.round(W * 0.36);
+      // the bot gets a column of its own, big, with its bar under it
+      var bw = Math.round(W * 0.38);
       Lay.boss = { x: 0, y: hudB, w: bw, h: H - hudB };
       Lay.col = { x: bw + pad, y: hudB, w: W - bw - pad * 2, h: H - hudB - pad };
-      var ms = Math.min(bw * 0.7, (H - hudB) * 0.44);
-      Lay.mascot = { x: bw / 2, y: hudB + (H - hudB) * 0.05 + ms * 0.52, s: ms };
-      Lay.name = { x: bw / 2, y: Lay.mascot.y + ms * 0.62 + 18, align: "center" };
-      Lay.bar = { x: Math.round(bw * 0.12), y: Lay.name.y + 40, w: Math.round(bw * 0.76), h: 16 };
+      var ms = Math.min(bw * 0.84, (H - hudB) * 0.58);
+      Lay.mascot = { x: bw / 2, y: hudB + (H - hudB) * 0.04 + ms * 0.5, s: ms };
+      Lay.name = { x: bw / 2, y: Lay.mascot.y + ms * 0.6 + 22, align: "center" };
+      Lay.bar = { x: Math.round(bw * 0.1), y: Lay.name.y + 36, w: Math.round(bw * 0.8), h: 18 };
       Lay.head = null;
     } else {
-      var headH = clamp(Math.round(H * 0.15), H < 480 ? 66 : 84, 124);
+      // a phone held upright, and the clip: the bot big across the top
+      var headH = CLIP ? Math.round(H * 0.26) : clamp(Math.round(H * 0.22), H < 480 ? 74 : 96, 190);
       Lay.head = { x: 0, y: hudB, w: W, h: headH };
-      var hs = headH - 8;
-      Lay.mascot = { x: pad + hs * 0.5, y: hudB + headH * 0.5 + 2, s: hs };
-      var bx = pad + hs + 10;
-      Lay.name = { x: bx, y: hudB + headH * 0.3 + 4, align: "left" };
-      Lay.bar = { x: bx, y: hudB + headH * 0.62, w: W - bx - pad, h: clamp(Math.round(headH * 0.14), 12, 18) };
+      var hs = Math.min(headH - 4, W * 0.42);
+      Lay.mascot = { x: pad + hs * 0.55, y: hudB + headH * 0.5 + 2, s: hs };
+      var bx = pad + hs * 1.12 + 10;
+      Lay.name = { x: bx, y: hudB + headH * 0.36 + 4, align: "left" };
+      Lay.bar = { x: bx, y: hudB + headH * 0.6, w: W - bx - pad, h: clamp(Math.round(headH * 0.12), 12, 20) };
       Lay.col = { x: pad, y: hudB + headH, w: W - pad * 2, h: H - hudB - headH - pad };
       Lay.boss = null;
     }
     Lay.tray = { x: Lay.col.x, y: H - pad - trayH, w: Lay.col.w, h: trayH, chipH: chipH, gap: gap };
-    Lay.chat = { x: Lay.col.x, y: Lay.col.y + 4, w: Lay.col.w, h: Lay.tray.y - Lay.col.y - 8 };
-    Lay.fs = clamp(Math.round(Lay.chat.w * 0.042), 14, 19);
-    Lay.chipFs = clamp(Math.round(Lay.tray.w * 0.038), 14, 18);
+    Lay.fs = CLIP ? clamp(Math.round(Lay.col.w * 0.045), 15, 20) : clamp(Math.round(Lay.col.w * 0.042), 14, 19);
+    Lay.chipFs = CLIP ? clamp(Math.round(Lay.tray.w * 0.045), 16, 20) : clamp(Math.round(Lay.tray.w * 0.038), 14, 18);
+    // the order, pinned to the top of the chat the whole time
+    var oh = Math.round(Lay.fs * (CLIP ? 1.7 : 2.1) + 8);
+    Lay.order = { x: Lay.col.x, y: Lay.col.y + 6, w: Lay.col.w, h: oh };
+    Lay.chat = { x: Lay.col.x, y: Lay.order.y + oh + 4, w: Lay.col.w, h: Lay.tray.y - (Lay.order.y + oh + 4) - 6 };
     placeKitBits();
   }
 
@@ -1104,7 +1141,7 @@
     }
     if (ex.kind === "survey") return surveyRect(c);
     var d = ease((ex.t - (c.delay || 0)) / 0.16);
-    r.y += (1 - d) * 18;
+    if (!calm) r.y += (1 - d) * 18;
     r.alpha = calm ? 1 : d;
     return r;
   }
@@ -1211,11 +1248,20 @@
     ctx.rect(c.x - 10, c.y, c.w + 20, c.h);
     ctx.clip();
     var y = c.y + c.h - 6 + sg.scroll;
-    // the bot typing
-    if (sg.phase === "chat" && ex && ex.state === "typing") {
+    var stack = 0;
+    for (var si = sg.msgs.length - 1; si >= 0 && stack < c.h; si--) stack += msgHeight(sg.msgs[si]) + gapY();
+    if ((sg.phase === "chat" && ex && ex.state === "typing") || sg.fin) stack += fs * 1.6 + gapY();
+    if (stack < c.h - 12) y = c.y + 6 + stack;
+    // the bot typing, or (for a moment) a human
+    var human = !!sg.fin;
+    if (human || (sg.phase === "chat" && ex && ex.state === "typing")) {
       var tw = fs * 3.4, th = fs * 1.6;
       y -= th;
-      bubble(c.x + 8, y, tw, th, T.paper, false);
+      bubble(c.x + 8, y, tw, th, human ? T.accent : T.paper, false);
+      if (human) {
+        var label = isDave() ? L.SPECIAL.fin.daveTyping : L.SPECIAL.fin.typing;
+        A.text(ctx, label, c.x + 8 + tw + 10, y + th * 0.68, Math.max(12, fs * 0.8), T.accent, "left");
+      }
       for (var d = 0; d < 3; d++) {
         var bob = calm ? 0 : Math.max(0, Math.sin(clock * 9 - d * 0.7)) * fs * 0.22;
         ctx.beginPath();
@@ -1233,17 +1279,27 @@
       drawMsg(m, c, y, h, fs, lh);
       y -= gapY();
     }
-    // Screenshot your order: the number, pinned
-    if (run.perk === "screenshot") {
-      var px = Math.max(12, fs * 0.78);
-      ctx.font = A.font(px);
-      var label = "Order " + sg.p.no;
-      var lw = ctx.measureText(label.toUpperCase()).width + 16;
-      A.rr(ctx, c.x + c.w - lw - 4, c.y + 4, lw, px * 1.7, 3);
-      A.ink(ctx, T.accent, 2.5);
-      A.text(ctx, label, c.x + c.w - lw / 2 - 4, c.y + 4 + px * 1.18, px, T.ink, "center");
-    }
     ctx.restore();
+  }
+
+  // the order, pinned at the top of the chat: its number, what it was, what it cost
+  function drawOrder() {
+    var o = Lay.order, fs = Lay.fs;
+    A.rr(ctx, o.x, o.y, o.w, o.h, 6);
+    A.ink(ctx, T.paper, 2.5);
+    ctx.fillStyle = T.accent;
+    ctx.fillRect(o.x + 1.5, o.y + 1.5, 8, o.h - 3);
+    var big = Math.round(fs * 1.1);
+    var no = "Order " + sg.p.no;
+    A.text(ctx, no, o.x + 18, o.y + o.h / 2 + big * 0.36, big, T.ink, "left");
+    ctx.font = A.font(big);
+    var lw = ctx.measureText(no.toUpperCase()).width;
+    var small = Math.max(12, Math.round(fs * 0.78));
+    var room = o.w - lw - 44;
+    var item = sg.st.order + ", " + money(sg.st.value);
+    ctx.font = A.font(small);
+    if (ctx.measureText(item.toUpperCase()).width > room) item = money(sg.st.value);
+    A.text(ctx, item, o.x + o.w - 12, o.y + o.h / 2 + small * 0.36, small, T.ink, "right");
   }
 
   function drawMsg(m, c, y, h, fs, lh) {
@@ -1336,9 +1392,11 @@
     var fadeOut = ex.state === "done" ? clamp(1 - ex.wait / 0.12, 0, 1) : 0;
     ex.chips.forEach(function (c) {
       if (c.gone) return;
+      // once you've picked, the others go (quickly), and yours follows
       if (ex.state === "done" && c !== ex.picked) {
-        if (calm || ex.wait < 0.3) return;
+        if (calm || ex.wait < 0.3 || clock - (ex.doneAt || 0) > 0.22) return;
       }
+      if (ex.state === "done" && c === ex.picked && clock - (ex.doneAt || 0) > 0.6) return;
       drawChip(c, chipRect(c), fadeOut);
     });
   }
@@ -1482,13 +1540,18 @@
       low: sg.hp < 30 && sg.phase === "chat",
       blink: (clock % 3.7) < 0.12 ? 1 : 0,
       look: Lay.wide ? { x: 0.7, y: ex && ex.state === "open" ? 0.5 : 0.1 } : { x: 0.6, y: ex && ex.state === "open" ? 0.6 : 0 },
-      tache: sg.tache, off: sg.tacheOff, glitch: sg.glitch > 0 && Math.floor(clock * 30) % 2 === 0
+      tache: sg.tache, off: sg.tacheOff, glitch: sg.glitch > 0 && Math.floor(clock * 30) % 2 === 0,
+      // it leans in to type, holds a mitten out at the replies, and its
+      // microphone swells while it heals
+      lean: calm ? 0 : (sg.leanS = ease2(sg.leanS, ex && ex.state === "typing" && sg.phase === "chat" ? 1 : 0)),
+      present: !Lay.wide ? 0 : calm ? (ex && ex.state === "open" ? 1 : 0) : (sg.presentS = ease2(sg.presentS, ex && ex.state === "open" && sg.phase === "chat" && ex.kind !== "survey" ? 1 : 0)),
+      mic: (mk === "heal" || (ex && ex.state === "open" && ex.kind === "frustrated")) ? (calm ? 1 : 0.6 + 0.4 * Math.abs(Math.sin(clock * 8))) : 0
     };
     if (Lay.wide) {
       // a periwinkle halftone burst behind the boss
       ctx.save();
       ctx.beginPath();
-      ctx.arc(m.x, m.y, m.s * 0.68, 0, Math.PI * 2);
+      ctx.arc(m.x, m.y, Math.min(m.s * 0.68, Lay.boss.w * 0.5 - 4), 0, Math.PI * 2);
       ctx.fillStyle = A.ht(ctx, T.accent, 9, 2.1);
       ctx.fill();
       ctx.restore();
@@ -1499,28 +1562,30 @@
     if (sg.phase === "closed") sc = 1 - ease(sg.closing) * 0.2;
     ctx.save();
     ctx.translate(ox, oy);
+    // while "a human" types, the bot steps back
+    if (sg.fin) ctx.globalAlpha = 0.25;
     if (isDave()) A.dave(ctx, m.x, m.y, m.s * sc, pose);
     else A.assistant(ctx, m.x, m.y, m.s * sc, pose);
     ctx.restore();
     sg.hurt = Math.max(0, sg.hurt - 0.05);
 
     // name, status, the bar and the streak
-    var nm = isDave() ? "Dave" : "Assistant";
+    var nm = sg.fin ? "A human" : isDave() ? "Dave" : "Assistant";
     var nfs = Lay.wide ? clamp(m.s * 0.15, 20, 30) : clamp(Lay.head.h * 0.22, 16, 24);
     var nx = Lay.name.x, ny = Lay.name.y;
     ctx.font = A.font(nfs);
     var nw = ctx.measureText(nm.toUpperCase()).width;
     var statusFs = Math.max(12, nfs * 0.55);
-    var status = isDave() ? "A human" : "Online";
+    var status = sg.fin ? "Typing" : isDave() ? "A human" : "Online";
     ctx.font = A.font(statusFs);
-    var sw = ctx.measureText(status.toUpperCase()).width + statusFs;
-    var startX = Lay.name.align === "center" ? nx - (nw + 10 + sw) / 2 : nx;
+    var sw = ctx.measureText(status.toUpperCase()).width + statusFs * 1.4;
+    var startX = Lay.name.align === "center" ? nx - (nw + 14 + sw) / 2 : nx;
     A.text(ctx, nm, startX, ny, nfs, T.paper, "left");
     ctx.beginPath();
-    ctx.arc(startX + nw + 10 + statusFs * 0.35, ny - statusFs * 0.38, statusFs * 0.3, 0, Math.PI * 2);
+    ctx.arc(startX + nw + 14 + statusFs * 0.35, ny - statusFs * 0.38, statusFs * 0.3, 0, Math.PI * 2);
     ctx.fillStyle = T.accent;
     ctx.fill();
-    A.text(ctx, status, startX + nw + 10 + statusFs * 0.85, ny, statusFs, T.smoke, "left");
+    A.text(ctx, status, startX + nw + 14 + statusFs * 0.9, ny, statusFs, T.smoke, "left");
     drawBar();
   }
 
@@ -1542,8 +1607,8 @@
     for (var i = 0; i < need; i++) {
       var cx = b.x + b.w - pctW - 20 - (need - 1 - i) * (pr * 2.6) - (Lay.wide ? 30 : 16);
       if (Lay.wide) cx = b.x + b.w / 2 - (need - 1) * pr * 1.3 + i * pr * 2.6;
-      var cy = Lay.wide ? b.y + b.h + 14 : b.y - 10;
-      if (!Lay.wide && cx < b.x + 120) continue;
+      if (!Lay.wide) cx = b.x + pr + 2 + i * pr * 2.6;
+      var cy = b.y + b.h + pr + 7;
       ctx.beginPath();
       ctx.arc(cx, cy, pr, 0, Math.PI * 2);
       ctx.fillStyle = i < have ? (sg.finReady && !calm && Math.floor(clock * 4) % 2 ? T.paper : T.accent) : T.ink;
@@ -1584,9 +1649,10 @@
       var b = Lay.bar;
       if (f.where === "bar") { x = b.x + b.w * clamp(sg.hp / 100, 0, 1) + 6; y = b.y + b.h + 20; }
       else if (f.where === "heal") { x = b.x + b.w * clamp(sg.hp / 100, 0, 1); y = b.y + b.h + 20; color = T.red; }
+      else if (f.where === "batt") { x = 96; y = hudB + 14; size = 16; }
       else { x = Lay.chat.x + Lay.chat.w - 40; y = Lay.chat.y + Lay.chat.h - 30; size = 14; color = T.accent; }
       // clear of the streak pips under the middle of the bar on a wide screen
-      if (Lay.wide && (f.where === "bar" || f.where === "heal") && Math.abs(x - (b.x + b.w / 2)) < Math.max(4, b.h * 0.3) * 4 + 30) y += 22;
+      if ((f.where === "bar" || f.where === "heal") && Math.abs(x - (Lay.wide ? b.x + b.w / 2 : b.x + 20)) < Math.max(4, b.h * 0.3) * 4 + 30) y += 30;
       y -= (calm ? 0 : k * 16);
       ctx.save();
       ctx.globalAlpha = 1 - clamp((a - 0.5) / 0.4, 0, 1);
@@ -1608,11 +1674,13 @@
     function verb(c) { return keys ? "Press " + (c.slot + 1) : inputMode === "touch" ? "Tap" : "Click"; }
     var fin = ex.chips.filter(function (c) { return c.kind === "fin" && !c.gone; })[0];
     var honest = ex.chips.filter(function (c) { return c.honest && !c.gone; })[0];
-    if (!run.taught.basic && honest && (ex.kind === "open" || ex.kind === "std")) { target = honest; word = verb(honest) + ": it's true"; }
-    else if (fin && !run.taught.fin) { target = fin; word = keys ? "Press " + (fin.slot + 1) : "Big one"; }
-    else if (ex.kind === "yesyes" && !run.taught.no && honest) { target = honest; word = keys ? "Press 3" : "Not yes"; }
+    function say(c, w) { return keys ? "Press " + (c.slot + 1) : w; }
+    var teach = { number: "Same as the top", frustrated: "Before it heals", voucher: "Say no", still: "Say so", shrink: "Quick" };
+    if (!run.taught.basic && honest && (ex.kind === "open" || ex.kind === "std")) { target = honest; word = say(honest, verb(honest)); }
+    else if (fin && !run.taught.fin) { target = fin; word = say(fin, "Big one"); }
+    else if (ex.kind === "yesyes" && !run.taught.no && honest) { target = honest; word = say(honest, "Not yes"); }
     else if (ex.kind === "survey" && !run.taught.survey && honest) { target = honest; word = keys ? "Press 6" : "This"; }
-    else if (ex.kind === "still" && !run.taught.still && honest) { target = honest; word = keys ? "Press " + (honest.slot + 1) : "Say so"; }
+    else if (teach[ex.kind] && !run.taught[ex.kind] && honest) { target = honest; word = say(honest, teach[ex.kind]); }
     if (!target) return;
     var r = chipRect(target);
     var rad = Math.min(r.h / 2, 18);
@@ -1623,10 +1691,19 @@
     ctx.lineDashOffset = calm ? 0 : -clock * 20;
     ctx.stroke();
     ctx.setLineDash([]);
-    var x = clamp(r.x + r.w / 2, Lay.tray.x + 60, Lay.tray.x + Lay.tray.w - 60);
-    var y = Math.min(r.y - 4, Lay.tray.y + 6);
-    if (y - 70 < Lay.chat.y) return;
-    A.arrow(ctx, x, y, word, 13, clock, calm);
+    // the word sits on the ring's top edge, so it never covers the chat
+    var px = 12;
+    ctx.font = A.font(px);
+    var tw = ctx.measureText(word.toUpperCase()).width + 14, th = px + 9;
+    var tx = clamp(r.x + r.w / 2 - tw / 2, 4, W - tw - 4);
+    var ty = r.y - 5 - th / 2 + (calm ? 0 : Math.sin(clock * 6) * 1.5);
+    A.rr(ctx, tx, ty, tw, th, 4);
+    A.ink(ctx, T.ink, 2);
+    A.rr(ctx, tx, ty, tw, th, 4);
+    ctx.strokeStyle = T.paper;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    A.text(ctx, word, tx + tw / 2, ty + th / 2 + px * 0.36, px, T.paper, "center");
   }
 
   // ---------------------------------------------------------------------------
@@ -1672,7 +1749,10 @@
       A.rr(ctx, m.x(84), m.y(84), m.s * 9, m.s * 6, 3);
       A.ink(ctx, T.accent, 2.5);
     }
-    A.rider(ctx, m.x(pos[0]), m.y(pos[1]), Math.max(12, m.s * 3.2), clock, calm);
+    // the rider, facing the way he's going
+    var was = riderAt(path, p - 0.03);
+    if (Math.abs(pos[0] - was[0]) > 0.05) sg.riderDir = pos[0] > was[0] ? 1 : -1;
+    A.rider(ctx, m.x(pos[0]), m.y(pos[1]) + m.road * 0.4, clamp(m.s * 17, 60, 140), clock, calm, sg.riderDir || -1);
 
     // the status card
     var cw = Math.min(W - 24, 400), fs = clamp(cw * 0.055, 16, 22), small = Math.max(13, fs * 0.66);
@@ -1710,8 +1790,10 @@
       }
     }
     // skip
-    var skip = inputMode === "keys" ? "Any key skips" : inputMode === "touch" ? "Tap to skip" : "Click to skip";
-    A.text(ctx, skip, cx + cw - 12, cy + ch - 9, 12, T.ink, "right");
+    if (!CLIP) {
+      var skip = inputMode === "keys" ? "Any key skips" : inputMode === "touch" ? "Tap to skip" : "Click to skip";
+      A.text(ctx, skip, cx + cw - 12, cy + ch - 9, 12, T.ink, "right");
+    }
     // the photo
     if (t > deliveredAt + 0.15) {
       var k = calm ? 1 : ease((t - deliveredAt - 0.15) / 0.3);
@@ -1733,7 +1815,8 @@
     if (st !== lastState) { lastState = st; measureHud(); }
     if (shell.state() === "countdown" && sg && !sg.briefed) {
       sg.briefed = true;
-      shell.brief({ title: (sg.i + 1) + ". " + sg.st.name, text: sg.st.brief, ms: sg.phase === "track" ? 7000 : 5200 });
+      // what's new this order, said once, before it starts (not while filming)
+      if (!CLIP) brief({ title: (sg.i + 1) + ". " + sg.st.name, text: sg.st.brief, ms: sg.phase === "track" ? 7000 : 3400 });
     }
     if (++hudCheck % 30 === 0) paintHud();
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -1757,9 +1840,11 @@
     }
     drawBoss();
     drawChat();
+    drawOrder();
     drawTray();
     drawArrow();
     drawFloaters();
+    drawUnmask();
     // the scroll settles
     sg.scroll = calm ? 0 : sg.scroll * Math.exp(-dt * 16);
     if (sg.closing > 0) {
@@ -1781,6 +1866,31 @@
     }
   }
 
+  // Dave, beaten: big, over everything. The moustache comes off, and under it,
+  // for a moment, it's Assistant.
+  function drawUnmask() {
+    var u = sg.unmask;
+    if (!(u > 0)) return;
+    var a = clamp(u / 0.3, 0, 1) * clamp((3.0 - u) / 0.45, 0, 1);
+    if (a <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = "rgba(0,0,0,0.8)";
+    ctx.fillRect(0, 0, W, H);
+    var s = Math.min(W * 0.8, (H - hudB) * 0.66);
+    var cx = W / 2, cy = hudB + (H - hudB) * 0.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, s * 0.66, 0, Math.PI * 2);
+    ctx.fillStyle = A.ht(ctx, T.accent, 12, 3.2);
+    ctx.fill();
+    var glitch = u > 1.5 && (calm ? u > 2.0 : (u > 2.2 || Math.floor(u * 24) % 2 === 0));
+    A.dave(ctx, cx, cy, s, {
+      t: clock, mood: u < 1.4 ? "hit" : "smug", calm: calm, hurt: u < 0.6 ? 1 : 0,
+      look: { x: 0, y: 0.2 }, tache: 1, off: sg.tacheOff, glitch: glitch
+    });
+    ctx.restore();
+  }
+
   function resize(w, h, dpr) {
     W = w; H = h; DPR = dpr;
     ctx = (shell ? shell.canvas : root.querySelector("canvas")).getContext("2d");
@@ -1789,13 +1899,14 @@
   }
 
   // ---------------------------------------------------------------------------
-  // HUD: the order and your patience top left, the refund and the time top right
+  // HUD: the order and your phone's battery top left, the refund and the
+  // time top right
   // ---------------------------------------------------------------------------
   function buildHud() {
     shell.hud.innerHTML =
       '<div class="kit-hud-tl">' +
         '<p class="kit-stat"><small>Order</small><span data-stage>1</span>/4</p>' +
-        '<p class="kit-stat sth-patience"><small>Patience</small><span class="sth-pips" data-pips></span></p>' +
+        '<p class="kit-stat sth-battery"><small>Battery</small><span class="sth-cell" aria-hidden="true"><span class="sth-fill" data-fill></span></span><span data-batt>100%</span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big" data-refund>£0.00</p>' +
@@ -1803,7 +1914,9 @@
       '</div>';
     hudEls = {
       stage: shell.hud.querySelector("[data-stage]"),
-      pips: shell.hud.querySelector("[data-pips]"),
+      fill: shell.hud.querySelector("[data-fill]"),
+      batt: shell.hud.querySelector("[data-batt]"),
+      wrap: shell.hud.querySelector(".sth-battery"),
       refund: shell.hud.querySelector("[data-refund]"),
       time: shell.hud.querySelector("[data-time]")
     };
@@ -1811,17 +1924,15 @@
 
   function paintHud() {
     if (!hudEls || !run) return;
-    var v = { stage: String(run.stage + 1), refund: money(run.refund), time: mmss(run.time),
-              pips: run.patience + "/" + Math.max(run.patienceMax, run.patience) };
+    var b = Math.ceil(run.battery);
+    var v = { stage: String(run.stage + 1), refund: money(run.refund), time: mmss(run.time), batt: String(b) };
     if (v.stage !== hudWas.stage) hudEls.stage.textContent = v.stage;
     if (v.refund !== hudWas.refund) hudEls.refund.textContent = v.refund;
     if (v.time !== hudWas.time) hudEls.time.textContent = v.time;
-    if (v.pips !== hudWas.pips) {
-      var n = Math.max(run.patienceMax, run.patience), html = "";
-      for (var i = 0; i < n; i++) html += '<span class="sth-pip' + (i < run.patience ? " is-on" : "") + '"></span>';
-      hudEls.pips.innerHTML = html;
-      hudEls.pips.parentNode.setAttribute("aria-label", "Patience " + run.patience);
-      hudEls.pips.parentNode.classList.toggle("is-low", run.patience <= 1);
+    if (v.batt !== hudWas.batt) {
+      hudEls.batt.textContent = b + "%";
+      hudEls.fill.style.width = b + "%";
+      hudEls.wrap.classList.toggle("is-low", b <= 20);
     }
     hudWas = v;
   }
@@ -1907,7 +2018,7 @@
     pitch: "Your food never came. The help chat is a bot. Get past it.",
     hints: {
       keys: "1 to 4, or the arrows and Enter, to pick a reply. Or click. P to pause.",
-      touch: "Tap the reply that's true."
+      touch: "Read it, then tap the reply that doesn't let it off."
     },
     againLabel: "Complain again",
     daily: true,
@@ -1935,15 +2046,15 @@
       state: function () { return shell.state(); },
       phase: function () { return sg ? sg.phase : null; },
       boss: function () { return sg ? sg.boss : null; },
-      patience: function () { return run ? run.patience : null; },
+      battery: function () { return run ? run.battery : null; },
       open: function () {
         if (!ex || ex.state !== "open" || !sg || sg.phase !== "chat") return null;
         var box = root.getBoundingClientRect();
         return {
-          kind: ex.kind, t: ex.t, focus: focus,
+          kind: ex.kind, t: ex.t, focus: focus, bot: ex.bot,
           chips: ex.chips.filter(function (c) { return !c.gone; }).map(function (c) {
             var r = chipRect(c);
-            return { slot: c.slot, honest: !!c.honest, kind: c.kind || "",
+            return { slot: c.slot, honest: !!c.honest, kind: c.kind || "", text: c.text,
               x: box.left + r.x, y: box.top + r.y, w: r.w, h: r.h };
           })
         };

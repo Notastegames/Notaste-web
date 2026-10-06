@@ -202,7 +202,7 @@
 
   // The headset: a band over the top, cups at the sides, a boom to the mouth
   // with a red microphone. left/right are the cups' centres, top the band.
-  function headset(ctx, cx, top, halfW, cupY, cupW, cupH, micTo, lw) {
+  function headset(ctx, cx, top, halfW, cupY, cupW, cupH, micTo, lw, mic) {
     ctx.beginPath();
     ctx.moveTo(cx - halfW, cupY - cupH * 0.2);
     ctx.bezierCurveTo(cx - halfW, top - halfW * 0.25, cx + halfW, top - halfW * 0.25, cx + halfW, cupY - cupH * 0.2);
@@ -220,8 +220,21 @@
     ctx.strokeStyle = T.ink;
     ctx.lineWidth = lw * 1.1;
     ctx.stroke();
+    var ms = 1 + 0.9 * (mic || 0);
+    if (mic > 0.05) {
+      // healing: the microphone swells and sends rings out
+      for (var ri = 1; ri <= 2; ri++) {
+        ctx.beginPath();
+        ctx.arc(micTo.x, micTo.y, cupW * (0.5 + ri * 0.45) * ms, Math.PI * 0.55, Math.PI * 1.45);
+        ctx.strokeStyle = T.paper;
+        ctx.lineWidth = lw * 0.7;
+        ctx.globalAlpha = mic;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
     ctx.beginPath();
-    ctx.ellipse(micTo.x, micTo.y, cupW * 0.36, cupW * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(micTo.x, micTo.y, cupW * 0.36 * ms, cupW * 0.3 * ms, 0, 0, Math.PI * 2);
     A.ink(ctx, T.red, lw * 0.8);
     for (var s = -1; s <= 1; s += 2) {
       A.rr(ctx, cx + s * halfW - cupW / 2, cupY - cupH / 2, cupW, cupH, cupW * 0.45);
@@ -266,7 +279,10 @@
     if (mood === "smug" && !calm) { bob += Math.abs(Math.sin(t * 9)) * -3; }
     if (mood === "tilt") rot = -0.16;
     if (mood === "bye") rot = Math.sin(t * 6) * 0.06;
-    ctx.translate(0, bob);
+    var lean = pose.lean || 0;
+    rot += lean * 0.1;
+    ctx.translate(lean * 7, bob);
+    if (lean) ctx.scale(1 + lean * 0.04, 1 + lean * 0.04);
     ctx.rotate(rot);
     ctx.scale(sx, sy);
 
@@ -351,7 +367,7 @@
     }
 
     // headset over it all
-    headset(ctx, 0, by + 2, 50, -6, 13, 30, { x: -24, y: 26 }, 3.4);
+    headset(ctx, 0, by + 2, 50, -6, 13, 30, { x: -24, y: 26 }, 3.4, pose.mic || 0);
 
     // mitten hands
     if (mood === "heal" || mood === "tilt") {
@@ -362,7 +378,10 @@
       mitten(ctx, 56, -30 + wv * 6, 10, -0.6 + wv, 3.2);
       mitten(ctx, -54, 30, 10, 0.4, 3.2);
     } else {
-      mitten(ctx, 54, 28, 10, -0.3, 3.2);
+      // presenting the replies like a game show host, one mitten out
+      var pr = pose.present || 0;
+      var wob = calm ? 0 : Math.sin(t * 4) * 2 * pr;
+      mitten(ctx, 54 + pr * 18, 28 - pr * 26 + wob, 10, -0.3 - pr * 0.5, 3.2);
       mitten(ctx, -54, 30, 10, 0.4, 3.2);
     }
 
@@ -526,7 +545,7 @@
       A.ink(ctx, T.paper, 2.2);
     }
 
-    headset(ctx, 0, -56, 47, -10, 12, 28, { x: -22, y: 22 }, 3.4);
+    headset(ctx, 0, -56, 47, -10, 12, 28, { x: -22, y: 22 }, 3.4, pose.mic || 0);
 
     // mittens on the desk edge (or waving him off)
     if (mood === "bye") {
@@ -645,25 +664,87 @@
     ctx.fill();
   };
 
-  // The rider's dot: periwinkle with a paper ring and a pulse
-  A.rider = function (ctx, x, y, s, t, calm) {
+  // The rider: a cut-out on a scooter, side on, with the bag on his back,
+  // over a pulsing ring (where the app thinks he is). s is about his height;
+  // dir is 1 facing right, -1 facing left.
+  A.rider = function (ctx, x, y, s, t, calm, dir) {
     if (!calm) {
       var p = (t * 1.2) % 1;
       ctx.beginPath();
-      ctx.arc(x, y, s * (0.6 + p * 1.1), 0, Math.PI * 2);
+      ctx.ellipse(x, y, s * (0.5 + p * 0.7), s * (0.2 + p * 0.28), 0, 0, Math.PI * 2);
       ctx.strokeStyle = T.accent;
       ctx.globalAlpha = 1 - p;
       ctx.lineWidth = 2.5;
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
+    var k = s / 100;
+    var bob = calm ? 0 : Math.abs(Math.sin(t * 14)) * -2.5;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(k * (dir || 1), k);
+    ctx.translate(0, bob);
+    var lw = 5;
+    // wheels
+    [-30, 30].forEach(function (wx) {
+      ctx.beginPath();
+      ctx.arc(wx, -10, 13, 0, Math.PI * 2);
+      A.ink(ctx, T.ink, lw);
+      ctx.beginPath();
+      ctx.arc(wx, -10, 13, 0, Math.PI * 2);
+      ctx.strokeStyle = T.paper;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(wx, -10, 4, 0, Math.PI * 2);
+      ctx.fillStyle = T.paper;
+      ctx.fill();
+    });
+    // the scooter: a paper deck and a stem with handlebars
     ctx.beginPath();
-    ctx.arc(x, y, s * 0.62, 0, Math.PI * 2);
-    A.ink(ctx, T.paper, 2.5);
+    ctx.moveTo(-40, -22); ctx.lineTo(18, -22); ctx.lineTo(26, -14); ctx.lineTo(-36, -14); ctx.closePath();
+    A.ink(ctx, T.paper, 3.5);
     ctx.beginPath();
-    ctx.arc(x, y, s * 0.42, 0, Math.PI * 2);
-    ctx.fillStyle = T.accent;
-    ctx.fill();
+    ctx.moveTo(24, -18); ctx.lineTo(36, -66); ctx.lineTo(28, -68);
+    ctx.strokeStyle = T.ink; ctx.lineWidth = 7; ctx.lineCap = "round"; ctx.stroke();
+    ctx.strokeStyle = T.paper; ctx.lineWidth = 3; ctx.stroke();
+    // legs, a body in an ink jacket
+    ctx.beginPath();
+    ctx.moveTo(-12, -24); ctx.lineTo(-4, -46); ctx.lineTo(12, -48); ctx.lineTo(6, -24);
+    ctx.strokeStyle = T.ink; ctx.lineWidth = 10; ctx.lineJoin = "round"; ctx.stroke();
+    ctx.beginPath();
+    A.rr(ctx, -20, -86, 34, 42, 12);
+    A.ink(ctx, T.ink, 0.001);
+    A.rr(ctx, -20, -86, 34, 42, 12);
+    ctx.strokeStyle = T.paper; ctx.lineWidth = 3; ctx.stroke();
+    // an arm to the handlebars, a paper mitten on them
+    ctx.beginPath();
+    ctx.moveTo(4, -76); ctx.lineTo(28, -66);
+    ctx.strokeStyle = T.ink; ctx.lineWidth = 9; ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(29, -67, 6, 0, Math.PI * 2);
+    A.ink(ctx, T.paper, 3);
+    // the bag on his back: a periwinkle box with a paper edge and halftone shade
+    A.rr(ctx, -50, -102, 36, 40, 4);
+    A.ink(ctx, T.accent, lw);
+    A.rr(ctx, -50, -102, 36, 40, 4);
+    A.shade(ctx, -32, -102, -10, -60, T.ink, 5, 1.3);
+    A.rr(ctx, -50, -102, 36, 40, 4);
+    ctx.strokeStyle = T.ink; ctx.lineWidth = lw; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-46, -86); ctx.lineTo(-18, -86);
+    ctx.strokeStyle = T.paper; ctx.lineWidth = 3; ctx.stroke();
+    // the head, in a helmet: paper, round, with an ink visor and a red stripe
+    ctx.beginPath();
+    ctx.arc(0, -102, 17, 0, Math.PI * 2);
+    A.ink(ctx, T.paper, lw);
+    ctx.beginPath();
+    ctx.arc(0, -104, 17, Math.PI * 1.02, Math.PI * 1.98);
+    ctx.strokeStyle = T.red; ctx.lineWidth = 6; ctx.stroke();
+    ctx.beginPath();
+    A.rr(ctx, 4, -106, 14, 9, 3);
+    ctx.fillStyle = T.ink; ctx.fill();
+    ctx.restore();
   };
 
   // ---------------------------------------------------------------------------
