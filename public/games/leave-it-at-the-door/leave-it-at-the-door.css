@@ -1,0 +1,10 @@
+/*
+  Leave It at the Door: what this game does differently on the page. A
+  tall phone (the round goes full-window) keeps the joke and the numbers
+  between stages, since the app's sums are the joke. Everything else
+  is the kit's (games/kit/kit.css).
+*/
+@container kit (max-width: 440px) and (min-height: 600px) {
+  body[data-game="leave-it-at-the-door"] .kit-inter .kit-line { display: block; }
+  body[data-game="leave-it-at-the-door"] .kit-inter .kit-stats { display: flex; }
+}
