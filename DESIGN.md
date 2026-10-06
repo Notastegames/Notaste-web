@@ -112,6 +112,7 @@ Parody content that imitates a real interface (the fake social posts in "Reject 
 - No other web fonts. No Google Fonts, no font services, no third-party requests of any kind.
 - Type scale: `--step--1` (0.875rem), `--step-0` (1.0625rem body), `--step-1` (1.25rem), `--step-2` (section headings), `--step-3` (the hero). Game titles use the sizes in `games/game.css`.
 - Display text is tight: line-height about 0.86–0.95.
+- On a game screen nothing is under 12px, on a phone too: canvas text, the HUD's labels, the notice, the numbers between stages and on the results. The kit's screens keep to it; a label that can't be that big is left out rather than shrunk.
 
 ---
 
@@ -216,7 +217,7 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 
 **Flow:** title screen, then the Notaste intro, then countdown (3, 2, 1, Go, each one a stamp), then play, then the results screen. Pause from anywhere. A game with stages puts the kit's between-stages screen in the middle (`shell.interlude`): a stamp, what happened, the numbers, and a choice for the next stage, then the countdown again.
 
-**Between stages.** A stamp from the approval ladder, a heading ("Stage 2 complete."), one joke line, the numbers, and up to three choices as equal cards: none of them is red, because none is the main action. Each card is a short label and one line saying what it does and what it costs. Number keys pick them as well as Tab and Enter.
+**Between stages.** A stamp from the approval ladder, a heading ("Stage 2 complete."), one joke line, the numbers, and up to three choices as equal cards: none of them is red, because none is the main action. Each card is a short label and one line saying what it does and what it costs. Number keys pick them as well as Tab and Enter. On a short screen (the phone-sized square in the page, the clip frame) the joke line and the numbers drop out so the choices fit; a full-window phone keeps them.
 
 **Title screen.** The cover art behind, the game's title in Notaste Display, one red "Press start" button, one line of small print, and a controls hint that matches the device (keys on desktop, touch on phones). Another way to play is a quiet outlined button under Press start, never a second red one.
 
@@ -229,10 +230,10 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 **Results screen.** A stamp from the approval ladder, a heading that says what happened ("You finished 2nd."), one joke line, the numbers (time, best), and three actions: play again (red), a quiet "Share result", and "All games". Share result opens the device's share menu, or copies one line and the link: the game, today's run if it was one, the result in a few words, and the stamp ("Thonglets, today's run (2 October): 4,210 points, stage 5 of 7. Pending review."). The game supplies the few words (`share` in `shell.finish`); the line follows the copy rules like everything else.
 
 **Controls.**
-- Keyboard: arrow keys and WASD to move, P or Esc to pause, M to mute. Every button works with Enter and Space, and focus moves to the button that matters (Resume, Race again).
-- Touch: large on-screen buttons (at least 56px), bottom corners, thumbs only. Touch controls show only on touch devices. A button with a cooldown fills up from the bottom as it recharges and gets an accent rim when it's ready (`shell.padFill`); the matching HUD meter (marked `data-pad`) then hides on touch screens, since the button already says it.
+- Keyboard: arrow keys and WASD to move, P or Esc to pause, M to mute. Every button works with Enter and Space, and focus moves to the button that matters (Resume, Race again). Clicking the pause, sound or fullscreen button hands the keys straight back to the game, so the next Space plays rather than pressing that button again. A key still held when a screen of buttons comes up (thrust held through the end of a round) doesn't press one: only a fresh press does.
+- Touch: large on-screen buttons (at least 56px), bottom corners, thumbs only. The small pause, sound and fullscreen buttons at the top reach 56px tall on touch screens without looking any bigger. Touch controls show only on touch devices. A button with a cooldown fills up from the bottom as it recharges and gets an accent rim when it's ready (`shell.padFill`); the matching HUD meter (marked `data-pad`) then hides on touch screens, since the button already says it.
 - Pointer: a game that follows the mouse or a finger (Thonglets) turns on the kit's `aim`. Dragging anywhere on the screen moves it, and the thing being moved sits a little above the finger so the finger doesn't hide it.
-- Gamepad: supported where it makes sense.
+- Gamepad: supported where it makes sense. In play the game decides the buttons; on every menu (title, between stages, pause, results) the d-pad or stick moves between buttons, A presses one, and Start presses it too outside the pause.
 - The page never scrolls while a game is running.
 
 **Say what's new, and what to do about it.** Each stage that brings something new opens with a notice (`shell.brief`): a paper card with the game's colour along the top, the stage's name, and two or three plain sentences on what the new thing does and how to deal with it. It goes up with the countdown so it's read before Go. In play, a small bobbing arrow with a word on it ("Smite it", "Get a permit", "Bless: press B") points at the one thing that needs dealing with right now, and stops once you've shown you know (you've smitten that rival, or blessed once). One arrow at a time; speech bubbles keep clear of it.
