@@ -93,7 +93,7 @@ Each game owns exactly one accent colour. It's set as `--accent` on the game pag
 | Be Your Own Boss | `#E8919B` (rose) |
 | Verify | `#8DD14A` (lime) |
 | Speak to a Human | `#93A7F5` (periwinkle) |
-| Leave It at the Door | `#5FD6A8` (mint) |
+| Leave It at the Door | `#4DD0E1` (cyan) |
 
 The games on the roadmap have their accents picked already, all at once, so the later ones don't get the leftovers: every one is at least 4:1 against black and clearly different from the others and from red. A game that isn't in this table picks a new accent that is clearly different from all of these, and gets added to it. The starter game (In Tray, section 12) borrows `--smoke` because it isn't a real game; a game copied from it replaces that. Accents must stay readable as small dots on black (at least 3:1 against `#000`).
 
@@ -622,7 +622,7 @@ Your food never came, and the help chat is a bot. Four orders go wrong (a missin
 
 ### Leave It at the Door
 
-A delivery rider's shift, seen from above: one small town on one screen, a bicycle, a mint cube on your back, and an invented app called A Delivery App that accepts orders for you, pays pennies for each, promises the customer a time and then shrinks it, and tells them you're outside when you aren't. The joke is the app's pay and promise model. The rider is the sympathetic one and never the punchline. Customers can be short with you, but what they're short about is what the app told them. It isn't a race: there are no other riders to beat, only the clock the app set.
+A delivery rider's shift, seen from above: one small town on one screen, a bicycle, a cyan cube on your back, and an invented app called A Delivery App that accepts orders for you, pays pennies for each, promises the customer a time and then shrinks it, and tells them you're outside when you aren't. The joke is the app's pay and promise model. The rider is the sympathetic one and never the punchline. Customers can be short with you, but what they're short about is what the app told them. It isn't a race: there are no other riders to beat, only the clock the app set.
 
 **You.** The section 7 cut-out on a red bicycle: a red helmet with paper stripes, a paper jacket shaded in halftone, and a huge accent insulated cube on your back with the app's logo (an arrow in a ring) on it. Seen from above the cube is most of you, drawn big enough to read on a phone. Late, a bead of sweat; skidding, a wobble; walking the bike through the precinct, pushing it.
 

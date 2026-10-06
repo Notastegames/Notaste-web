@@ -3,7 +3,7 @@
 // doorstep scenes and the small things (bubbles, the pointer arrow).
 //
 // Thick ink outlines, flat fills, the four inks only (ink, paper, red and
-// the game's mint), halftone for shade, never a grey fill (DESIGN.md,
+// the game's cyan), halftone for shade, never a grey fill (DESIGN.md,
 // section 7). The town is drawn in world units; the phone and the doorstep
 // in CSS pixels. Whatever the transform, text() works out the real size.
 (function () {
@@ -424,7 +424,7 @@
         line(c, [[x + w / 2, y + 0.4], [x + w / 2, y + h - 0.4]], 0.26);
       }
     }
-    // the front door, in mint, with a path to the pavement
+    // the front door, in cyan, with a path to the pavement
     var d = hs.front;
     door(c, d.x, d.y, hs.side, false);
   }
@@ -517,7 +517,7 @@
     door(c, rs.stop.x, rs.stop.y, rs.side, true);
   }
 
-  // The food icons: drawn in paper and mint on ink
+  // The food icons: drawn in paper and cyan on ink
   function icon(c, kind, x, y, r) {
     if (kind === "fish") {
       solid(c, ell(x - r * 0.15, y, r * 0.75, r * 0.45), T.paper, r * 0.12);
@@ -564,7 +564,7 @@
     // a duck
     solid(c, ell(B.x0 + w * 0.66, B.y0 + h * 0.69, 0.6, 0.4), T.paper, 0.18);
     solid(c, ell(B.x0 + w * 0.66 - 0.5, B.y0 + h * 0.69 - 0.35, 0.3, 0.3), T.paper, 0.15);
-    // trees: paper puffs with a mint shadow
+    // trees: paper puffs with a cyan shadow
     [[0.18, 0.2, 2.3], [0.42, 0.18, 1.8], [0.78, 0.22, 2.2], [0.18, 0.84, 2.0], [0.32, 0.7, 1.5], [0.86, 0.45, 1.6]].forEach(function (t) {
       tree(c, B.x0 + w * t[0], B.y0 + h * t[1], t[2]);
     });
@@ -627,7 +627,7 @@
   }
 
   function bunting(c) {
-    // strings of red and mint flags across the high street
+    // strings of red and cyan flags across the high street
     var y = TW.YS[2];
     [31, 44, 56, 68].forEach(function (x) {
       line(c, [[x - 0.2, y - TW.RW - 0.3], [x + 0.2, y + TW.RW + 0.3]], 0.12, T.paper);
@@ -679,7 +679,7 @@
 
   // ---------------------------------------------------------------------------
   // The rider: a cut-out cartoon on a bicycle, in a red helmet, carrying a
-  // huge insulated cube in mint. Stands on (x, y), the road under the bike.
+  // huge insulated cube in cyan. Stands on (x, y), the road under the bike.
   // facing: R, L, U, D. o: { k (size), pedal (phase), still, push, late,
   //   wobble, look, shout }
   // ---------------------------------------------------------------------------
@@ -818,8 +818,8 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Pins over the stops. kind: pick (mint), door (paper), late (red), here
-  // (mint, ringed). Returns the box, for taps.
+  // Pins over the stops. kind: pick (cyan), door (paper), late (red), here
+  // (cyan, ringed). Returns the box, for taps.
   // ---------------------------------------------------------------------------
   function pin(c, x, y, label, kind, size, o) {
     o = o || {};
@@ -873,7 +873,7 @@
     solid(c, sh, top, lw);
     if (top === T.paper) shade(c, sh, box(x + R * 0.3, y, R * 1.2, R * 3), R * 0.16, T.ink);
     if (look === "scarf") {
-      // a football scarf in mint and paper stripes
+      // a football scarf in cyan and paper stripes
       var sc = rr(x - R * 0.95, y + R * 0.75, R * 1.9, R * 0.45, R * 0.15);
       solid(c, sc, T.accent, lw * 0.8);
       c.save(); c.clip(sc); c.fillStyle = T.paper;
