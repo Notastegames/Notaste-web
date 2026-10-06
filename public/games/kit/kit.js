@@ -1016,6 +1016,15 @@
     }
     var active = { countdown: 1, playing: 1, ending: 1, paused: 1 };
 
+    // A key still held when a screen of buttons comes up (thrust, say, held
+    // through the end of a round) mustn't press one: its auto-repeat would go
+    // to the button that's just been given focus. Only a fresh press counts.
+    document.addEventListener("keydown", function (e) {
+      if (!e.repeat || (e.key !== " " && e.key !== "Enter")) return;
+      var target = e.target;
+      if (target && target.closest && target.closest("button, a") && root.contains(target)) e.preventDefault();
+    }, true);
+
     document.addEventListener("keydown", function (e) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (state === "title" || state === "intro") return;
