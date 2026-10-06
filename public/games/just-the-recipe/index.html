@@ -2,17 +2,15 @@
 <html lang="en-GB">
 <head>
   <!--
-    Game page for a playable game. To add a game: copy this folder to
-    /games/<new-slug>/, replace race.js with the new game (built with the kit
-    in /games/kit/), change everything marked EDIT on this page, then add one
-    line to GAMES in /games/game.js. Cover art lives at /art/<slug>.svg
-    (800x600). Design rules: DESIGN.md.
+    Game page for Just the Recipe. Built from the starter (/games/starter/):
+    page.js builds the pages and holds the words, cast.js draws the
+    characters, recipe.js is the game, on the kit in /games/kit/.
+    Design rules: DESIGN.md (this game's own rules are in section 13).
   -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- EDIT: title, description and the og: tags -->
-  <title>Heavy Traffic: Notaste Games</title>
-  <meta name="description" content="Kart racing with big drivers in tiny cars, on a circuit where physics has given up. Three laps against three drivers who each own the road. A free browser game in poor taste from Notaste Games.">
+  <title>Just the Recipe: Notaste Games</title>
+  <meta name="description" content="Scroll down a recipe site to reach the recipe. Cookie banners, newsletter pop-ups, autoplay videos, late adverts and the author's entire life story are in the way. A free browser game in poor taste from Notaste Games.">
   <meta name="theme-color" content="#000000">
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -24,23 +22,19 @@
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/games/game.css">
   <link rel="stylesheet" href="/games/kit/kit.css">
-  <link rel="stylesheet" href="/games/heavy-traffic/heavy-traffic.css">
+  <link rel="stylesheet" href="/games/just-the-recipe/just-the-recipe.css">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Notaste Games">
-  <meta property="og:title" content="Heavy Traffic">
-  <meta property="og:description" content="Big drivers. Tiny karts. Physics has given up. Free in your browser.">
-  <meta property="og:url" content="https://notastegames.com/games/heavy-traffic/">
-  <meta property="og:image" content="https://notastegames.com/art/og-heavy-traffic.png">
+  <meta property="og:title" content="Just the Recipe">
+  <meta property="og:description" content="Scroll down to the recipe. The page has other ideas. Free in your browser.">
+  <meta property="og:url" content="https://notastegames.com/games/just-the-recipe/">
+  <meta property="og:image" content="https://notastegames.com/art/og-just-the-recipe.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
-<!--
-  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
-  --accent is the game's colour (same as its GAMES entry and its homepage poster).
--->
-<body class="game" data-game="heavy-traffic" style="--accent: #4f9e9a">
+<body class="game" data-game="just-the-recipe" style="--accent: #c2643a">
   <a class="skip" href="#main">Skip to content</a>
 
   <header class="top">
@@ -59,24 +53,22 @@
   <main id="main">
     <div class="game-page wrap">
 
-      <!-- EDIT: title, stamp (and its tilt), pitch -->
       <div class="game-head">
-        <h1>Heavy Traffic</h1>
+        <h1>Just the Recipe</h1>
         <div class="game-meta">
-          <span class="stamp-label" style="--tilt: 4deg">Not approved</span>
-          <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now. Three laps and a button marked Gas.</p>
+          <span class="stamp-label" style="--tilt: -5deg">Rejected</span>
+          <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now</p>
         </div>
-        <p class="game-pitch">Kart racing for drivers who were promised more legroom. The cars are small. The physics has given up.</p>
+        <p class="game-pitch">Scroll down to the recipe. The page has other ideas: cookie banners, a newsletter cat, adverts that load late, a video that follows you, and the author's entire life story.</p>
       </div>
 
       <section class="cabinet" aria-label="Game screen">
         <div class="screen">
-          <!-- EDIT: cover art path -->
-          <img class="screen-art" src="/art/heavy-traffic.svg" alt="" width="800" height="600">
+          <img class="screen-art" src="/art/just-the-recipe.svg" alt="" width="800" height="600">
 
-          <!-- The race. /games/kit/kit.js builds the screens in here, race.js is the game. -->
+          <!-- The game. /games/kit/kit.js builds the screens in here, recipe.js is the game. -->
           <div id="game-root">
-            <noscript><p class="kit-noscript">Heavy Traffic needs JavaScript switched on. The car needs a lot of things.</p></noscript>
+            <noscript><p class="kit-noscript">Just the Recipe needs JavaScript switched on. So, sadly, does every recipe site.</p></noscript>
           </div>
         </div>
         <p class="cabinet-strip"><span>Notaste Games</span><span>Free play</span></p>
@@ -84,12 +76,10 @@
 
       <div class="game-info">
         <h2>How to play</h2>
-        <!-- EDIT: two or three short lines -->
         <ul class="how">
-          <li>Arrow keys or WASD. On a phone it goes by itself: steer on the left, brake on the right. Steer early: the car will consider it.</li>
-          <li>Arrow boards mean a corner: brake before it, not in it. Too fast and you're on two wheels, and the tyres will say so. Faster still and you're facing the wrong way.</li>
-          <li>Space (or the Gas button) when the meter's full. Everyone behind you will know. Sit right behind someone and their slipstream does some of the work.</li>
-          <li>Three laps against Gaz, Lorraine and Derek, who each own the road. Today's race lines up the same rivals, in the same moods, for everyone.</li>
+          <li>You're the hand. The page scrolls itself; steer left and right with the arrow keys, A and D, the mouse or a finger. Click (Space, a mouse click or the Click button) on whatever your fingertip is touching.</li>
+          <li>Find the tiny Reject all on each cookie banner. Move before a newsletter pop-up lands on you, or close it with its little X. Go round adverts: nothing closes them, and clicking one opens a new tab.</li>
+          <li>The life story slows you right down, so keep to the white space between the words. Jump to recipe helps, sometimes. Three courses; the clock runs throughout. Today's run is the same pages for everyone.</li>
         </ul>
         <div class="share">
           <button class="btn-line" id="share" type="button">Share</button>
@@ -120,8 +110,8 @@
 
   <script src="/games/game.js" defer></script>
   <script src="/games/kit/kit.js" defer></script>
-  <script src="/games/heavy-traffic/ground.js" defer></script>
-  <script src="/games/heavy-traffic/driver.js" defer></script>
-  <script src="/games/heavy-traffic/race.js" defer></script>
+  <script src="/games/just-the-recipe/page.js" defer></script>
+  <script src="/games/just-the-recipe/cast.js" defer></script>
+  <script src="/games/just-the-recipe/recipe.js" defer></script>
 </body>
 </html>
