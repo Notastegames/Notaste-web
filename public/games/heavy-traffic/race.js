@@ -1,15 +1,58 @@
 // Heavy Traffic: kart racing. Large drivers, tiny cars. Physics has given up.
-// Three laps against three other drivers, seen from just behind your kart.
+//
+// THE JOKE. Drivers twice the width of their karts, at one with them and
+// sure they own the road. The comedy is the fit and the car's suffering,
+// never the people: steering that arrives late, corners that lift two
+// wheels and then spin you, suspension squashed flat and scraping, wheels
+// leaving on their own adventures, and a button marked Gas. The drivers
+// insult each other's driving, never anyone's body.
+//
+// THE RACE. Three laps of one circuit against Gaz, Lorraine and Derek, seen
+// from just behind your kart. Keys: Up to go, Down to brake, left and right
+// to steer, Space for gas. Touch: it goes by itself; steering bottom left,
+// Gas over Brake bottom right. The car considers your steering before it
+// does any (STEER_LAG). Too fast into a corner and the driver's weight lifts
+// two wheels and the tyres squeal; hold it there and you spin, once round
+// and a bit, and end up facing down the road again. Arrow boards stand on
+// the outside of every corner you need to brake for. The barriers are
+// forgiving: you slide along them. Stuck, or the wrong way round, for long
+// enough and you're towed back onto the road. Gas builds up over seven
+// seconds and gives a short burst of speed and a cloud everyone behind you
+// will remember. Tuck in behind someone and their slipstream helps.
+//
+// THE RIVALS. Each race deals out one quick, one middling and one slow
+// (FORM). On the first two laps anyone well ahead of you eases off, out of
+// sight, and anyone behind finds a bit, each settling at their own distance
+// so they don't travel as a wall (rubberBand). The final lap is a straight
+// race at everyone's own pace. Now and then a rival saves up a mistake and
+// spends it on the next proper corner. Get close and they turn round, shake
+// a fist and shout, in speech bubbles.
+//
+// SAYING WHAT TO DO. A notice with the countdown (steer early, brake before
+// the arrow boards). On the first two laps a pointer says Brake when you
+// arrive at a proper corner far too fast, until you've braked into one, and
+// Gas the first time it's full, until you've used it.
+//
+// TODAY'S RACE. Everyone gets the same form, the same grid chatter and the
+// same rivals' moods and mistakes, from seeded streams (shell.random, and
+// each rival's own). Where those mistakes land depends on the corners they
+// reach, so it isn't quite the same race twice, but it's the same field.
+//
+// THE LADDER (DESIGN.md, section 6) is your place: first Approved, second
+// Pending review, third Not approved, last Rejected. Bests are times, so
+// lower wins (shell.record with lower), and the best lap is kept too.
+//
+// TEST FLAGS. ?autopilot (and ?clip) drives your kart as well; &speed=4
+// runs four times as fast. ?debug exposes window.__heavyTraffic (the track,
+// the karts, the clock) for scripts. ?debug=map draws the whole circuit
+// top-down.
+//
 // Built on the shared kit (/games/kit/kit.js), which handles the intro, the
 // screens, controls, sound and saving. This file is the race itself: the
 // track, the karts and their physics, the other drivers, and the drawing.
 // ground.js lays the circuit out in perspective (WebGL) and driver.js draws
 // the karts; without WebGL the race is drawn top-down instead.
-//
-// The comedy is the fit and the car's suffering, never the people: drivers
-// twice the width of their karts, steering that arrives late, corners that
-// lift two wheels and then spin you, suspension squashed flat and scraping,
-// wheels leaving on their own adventures, and a button marked Gas.
+// heavy-traffic.css places the callouts and the touch buttons.
 (function () {
   "use strict";
 
@@ -51,25 +94,37 @@
   var GAS_TIME = 1.4;                // how long a blast lasts
 
   var DRIVERS = [
-    // the other three, all invented. power and corner are their skill; pace
-    // spreads them out round the circuit so you meet them one at a time.
+    // the other three, all invented. How quick each is comes from FORM.
     // kart/suit/stripe colour the top-down view; look dresses them in the chase view.
     // Each one owns the road, and is at one with their kart. lines are theirs alone.
-    { name: "Gaz", kart: "accent", suit: "red", stripe: "paper", power: 0.85, corner: 0.84, pace: 0,
+    { name: "Gaz", kart: "accent", suit: "red", stripe: "paper",
       look: { car: "accent", shirt: "red", pants: "ink", hat: "band", hatColour: "accent" },
       lines: ["I pay road tax. This is my road.", "Me and the kart are one. We've been through things.",
               "Lads. Lads. Lads.", "This is a private lane, mate.", "I was born in this kart."] },
-    { name: "Lorraine", kart: "paper", suit: "accent", stripe: "red", power: 0.86, corner: 0.83, pace: 320,
+    { name: "Lorraine", kart: "paper", suit: "accent", stripe: "red",
       look: { car: "paper", shirt: "accent", pants: "red", hat: "perm", hatColour: "red" },
       lines: ["I was here first.", "I'll be speaking to your manager.", "This lane is for residents.",
               "Thirty years. Never once looked.", "She's called Pamela. Show her some respect."] },
-    { name: "Derek", kart: "ink", suit: "paper", stripe: "accent", power: 0.84, corner: 0.86, pace: -320,
+    { name: "Derek", kart: "ink", suit: "paper", stripe: "accent",
       look: { car: "ink", shirt: "paper", pants: "accent", hat: "flatcap", hatColour: "ink", tache: true },
       lines: ["I've got all this on dashcam.", "Forty years. Not one indicator.", "The kart and I are married. Not legally.",
               "Mirror, signal, manoeuvre. Look it up.", "In my day this was all fields."] },
-    { name: "You", kart: "red", suit: "paper", stripe: "red", power: 1, corner: 1, player: true,
+    { name: "You", kart: "red", suit: "paper", stripe: "red", player: true,
       look: { car: "red", shirt: "paper", shirtDots: true, pants: "ink", hat: "cap", hatColour: "red" } }
   ];
+
+  // Form: how quick each rival is this race, dealt out afresh every time (the
+  // same deal for everyone in today's race): one quick, one middling, one
+  // slow, so there's always someone to beat and someone to chase. power and
+  // corner are their skill (yours are 1); pace spreads them round the circuit
+  // so you meet them one at a time: the quick one waits a little ahead of
+  // you, the slow one a little behind (see rubberBand).
+  var FORM = [
+    { power: 0.84, corner: 0.84, pace: 150 },
+    { power: 0.73, corner: 0.85, pace: 0 },
+    { power: 0.67, corner: 0.86, pace: -320 }
+  ];
+  var YOU = { power: 1, corner: 1, pace: 0 };
 
   // What they shout at you. Your driving, never your body.
   var INSULTS = ["Move, you lemon.", "Numpty.", "Get off my road.", "Learn to drive.", "Absolute weapon.",
@@ -267,7 +322,7 @@
       wheelOff: 0, wheelSide: 1, offroad: false, kerb: false, twoWheel: false, walled: 0, draft: 0, stuck: 0,
       idx: i, s: 0, lat: 0, lap: 0, progress: 0, done: false, time: 0, place: slot + 1,
       lapStart: 0, bestLap: 0, wrong: 0, gravel: 0, scrapeWait: 0,
-      power: d.power, skidL: null, skidR: null,
+      form: YOU, power: 1, skidL: null, skidR: null,
       roll: 0, gas: 0.5 + r() * 0.4, boost: 0, gasHeld: false, sweatWait: 0,
       headTurn: 0, shoutSide: 1, anim: 0, speech: { text: "", t: 0, wait: 3 + r() * 4 },
       jig: { uy: 0, vuy: 0, uz: 0, vuz: 0, ly: 0, vly: 0, lz: 0, vlz: 0 },
@@ -736,7 +791,7 @@
     var target = MAX * k.power;
     var reach = speed * 1.2 + 120;
     var sharpest = MAX;
-    var care = k.d.corner * Math.max(0.86, Math.min(1.04, k.power / k.d.power));
+    var care = k.form.corner * Math.max(0.86, Math.min(1.04, k.power / k.form.power));
     for (var u = 10; u < reach; u += 20) {
       var m = ahead(k.idx, u);
       sharpest = Math.min(sharpest, track.safe[m]);
@@ -767,10 +822,13 @@
   // Keep the race close: anyone well ahead of you eases off (out of sight, so
   // nobody sees them dawdle), anyone behind finds a bit. Each settles at their
   // own distance from you (pace), so the three of them don't travel as a wall.
+  // The final lap is a straight race, everyone at their own pace, so where
+  // you finish is down to how you drive it.
   function rubberBand(k) {
     if (k.player || !player) return;
-    var gap = player.progress - k.progress + k.d.pace;
-    k.power = k.d.power * (1 + clamp(gap / 1500, -0.2, 0.08));
+    if (k.lap >= LAPS || player.lap >= LAPS) { k.power = k.form.power; return; }
+    var gap = player.progress - k.progress + k.form.pace;
+    k.power = k.form.power * (1 + clamp(gap / 1500, -0.2, 0.08));
   }
 
   // ---------------------------------------------------------------------------
@@ -998,6 +1056,13 @@
     T = sh.tokens;
     karts = DRIVERS.map(makeKart);
     player = karts[3];
+    var deal = FORM.slice();
+    for (var f = deal.length - 1; f > 0; f--) {
+      var g = Math.floor(shell.random() * (f + 1)), swap = deal[f];
+      deal[f] = deal[g];
+      deal[g] = swap;
+    }
+    karts.forEach(function (k, i) { if (!k.player) { k.form = deal[i]; k.power = deal[i].power; } });
     parts = [];
     skids = [];
     raceTime = 0;
