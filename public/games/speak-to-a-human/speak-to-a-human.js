@@ -492,6 +492,7 @@
     ex.state = "done";
     ex.wait = 0.5;
     ex.picked = c;
+    ex.doneAt = clock;
     c.pressed = clock;
     sg.pendingHeal = 0;
     auto = null;
@@ -611,7 +612,7 @@
     if (c.kind === "yes") callout("Ticket: closed", { routine: "closed", gap: 6 });
     else if (c.kind === "star") callout("Rated. Why", { routine: "rated", gap: 6 });
     else if (c.kind === "number") callout("Wrong order", { routine: "wrongno", gap: 6 });
-    else callout("Loop detected", { routine: "loop", gap: 5 });
+    else callout("Played along", { routine: "along", gap: 5 });
     ex.wait = 0.75;
   }
 
@@ -1391,9 +1392,11 @@
     var fadeOut = ex.state === "done" ? clamp(1 - ex.wait / 0.12, 0, 1) : 0;
     ex.chips.forEach(function (c) {
       if (c.gone) return;
+      // once you've picked, the others go (quickly), and yours follows
       if (ex.state === "done" && c !== ex.picked) {
-        if (calm || ex.wait < 0.3) return;
+        if (calm || ex.wait < 0.3 || clock - (ex.doneAt || 0) > 0.22) return;
       }
+      if (ex.state === "done" && c === ex.picked && clock - (ex.doneAt || 0) > 0.6) return;
       drawChip(c, chipRect(c), fadeOut);
     });
   }
@@ -1649,7 +1652,7 @@
       else if (f.where === "batt") { x = 96; y = hudB + 14; size = 16; }
       else { x = Lay.chat.x + Lay.chat.w - 40; y = Lay.chat.y + Lay.chat.h - 30; size = 14; color = T.accent; }
       // clear of the streak pips under the middle of the bar on a wide screen
-      if ((f.where === "bar" || f.where === "heal") && Math.abs(x - (Lay.wide ? b.x + b.w / 2 : b.x + 20)) < Math.max(4, b.h * 0.3) * 4 + 30) y += 22;
+      if ((f.where === "bar" || f.where === "heal") && Math.abs(x - (Lay.wide ? b.x + b.w / 2 : b.x + 20)) < Math.max(4, b.h * 0.3) * 4 + 30) y += 30;
       y -= (calm ? 0 : k * 16);
       ctx.save();
       ctx.globalAlpha = 1 - clamp((a - 0.5) / 0.4, 0, 1);
