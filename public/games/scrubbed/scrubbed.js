@@ -231,10 +231,11 @@
   };
   var CLEAR = {
     all: ["He announced both landings before they happened.", "He's told everyone he was flying them. He was on a boat."],
-    one: ["He announced the landing. He's announced the fire as data.", "One landed. The other is being described as research."],
+    one: ["He announced the landing. He's announced the other one as data.", "One landed. The other is being described as research."],
     none: ["Nothing landed. He has called it a historic day.", "Nothing landed. He's described it as content."],
     partyAll: ["It landed by the cake. He's told the guests he did it with his mind."],
-    partyNone: ["The party is now a fire. The guests filmed all of it. He's calling it the launch of the season."]
+    partyNone: ["The party is now a fire. The guests filmed all of it. He's calling it the launch of the season."],
+    partyPool: ["It's in the pool. The guests filmed all of it. He's calling it a pool party."]
   };
   var RANKS = [
     "Every one came home. The best was on Mars, where nobody saw it. He has announced he flew them himself, from a boat.",
@@ -911,7 +912,7 @@
       stamp: all ? "Approved" : none ? "Not approved" : "Pending review",
       tilt: all ? -5 : 4,
       heading: "Stage " + (run.stage + 1) + " complete.",
-      line: pick(s.id === "party" ? (all ? CLEAR.partyAll : CLEAR.partyNone) : all ? CLEAR.all : none ? CLEAR.none : CLEAR.one),
+      line: pick(s.id === "party" ? (all ? CLEAR.partyAll : rk && rk.state === "pool" ? CLEAR.partyPool : CLEAR.partyNone) : all ? CLEAR.all : none ? CLEAR.none : CLEAR.one),
       stats: stats,
       ask: "Stage " + (next + 1) + ": " + STAGES[next].name + ". He's offering upgrades.",
       choices: offers.map(function (u) { return { label: u.label, detail: u.detail }; }),
@@ -952,6 +953,7 @@
     else rank = 4;
     var heading = run.landed === TOTAL ? "All " + TOTAL + " landed." : run.landed ? "Landed " + run.landed + " of " + TOTAL + "." : "Nothing landed.";
     var line = RANKS[rank - 1];
+    if (rank === 1 && run.landed < TOTAL) line = "Seven came home, and the best was on Mars, where nobody saw it. The other is data. He has announced he flew them himself, from a boat.";
     if (rank === 2 && run.landed === TOTAL) line = "Every one came home, a bit bent. He has announced they came home perfect.";
     else if (rank === 2 && run.marsLanded) line = "Most of them came back, and one landed on Mars, where nobody saw it. The rest are being described as data.";
     else if (rank === 3 && run.landed === 1) line = "One landed. He has had it framed. The rest are data.";
