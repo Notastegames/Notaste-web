@@ -2424,6 +2424,7 @@
     },
     againLabel: "Race again",
     smallCallouts: true,
+    callouts: "high",   // in the HUD's row on the sky, not over the road ahead
     daily: { label: "Today's race" },
     pitch: "Kart racing. Large drivers, tiny cars. Physics has given up.",
     touch: [

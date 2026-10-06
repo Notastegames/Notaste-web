@@ -3,11 +3,6 @@
   else is the kit's (games/kit/kit.css).
 */
 
-/* Callouts land in the HUD's row, just under the pause bar, on the sky:
-   in a chase camera the middle of the screen is the road ahead and the
-   other drivers, which is what you're looking at when one lands. */
-body[data-game="heavy-traffic"] .kit-callouts { inset: 3rem 0 auto; }
-
 /* Touch: the four buttons sit in the two bottom corners and leave the middle
    of the road clear. Steering side by side under the left thumb; Gas over
    Brake under the right, with Brake in the corner. */
@@ -25,7 +20,6 @@ body[data-game="heavy-traffic"] .kit-stats dt { font-size: 0.75rem; }
 @container kit (max-width: 440px) or (max-height: 420px) {
   body[data-game="heavy-traffic"] .kit-pad { width: 3.5rem; height: 3.5rem; }
   body[data-game="heavy-traffic"] .kit-pad-face { font-size: 1rem; }
-  body[data-game="heavy-traffic"] .kit-callouts { inset: 2.75rem 0 auto; }
   body[data-game="heavy-traffic"] .kit-stat:not(.kit-stat-big) small { font-size: max(12px, 0.62em); }
   body[data-game="heavy-traffic"] .kit-brief-text { font-size: 0.75rem; }
 }

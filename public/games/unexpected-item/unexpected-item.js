@@ -1303,8 +1303,8 @@
     S.init(T || N.tokens(root), U * DPR);
     back = null; front = null; boxes = null;
     // in-game stamps land under the belt, clear of the till's face, its
-    // instructions and the scale (unexpected-item.css)
-    root.style.setProperty("--ui-callouts", Math.round((L.belt + 12) * U) + "px");
+    // instructions and the scale (the kit's callout position)
+    root.style.setProperty("--kit-callouts-top", Math.round((L.belt + 12) * U) + "px");
     // keep the belt where it was, relative to the red line
     if (oldSx != null && oldSx !== L.sx) {
       belt.forEach(function (it) { it.x += L.sx - oldSx; });
