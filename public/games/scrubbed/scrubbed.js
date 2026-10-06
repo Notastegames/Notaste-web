@@ -85,8 +85,9 @@
 //
 // THE LADDER (calibrated against test players with human reaction times:
 // see the numbers at the end of this comment). Approved: seven or more of
-// the eight landed, Mars among them, and at least 7,500 points: soft,
-// central, thrifty landings all round. Pending review: five landed. Not
+// the eight landed, Mars among them, and at least 8,000 points: soft,
+// central, thrifty landings all round, and in practice all eight of them
+// and no upgrade that takes a cut. Pending review: five landed. Not
 // approved: at least one. Rejected: nothing landed ("Every rocket is now
 // data.").
 //
@@ -108,6 +109,21 @@
 //
 // Built on the shared kit (/games/kit/kit.js): the intro, screens,
 // controls, sound and saving. art.js draws everything.
+//
+// THE NUMBERS. Scripted test players (outside the repo) see the game only
+// as it was 200 to 450ms ago, misjudge speed and height, forget the wind,
+// lean and thrust to move sideways, and play with real key presses, a real
+// mouse or real touches held on the buttons. 27 rounds, October 2026:
+//   good, upgrades picked at random: 5,500 to 7,000, six to eight landed.
+//     Pending review every time: they all took the beta or the PR team.
+//   good and expert, leaving those two alone: 6,400 to 8,600. Approved in
+//     three of nine, each with all eight landed; seven landed, Mars among
+//     them, made 6,400 to 7,400 (Pending review).
+//   average: 2,400 to 5,900, three to six landed. Pending review or Not
+//     approved, about half each.
+//   novice: 0 to 1,500, none or one landed. Rejected or Not approved.
+// Keys, mouse and touch come out about the same. A round takes two minutes
+// or so.
 (function () {
   "use strict";
 
@@ -162,7 +178,7 @@
   ];
   var LAST = STAGES.length - 1;
   var TOTAL = STAGES.reduce(function (n, s) { return n + s.boosters; }, 0);
-  var APPROVE = 7500;
+  var APPROVE = 8000;
 
   // Between stages: what it does, then what it costs
   var UPGRADES = [
