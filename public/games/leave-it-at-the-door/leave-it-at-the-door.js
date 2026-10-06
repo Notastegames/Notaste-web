@@ -39,7 +39,7 @@
 // late, a woken baby, soggy food or a wrong photo take a bit, an order five
 // minutes late is cancelled and takes more, and what's left at the end of a
 // rush is reassigned and noted. Under 4.40 the account is deactivated and
-// the shift ends. Approved needs the whole shift, 4.75 or better and 22
+// the shift ends. Approved needs the whole shift, 4.70 or better and 22
 // deliveries. Idle riders get the next order early: more orders, same rate.
 //
 // THE STAGES. Lunch (bell, knock and gate codes), Rain (late turns skid,
@@ -75,7 +75,7 @@
   var LAST = 10;            // no new orders in a rush's last minutes
   var SKID = 3.0;            // in the rain, a turn pressed this close to the junction skids past it
   if (DEBUG && params.has("skid")) SKID = +params.get("skid");
-  var APPROVE = { rating: 4.75, delivered: 22 };
+  var APPROVE = { rating: 4.7, delivered: 22 };
 
   var STAGES = [
     { key: "lunch", name: "Lunch", start: 12 * 60, len: 40, gap: [4.9, 5.9], types: { bell: 3, knock: 3, shout: 2, code: 2 },
@@ -380,7 +380,10 @@
       bannerNow.t += dt;
       if (bannerNow.t >= BANNER_T) { bannerNow = null; bannerGap = BANNER_GAP; }
     } else if (bannerGap > 0) bannerGap -= dt;
-    else if (banners.length) bannerNow = { text: banners.shift(), t: 0 };
+    else if (banners.length && !bannerHeld()) bannerNow = { text: banners.shift(), t: 0 };
+  }
+  // where the banner sits on the town, the doorstep card needs the room
+  function bannerHeld() { return L && !L.bannerIn && doorstep && !doorstep.done;
   }
   function say(x, y, line, who) {
     mapBubbles = mapBubbles.filter(function (b) { return b.who !== who; });
@@ -1047,11 +1050,11 @@
     var rung, line;
     var r2 = rating.toFixed(2);
     if (complete) {
-      if (rating >= APPROVE.rating && delivered >= APPROVE.delivered) { rung = 1; line = RESULT_LINES.approved.replace("{r}", r2); }
+      if (+r2 >= APPROVE.rating && delivered >= APPROVE.delivered) { rung = 1; line = RESULT_LINES.approved.replace("{r}", r2); }
       else {
         rung = 2;
         line = RESULT_LINES.pending;
-        if (rating >= APPROVE.rating) line += " Approved needed " + (APPROVE.delivered - delivered) + " more.";
+        if (+r2 >= APPROVE.rating) line += " Approved needed " + (APPROVE.delivered - delivered) + " more.";
         else line += " Approved needed a " + APPROVE.rating.toFixed(2) + " rating.";
       }
     } else if (stageIdx >= 2) { rung = 3; line = RESULT_LINES.notApproved[stageIdx - 2]; }
@@ -1629,7 +1632,7 @@
   // The banner: the app's best lines, one at a time, big enough to read
   // ---------------------------------------------------------------------------
   function drawBanner(c) {
-    if (!bannerNow) return;
+    if (!bannerNow || bannerHeld()) return;
     var b = L.banner, t = bannerNow.t;
     var a = shell.reduceMotion ? 1 : Math.min(1, t / 0.2, (BANNER_T - t) / 0.3);
     if (a <= 0) return;
