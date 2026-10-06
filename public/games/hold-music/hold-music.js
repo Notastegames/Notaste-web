@@ -54,9 +54,10 @@
 // what: Put the kettle on (one more patience, for someone about to run out;
 // the queue is three longer), Put it on speaker (the beat 40ms more
 // forgiving, for unsteady hands; no clean-line bonus), Press 0 a lot (skip
-// the first question and its points, faster music; a clean line pays 250
-// more, a bet for steady hands), Say you're a new customer (half the queue;
-// one less patience), Find a pen (your number on the note as it's read, for
+// the first question and its points, faster music; a clean line pays 200
+// more, a bet for steady hands), Say you're a new customer (half the queue
+// and no fast version, for anyone who keeps being cut off; the call pays 100
+// less: they sell you broadband), Find a pen (your number on the note as it's read, for
 // a poor memory; the menu scores half), Ask for a callback (nothing). Tested
 // with scripted callers of different skills: no single pick wins for all.
 //
@@ -73,15 +74,18 @@
 // transfer or a drop). Each hold is worth 600 shared among the notes its
 // queue will play (close notes half), however long the queue, so a longer
 // queue can't buy points; a hold with no misses, strays or cut-offs is a
-// clean line, worth 100 more. Every call put through: 200. Finish and every
-// patience left is worth 100. The most a run can score is about 4,700, a
-// little more with the kettle on.
+// clean line, worth 100 more (300 after Press 0 a lot). Every call put
+// through: 200 (100 if Sales sold you broadband). Finish and every patience
+// left, up to three, is worth 100. A flawless run scores 4,600, and up to
+// 4,900 by betting on clean lines.
 //
 // THE LADDER (DESIGN.md, section 6). Finish all four calls: Approved at
-// 4,300 or more, Pending review at 3,400 or more, Not approved below that.
+// 4,450 or more, Pending review at 3,400 or more, Not approved below that.
 // Hang up on Complaints or Cancellations: Not approved. Hang up any sooner:
-// Rejected. Tuned with test players: good ones are Approved about one run
-// in four, average ones mostly Pending review, beginners Not approved.
+// Rejected. Tuned with scripted callers picking from what they're offered:
+// flawless ones are Approved, good ones about one run in five (nearly
+// always when they bet on Press 0 a lot and keep a clean line), average
+// ones Pending review, beginners Not approved.
 //
 // TODAY'S RUN gives everyone the same problem, the same menus (the same
 // options in the same order with the same numbers), the same announcements
@@ -118,8 +122,8 @@
   var RESTORE = 2;             // hits in a row to win a bar back
   var CUT_QUEUE = 2;           // places added to the queue when you're cut off
   var AHEAD = 0.2;             // the next part of a call is queued this soon
-  var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100, zero: 250 };
-  var APPROVED = 4300, PENDING = 3400;
+  var PTS = { menu: 100, retry: 50, hold: 600, clean: 100, call: 200, patience: 100, zero: 200, sold: 100 };
+  var APPROVED = 4450, PENDING = 3400;
   var DIAL = "08004655";       // the number you dial (it's not a real one)
 
   // ---------------------------------------------------------------------------
@@ -221,10 +225,10 @@
       apply: function (m, r) { r.patience = Math.min(PATIENCE_MAX, r.patience + 1); m.queue += 3; m.kettle = true; } },
     { id: "speaker", label: "Put it on speaker", detail: "The beat is 40ms more forgiving. The whole house can hear it: no clean-line bonus.",
       apply: function (m) { m.speaker = true; } },
-    { id: "zero", label: "Press 0 a lot", detail: "Skips the first question and its points. A clean line pays 250 more. The music is faster.",
+    { id: "zero", label: "Press 0 a lot", detail: "Skips the first question and its points. A clean line pays 200 more. The music is faster.",
       apply: function (m) { m.skip = true; m.bpm += 8; m.zero = true; } },
-    { id: "new", label: "Say you're a new customer", detail: "Sales answer quickly: half the queue. They sell you broadband: one less patience.",
-      apply: function (m, r) { m.half = true; r.patience = Math.max(1, r.patience - 1); } },
+    { id: "new", label: "Say you're a new customer", detail: "Sales answer quickly: half the queue, and no fast version. They sell you broadband: 100 points.",
+      apply: function (m) { m.half = true; } },
     { id: "pen", label: "Find a pen", detail: "Your number goes on the note as it's read. The menu scores half.",
       apply: function (m) { m.pen = true; } },
     { id: "callback", label: "Ask for a callback", detail: "They'll call you back. They won't. Nothing changes.",
@@ -575,7 +579,7 @@
       shell.callout("Line: dead", { tilt: -4, ms: 1800 });
       react.shout = 1.4; react.steam = 3;
       setTimeout(function () { youSay("dead"); }, 1600);
-      run.score += PTS.call;
+      run.score += callWorth();
       run.calls++;
     },
 
@@ -589,7 +593,8 @@
 
   // which tune bar i of this call's hold plays, in which arrangement
   function barTune(i) {
-    var c = info(), fast = c.fastAt != null && i >= c.fastAt;
+    // Sales (a new customer) never get the fast version
+    var c = info(), fast = c.fastAt != null && i >= c.fastAt && !(mods && mods.half);
     var tune = fast ? "fast" : "please";
     return { fast: fast, tune: tune, ti: fast ? (i - c.fastAt) % 8 : i % 8, arr: c.arr[tune] || "tune" };
   }
@@ -604,6 +609,8 @@
   }
   // what this call's hold is worth, however long the queue
   function holdWorth() { return PTS.hold; }
+  // what getting through is worth (less if Sales sold you broadband)
+  function callWorth() { return PTS.call - (mods.half ? PTS.sold : 0); }
 
   function queueLength() {
     var q = info().queue + mods.queue;
@@ -872,7 +879,7 @@
   function putThrough() {
     ph.done = true;
     Line.bedOff();
-    run.score += PTS.call;
+    run.score += callWorth();
     run.calls++;
     var c = info(), next = call + 1;
     var mistakes = st.transfers + st.drops + st.cutoffs;
