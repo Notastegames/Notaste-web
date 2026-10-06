@@ -244,6 +244,7 @@
   var barriers = [];       // the low wall along both sides, in short lengths
   var sky = null;
   var looks = {};
+  var learned = { gas: false, brake: false };   // shown you know: the pointers stop (kept for the visit)
   var MAP = DEBUG && params.get("debug") === "map";
 
   function makeKart(d, slot) {
@@ -253,6 +254,11 @@
     var i = Math.floor(s0 / 10) % track.n;
     var k = {
       name: d.name, d: d, player: !!d.player,
+      // each rival's own seeded streams: their moods come and go on the same
+      // clock for everyone in today's race, and their mistakes come in the
+      // same order, wherever you are
+      rand: N.seeded((shell.seed + (slot + 1) * 7919) | 0),
+      slip: N.seeded((shell.seed + (slot + 1) * 104729) | 0),
       x: track.x[i] + track.nx[i] * side * 19,
       y: track.y[i] + track.ny[i] * side * 19,
       a: Math.atan2(track.dy[i], track.dx[i]),
@@ -468,7 +474,9 @@
     k.jig.vuz -= size * 5;
   }
 
-  // The Gas button. A short burst of speed, a cloud, and a noise.
+  // The Gas button. A short burst of speed, a cloud, and a noise. The first
+  // one is stamped; after that a stamp only when it gets somebody, and not
+  // every time, since the rival's bubble is the joke.
   var GAS_LINES = ["Gas deployed", "Nobody will forget that", "Windows down, everyone", "That was not the engine"];
   function gasBlast(k) {
     k.gas = 0;
@@ -478,15 +486,23 @@
     for (var i = 0; i < 6; i++) gasPuff(k, 1);
     if (near(k)) fart(k.player ? 1 : 0.45);
     if (k.player) {
-      say(flags.gas ? GAS_LINES[Math.floor(Math.random() * GAS_LINES.length)] : "Gas deployed", 2);
+      if (!flags.gas) { say(GAS_LINES[0], 2); flags.gasSaid = raceTime; }
       flags.gas = true;
+      learned.gas = true;
       shake(0.2);
       var nearest = null, best = 220;
       karts.forEach(function (o) {
         var d = Math.hypot(o.x - k.x, o.y - k.y);
         if (!o.player && d < best) { best = d; nearest = o; }
       });
-      if (nearest) talk(nearest, pick(GASSED), true);
+      if (nearest) {
+        talk(nearest, pick(GASSED), true);
+        if (raceTime - flags.gasSaid > 20) {
+          flags.gasSaid = raceTime;
+          flags.gasN = (flags.gasN || 0) + 1;
+          say(GAS_LINES[1 + (flags.gasN - 1) % 3], 1);
+        }
+      }
     }
   }
 
@@ -646,7 +662,7 @@
       k.lapStart = raceTime;
       if (k.lap > LAPS && !k.done) finishLine(k);
       else if (k.player && k.lap === LAPS) say("Final lap", 3);
-      else if (k.player && k.lap > 1) say("Lap " + k.lap, 1);
+      else if (k.player && k.lap > 1) say("Lap " + k.lap, 3);
     } else if (prevS < L * 0.25 && k.s > L * 0.75) {
       k.lap -= 1;
     }
@@ -701,7 +717,7 @@
     }
     // they own the road: some of the time, if you're right behind, they move over to block you
     ai.mood -= dt;
-    if (ai.mood <= 0) { ai.hog = !ai.hog && Math.random() < 0.4; ai.mood = 3 + Math.random() * 6; }
+    if (ai.mood <= 0) { ai.hog = !ai.hog && k.rand() < 0.4; ai.mood = 3 + k.rand() * 6; }
     if (ai.hog && player && !k.player && !k.done) {
       var behind = k.s - player.s;
       if (behind < -track.length / 2) behind += track.length;
@@ -732,7 +748,7 @@
     if (ai.armed && sharpest < MAX * 0.75 && !k.done) {
       ai.armed = false;
       ai.overcook = 2.2;
-      ai.oops = 20 + Math.random() * 20;
+      ai.oops = 20 + k.slip() * 20;
     }
     if (ai.overcook > 0) {
       target = Math.min(MAX * k.power, target * 1.7);
@@ -1010,6 +1026,32 @@
     if (!hudEls) buildHud();
     startEngine();
     paintHud();
+    noticed = false;
+    // On a small phone the screen can start below the fold, with the touch
+    // buttons off the bottom, and a page can't be scrolled by the screen once
+    // the race is on: bring all of it into view (a kit gap)
+    if (root.classList.contains("kit-touching") && !N.flags.clip) {
+      var scr = root.closest(".screen") || root, box = scr.getBoundingClientRect();
+      if (box.top < 0 || box.bottom > window.innerHeight) scr.scrollIntoView({ block: "center", behavior: shell.reduceMotion ? "auto" : "smooth" });
+    }
+  }
+
+  // The notice goes up with the countdown, so it's read before Go, and comes
+  // down soon after it (a little later the first time), since on a phone it
+  // sits over your kart. Filming a clip, it's only the title, gone by Go.
+  var noticed = false, briefed = false;
+  function notice() {
+    var go = 250 + 3 * (shell.reduceMotion ? 650 : 700);   // when the kit's countdown says Go
+    var title = shell.daily ? "Today's race: three laps" : "Three laps";
+    if (N.flags.clip) { shell.brief({ title: title, ms: go }); return; }
+    var touch = root.classList.contains("kit-touching");
+    shell.brief({
+      title: title,
+      text: (touch ? "It goes by itself. " : "Hold Up to go. ") +
+            "Steer early: the car takes a moment to agree. Brake before the arrow boards, not in the corner.",
+      ms: go + (briefed ? 700 : 2200)
+    });
+    briefed = true;
   }
 
   function update(dt, input) {
@@ -1048,6 +1090,25 @@
     slipstream(dt);
     stepParts(dt);
     rank();
+    teach(dt, input);
+  }
+
+  // The first two laps teach the brake: arrive at a proper corner far too
+  // fast and the pointer says Brake, early enough to do it, until you've
+  // braked into a corner once (see pointer)
+  function teach(dt, input) {
+    if (flags.brakeHint > 0) flags.brakeHint -= dt;
+    if (AUTOPILOT || learned.brake || player.done || player.lap > 2 || raceTime < 3) return;
+    var speed = Math.hypot(player.vx, player.vy);
+    var corner = false, late = false;
+    for (var u = 10; u < speed + 60; u += 20) {
+      var safe = track.safe[ahead(player.idx, u)];
+      if (safe > MAX * 0.7) continue;
+      corner = true;
+      if (speed > Math.sqrt(safe * safe + BRAKE * 0.6 * u) + 10) late = true;
+    }
+    if (input.down && corner && speed > 120) { learned.brake = true; flags.brakeHint = 0; return; }
+    if (late) flags.brakeHint = 1;
   }
 
   // Tuck in right behind someone and the air's easier. Not nicer: easier.
@@ -1087,16 +1148,29 @@
         else if (before[k.name] > before.You && k.place < player.place && close) talk(k, pick(GLOAT), true);
       });
     }
-    if (player.place < lastPlace && raceTime > 4 && !player.done) say("Overtake approved", 0);
+    // not every time two of you swap places: once in a while, and the first
+    // time you take the lead gets its own
+    if (player.place < lastPlace && raceTime > 4 && !player.done && raceTime - (flags.passSaid || -99) > 6) {
+      flags.passSaid = raceTime;
+      say(player.place === 1 && !flags.led ? "Lead: provisional" : "Overtake approved", player.place === 1 ? 1 : 0);
+      if (player.place === 1) flags.led = true;
+    }
     lastPlace = player.place;
   }
 
+  // The results: one line for each rung of the ladder, about what it did to
+  // the car. Beaten, you also hear from whoever won, in their own conviction.
   var LINES = [
     "The car did not enjoy it. Nobody asked the car.",
     "Second. The car is being kept in overnight for observation.",
     "Third. The car's family has been informed.",
-    "Last. The car has asked to be left alone."
+    "Last. The car has asked for some time apart."
   ];
+  var WINNERS = {
+    Gaz: ["Gaz won. He'd like it noted that he pays road tax.", "Gaz won. He says it was his road anyway."],
+    Lorraine: ["Lorraine won. She'd like a word with your manager.", "Lorraine won. Pamela didn't break a sweat."],
+    Derek: ["Derek won. He has the whole thing on dashcam.", "Derek won. He didn't indicate once."]
+  };
 
   function playerFinished() {
     // bests are times, so lower wins; today's race keeps today's separately
@@ -1109,12 +1183,13 @@
         value: N.fmtTime(rec.best * 1000), highlight: rec.isNew }
     ];
     if (shell.daily) stats.unshift({ label: "Race", value: shell.today });
+    var winner = karts.filter(function (k) { return k.done && k.place === 1 && !k.player; })[0];
     shell.finish({
       share: N.fmtTime(player.time * 1000) + ", " + N.ordinal(player.place) + " of " + karts.length,
       place: player.place,
       total: karts.length,
       heading: player.place === 1 ? "You won." : "You finished " + N.ordinal(player.place) + ".",
-      line: LINES[player.place - 1],
+      line: (winner ? pick(WINNERS[winner.name]) + " " : "") + LINES[player.place - 1],
       stats: stats
     });
   }
@@ -1128,7 +1203,7 @@
       '<div class="kit-hud-tl">' +
         '<p class="kit-stat"><small>Lap</small><span data-lap>1</span>/' + LAPS + '</p>' +
         '<p class="kit-mono" data-time>0:00.00</p>' +
-        '<p class="kit-meter" data-meter><span class="kit-meter-label">Gas</span><span class="kit-meter-bar"><span data-gas></span></span></p>' +
+        '<p class="kit-meter" data-meter data-pad><span class="kit-meter-label">Gas</span><span class="kit-meter-bar"><span data-gas></span></span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big"><span data-pos>4</span><small data-suffix>th</small></p>' +
@@ -1140,7 +1215,8 @@
       pos: hud.querySelector("[data-pos]"),
       suffix: hud.querySelector("[data-suffix]"),
       meter: hud.querySelector("[data-meter]"),
-      gas: hud.querySelector("[data-gas]")
+      gas: hud.querySelector("[data-gas]"),
+      bar: hud.querySelector(".kit-meter-bar")
     };
   }
 
@@ -1156,6 +1232,7 @@
     var gas = Math.round(player.gas * 100) + "%";
     if (hudEls.gas.style.width !== gas) hudEls.gas.style.width = gas;
     hudEls.meter.classList.toggle("is-full", player.gas >= 1);
+    if (shell.padFill) shell.padFill("action", player.gas);
   }
 
   // ---------------------------------------------------------------------------
@@ -1167,6 +1244,8 @@
     patterns = null;
     mini = null;
     sky = null;
+    boxes = null;
+    padBoxes = {};
     if (glCanvas) {
       glCanvas.width = Math.round(w * dpr);
       glCanvas.height = Math.round(h * dpr);
@@ -1705,17 +1784,128 @@
 
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     c.globalAlpha = 1;
-    karts.forEach(function (k) { if (!k.player && k.speech.t > 0 && k.speech.text) drawBubble(c, k); });
     if (!shell.reduceMotion && (player.boost > 0 || player.draft > 0.5)) speedLines(c, player.boost > 0 ? 9 : 4);
     drawMini(c);
+    // Speech bubbles go on last, nearest speaker first, each clear of the
+    // HUD, the minimap, the pointer and the bubbles already up: they stack,
+    // never overlap
+    var placed = [miniRect()];
+    var arrow = pointer();
+    if (arrow) placed.push(arrow.box);
+    karts.filter(function (k) { return !k.player && k.speech.t > 0 && k.speech.text; })
+      .sort(function (a, b) { return Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y); })
+      .forEach(function (k) { drawBubble(c, k, placed); });
+    if (arrow) drawPointer(c, arrow);
   }
 
-  // A speech bubble over a driver's head: paper, ink outline, a tail, capitals
-  function drawBubble(c, k) {
+  // Where the HUD and the buttons sit over the canvas, in CSS pixels.
+  // Measured now and then, since the lap and the time change width.
+  var boxes = null, boxAge = 0;
+  function hudBoxes() {
+    if (boxes && ++boxAge < 60) return boxes;
+    boxAge = 0;
+    var base = root.getBoundingClientRect();
+    boxes = [];
+    Array.prototype.forEach.call(root.querySelectorAll(".kit-hud-tl, .kit-hud-tr, .kit-bar"), function (el) {
+      var r = el.getBoundingClientRect();
+      if (r.width) boxes.push({ x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height });
+    });
+    return boxes;
+  }
+  // A touch button's place over the canvas, measured once it's showing
+  var padBoxes = {};
+  function padBox(key) {
+    if (padBoxes[key]) return padBoxes[key];
+    var el = root.querySelector('.kit-pad[data-key="' + key + '"]');
+    if (!el) return null;
+    var r = el.getBoundingClientRect(), base = root.getBoundingClientRect();
+    if (!r.width) return null;
+    padBoxes[key] = { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height };
+    return padBoxes[key];
+  }
+
+  // The pointer (DESIGN.md, section 10): a bobbing arrow with a word on it,
+  // at the one thing to do right now, until you've shown you know. On the
+  // first laps: Brake, when you arrive at a corner far too fast, until you've
+  // braked into one; and Gas, the first time it's full, until you've used it.
+  // On a touch screen it points at the button.
+  function pointer() {
+    if (AUTOPILOT || !player || player.done || shell.state() !== "playing") return null;
+    var touch = root.classList.contains("kit-touching");
+    var a = null;
+    if (flags.brakeHint > 0) {
+      var bp = touch && padBox("down");
+      if (bp) a = { x: bp.x - 6, y: bp.y + bp.h / 2, dir: "right", word: "Brake" };
+      else {
+        var at = window.HeavyTraffic.placeOnScreen(view, player.x, player.y, 58);
+        if (at) a = { x: at.x, y: at.y - 4, dir: "down", word: "Brake: press Down" };
+      }
+    } else if (!learned.gas && player.gas >= 1 && raceTime > 3 && player.lap <= 2) {
+      var gp = touch && padBox("action");
+      if (gp) a = { x: gp.x + gp.w / 2, y: gp.y - 6, dir: "down", word: "Tap Gas" };
+      else if (hudEls && hudEls.bar) {
+        var r = hudEls.bar.getBoundingClientRect(), base = root.getBoundingClientRect();
+        if (r.width) a = { x: r.left - base.left + r.width / 2, y: r.bottom - base.top + 6, dir: "up", word: "Gas: press Space" };
+      }
+    }
+    if (!a) return null;
+    // the word sits beyond the arrow's tail; keep it on the screen
+    var size = 13, tw = a.word.length * size * 0.5 + 8;
+    var len = 22;
+    if (a.dir === "down") a.box = { x: a.x - tw / 2, y: a.y - len - size - 6, w: tw, h: len + size + 6 };
+    else if (a.dir === "up") a.box = { x: a.x - tw / 2, y: a.y, w: tw, h: len + size + 6 };
+    else a.box = { x: a.x - len - tw, y: a.y - size - 14, w: len + tw, h: size + 28 };
+    var dx = clamp(a.box.x, 4, W - a.box.w - 4) - a.box.x;
+    a.wordX = dx;
+    a.size = size;
+    a.len = len;
+    a.box.x += dx;
+    return a;
+  }
+
+  function drawPointer(c, a) {
+    var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(raceTime * 5)) * 5;
+    var s = a.len;
+    c.save();
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    c.translate(a.x, a.y);
+    c.lineJoin = "round";
+    c.font = a.size + "px " + T.display;
+    c.textBaseline = "middle";
+    var wx, wy, ang;
+    if (a.dir === "down") { ang = 0; c.translate(0, -bob); wx = a.wordX; wy = -s - a.size * 0.5 - 4; c.textAlign = "center"; }
+    else if (a.dir === "up") { ang = Math.PI; c.translate(0, bob); wx = a.wordX; wy = s + a.size * 0.5 + 4; c.textAlign = "center"; }
+    else { ang = -Math.PI / 2; c.translate(-bob, 0); wx = -s * 0.4; wy = -a.size - 4; c.textAlign = "right"; }
+    // the word
+    c.lineWidth = 3;
+    c.strokeStyle = T.ink;
+    c.fillStyle = T.paper;
+    c.strokeText(a.word.toUpperCase(), wx, wy);
+    c.fillText(a.word.toUpperCase(), wx, wy);
+    // the arrow, its tip at the origin
+    c.rotate(ang);
+    c.beginPath();
+    c.moveTo(-5, -s); c.lineTo(5, -s); c.lineTo(5, -11); c.lineTo(11, -11); c.lineTo(0, 0); c.lineTo(-11, -11); c.lineTo(-5, -11);
+    c.closePath();
+    c.fillStyle = T.paper;
+    c.fill();
+    c.lineWidth = 2;
+    c.stroke();
+    c.restore();
+  }
+
+  function overlaps(a, b, gap) {
+    return a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
+  }
+
+  // A speech bubble over a driver's head: paper, ink outline, a tail, capitals.
+  // Never under 12px. Pushed down below the HUD, and up (or down) past
+  // anything already placed, with the tail still pointing at the speaker.
+  function drawBubble(c, k, placed) {
     var HTL = window.HeavyTraffic;
     var at = HTL.placeOnScreen(view, k.x, k.y, 50 + k.z);
     if (!at || at.depth < 45 || at.depth > 900 || at.x < -80 || at.x > W + 80) return;
-    var size = clamp(at.s * 3.6, 11, 17);
+    var size = clamp(at.s * 3.6, 12, 17);
     c.font = size + "px " + T.display;
     var words = k.speech.text.toUpperCase().split(" "), lines = [""];
     words.forEach(function (w) {
@@ -1726,17 +1916,31 @@
     lines.forEach(function (l) { tw = Math.max(tw, c.measureText(l).width); });
     var pad = size * 0.55, lh = size * 1.02;
     var bw = tw + pad * 2, bh = lines.length * lh + pad * 1.4;
-    var bx = clamp(at.x - bw / 2, 6, W - bw - 6), by = Math.max(6, at.y - bh - size * 0.9);
+    var bx = clamp(at.x - bw / 2, 6, W - bw - 6);
+    var top = 6;
+    hudBoxes().forEach(function (r) { if (bx < r.x + r.w + 4 && bx + bw > r.x - 4) top = Math.max(top, r.y + r.h + 4); });
+    // where it wants to be, else the nearest spot just above or below
+    // something already placed that's free of everything
+    var want = clamp(at.y - bh - size * 0.9, top, H - bh - 6), by = want;
+    var spots = [want];
+    placed.forEach(function (r) { spots.push(r.y - bh - 6, r.y + r.h + 6); });
+    spots = spots.filter(function (y) { return y >= top && y <= H - bh - 6; })
+      .sort(function (a, b) { return Math.abs(a - want) - Math.abs(b - want); });
+    for (var i = 0; i < spots.length; i++) {
+      var me = { x: bx, y: spots[i], w: bw, h: bh };
+      if (!placed.some(function (r) { return overlaps(me, r, 3); })) { by = spots[i]; break; }
+    }
+    placed.push({ x: bx, y: by, w: bw, h: bh });
+    var under = by > at.y;     // pushed below the speaker's head: the tail points up
     var tailX = clamp(at.x, bx + 12, bx + bw - 12);
     c.globalAlpha = clamp(k.speech.t * 4, 0, 1);    // pops in like a stamp, fades out
     c.beginPath();
     var r = Math.min(10, bh / 2);
     c.moveTo(bx + r, by);
+    if (under) { c.lineTo(tailX - 6, by); c.lineTo(tailX - 2, by - size * 0.8); c.lineTo(tailX + 7, by); }
     c.arcTo(bx + bw, by, bx + bw, by + bh, r);
     c.arcTo(bx + bw, by + bh, bx, by + bh, r);
-    c.lineTo(tailX + 7, by + bh);
-    c.lineTo(tailX - 2, by + bh + size * 0.8);
-    c.lineTo(tailX - 6, by + bh);
+    if (!under) { c.lineTo(tailX + 7, by + bh); c.lineTo(tailX - 2, by + bh + size * 0.8); c.lineTo(tailX - 6, by + bh); }
     c.arcTo(bx, by + bh, bx, by, r);
     c.arcTo(bx, by, bx + bw, by, r);
     c.closePath();
@@ -2066,11 +2270,19 @@
     c.globalAlpha = 1;
   }
 
-  // Minimap: bottom left, or top left under the lap count and gas when the
+  // Minimap: bottom left, or top left under the lap count and time when the
   // bottom of the screen is taken by touch buttons
-  function drawMini(c) {
+  function miniRect() {
     var small = Math.min(W, H) < 420;
     var mw = small ? 80 : 96, mh = small ? 55 : 66;
+    if (!root.classList.contains("kit-touching")) return { x: 6, y: H - mh - 8, w: mw, h: mh };
+    var y = small ? 84 : 100;
+    hudBoxes().forEach(function (b) { if (b.x < W / 3 && b.y < H / 3) y = b.y + b.h + 8; });
+    return { x: 6, y: y, w: mw, h: mh };
+  }
+
+  function drawMini(c) {
+    var at = miniRect(), mw = at.w, mh = at.h;
     if (!mini || mini.mw !== mw) {
       mini = document.createElement("canvas");
       mini.mw = mw;
@@ -2092,8 +2304,7 @@
       m.strokeStyle = T.paper;
       m.stroke(track.path);
     }
-    var touching = root.classList.contains("kit-touching");
-    var x0 = 6, y0 = touching ? (small ? 84 : 100) : H - mh - 8;
+    var x0 = at.x, y0 = at.y;
     c.drawImage(mini, x0, y0, mw, mh);
     karts.forEach(function (k) {
       if (k.player) return;
@@ -2127,6 +2338,7 @@
       touch: "It accelerates by itself. Steer on the left. Gas and brake on the right."
     },
     againLabel: "Race again",
+    smallCallouts: true,
     daily: { label: "Today's race" },
     pitch: "Kart racing. Large drivers, tiny cars. Physics has given up.",
     touch: [
@@ -2143,6 +2355,7 @@
     },
     render: function (dt, sh) {
       if (sh.state() === "countdown" && engine) engineNote(0, 0.2, true);
+      if (!noticed && (sh.state() === "countdown" || sh.state() === "playing")) { noticed = true; notice(); }
       render(dt);
     },
     resize: resize
