@@ -1374,7 +1374,7 @@
     ctx = (shell ? shell.canvas : root.querySelector("canvas")).getContext("2d");
     layout();
     D.init(T || N.tokens(root), U * DPR);
-    back = null; front = null;
+    back = null; front = null; sprites = {};
   }
 
   function newCanvas() {
@@ -1450,13 +1450,15 @@
     if (!agentOn) drawNote(c, v, h);
     var me = drawYou(c, v, h);
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.drawImage(front, sx * DPR, sy * DPR);
+    // only the part with something on it: the table and the phone
+    var fy = Math.max(0, Math.floor(Math.min(Lay.table, Lay.phone.y - 5) * U * DPR) - 2);
+    c.drawImage(front, 0, fy, front.width, front.height - fy, sx * DPR, fy + sy * DPR, front.width, front.height - fy);
     c.setTransform(DPR * U, 0, 0, DPR * U, sx * DPR, sy * DPR);
     D.mug(c, Lay.mug.x, Lay.mug.y, Lay.mug.k, mods && mods.kettle ? 1 : 0, shell.reduceMotion ? 0 : animT);
     drawHands(c, me, v, h);
     // the cord, from the phone to the handset
     var ln = me.flat ? Lay.laneFlat : Lay.lane;
-    D.cordAlong(c, ln.pts, Math.max(0.5, Lay.you.R * 0.05));
+    drawCord(c, ln, me.flat ? "flat" : "ear");
     drawLcd(c, v, h);
     if (padOn(v)) drawPad(c, v, h);
     else drawKeys(c, v, h);
@@ -1531,6 +1533,10 @@
       cut: calm ? 0 : react.cut,
       handset: speaker || slam ? "table" : "ear"
     };
+    // the jumper never moves, so it comes from a sprite
+    var sp = sprite("body", y.x - R * 1.5, y.y - R * 1.6, R * 3, R * 2.9, function (sc) { D.youBody(sc, y.x, y.y, R, y.flip); });
+    c.drawImage(sp.cv, sp.x, sp.y, sp.w, sp.h);
+    o.noBody = true;
     var me = D.you(c, y.x, y.y, R, o);
     me.flat = speaker || slam;
     me.slam = slam;
@@ -1560,6 +1566,42 @@
         D.mitten(c, r2.x, r2.y - (calm ? 0 : lift * 0.6), r2.r, T.paper, y.flip);
       }
     }
+  }
+
+  // ---------- Sprites ----------
+  // The cord's hundreds of curls and the notes riding it are drawn once into
+  // small canvases and copied each frame, which a phone does much faster
+  var sprites = {};
+  // a sprite of the box x0, y0, w, h (world units), drawn by draw(c) in world units
+  function sprite(key, x0, y0, w, h, draw) {
+    var sp = sprites[key];
+    if (!sp) {
+      var k = U * DPR, cv = document.createElement("canvas");
+      cv.width = Math.max(1, Math.ceil(w * k));
+      cv.height = Math.max(1, Math.ceil(h * k));
+      var sc = cv.getContext("2d");
+      sc.scale(k, k);
+      sc.translate(-x0, -y0);
+      draw(sc);
+      sp = sprites[key] = { cv: cv, x: x0, y: y0, w: cv.width / k, h: cv.height / k };
+    }
+    return sp;
+  }
+  function drawCord(c, ln, which) {
+    var key = "cord|" + which, sp = sprites[key];
+    if (!sp) {
+      // the box round the cord, with room for its curls
+      var w = Math.max(0.5, Lay.you.R * 0.05), pad = w * 3;
+      var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      ln.pts.forEach(function (q) { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); });
+      sp = sprite(key, x0 - pad, y0 - pad, x1 - x0 + pad * 2, y1 - y0 + pad * 2, function (sc) { D.cordAlong(sc, ln.pts, w); });
+    }
+    c.drawImage(sp.cv, sp.x, sp.y, sp.w, sp.h);
+  }
+  function noteSprite(c, x, y, r, kind) {
+    var key = "note|" + kind + "|" + r.toFixed(3);
+    var sp = sprite(key, -r * 1.6, -r * 3.8, r * 4.6, r * 5.6, function (sc) { D.musicNote(sc, 0, 0, r, kind, T.paper); });
+    c.drawImage(sp.cv, x + sp.x, y + sp.y, sp.w, sp.h);
   }
 
   // ---------- The lane: the tune's notes, riding the cord to your ear ----------
@@ -1618,7 +1660,7 @@
         c.save();
         c.globalAlpha = 1 - m;
         var fall = calm ? 0 : m * m * nr * 9;
-        D.musicNote(c, mp.x, mp.y + fall, nr * 0.85, "crotchet", T.paper);
+        noteSprite(c, mp.x, mp.y + fall, nr * 0.85, "crotchet");
         D.line(c, [[mp.x - nr, mp.y + fall - nr], [mp.x + nr, mp.y + fall + nr]], Math.max(0.4, nr * 0.32), T.red);
         D.line(c, [[mp.x + nr, mp.y + fall - nr], [mp.x - nr, mp.y + fall + nr]], Math.max(0.4, nr * 0.32), T.red);
         c.restore();
@@ -1627,7 +1669,7 @@
       if (s < -nr * 2) continue;
       var p = laneAt(ln, Math.max(0, s));
       var kind = n.len <= 0.5 ? "quaver" : n.len >= 1.5 ? "minim" : "crotchet";
-      D.musicNote(c, p.x, p.y, nr * (n.beat === 0 ? 1.08 : 0.94), kind, T.paper);
+      noteSprite(c, p.x, p.y, nr * (n.beat === 0 ? 1.08 : 0.94), kind);
     }
   }
 

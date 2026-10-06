@@ -184,19 +184,8 @@
     c.save();
     c.translate(x, y);
     c.scale(f, 1);
-    // the body, a jumper: paper, halftone down its far side, a magenta stripe
-    var body = ell(0, -R * 0.15, R * 1.32, R * 1.25);
-    solid(c, body, T.paper, lw);
-    shade(c, body, ell(-R * 0.95, R * 0.1, R * 0.8, R * 1.4), R * 0.09);
-    c.save();
-    c.clip(body);
-    c.fillStyle = T.accent;
-    c.fillRect(-R * 1.5, -R * 0.62, R * 3, R * 0.28);
-    ink(c, lw * 0.6);
-    c.strokeRect(-R * 1.5, -R * 0.62, R * 3, R * 0.28);
-    c.restore();
-    ink(c, lw);
-    c.stroke(body);
+    // the body (the caller may have drawn it already: it never moves)
+    if (!o.noBody) jumper(c, R);
     var hy = -R * 2.05 + bob;
     // the head
     var head = ell(0, hy, R, R * 0.97);
@@ -269,6 +258,32 @@
     out.mouth = { x: x, y: y + hy + R * 0.6 };
     out.top = y + hy - R * 1.75 - jump;
     return out;
+  }
+
+  // Your body, a jumper: paper, halftone down its far side, a magenta
+  // stripe. Drawn about (0, 0), the middle of the table's edge in front of you.
+  function jumper(c, R) {
+    var lw = R * 0.11;
+    var body = ell(0, -R * 0.15, R * 1.32, R * 1.25);
+    solid(c, body, T.paper, lw);
+    shade(c, body, ell(-R * 0.95, R * 0.1, R * 0.8, R * 1.4), R * 0.09);
+    c.save();
+    c.clip(body);
+    c.fillStyle = T.accent;
+    c.fillRect(-R * 1.5, -R * 0.62, R * 3, R * 0.28);
+    ink(c, lw * 0.6);
+    c.strokeRect(-R * 1.5, -R * 0.62, R * 3, R * 0.28);
+    c.restore();
+    ink(c, lw);
+    c.stroke(body);
+  }
+  // the same, at x, y, the handset's side flipped as you() flips it
+  function youBody(c, x, y, R, flip) {
+    c.save();
+    c.translate(x, y);
+    c.scale(flip ? -1 : 1, 1);
+    jumper(c, R);
+    c.restore();
   }
 
   // A bobble hat in the game's colour: stripes, a paper bobble, a turn-up.
@@ -709,7 +724,7 @@
 
   window.HoldDraw = {
     init: init, dots: dots, ink: ink, rr: rr, ell: ell, solid: solid, shade: shade, line: line,
-    text: text, measure: measure, face: face, mitten: mitten, you: you, bobble: bobble, handset: handset,
+    text: text, measure: measure, face: face, mitten: mitten, you: you, youBody: youBody, bobble: bobble, handset: handset,
     handsetFlat: handsetFlat, cord: cord, cordAlong: cordAlong, musicNote: musicNote, burst: burst,
     phoneBody: phoneBody, voiceFace: voiceFace, agentFace: agentFace, agentCutout: agentCutout, clock: clock, mug: mug,
     padlock: padlock, signal: signal
