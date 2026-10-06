@@ -1,15 +1,9 @@
 /*
-  Hold Music: the two things this game does differently on the page.
+  Hold Music: the one thing this game does differently on the page.
   Patience in the HUD is a row of pips (filled in the game's colour, empty
-  ones outlined), and in-game stamps land over your side of the table, clear
-  of the phone's screen, keypad and beat pad, which are what you're reading
-  when one lands. The game sets the --hm-callouts-* values for each screen
-  shape. Everything else is the kit's (games/kit/kit.css).
+  ones outlined). Where in-game stamps land is set by hold-music.js through
+  the kit's callout position. Everything else is the kit's (games/kit/kit.css).
 */
-body[data-game="hold-music"] .kit-callouts {
-  inset: var(--hm-callouts-top, 40%) var(--hm-callouts-right, 0) auto var(--hm-callouts-left, 0);
-}
-
 .hm-patience { display: flex; align-items: center; }
 .hm-pips { display: inline-flex; gap: 0.22em; }
 .hm-pip {

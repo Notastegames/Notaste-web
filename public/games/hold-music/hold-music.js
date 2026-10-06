@@ -1171,9 +1171,9 @@
     // wrong number, a dropped call, on hold or cut off), and it keeps them off
     // your face, the note, the cord and the bubbles
     var k = Lay.keys;
-    root.style.setProperty("--hm-callouts-left", Math.round(k.x * U) + "px");
-    root.style.setProperty("--hm-callouts-right", Math.round((WW - k.x - k.w) * U) + "px");
-    root.style.setProperty("--hm-callouts-top", Math.round((k.y + k.h * 0.3) * U) + "px");
+    root.style.setProperty("--kit-callouts-left", Math.round(k.x * U) + "px");
+    root.style.setProperty("--kit-callouts-right", Math.round((WW - k.x - k.w) * U) + "px");
+    root.style.setProperty("--kit-callouts-top", Math.round((k.y + k.h * 0.3) * U) + "px");
   }
 
   // The phone: keys kk across with gaps, pad around, a screen lcdH high,

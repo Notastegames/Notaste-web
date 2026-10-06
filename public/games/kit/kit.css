@@ -223,9 +223,11 @@
 
 /* ---------- Stamps over the game: callouts and the countdown ---------- */
 
+/* 22% down unless the game says otherwise: createGame's callouts: "high", or
+   shell.placeCallouts(), which sets these three */
 .kit-callouts {
   position: absolute;
-  inset: 22% 0 auto;
+  inset: var(--kit-callouts-top, 22%) var(--kit-callouts-right, 0) auto var(--kit-callouts-left, 0);
   z-index: 3;
   display: grid;
   justify-items: center;
@@ -237,6 +239,8 @@
   transform: rotate(var(--tilt, -4deg));
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
 }
+/* high: in the HUD's row, just under the pause bar */
+.kit-callouts-high .kit-callouts { --kit-callouts-top: 3rem; }
 .kit-small-callouts .kit-callouts .stamp-label { font-size: clamp(0.85rem, 0.7vw + 0.7rem, 1.15rem); }
 
 /* high on the screen, so the grid stays in view underneath */
@@ -278,6 +282,8 @@
   transition: opacity 220ms ease, transform 220ms ease, visibility 0s 220ms;
 }
 .kit-brief.is-on { opacity: 1; visibility: visible; transition: opacity 220ms ease, transform 220ms ease; }
+/* a finger or the pointer over it: it fades, so what's underneath shows */
+.kit-brief.is-on.is-under { opacity: 0.18; }
 @media (prefers-reduced-motion: no-preference) {
   .kit-brief { transform: translate(-50%, 8px); }
   .kit-brief.is-on { transform: translate(-50%, 0); }
@@ -494,6 +500,7 @@
   .kit-brief-title { font-size: 0.95rem; }
   .kit-brief-text { margin-top: 0.2rem; font-size: 0.75rem; line-height: 1.3; }
   .kit-hud-tl { left: 0.6rem; }
+  .kit-callouts-high .kit-callouts { --kit-callouts-top: 2.75rem; }
   .kit-hud-tr { right: 0.6rem; }
   .kit-bar { top: 0.45rem; gap: 0.25rem; }
   .kit-icon { width: 2.05rem; height: 2.05rem; }
@@ -517,6 +524,39 @@
   .kit-actions { gap: 0.45rem 0.8rem; margin-top: 0; }
   .kit-actions .btn { font-size: 1rem; padding: 0.55rem 0.9rem 0.45rem; }
   .kit-quiet { padding: 0.4rem 0.7rem; }
+  /* the results, on the square a small phone shows in the page: each number
+     sits beside its label, and the heading takes the whole width */
+  .kit-results:not(.kit-inter) { gap: 0.4rem; padding-top: 0.85rem; }
+  .kit-results .kit-heading { max-width: none; font-size: 1.2rem; }
+  .kit-results .kit-stats { gap: 0.15rem 0.9rem; }
+  .kit-results .kit-stats div { display: flex; align-items: baseline; gap: 0.35em; }
+}
+
+/* The results on a small screen: whatever doesn't fit scrolls, but the stamp
+   always starts in view and Play again, Share result and All games stay on
+   the bottom edge, over a fade that says there's more above them */
+@container kit (max-width: 440px) or (max-height: 420px) {
+  .kit-results:not(.kit-inter) .kit-actions {
+    position: sticky;
+    bottom: -1rem;   /* the panel's padding */
+    z-index: 1;
+    width: calc(100% + 2rem);
+    margin: 0 -1rem -1rem;
+    padding: 0.5rem 1rem 1rem;
+    background: linear-gradient(to bottom, rgba(5, 5, 5, 0), rgb(5, 5, 5) 0.5rem);
+  }
+}
+@container kit (max-height: 360px) {
+  .kit-results:not(.kit-inter) .kit-actions {
+    bottom: -0.6rem;
+    width: calc(100% + 1.5rem);
+    margin: 0 -0.75rem -0.6rem;
+    padding: 0.45rem 0.75rem 0.6rem;
+    gap: 0.4rem 0.6rem;
+  }
+  .kit-results:not(.kit-inter) .kit-actions .btn { padding: 0.55rem 0.7rem 0.45rem; white-space: nowrap; }
+  .kit-results:not(.kit-inter) .kit-actions .kit-quiet { padding: 0.4rem 0.5rem; white-space: nowrap; }
+  .kit-results:not(.kit-inter) .kit-actions .text-link { white-space: nowrap; }
 }
 
 /* ---------- Fullscreen ---------- */

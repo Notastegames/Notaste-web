@@ -393,6 +393,10 @@
   //     fullOnTouch: true,       on a touch screen, go full-window when a round starts
   //                              (for a game that needs the whole height of a phone)
   //     smallCallouts: true,     smaller in-game stamps, for a busy field
+  //     callouts: "high",        in-game stamps just under the pause bar, not 22% down
+  //                              (or shell.placeCallouts({ top, left, right }) to put
+  //                              them anywhere, as the screen's shape changes)
+  //     countIn: true,           back from a pause, count 3, 2, 1, Go before play
   //     reset(shell),            a fresh round: put everything on the start line
   //     update(dt, input, shell), every frame while playing (and after the finish)
   //     render(dt, shell),        every frame while the game is on screen
@@ -401,7 +405,9 @@
   //
   // A HUD line marked data-minor hides on small screens.
   // shell.brief({ title, text }) shows a notice card for a few seconds: what's
-  // new this stage and what to do about it.
+  // new this stage and what to do about it. Its clock stops while paused, and
+  // it fades while a finger or the pointer is over it, so you can see what
+  // you're pressing underneath (taps always go through it).
   // shell.padFill(key, share) shows a cooldown on a touch button, filling up
   // from 0 to 1; a meter with data-pad in the HUD is hidden while touch
   // buttons are showing, since the button says the same thing.
@@ -452,6 +458,7 @@
     root.textContent = "";
     root.classList.add("kit");
     if (game.smallCallouts) root.classList.add("kit-small-callouts");
+    if (game.callouts === "high") root.classList.add("kit-callouts-high");
     root.setAttribute("data-kit", "title");
 
     var canvas = el("canvas", "kit-canvas");
@@ -545,6 +552,10 @@
     var pauseActions = el("div", "kit-actions");
     var resumeBtn = el("button", "btn", "Resume");
     resumeBtn.type = "button";
+    // on a touch screen that left full-window mid-round: the way back in,
+    // put in front of Resume only then
+    var fullAgainBtn = el("button", "btn kit-full-again", "Back to full screen");
+    fullAgainBtn.type = "button";
     var restartBtn = el("button", "kit-quiet", "Restart");
     restartBtn.type = "button";
     var quitBtn = el("button", "kit-quiet", "Quit to title");
@@ -622,7 +633,8 @@
       next: function () { countdown(); },
       announce: announce,
       padFill: padFill,
-      brief: brief
+      brief: brief,
+      placeCallouts: placeCallouts
     };
 
     // Show a notice card for a few seconds: { title, text, ms }. Screen
@@ -632,9 +644,46 @@
       briefTitle.textContent = opts.title || "";
       briefText.textContent = opts.text || "";
       briefBox.classList.add("is-on");
+      briefBox.classList.remove("is-under");
       announce((opts.title ? opts.title + ". " : "") + (opts.text || ""));
+      briefLeft = opts.ms || 6500;
+      if (state === "paused") window.clearTimeout(briefTimer);
+      else briefRun();
+    }
+    // The notice's clock: it only counts down while the game isn't paused
+    var briefLeft = 0, briefFrom = 0;
+    function briefRun() {
       window.clearTimeout(briefTimer);
-      briefTimer = window.setTimeout(function () { briefBox.classList.remove("is-on"); }, opts.ms || 6500);
+      if (briefLeft <= 0) return;
+      briefFrom = Date.now();
+      briefTimer = window.setTimeout(function () {
+        briefLeft = 0;
+        briefBox.classList.remove("is-on", "is-under");
+      }, briefLeft);
+    }
+    function briefHold() {
+      if (briefLeft <= 0) return;
+      window.clearTimeout(briefTimer);
+      briefLeft = Math.max(1, briefLeft - (Date.now() - briefFrom));
+    }
+    // A finger or the pointer over the notice: it fades, so what's under it shows
+    function briefUnder(x, y) {
+      var on = false;
+      if (x != null && briefLeft > 0) {
+        var r = briefBox.getBoundingClientRect();
+        on = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+      }
+      briefBox.classList.toggle("is-under", on);
+    }
+
+    // Where in-game stamps land: { top, left, right } in CSS pixels from the
+    // screen's edges (or any CSS length). Left out, a side stays where it was.
+    function placeCallouts(at) {
+      at = at || {};
+      ["top", "left", "right"].forEach(function (side) {
+        if (at[side] == null) return;
+        root.style.setProperty("--kit-callouts-" + side, typeof at[side] === "number" ? Math.round(at[side]) + "px" : at[side]);
+      });
     }
 
     // Keep the best result. Higher is better unless lower is set (times).
@@ -744,6 +793,7 @@
 
     function restart() {
       clearTimers();
+      endBrief();
       interPick = null;
       callouts.textContent = "";
       newRound();
@@ -755,6 +805,7 @@
 
     function quit() {
       clearTimers();
+      endBrief();
       interPick = null;
       callouts.textContent = "";
       count.textContent = "";
@@ -821,6 +872,12 @@
       interPick(i);
     }
 
+    function endBrief() {
+      briefLeft = 0;
+      window.clearTimeout(briefTimer);
+      briefBox.classList.remove("is-on", "is-under");
+    }
+
     function clearTimers() {
       countTimers.forEach(window.clearTimeout);
       countTimers = [];
@@ -848,21 +905,27 @@
       countTimers.push(window.setTimeout(function () { count.textContent = ""; }, 250 + 3 * gap + 600));
     }
 
-    function pause() {
+    function pause(offerFull) {
       if (state !== "playing" && state !== "countdown") return;
       pausedFrom = state;
       clearTimers();
+      briefHold();
       count.textContent = "";
+      if (offerFull) pauseActions.insertBefore(fullAgainBtn, resumeBtn);
+      else if (fullAgainBtn.parentNode) pauseActions.removeChild(fullAgainBtn);
+      resumeBtn.className = offerFull ? "kit-quiet" : "btn";   // one red button
       setState("paused");
       sound.suspend();
-      resumeBtn.focus({ preventScroll: true });
+      (offerFull ? fullAgainBtn : resumeBtn).focus({ preventScroll: true });
     }
 
     function resume() {
       if (state !== "paused") return;
       sound.resume();
       last = 0;
-      if (pausedFrom === "countdown") countdown();
+      briefRun();
+      resumeBtn.className = "btn";
+      if (pausedFrom === "countdown" || game.countIn) countdown();
       else setState("playing");
       root.focus({ preventScroll: true });
     }
@@ -905,6 +968,7 @@
     startBtn.addEventListener("click", begin);
     againBtn.addEventListener("click", restart);
     resumeBtn.addEventListener("click", resume);
+    fullAgainBtn.addEventListener("click", function () { enterFull(); resume(); });
     restartBtn.addEventListener("click", restart);
     quitBtn.addEventListener("click", quit);
     shareBtn.addEventListener("click", shareResult);
@@ -971,8 +1035,14 @@
     function isFull() {
       return !!(document.fullscreenElement || document.webkitFullscreenElement) || screen.classList.contains("kit-full");
     }
+    // On a touch screen, leaving full-window mid-round (the back gesture, the
+    // system's own exit, the button) pauses, with a way back in: the screen
+    // has just changed shape under the player's thumbs.
+    var wasFull = false;
     function paintFull() {
       var f = isFull();
+      if (wasFull && !f && coarse && !flags.clip) pause(true);
+      wasFull = f;
       fullBtn.innerHTML = f ? ICONS.unfull : ICONS.full;
       fullBtn.setAttribute("aria-label", f ? "Exit fullscreen" : "Fullscreen");
     }
@@ -995,7 +1065,7 @@
       else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
       screen.classList.remove("kit-full");
       document.documentElement.classList.remove("kit-lock");
-      paintFull();
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) paintFull();
     }
     fullBtn.addEventListener("click", function (e) {
       if (isFull()) exitFull(); else enterFull();
@@ -1106,6 +1176,7 @@
       });
     }
     root.addEventListener("pointerdown", function (e) {
+      briefUnder(e.clientX, e.clientY);
       if (e.pointerType === "mouse") {
         if (aimable(e)) {
           aimAt(e);
@@ -1130,6 +1201,7 @@
       }
     });
     root.addEventListener("pointermove", function (e) {
+      if (e.pointerType === "mouse" || e.pointerId === aimPointer || e.pointerId in pointers) briefUnder(e.clientX, e.clientY);
       if (e.pointerId === aimPointer || (e.pointerType === "mouse" && aimable(e))) {
         aimAt(e);
         if (e.pointerType === "mouse") input.mode = "mouse";
@@ -1140,12 +1212,14 @@
       syncPads();
     });
     function lift(e) {
+      if (e.pointerType !== "mouse") briefUnder(null);
       if (e.pointerId === aimPointer) { aimPointer = null; input.aim.on = false; }
       if (!(e.pointerId in pointers)) return;
       delete pointers[e.pointerId];
       syncPads();
     }
     root.addEventListener("pointerup", lift);
+    root.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") briefUnder(null); });
     root.addEventListener("pointercancel", lift);
     // stop the long-press menu on the buttons
     touch.addEventListener("contextmenu", function (e) { e.preventDefault(); });
