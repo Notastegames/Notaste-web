@@ -1137,6 +1137,8 @@
       }
       if (e.code === "KeyM") { sound.toggle(); paintSound(); return; }
       var code = codeOf(e);
+      // Page Down and the like would scroll the game away mid-round, and that pauses it
+      if (!code && active[state] && /^(PageUp|PageDown|Home|End)$/.test(e.key)) e.preventDefault();
       if (!code) return;
       if (active[state]) e.preventDefault();
       keyHeld[keyToAction[code]] = true;
