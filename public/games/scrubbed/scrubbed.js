@@ -1057,6 +1057,8 @@
       fx = []; debris = []; puffs = [];
       cam.snap = true;
       startStage();
+      // the HUD only repaints in play, so show the new stage before its countdown
+      paintHud(0);
       shell.next();
     });
   }
