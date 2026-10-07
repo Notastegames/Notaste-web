@@ -188,7 +188,7 @@
     if (i === 1) return "Fact checks bounce it back at the cannon. Trending posts pay triple." + target;
     if (i === 2) {
       return run.mods.noMod ? "No Moderator. Twice the fact checks, out of spite." + target
-        : "A Moderator with a tiny net. He follows your aim. Go over or under him." + target;
+        : "A Moderator with a tiny net. He follows your aim. Go under him with a short charge, or over him." + target;
     }
     return "Everything at once, faster, and fewer real people. Beat it for approval." + target;
   }
@@ -1338,15 +1338,15 @@
       '<div class="kit-hud-tl">' +
         '<p class="kit-stat"><small data-stage-label>Stage</small><span data-stage>1/3</span></p>' +
         '<p class="kit-mono" data-time>0:35</p>' +
-        '<p class="kit-meter" data-target><span class="kit-meter-label" data-target-label>Target</span><span class="kit-meter-bar"><span data-target-bar></span></span></p>' +
+        '<p class="kit-meter" data-target><span class="kit-meter-label" data-target-label>Target</span><span class="kit-sr" data-target-n></span><span class="kit-meter-bar"><span data-target-bar></span></span></p>' +
         '<p class="kit-meter" data-bots data-pad style="display: none"><span class="kit-meter-label">Bots</span><span class="kit-meter-bar"><span data-bots-bar></span></span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
-        '<p class="kit-stat kit-stat-big"><span data-score>0</span></p>' +
+        '<p class="kit-stat kit-stat-big"><span class="kit-sr">Engagement</span><span data-score>0</span></p>' +
         '<p class="kit-stat"><small>Chain</small><span data-chain>0</span></p>' +
       '</div>';
     hudEls = {};
-    ["stage", "stage-label", "time", "target", "target-label", "target-bar", "bots", "bots-bar", "score", "chain"].forEach(function (k) {
+    ["stage", "stage-label", "time", "target", "target-label", "target-n", "target-bar", "bots", "bots-bar", "score", "chain"].forEach(function (k) {
       hudEls[k] = shell.hud.querySelector("[data-" + k + "]");
     });
     hudEls.bots.style.display = run && run.mods.bots ? "" : "none";
@@ -1368,6 +1368,7 @@
     setWidth(hudEls["target-bar"], run.stageScore / target);
     var met = run.stageScore >= target;
     setText(hudEls["target-label"], met ? "Target: met" : "Target");
+    setText(hudEls["target-n"], fmt(run.stageScore) + " of " + fmt(target));
     hudEls.target.classList.toggle("is-full", met);
     setText(hudEls.score, fmt(shown));
     setText(hudEls.chain, run.chain ? run.chain + " x" + chainMult().toFixed(2).replace(/0$/, "") : "0");
