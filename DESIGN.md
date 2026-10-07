@@ -578,7 +578,7 @@ Thirty days of nothing but fast food, and every meal has to be processed. Your i
 
 **What only it does**
 - **One action per desk, said everywhere.** Left, right and down (or A, D and S) send the plate to the Liver, the Pancreas and the Kidneys. A click or tap on a desk does the same, and so does a swipe from the plate. Flush is Space, up, F or Enter, a click on the hatch, or the Flush button. The desk signs show the key while you're on keys.
-- **Teaching arrows:** for the first five items of breakfast a bobbing arrow by the plate points at the right desk with its key (or Tap, or Click), and again for the first salt, and the first time Flush would save a spill (on a touch screen that one points at the Flush button).
+- **Teaching arrows:** for the first five items of breakfast a bobbing arrow by the plate points at the right desk with its key (or Tap, or Click), and again for the first salt, the first lettuce (at whichever open desk is least busy, since any of them takes it), and the first time Flush would save a spill (on a touch screen that one points at the Flush button).
 - **The chute** shows what's coming with its stickers on; when it's nearly full its mouth flashes red, and full it says Chute full. One more, and the plate goes down whole.
 - **Today's run** serves the same food in the same order for everyone (each meal has its own seeded stream), until the answers between meals change the mix. The day number is today's date: "Day 6 of 30", and on the 31st, "Day 31 of 30".
 - **Results** are the doctor's note: the day, whether you made it to bed or where you were signed off ("Signed off at dinner."), the score, what was filed, what went wrong and how bad the pipes got. The share line: "day 6 of 30, 7,710 points, made it to bed".
