@@ -35,7 +35,7 @@
       ],
       caption: "Left on the step",
       track: { mins: [12, 47], path: [[104, 50], [50, 50], [50, 20], [20, 20], [20, 50], [35, 50]] },
-      brief: "Your drink never came. Read what it says, then pick the reply that doesn't let it off. Anything that plays along drains your battery."
+      brief: "Your drink never came. Get the distance to a human to 0%. Read what it says, then pick the reply that doesn't let it off. Anything that plays along drains your battery."
     },
     {
       key: "chips", name: "The cold chips", short: "the chips", value: 3.20,
