@@ -405,18 +405,21 @@
     L.zone = { l: zoneL, r: zoneR };
     L.callouts = "";
     placeCallouts();
+    // the notice card sits just above the strip, over the bottom row (nobody
+    // starts typing under it), so the server and Mute thread stay in sight
+    var card = root.querySelector(".kit-brief");
+    if (card) card.style.bottom = (strip + 4) + "px";
     A.init(T, L.k * DPR);
     bg = null;
   }
 
   // Callouts never land on the office, where a forward has just set off the
   // top row: they go on the strip, between the server and Mute thread, or
-  // where that's too narrow (a phone) or the notice card is on it, up in the
-  // HUD's row
+  // where that's too narrow (a phone), up in the HUD's row
   function placeCallouts() {
     var cl = root.querySelector(".kit-callouts");
     if (!cl || !L.zone) return;
-    var low = L.zone.r - L.zone.l >= 190 && !briefOn();
+    var low = L.zone.r - L.zone.l >= 190;
     var key = low ? "low" : "high";
     if (L.callouts === key) return;
     L.callouts = key;
