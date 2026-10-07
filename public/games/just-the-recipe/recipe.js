@@ -332,8 +332,11 @@
     if (b && b.state === "up") { var btn = buttonAt(b, x); if (btn) return { what: "button", b: b, btn: btn }; }
     var v = G.video;
     if (v && v.state === "dock" && onVideoX(v, x)) return { what: "videoX" };
+    if (v && v.state === "dock" && Math.abs(v.x - x) < VIDEO_W / 2 + TIP) return { what: "video" };
     var j = jumpAt(x, y);
     if (j) return { what: "jump", j: j };
+    var a = advertAt(x, y);
+    if (a) return { what: "advert", a: a };
     return null;
   }
 
@@ -828,7 +831,8 @@
     G.endT = 0;
     run.expired = true;
     run.read += G.read;
-    run.total += G.storyTotal;
+    // only the story you got past counts, as on the HUD
+    run.total += passedStory();
     shell.callout("Session expired", { tilt: 5 });
     shell.sound.tone(300, 0.6, { type: "sawtooth", slide: 70, vol: 0.1 });
     end();
@@ -1166,7 +1170,8 @@
   }
   function setText(node, text) { if (node.textContent !== text) node.textContent = text; }
   function paintHud() {
-    if (!hudEls || !G) return;
+    // once the page is over the HUD keeps what it last said in play
+    if (!hudEls || !G || G.over) return;
     var s = Math.floor(run.time);
     setText(hudEls.course, G.def.name);
     setText(hudEls.of, (G.n + 1) + "/3");
@@ -1321,8 +1326,8 @@
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     if (++boxAge > 60) { boxes = null; boxAge = 0; }
     var placed = keepClear();
-    // no arrow once you're already on the thing it points at
-    if (hint && G.hover && Math.abs(hint.x - hand.x) < 6) hint = null;
+    // no arrow once you're already on the thing it points at (never an advert or the video)
+    if (hint && G.hover && G.hover.what !== "advert" && G.hover.what !== "video" && Math.abs(hint.x - hand.x) < 6) hint = null;
     if (hint && shell.state() === "playing" && !G.tab) {
       var ax = clamp(hint.x, 14, 86);
       placed.push({ x: OX + (ax - 14) * U, y: (hint.y - 24) * U, w: 28 * U, h: 24 * U });
@@ -2000,6 +2005,8 @@
     else if (hv.what === "button") { x0 = hv.btn.x0; x1 = hv.btn.x1; y0 = HY + hv.b.y + hv.b.row - G.scroll - (hv.btn.type === "accept" ? 1.6 : 0); y1 = y0 + hv.b.rowH + (hv.btn.type === "accept" ? 3.2 : 0); }
     else if (hv.what === "videoX") { var vs = videoX(G.video); x0 = vs[0]; x1 = vs[1]; y0 = HY - 0.4; y1 = y0 + (vs[1] - vs[0]); }
     else if (hv.what === "jump") { x0 = hv.j.x0; x1 = hv.j.x1; y0 = HY + hv.j.y - G.scroll; y1 = y0 + hv.j.h; }
+    else if (hv.what === "video") { x0 = G.video.x - VIDEO_W / 2; x1 = x0 + VIDEO_W; y0 = HY + G.video.off; y1 = y0 + VIDEO_H; }
+    else if (hv.what === "advert") { x0 = hv.a.x0; x1 = hv.a.x1; y0 = HY + hv.a.y - G.scroll; y1 = y0 + hv.a.h; }
     else return;
     CA.rrect(c, x0 - 1.2, y0 - 1.2, x1 - x0 + 2.4, y1 - y0 + 2.4, 1.6);
     CA.ink(c, 1.6, T.ink);
