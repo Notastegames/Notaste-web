@@ -709,6 +709,8 @@
     var need = it.kinds[it.step];
     var id = need === "leaf" ? null : deskFor(need);
     if (run.stage === 0 && G.stageFiled < 5 && id) G.hint[id] = 0.2;
+    // the first lettuce: any open desk takes it, so point at the least busy
+    if (need === "leaf" && !run.leaves) G.hint[it.leafTo = it.leafTo || leafDesk()] = 0.2;
     if (id === "kidneys" && !G.taught.kidneys) {
       G.hint.kidneys = 0.2;
       if (G.desks.kidneys.tray.length) G.taught.kidneys = true;
@@ -1301,7 +1303,18 @@
     } else {
       text = "Half the stickers have come off. A doughnut is sugar. You know this. Big items have two stickers: sort them twice.";
     }
-    shell.brief({ title: info().name + ", " + clockText(info().at), text: text, ms: N.flags.clip ? 3600 : run.stage === 0 ? 8000 : 6800 });
+    var card = { title: info().name + ", " + clockText(info().at), text: text, ms: N.flags.clip ? 3600 : run.stage === 0 ? 8000 : 6800 };
+    shell.brief(card);
+    // it sits at the bottom, over the Kidneys once they're open and over the
+    // plate on a phone in the page: then it comes down as the first item
+    // lands (Go is 2.35s after the countdown starts), so it's never in the way
+    if (!N.flags.clip && (run.stage > 0 || briefOverPlate())) { card.ms = 3200; shell.brief(card); }
+  }
+  function briefOverPlate() {
+    var brief = root.querySelector(".kit-brief");
+    if (!brief || !L) return false;
+    var r = brief.getBoundingClientRect(), base = root.getBoundingClientRect();
+    return r.height > 0 && r.top - base.top < (L.plate.y + L.plate.r) * U;
   }
 
   // ---------------------------------------------------------------------------
