@@ -425,6 +425,10 @@
     welcome: function (p) {
       var b = menuBeat();
       var beats = 3;
+      // screen readers get the note as the call starts
+      cue(p.t0, function () {
+        shell.announce("My problem: " + noteLines().map(function (l) { return l.text + "."; }).join(" "));
+      });
       speak(p.t0, (beats - 0.4) * b, "voice", info().welcome);
       metronome(p.t0, beats, b);
       p.end = p.t0 + beats * b;
@@ -455,6 +459,8 @@
         var it = { t: t, end: t + beats * b, role: role, text: text, k: k, pass: pass };
         var said = speak(t, beats * b, "voice", text);
         it.digitAt = said.length ? said[0].t : null;
+        // and each question and option as it's read, until you answer
+        if (role === "q" || role === "opt") cue(t, function () { if (ph === p) shell.announce(text); });
         p.items.push(it);
         t += beats * b;
         return it;
@@ -1765,11 +1771,11 @@
         D.line(c, [[size * 0.7 + lw2 + size * 0.35, ly], [size * 0.7 + lw2 + size * 0.65, ly + size * 0.3], [size * 1.15 + lw2 + size * 0.5, ly - size * 0.42]], size * 0.16, T.ink);
       }
       if (v.kind === "level" && i === v.li) {
-        // ringed in red: the question being asked
+        // ringed in red: the question being asked, kept on the paper at the left
         c.save();
         D.ink(c, size * 0.13, T.red);
         c.beginPath();
-        c.ellipse(size * 0.7 + lw2 / 2, ly - size * 0.05, lw2 * 0.56 + size * 0.9, size * 0.76, -0.02, 0, Math.PI * 2);
+        c.ellipse(lw2 * 0.53 + size * 0.86, ly - size * 0.05, lw2 * 0.53 + size * 0.74, size * 0.76, -0.02, 0, Math.PI * 2);
         c.stroke();
         c.restore();
         // with a pen, your number goes on the note as it's read
