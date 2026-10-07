@@ -318,7 +318,7 @@
     "Nobody noticed you weren't listening. That's called a career.",
     "You got through the day. A follow-up has been booked to discuss it.",
     "You were removed from the call. Nobody has noticed yet.",
-    ["Removed from a fifteen-minute stand-up. It's still going.", "Removed from the team meeting. Your actions have been reassigned to you."]
+    ["A fifteen-minute stand-up. It's still going.", "Your actions have been reassigned to you."]
   ];
 
   // ---------------------------------------------------------------------------
@@ -1761,7 +1761,7 @@
       '<div class="kit-hud-tl">' +
         '<p class="kit-stat"><small>Meeting</small><span data-stage>1/4</span></p>' +
         '<p class="om-line"><span class="kit-mono" data-clock>09:00</span>' +
-        '<span class="kit-stat om-rep" data-rep><small>Reputation</small><span class="om-pips">' + pips + '</span></span></p>' +
+        '<span class="kit-stat om-rep" data-rep role="img"><small>Reputation</small><span class="om-pips">' + pips + '</span></span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big"><span data-score>0</span><small data-mult></small></p>' +
