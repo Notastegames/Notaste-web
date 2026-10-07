@@ -971,6 +971,17 @@
     if (s >= 0) { focus = s; pick(s); }
   }
   root.addEventListener("pointerdown", onPointer);
+  // The tracking screen says any key skips it, so any key does, not only the
+  // game's own (pause, sound, Tab, and Enter or Space on a focused button keep their jobs)
+  document.addEventListener("keydown", function (e) {
+    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!shell || shell.state() !== "playing" || !sg || sg.phase !== "track") return;
+    if (e.code === "KeyP" || e.code === "KeyM" || /^(Escape|Tab|Shift|Control|Alt|Meta|CapsLock)$/.test(e.key)) return;
+    var t = e.target;
+    if ((e.key === "Enter" || e.key === " ") && t && t.closest && t.closest("button, a")) return;
+    inputMode = "keys";
+    if (sg.trackT > 0.4) beginChat();
+  });
   root.addEventListener("pointermove", function (e) {
     if (e.pointerType !== "mouse" || !sg) { hover = -1; return; }
     var box = root.getBoundingClientRect();
@@ -1130,7 +1141,8 @@
     if (c.kind === "no") {
       var minW = coarse ? 64 : 52;
       var w0 = Math.max(minW, r.w * 0.6);
-      r.w = Math.max(minW * 0.8, w0 * (1 - 0.55 * share));
+      // played with keys, it stops shrinking while its number still fits
+      r.w = Math.max(inputMode === "keys" ? 70 : minW * 0.8, w0 * (1 - 0.55 * share));
       var lane = tr.w - r.w;
       r.x = tr.x + (calm ? lane / 2 : lane * (0.5 + 0.5 * Math.sin(ex.t * 2.3 + 0.6)));
     }
