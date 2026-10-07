@@ -415,16 +415,17 @@
 
   // Callouts never land on the office, where a forward has just set off the
   // top row: they go on the strip, between the server and Mute thread, or
-  // where that's too narrow (a phone), up in the HUD's row
+  // where that's too narrow (a phone), across the whole strip. Never up in
+  // the HUD's row, where the pause and sound buttons sit on top of them.
   function placeCallouts() {
     var cl = root.querySelector(".kit-callouts");
     if (!cl || !L.zone) return;
     var low = L.zone.r - L.zone.l >= 190;
-    var key = low ? "low" : "high";
+    var key = low ? "low" : "wide";
     if (L.callouts === key) return;
     L.callouts = key;
-    cl.style.top = low ? "auto" : "2px";
-    cl.style.bottom = low ? Math.max(4, Math.round(L.strip / 2 - 17)) + "px" : "auto";
+    cl.style.top = "auto";
+    cl.style.bottom = Math.max(4, Math.round(L.strip / 2 - 17)) + "px";
     cl.style.left = (low ? L.zone.l : 6) + "px";
     cl.style.right = (low ? W - L.zone.r : 6) + "px";
   }
