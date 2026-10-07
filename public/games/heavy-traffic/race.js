@@ -444,8 +444,11 @@
 
     // going the wrong way, sitting in the gravel, or stuck against a barrier
     if (k.player && !k.done) {
+      // moving backwards along the track with the nose pointing backwards too:
+      // reversing out of the gravel facing the right way doesn't count
       var along = k.vx * track.dx[k.idx] + k.vy * track.dy[k.idx];
-      k.wrong = along < -40 ? k.wrong + dt : 0;
+      var facing = Math.cos(k.a) * track.dx[k.idx] + Math.sin(k.a) * track.dy[k.idx];
+      k.wrong = along < -40 && facing < 0 ? k.wrong + dt : 0;
       if (k.wrong > 1.2) { k.wrong = -2; say("Wrong way", 2); }
       k.gravel = k.offroad ? k.gravel + dt : 0;
       if (k.gravel > 1.6) { k.gravel = -6; say("That's gravel", 0); }
