@@ -239,6 +239,9 @@
     var tag = rr(x - tw / 2, ay - size * 2.75, tw, size * 1.15, size * 0.25);
     solid(c, tag, T.accent, size * 0.14);
     text(c, word, x, ay - size * 2.17, size * 0.8, { colour: T.ink });
+    // its box, bob and all, for a tap
+    var w = Math.max(tw, size * 1.5);
+    return { x: x - w / 2, y: y - size * 3.4, w: w, h: size * 3.25 };
   }
 
   // Red corner brackets round a box (the thing that's live right now)

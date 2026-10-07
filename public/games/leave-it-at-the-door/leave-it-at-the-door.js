@@ -80,7 +80,7 @@
   var STAGES = [
     { key: "lunch", name: "Lunch", start: 12 * 60, len: 40, gap: [4.9, 5.9], types: { bell: 3, knock: 3, shout: 2, code: 2 },
       k: 1.7, slack: 5, shrink: 0.3, batch: 0.15, prep: [1.6, 3.4],
-      brief: "Orders arrive by themselves. Ride to the pickup, then the door: arrow keys steer, or tap where to go. At the door, read the note and press when it shows what they asked for." },
+      brief: "Orders arrive by themselves. Ride to the pickup, then the door: 1 to 4 rides to an order on the phone, arrow keys steer, or tap where to go. At the door, read the note and press when it shows what they asked for." },
     { key: "rain", name: "Rain", start: 15 * 60, len: 40, gap: [4.3, 5.3], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 3 },
       k: 1.65, slack: 5, shrink: 0.45, batch: 0.22, prep: [1.5, 3.2], rain: true,
       brief: "Rain. Press your turn before the junction or you'll skid past it. Puddles soak the food. The app has added a 10p weather bonus for you, and a rain fee for them." },
@@ -1512,8 +1512,11 @@
       if (b) { target = pinBoxes[stopOf(b).id]; word = "Deliver"; }
     }
     if (!target || !target.box) return;
-    var bx = target.box;
-    A.arrow(c, bx.x + bx.w / 2, bx.y - size * 0.1, word, t, size, shell.reduceMotion);
+    var bx = target.box, st = target.st;
+    var ab = A.arrow(c, bx.x + bx.w / 2, bx.y - size * 0.1, word, t, size, shell.reduceMotion);
+    // the arrow is part of the pin: tapping it rides there too
+    hits.push({ x: L.mapX + ab.x * L.S, y: L.mapY + ab.y * L.S, w: ab.w * L.S, h: ab.h * L.S,
+                fn: function () { routeTo({ e: st.e, s: st.s }, st.id); } });
   }
   function coarse() { return shell.input.mode === "touch"; }
 
