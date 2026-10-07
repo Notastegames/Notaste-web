@@ -279,6 +279,12 @@
       pits: p.pits.map(function (s) { var q = at(s); q.rx = rx; q.ry = 40; return q; })
     };
     G.place.fees = { x: G.place.site.x + (p.site.x > 0.5 ? -60 : 60), y: G.place.site.y + 42 };
+    // on a short field the HUD's meters would sit on the bricks, their sign
+    // and the arrow over them, so the pile walks down until they clear
+    var q = G.place.quarry;
+    hudBoxes().forEach(function (r) {
+      if ((q.x - 60) * SC < r.right && (q.x + 60) * SC > r.left) q.y = Math.max(q.y, Math.min((r.bottom + 4) / SC + 86, WH * 0.8));
+    });
     G.rivals.forEach(function (r) { r.place(); });
   }
 
@@ -1831,7 +1837,12 @@
   function render() {
     if (!ctx || !G.light || !run) return;
     // the stage's notice goes up with the countdown, so it's read before Go
-    if (!noticed && (shell.state() === "countdown" || shell.state() === "playing")) { noticed = true; notice(); }
+    if (!noticed && (shell.state() === "countdown" || shell.state() === "playing")) {
+      noticed = true;
+      // the HUD is up now, so lay the field out again round it
+      boxes = null; layout(); bg = null;
+      notice();
+    }
     if (!hudEls) { buildHud(); paintHud(); }
     if (!bg) bg = buildGround();
     var c = ctx;
@@ -1878,6 +1889,10 @@
     if (arrow) {
       arrow.x = clamp(arrow.x, 44, G.WW - 44);
       arrow.y = Math.max(48, arrow.y);
+      // the arrow and its word stay clear of the HUD and the buttons
+      hudBoxes().forEach(function (r) {
+        if ((arrow.x - 40) * SC < r.right && (arrow.x + 40) * SC > r.left) arrow.y = Math.max(arrow.y, (r.bottom + 4) / SC + 34);
+      });
       placed.push({ x: (arrow.x - 40) * SC, y: (arrow.y - 34) * SC, w: 80 * SC, h: 42 * SC });
     }
     bubbles.forEach(function (b) { drawBubble(c, b, placed); });
