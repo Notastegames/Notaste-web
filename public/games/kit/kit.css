@@ -289,7 +289,8 @@
   .kit-brief.is-on { transform: translate(-50%, 0); }
 }
 #game-root.kit-touching:has(.kit-pad) .kit-brief { bottom: 5.4rem; }   /* only lifted over touch buttons */
-#game-root:not([data-kit="playing"]):not([data-kit="countdown"]):not([data-kit="paused"]) .kit-brief { display: none; }
+/* hidden behind the pause screen too (its clock is held, and it comes back on Resume) */
+#game-root:not([data-kit="playing"]):not([data-kit="countdown"]) .kit-brief { display: none; }
 .kit-brief-title {
   margin: 0;
   font-family: var(--display);
@@ -467,6 +468,8 @@
 }
 .kit-choice:hover,
 .kit-choice:focus-visible { border-color: var(--accent, var(--paper)); outline: none; }
+/* one card lit at a time: the pointer's, while it's over the cards */
+.kit-choices:hover .kit-choice:focus-visible:not(:hover) { border-color: var(--ash); }
 .kit-choice-label {
   font-family: var(--display);
   font-size: 1.1rem;

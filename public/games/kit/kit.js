@@ -194,6 +194,9 @@
     return e;
   }
 
+  // A sentence for screen readers: a full stop at the end, unless it has one
+  function stop(text) { return /[.?!:]$/.test(text) ? text : text + "."; }
+
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
   // 83456 -> "1:23.46"
@@ -719,9 +722,14 @@
       p.el.classList.toggle("is-ready", v >= 1);
     }
 
+    // when the screen now showing came up (see the keydown guard)
+    var shownAt = 0;
+    var MASH_GAP = 400;
     function setState(next) {
+      if (next !== state) shownAt = performance.now();
       state = next;
       root.setAttribute("data-kit", next);
+      if (next !== "paused") pauseBtn.setAttribute("aria-label", "Pause");
       if (next === "title") screen.classList.remove("kit-live");
       else screen.classList.add("kit-live");
     }
@@ -809,6 +817,7 @@
       interPick = null;
       callouts.textContent = "";
       count.textContent = "";
+      live.textContent = "";   // nothing from the round left for screen readers on the title
       stopLoop();
       exitFull();
       setState("title");
@@ -862,7 +871,7 @@
           if (flags.autopilot) {
             autoPick = window.setTimeout(function () { pickChoice(Math.floor(Math.random() * buttons.length)); }, 2600);
           }
-          announce((opts.heading || "") + " " + (opts.ask || "") + " " + choices.map(function (c) { return c.label + (c.detail ? ": " + c.detail : "") + "."; }).join(" "));
+          announce((opts.heading || "") + " " + (opts.ask || "") + " " + choices.map(function (c) { return stop(c.label + (c.detail ? ": " + c.detail : "")); }).join(" "));
         }, opts.delay != null ? opts.delay : 1200);
       });
     }
@@ -911,10 +920,12 @@
       clearTimers();
       briefHold();
       count.textContent = "";
+      callouts.textContent = "";   // a stamp from the round mustn't sit behind the pause screen
       if (offerFull) pauseActions.insertBefore(fullAgainBtn, resumeBtn);
       else if (fullAgainBtn.parentNode) pauseActions.removeChild(fullAgainBtn);
       resumeBtn.className = offerFull ? "kit-quiet" : "btn";   // one red button
       setState("paused");
+      pauseBtn.setAttribute("aria-label", "Resume");
       sound.suspend();
       (offerFull ? fullAgainBtn : resumeBtn).focus({ preventScroll: true });
     }
@@ -961,7 +972,7 @@
         setState("results");
         sound.stamp(0.15);
         againBtn.focus({ preventScroll: true });
-        announce(result.heading + " " + (result.stats || []).map(function (r) { return r.label + " " + r.value + "."; }).join(" "));
+        announce(result.heading + " " + (result.stats || []).map(function (r) { return stop(r.label + " " + r.value); }).join(" "));
       }, result.delay != null ? result.delay : 1400);
     }
 
@@ -1089,10 +1100,22 @@
     // A key still held when a screen of buttons comes up (thrust, say, held
     // through the end of a round) mustn't press one: its auto-repeat would go
     // to the button that's just been given focus. Only a fresh press counts.
+    // Nor does Space or Enter mashed through the end of a stage: it would pick
+    // the first choice, or start another round, before anyone has read the
+    // screen. On a results or between-stages screen, a press counts once the
+    // player has let go for a moment after it came up.
+    var burstFrom = 0, lastPress = 0;
     document.addEventListener("keydown", function (e) {
-      if (!e.repeat || (e.key !== " " && e.key !== "Enter")) return;
+      if (e.key !== " " && e.key !== "Enter") return;
+      var now = performance.now();
+      if (!e.repeat) {
+        if (now - lastPress > MASH_GAP) burstFrom = now;
+        lastPress = now;
+      }
       var target = e.target;
-      if (target && target.closest && target.closest("button, a") && root.contains(target)) e.preventDefault();
+      if (!(target && target.closest && target.closest("button, a") && root.contains(target))) return;
+      var mashed = (state === "results" || state === "interlude") && burstFrom < shownAt + MASH_GAP;
+      if (e.repeat || mashed) e.preventDefault();
     }, true);
 
     document.addEventListener("keydown", function (e) {
@@ -1107,7 +1130,8 @@
       var target = e.target;
       if ((e.key === "Enter" || e.key === " ") && target && target.closest && target.closest("button, a")) return;
       if (e.code === "KeyP" || e.key === "Escape") {
-        if (state === "paused") resume(); else pause();
+        // a held P only counts once: its auto-repeat would pause and resume in turn
+        if (!e.repeat) { if (state === "paused") resume(); else pause(); }
         e.preventDefault();
         return;
       }
