@@ -334,6 +334,7 @@
     L.kW = 36;
     L.reader = { x: L.kx - L.kW / 2 + 2.2, y: L.belt - 15 };
     L.tmin = 12 / U;                     // 12px, the smallest canvas text, in world units
+    L.roundSign = L.tmin <= 2.6;         // room for the "Round again" sign by the chute
     L.narrow = W < 520;
     // Bev, and the Christmas queue, come a little smaller on a narrow screen,
     // so nobody stands half off the edge of it
@@ -935,6 +936,8 @@
              limit: (stage === 3 ? 4 : stage === 2 ? 4.5 : 5) * mods.lookup, sel: 0, result: null };
     sfx.nag();
     voice("dennis", set.q);
+    // the pictures are canvas only, so read the question and the four out
+    shell.announce(set.q + " " + opts.map(function (o, i) { return (i + 1) + ": " + S.FRUIT[o].name + "."; }).join(" "));
     run.fruit++;
     if (AUTOPILOT) auto.think = 0.7 + Math.random() * 0.5;
   }
@@ -1303,8 +1306,9 @@
     S.init(T || N.tokens(root), U * DPR);
     back = null; front = null; boxes = null;
     // in-game stamps land under the belt, clear of the till's face, its
-    // instructions and the scale (the kit's callout position)
-    root.style.setProperty("--kit-callouts-top", Math.round((L.belt + 12) * U) + "px");
+    // instructions and the scale (the kit's callout position), and under the
+    // "Round again" sign when it's there
+    root.style.setProperty("--kit-callouts-top", Math.round((L.belt + (L.roundSign ? 18.6 : 12)) * U) + "px");
     // keep the belt where it was, relative to the red line
     if (oldSx != null && oldSx !== L.sx) {
       belt.forEach(function (it) { it.x += L.sx - oldSx; });
@@ -1453,7 +1457,7 @@
     S.solid(c, S.rr(L.bagX - L.bagW / 2 - 1.6, y - 1, L.bagW + 3.2, 1.4, 0.4), T.paper, 0.5);
     // a sign by the chute, where there's room for it at a readable size (on a
     // phone the touch buttons have that corner, and the callout says it)
-    if (L.tmin <= 2.6) sign(c, cx + 3.4, y + 15.5, "Round again");
+    if (L.roundSign) sign(c, cx + 3.4, y + 15.5, "Round again");
     // the floor
     c.fillStyle = T.ink;
     c.fillRect(-2, L.floor, WW + 4, WH);
