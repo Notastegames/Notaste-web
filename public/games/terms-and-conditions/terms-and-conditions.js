@@ -691,9 +691,10 @@
         phaseClock = 0;
         speed = 0;
         sfx.ding();
-        // on keys, the highlight goes to the button that matters (Up goes back
-        // to the clauses), and a press in the same instant does nothing
-        if (keyMode) { sel = ACCEPT; jumped = clock; }
+        // the highlight goes to the button that matters, whatever played last,
+        // so a first key press accepts rather than striking a clause (Up goes
+        // back to the clauses), and a press in the same instant does nothing
+        sel = ACCEPT; jumped = clock;
       }
       // pop-ups, part way through
       var progress = scroll / Math.max(1, docH - L.view.h);
@@ -1106,7 +1107,7 @@
         if (!keyMode) {
           keyMode = true;
           hover = -1;
-          if (!popup && sel < 0) { sel = firstOnScreen(); if (pressed.action && phase !== "accept") return; }
+          if (!popup && sel === -1) { sel = firstOnScreen(); if (pressed.action && phase !== "accept") return; }
         }
       }
     }
@@ -1217,6 +1218,8 @@
     keyMode = false;
     if (popup) {
       if (inRect(p.x, p.y, popupRect())) closePopup();
+      // a pop-up still up at the end doesn't stand in the way of Accept
+      else if (phase === "accept" && inRect(p.x, p.y, acceptRects().acceptHit)) { closePopup(); acceptAll(false); }
       return;
     }
     if (phase === "accept") {
