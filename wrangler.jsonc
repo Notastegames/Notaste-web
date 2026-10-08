@@ -3,10 +3,18 @@
   // The Worker name in the Cloudflare dashboard must match "name" below.
   "name": "notaste-web",
   "compatibility_date": "2026-09-01",
+  // Only runs for /api/* (the visit counter). Every other request is a file from ./public.
+  "main": "./worker/index.js",
   "assets": {
     "directory": "./public",
-    "not_found_handling": "404-page"
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
   },
+  // The visit counter's numbers. Table in worker/schema.sql.
+  "d1_databases": [
+    { "binding": "COUNTS", "database_name": "notaste-counts", "database_id": "62a0a7fe-4136-4072-9b37-cc3ceb4fff2b" }
+  ],
   // Needed for the preview link Cloudflare builds for every branch and pull request.
   "previews": {}
 }

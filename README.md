@@ -34,6 +34,7 @@ The site for [notastegames.com](https://notastegames.com): free satirical browse
 | `public/site.webmanifest` | Name and icons for "Add to home screen" |
 | `public/robots.txt`, `sitemap.xml` | For search engines |
 | `public/_headers` | Basic security headers |
+| `worker/index.js`, `worker/schema.sql` | The visit counter: `/api/count` adds 1 to a page's views, rounds started or rounds finished for the day, in the D1 database `notaste-counts`. Pages only send counts on notastegames.com, never with `?autopilot` or `?clip`. Nothing about the visitor is kept |
 | `tools/build_font.py` | Rebuilds the headline font (`python3 tools/build_font.py public/fonts/notaste-display`, needs fonttools) |
 | `tools/preview_artifact.py` | Packages a game page as a playable preview for a Claude artifact (`python3 tools/preview_artifact.py heavy-traffic <folder>`) |
 | `tools/playtest.mjs` | The automatic play-through: checks every page and plays every kit game to the end (`node tools/playtest.mjs`, needs Playwright) |
