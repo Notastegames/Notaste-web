@@ -32,6 +32,22 @@
   var year = document.getElementById("year");
   if (year) year.textContent = String(new Date().getFullYear());
 
+  // ---------- Visit counter ----------
+  // Adds 1 to this page's number for the day: a view, a round started or a
+  // round finished. Sends only the page and the event, never anything about
+  // you (see /privacy/). Only on the live site, and not while the autopilot
+  // plays or a clip is being filmed.
+  function count(event) {
+    if (location.hostname !== "notastegames.com") return;
+    if (/[?&](autopilot|clip)\b/.test(location.search)) return;
+    try {
+      navigator.sendBeacon("/api/count", JSON.stringify({ page: location.pathname, event: event }));
+    } catch (e) {}
+  }
+  // the kit counts rounds through this
+  window.NotasteCount = count;
+  count("view");
+
   // Hide cover art that hasn't been drawn yet, rather than show a broken image
   function hideIfMissing(img) {
     function hide() { img.style.visibility = "hidden"; }

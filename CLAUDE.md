@@ -8,7 +8,7 @@ Free satirical browser games at notastegames.com. Plain static site in `public/`
 
 ## Rules
 
-- No build step and no external libraries, fonts, trackers or third-party requests. Everything ships from `public/`.
+- No build step and no external libraries, fonts, trackers or third-party requests. Everything ships from `public/`, apart from `worker/index.js`, the first-party visit counter (see README).
 - Colours come from the CSS variables in `public/styles.css`. Canvas code reads them with `Notaste.tokens()`; never hard-code a hex value that isn't in `DESIGN.md`.
 - Games use the shared kit in `public/games/kit/` (intro, title/pause/results screens, countdown, callouts, controls, sound, fullscreen, saved bests). Extend the kit rather than rebuilding those parts inside a game.
 - Copy: British English, deadpan, no exclamation marks, no emoji, no em dashes, no punching down, no real people or brands in games.

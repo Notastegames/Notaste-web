@@ -792,6 +792,7 @@
       sound.unlock();
       started = true;
       newRound();
+      if (window.NotasteCount) window.NotasteCount("start");
       // A touch screen goes full-window for the round when the game asks for
       // it, or when the window is too short to show the whole screen (a phone
       // on its side): otherwise the bottom of the game is off the page.
@@ -809,6 +810,7 @@
       interPick = null;
       callouts.textContent = "";
       newRound();
+      if (window.NotasteCount) window.NotasteCount("start");
       game.reset(shell);
       sound.resume();
       startLoop();
@@ -974,6 +976,7 @@
         resultLine.textContent = result.line || "";
         fillStats(resultStats, result.stats);
         setState("results");
+        if (window.NotasteCount) window.NotasteCount("finish");
         sound.stamp(0.15);
         againBtn.focus({ preventScroll: true });
         announce(result.heading + " " + (result.stats || []).map(function (r) { return stop(r.label + " " + r.value); }).join(" "));
