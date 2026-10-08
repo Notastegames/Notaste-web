@@ -509,11 +509,33 @@
   .kit-icon { width: 2.05rem; height: 2.05rem; }
 }
 
-/* Between stages on a short screen, the choices win: the joke line and the
-   numbers go (a full-window phone has the room, so it keeps them) */
-@container kit (max-height: 600px) {
+/* Between stages on a very short screen (the phone-sized square in the page,
+   the clip frame), the choices win: the joke line and the numbers go (a
+   full-window phone has the room, so it keeps them) */
+@container kit (max-height: 420px) {
   .kit-inter .kit-line { display: none; }
   .kit-inter .kit-stats { display: none; }
+}
+/* ...but a short, wide one (a small laptop's in-page cabinet) keeps them, with
+   the choices side by side */
+@container kit (min-width: 441px) and (max-height: 420px) {
+  .kit-inter .kit-line { display: block; max-width: 30rem; font-size: 0.76rem; line-height: 1.3; }
+  .kit-inter .kit-stats { display: flex; gap: 0.1rem 1rem; }
+  .kit-inter .kit-stats dt { font-size: 0.68rem; }
+  .kit-inter .kit-stats dd { font-size: 0.82rem; }
+  .kit-inter .kit-choices { grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); }
+}
+
+/* Between stages on a short screen (a laptop's in-page cabinet): everything
+   tightens so the joke line, the numbers and the choices all fit */
+@container kit (min-height: 421px) and (max-height: 600px) {
+  .kit-inter { gap: 0.5rem; padding: 0.75rem 1rem; }
+  .kit-inter .stamp-label { font-size: 1.3rem; }
+  .kit-inter .kit-heading { margin-top: 0; font-size: 1.6rem; }
+  .kit-inter .kit-line { font-size: 0.82rem; line-height: 1.4; }
+  .kit-inter .kit-stats { gap: 0.25rem 1.2rem; }
+  .kit-inter .kit-stats dd { font-size: 0.92rem; }
+  .kit-inter .kit-choice { padding: 0.5rem 0.65rem 0.55rem; gap: 0.2rem; }
 }
 
 /* A very short screen (a small phone): tighter again */
