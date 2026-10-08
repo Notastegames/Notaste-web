@@ -14,11 +14,11 @@
     { slug: "thonglets",     title: "Thonglets",     accent: "#9a7bc4", stamp: "Classified",     pitch: "Tiny creatures in thongs who think you're their god. You are not a good one.", status: "Playable now. Seven stages and a Judgement Day." },
     { slug: "heavy-traffic", title: "Heavy Traffic", accent: "#4f9e9a", stamp: "Not approved",   pitch: "Kart racing. Large drivers, tiny cars. Physics has given up.", status: "Playable now. Three laps and a button marked Gas." },
     { slug: "slop-cannon",   title: "Slop Cannon",   accent: "#b3bf2a", stamp: "Pending review", pitch: "Fire endless AI slop into a feed. Nobody is checking.", status: "Playable now. Three stages and a final push." },
-    { slug: "reply-all",     title: "Reply All",     accent: "#4fa3e0", stamp: "Not sent",       pitch: "Someone has replied all to the whole company. Now everyone is replying all to say stop replying all.", status: "Playable now." },
-    { slug: "unexpected-item", title: "Unexpected Item", accent: "#4e9a55", stamp: "Approval needed", pitch: "Scan your own shopping. The machine thinks you're stealing it.", status: "Playable now." },
-    { slug: "terms-and-conditions", title: "Terms and Conditions", accent: "#f2b48c", stamp: "Unread", pitch: "Read the terms. Strike out the bad bits. Accept anyway. There is no other button.", status: "Playable now." },
+    { slug: "reply-all",     title: "Reply All",     accent: "#4fa3e0", stamp: "Not sent",       pitch: "Someone has replied all to the whole company. Now everyone is replying all to say stop replying all.", status: "Playable now. Four stages, nine to five." },
+    { slug: "unexpected-item", title: "Unexpected Item", accent: "#4e9a55", stamp: "Approval needed", pitch: "Scan your own shopping. The machine thinks you're stealing it.", status: "Playable now. Three shops and Christmas Eve." },
+    { slug: "terms-and-conditions", title: "Terms and Conditions", accent: "#f2b48c", stamp: "Unread", pitch: "Read the terms. Strike out the bad bits. Accept anyway. There is no other button.", status: "Playable now. Four apps and one button." },
     { slug: "just-the-recipe", title: "Just the Recipe", accent: "#c2643a", stamp: "Rejected", pitch: "Scroll down to the recipe. The page has other ideas.", status: "Playable now. Three courses, one life story." },
-    { slug: "on-mute",       title: "On Mute",       accent: "#7a5cd6", stamp: "You're on mute", pitch: "Four meetings, one spreadsheet and a cat. Nod when you hear your name.", status: "Playable now." },
+    { slug: "on-mute",       title: "On Mute",       accent: "#7a5cd6", stamp: "You're on mute", pitch: "Four meetings, one spreadsheet and a cat. Nod when you hear your name.", status: "Playable now. Four meetings and a cat." },
     { slug: "hold-music",    title: "Hold Music",    accent: "#c452b5", stamp: "Please hold",    pitch: "Phone a company. Remember the menu. Keep time with the hold music.", status: "Playable now. Four calls." },
     { slug: "scrubbed",      title: "Scrubbed",      accent: "#e8892b", stamp: "Good data",      pitch: "Land a billionaire's reusable rocket on a barge. He'll call it a success either way.", status: "Playable now. Five stages, eight rockets." },
     { slug: "thirty-days",   title: "Thirty Days",   accent: "#5ccfa8", stamp: "Go large",       pitch: "Thirty days of fast food. Your insides are a council office, and the in-trays are full.", status: "Playable now. Four meals and a doctor's note." },
@@ -52,7 +52,8 @@
 
   var moreList = document.getElementById("more-list");
   if (moreList) {
-    GAMES.forEach(function (game) {
+    // Newest first, like the homepage grid: GAMES is in the order they launched
+    GAMES.slice().reverse().forEach(function (game) {
       if (game.slug === current) return;
       var li = document.createElement("li");
       var a = el("a", "more-card");
