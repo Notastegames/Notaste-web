@@ -2,7 +2,7 @@
 
 Where the site is going in the short term. Plain order of work, not dates. Change it whenever the plan changes.
 
-Last updated: 6 October 2026.
+Last updated: 8 October 2026.
 
 ---
 
@@ -46,7 +46,7 @@ All ten games meet this list. Heavy Traffic had its polish pass on 6 October and
 - [x] Homepage: replace "Coming soon" and "Three games are being made" with copy that says two games are playable. Fix the homepage share text, which also says "Coming soon".
 - [x] Put a playable game (Thonglets) in the big featured slot until Slop Cannon is ready. "More games" lists playable games first too.
 - [x] A short privacy note at `/privacy/` ("We save your best scores in your browser. That's it."), linked from every footer.
-- [ ] A contact address. Left off for now; add it to the privacy page and footer once there is one.
+- [x] A contact address: speaktoahuman@notastegames.com, in every footer ("Something broken?").
 - [ ] **Owner:** reserve `@notastegames` on TikTok, YouTube, Instagram, X and Bluesky now, so nobody else takes it. Partly done. Don't post or link them yet; the Follow section stays as it is until phase 5.
 
 ## Phase 2: make games cheaper and easier to share
@@ -189,7 +189,7 @@ The realistic big break is one game or one clip catching on. Daily runs, shareab
 ## Owner's decisions
 
 - [ ] Reserve the social handles (phase 1).
-- [ ] A contact address for the site (phase 1).
+- [x] A contact address for the site (phase 1).
 - [x] OK the automatic play-through tool (phase 2).
 - [ ] Pick or swap the game ideas, and their order.
 - [ ] The shop URL for the Shop link (phase 5).
