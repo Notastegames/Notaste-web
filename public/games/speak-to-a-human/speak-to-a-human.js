@@ -466,12 +466,23 @@
     }
     if (ex.kind === "voucher") post("voucher", "50p", {});
     post("bot", ex.bot);
+    // (the order number sits in the chat's header the whole time)
+    readOut((isDave() ? "Dave: " : "Assistant: ") + ex.bot + (ex.kind === "number" ? " Your order number is " + sg.p.no + "." : ""));
     sound("bot");
     if (ex.kind === "survey") sound("survey");
     if (ex.kind === "frustrated") {
       sg.pendingHeal = HEAL.frustrated;
       mood("tilt", ex.timer.dur);
     }
+  }
+
+  // The chat and the replies are only drawn, so read them out: the line, then
+  // each reply with the key that picks it (keys follow the place).
+  function readOut(lead) {
+    var list = ex.chips.filter(function (c) { return !c.gone; }).sort(function (a, b) { return a.slot - b.slot; });
+    shell.announce(lead + " " + list.map(function (c) {
+      return (c.slot + 1) + ": " + c.text + (/[.?!]$/.test(c.text) ? "" : ".");
+    }).join(" "));
   }
 
   // ---------------------------------------------------------------------------
@@ -920,6 +931,7 @@
         if (ex.chips.length === 4 && ex.t % 1 < 0.5) rot = [slots[3], slots[2], slots[1], slots[0]];
         ex.chips.forEach(function (c, i) { c.from = c.slot; c.slot = rot[i]; c.swap = 0; });
         sound("shuffle");
+        readOut("The replies have moved.");
       }
       ex.chips.forEach(function (c) { if (c.swap < 1) c.swap = Math.min(1, c.swap + dt / 0.2); });
       if (ex.kind === "survey" && !calm) ex.corner = Math.floor(ex.t / 0.9) % 3;

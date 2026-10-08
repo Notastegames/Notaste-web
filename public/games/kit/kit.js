@@ -395,6 +395,7 @@
   //     pitch: "...",            one line about the game, for the clip frame (?clip)
   //     fullOnTouch: true,       on a touch screen, go full-window when a round starts
   //                              (for a game that needs the whole height of a phone)
+  //                              (any game does this when the screen is taller than the window)
   //     smallCallouts: true,     smaller in-game stamps, for a busy field
   //     callouts: "high",        in-game stamps just under the pause bar, not 22% down
   //                              (or shell.placeCallouts({ top, left, right }) to put
@@ -791,7 +792,10 @@
       sound.unlock();
       started = true;
       newRound();
-      if (game.fullOnTouch && coarse && !isFull() && !flags.clip) enterFull();
+      // A touch screen goes full-window for the round when the game asks for
+      // it, or when the window is too short to show the whole screen (a phone
+      // on its side): otherwise the bottom of the game is off the page.
+      if ((game.fullOnTouch || tooShort()) && coarse && !isFull() && !flags.clip) enterFull();
       game.reset(shell);
       resize();
       setState("intro");
@@ -1056,6 +1060,9 @@
       wasFull = f;
       fullBtn.innerHTML = f ? ICONS.unfull : ICONS.full;
       fullBtn.setAttribute("aria-label", f ? "Exit fullscreen" : "Fullscreen");
+    }
+    function tooShort() {
+      return screen.getBoundingClientRect().height > window.innerHeight;
     }
     function enterFull() {
       var req = screen.requestFullscreen || screen.webkitRequestFullscreen;
