@@ -247,7 +247,7 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 
 **Behaviour.**
 - Pause automatically when the tab is hidden or the window loses focus.
-- Fullscreen button on every game. Phones that can't do real fullscreen get a full-window version. A game that needs the whole height of a phone (a reading game) can go full-window by itself when a round starts on a touch screen (`fullOnTouch`); the button takes it back out. On a touch screen, leaving full-window mid-round (the button, the back gesture or the phone's own exit) pauses, and the pause screen offers "Back to full screen" as its red button, with Resume beside it.
+- Fullscreen button on every game. Phones that can't do real fullscreen get a full-window version. A game that needs the whole height of a phone (a reading game) can go full-window by itself when a round starts on a touch screen (`fullOnTouch`); the button takes it back out. Every game does the same on a touch screen whose window is too short to show the whole screen (a phone on its side), so the bottom of the game is never off the page. On a touch screen, leaving full-window mid-round (the button, the back gesture or the phone's own exit) pauses, and the pause screen offers "Back to full screen" as its red button, with Resume beside it.
 - Back from a pause, play picks up at once. A game where that would be unfair (a rhythm, a fast reaction) asks the kit for a count-in (`countIn: true`): 3, 2, 1, Go again before play. Heavy Traffic (a corner) and Scrubbed (a landing) do; Hold Music has its own, which starts the hold at its bar.
 - Save only bests and settings, in the browser's local storage, under `notaste.<slug>.<name>` (`shell.record` does this). No accounts, no tracking, no cookies.
 
@@ -255,7 +255,7 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 
 **Performance.** Aim for 60 frames a second on a mid-range phone. Canvas resolution is capped at 2× pixel density. No build step and no external libraries without agreeing it first.
 
-**Accessibility.** Everything works from the keyboard. Results are announced to screen readers. Colour is never the only signal. Respect reduced motion. Text keeps at least 4.5:1 contrast.
+**Accessibility.** Everything works from the keyboard. Results are announced to screen readers, and so is anything a game only draws that the player has to read to choose (a question and its numbered answers, a bot's line and its replies), with the key that picks each one. Colour is never the only signal. Respect reduced motion. Text keeps at least 4.5:1 contrast.
 
 ---
 
