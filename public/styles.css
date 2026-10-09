@@ -17,6 +17,7 @@
   --paper: #ffffff;
   --red: #d7141a;
   --red-press: #a90f14;
+  --right: #44c35a;      /* a reply or move that was right (games only); red is wrong */
   --smoke: #a6a6a6;      /* secondary text on black */
   --ash: #2a2a2a;        /* rules and edges on black */
   --grey: #5c5c5c;       /* secondary text on paper */

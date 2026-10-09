@@ -62,6 +62,7 @@
       paper: v("--paper", "#ffffff"),
       red: v("--red", "#d7141a"),
       redPress: v("--red-press", "#a90f14"),
+      right: v("--right", "#44c35a"),
       smoke: v("--smoke", "#a6a6a6"),
       ash: v("--ash", "#2a2a2a"),
       accent: v("--accent", "#a6a6a6"),
