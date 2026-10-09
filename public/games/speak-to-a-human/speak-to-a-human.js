@@ -23,6 +23,16 @@
 // the phone dies and the round ends. Between orders it only gets a little
 // back, so a slow or sloppy round 1 is felt in round 4.
 //
+// TEACHING IT IN THE FIRST SECONDS. The tracking screen runs under the
+// countdown, so the chat opens soon after Go. Then the pointer (a dashed ring
+// with a word on it) does the teaching, one thing at a time: "Complain" on
+// the opener, a ring round the bar ("Get it to 0%") the first time it moves,
+// "Argue back" on the first ordinary line, and a ring round the battery
+// ("Phone dies at 0%") the first time it drops. Pick a reply that plays
+// along and the next ordinary line gets its "Argue back" ring again (three
+// times a round at most), so nobody is left guessing and nobody who's got it
+// is told twice.
+//
 // THE BOT FIGHTS BACK. Each order's countdown notice says what's new; in
 // play, only the pointer teaches (the first time each one comes up):
 // - "Did this answer your question?" Yes / Yes, and a small No that drifts
@@ -283,6 +293,7 @@
       deadAt: null,
       daveBeaten: false,
       taught: {},
+      hints: 0,
       clipSlips: {}
     };
     if (!hudEls) buildHud();
@@ -519,7 +530,8 @@
     sound("send");
     if (c.kind === "take") { takeVoucher(); return; }
     if (c.honest) {
-      run.taught.basic = true;
+      if (ex.kind === "open") run.taught.open = true;
+      else run.taught.basic = true;
       if (c.kind === "fin") {
         run.taught.fin = true;
         sg.streak = 0;
@@ -580,6 +592,7 @@
     floater("-" + Math.max(1, Math.round(d)) + "%", "bar");
     if (quick > QUICK * 0.55 && !o.fin) floater("Quick", "you");
     if (sg.hp <= 0) { win(); return; }
+    tell("bar", "Get it to 0%");
     // losing: the voucher, once an order, from the second
     var vAt = isDave() ? 60 : 55;
     if (!sg.voucherDone && sg.i >= 1 && sg.hp <= vAt && (sg.i < 3 || isDave())) {
@@ -614,7 +627,10 @@
     var cost = WRONG * (run.perk === "agent" ? 2 : 1);
     var heals = c.kind === "yes" ? HEAL.yes : c.kind === "star" ? HEAL.star : c.kind === "number" ? HEAL.number : HEAL.decoy;
     mood("smug", 0.8);
+    // played along with an ordinary line: show the next one's true reply again
+    if ((ex.kind === "std" || ex.kind === "open") && run.hints < 3) { run.hints++; run.taught.basic = false; }
     if (drain(cost)) return;
+    tell("batt", "Phone dies at 0%");
     heal(heals);
     var lines = isDave() ? L.DAVE_HEAL : L.HEAL;
     var said = c.kind === "number" ? (sg.i === 2 ? L.SPECIAL.number.wrongHedge : L.SPECIAL.number.wrong)
@@ -684,6 +700,7 @@
     post("sys", "New chat with Assistant");
     sg.inject.unshift("open");
     if (drain(LOOPED)) return;
+    tell("batt", "Phone dies at 0%");
     ex.state = "done";
     ex.wait = 0.7;
   }
@@ -1692,18 +1709,19 @@
 
   // the one thing to do, the first time it comes up
   function drawArrow() {
-    if (!ex || ex.state !== "open" || sg.phase !== "chat") return;
+    if (tag || !ex || ex.state !== "open" || sg.phase !== "chat") return;
     var target = null, word = null;
     var keys = inputMode === "keys" || inputMode === "pad";
-    function verb(c) { return keys ? "Press " + (c.slot + 1) : inputMode === "touch" ? "Tap" : "Click"; }
     var fin = ex.chips.filter(function (c) { return c.kind === "fin" && !c.gone; })[0];
     var honest = ex.chips.filter(function (c) { return c.honest && !c.gone; })[0];
-    function say(c, w) { return keys ? "Press " + (c.slot + 1) : w; }
+    // on keys the word keeps its rule and adds the key: "Argue back: 3"
+    function say(c, w) { return keys ? w + ": " + (c.slot + 1) : w; }
     var teach = { number: "Same as the top", frustrated: "Before it heals", voucher: "Say no", still: "Say so", shrink: "Quick" };
-    if (!run.taught.basic && honest && (ex.kind === "open" || ex.kind === "std")) { target = honest; word = say(honest, verb(honest)); }
+    if (ex.kind === "open" && !run.taught.open && honest) { target = honest; word = say(honest, "Complain"); }
+    else if (ex.kind === "std" && !run.taught.basic && honest) { target = honest; word = say(honest, "Argue back"); }
     else if (fin && !run.taught.fin) { target = fin; word = say(fin, "Big one"); }
     else if (ex.kind === "yesyes" && !run.taught.no && honest) { target = honest; word = say(honest, "Not yes"); }
-    else if (ex.kind === "survey" && !run.taught.survey && honest) { target = honest; word = keys ? "Press 6" : "This"; }
+    else if (ex.kind === "survey" && !run.taught.survey && honest) { target = honest; word = keys ? "This: 6" : "This"; }
     else if (teach[ex.kind] && !run.taught[ex.kind] && honest) { target = honest; word = say(honest, teach[ex.kind]); }
     if (!target) return;
     var r = chipRect(target);
@@ -1728,6 +1746,55 @@
     ctx.lineWidth = 2;
     ctx.stroke();
     A.text(ctx, word, tx + tw / 2, ty + th / 2 + px * 0.36, px, T.paper, "center");
+  }
+
+  // The bar and the battery decide the round, so each gets the pointer once a
+  // visit, the first time it moves: a dashed ring round it and a word just
+  // under it (the bar's label is over it). One at a time: it goes when the
+  // next replies come up, and the replies' ring waits until then.
+  // (drawArrow waits on tag from when it's set, so nothing flickers in between.)
+  var told = {}, tag = null, TAG_LEN = 2.2;
+  function tell(what, word) {
+    if (told[what] || CLIP) return;
+    told[what] = true;
+    // after the -17% or -12% has had its moment, so the two don't share the spot
+    tag = { what: what, word: word, born: clock + 0.7 };
+  }
+  function drawTag() {
+    if (!tag) return;
+    var st = shell.state();
+    var age = clock - tag.born;
+    if (age < 0) return;
+    var next = ex && ex.state === "open" && ex.t > 0.15 && age > 1.2;
+    if (age > TAG_LEN || next || (st !== "playing" && st !== "paused") || sg.phase === "track") { tag = null; return; }
+    var r;
+    if (tag.what === "bar") r = { x: Lay.bar.x, y: Lay.bar.y, w: Lay.bar.w, h: Lay.bar.h };
+    else {
+      var box = root.getBoundingClientRect(), e = hudEls.wrap.getBoundingClientRect();
+      r = { x: e.left - box.left, y: e.top - box.top, w: e.width, h: e.height };
+    }
+    var p = 6;
+    A.rr(ctx, r.x - p, r.y - p, r.w + p * 2, r.h + p * 2, 8);
+    ctx.strokeStyle = T.paper;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([7, 5]);
+    ctx.lineDashOffset = calm ? 0 : -clock * 20;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    var px = 12;
+    ctx.font = A.font(px);
+    var tw = ctx.measureText(tag.word.toUpperCase()).width + 14, th = px + 9;
+    // under the end of the bar that's clear of the streak pips; under the start of the battery
+    var tx = tag.what === "bar" ? r.x + r.w + p - tw - 8 : r.x - p + 6;
+    tx = clamp(tx, 4, W - tw - 4);
+    var ty = r.y + r.h + p + 3 + (calm ? 0 : Math.sin(clock * 6) * 1.5);
+    A.rr(ctx, tx, ty, tw, th, 4);
+    A.ink(ctx, T.ink, 2);
+    A.rr(ctx, tx, ty, tw, th, 4);
+    ctx.strokeStyle = T.paper;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    A.text(ctx, tag.word, tx + tw / 2, ty + th / 2 + px * 0.36, px, T.paper, "center");
   }
 
   // ---------------------------------------------------------------------------
@@ -1837,6 +1904,8 @@
     var st = shell.state();
     if (st !== "paused") clock += dt;
     if (st !== lastState) { lastState = st; measureHud(); }
+    // the tracking screen starts under the countdown, so the chat isn't far behind Go
+    if (st === "countdown" && sg && sg.phase === "track") sg.trackT = Math.min(sg.trackT + dt, 3);
     if (shell.state() === "countdown" && sg && !sg.briefed) {
       sg.briefed = true;
       // what's new this order, said once, before it starts (not while filming)
@@ -1866,6 +1935,7 @@
     drawChat();
     drawOrder();
     drawTray();
+    drawTag();
     drawArrow();
     drawFloaters();
     drawUnmask();
@@ -1923,8 +1993,8 @@
   }
 
   // ---------------------------------------------------------------------------
-  // HUD: the order and your phone's battery top left, the refund and the
-  // time top right
+  // HUD: the order and your phone's battery top left, the refund top right.
+  // No clock in play: the time only counts for the bonus, and the results say it.
   // ---------------------------------------------------------------------------
   function buildHud() {
     shell.hud.innerHTML =
@@ -1933,26 +2003,23 @@
         '<p class="kit-stat sth-battery"><small>Battery</small><span class="sth-cell" aria-hidden="true"><span class="sth-fill" data-fill></span></span><span data-batt>100%</span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
-        '<p class="kit-stat kit-stat-big" data-refund>£0.00</p>' +
-        '<p class="kit-stat" data-minor><small>Time</small><span data-time>0:00</span></p>' +
+        '<p class="kit-stat kit-stat-big"><span data-refund>£0.00</span><small>refunded</small></p>' +
       '</div>';
     hudEls = {
       stage: shell.hud.querySelector("[data-stage]"),
       fill: shell.hud.querySelector("[data-fill]"),
       batt: shell.hud.querySelector("[data-batt]"),
       wrap: shell.hud.querySelector(".sth-battery"),
-      refund: shell.hud.querySelector("[data-refund]"),
-      time: shell.hud.querySelector("[data-time]")
+      refund: shell.hud.querySelector("[data-refund]")
     };
   }
 
   function paintHud() {
     if (!hudEls || !run) return;
     var b = Math.ceil(run.battery);
-    var v = { stage: String(run.stage + 1), refund: money(run.refund), time: mmss(run.time), batt: String(b) };
+    var v = { stage: String(run.stage + 1), refund: money(run.refund), batt: String(b) };
     if (v.stage !== hudWas.stage) hudEls.stage.textContent = v.stage;
     if (v.refund !== hudWas.refund) hudEls.refund.textContent = v.refund;
-    if (v.time !== hudWas.time) hudEls.time.textContent = v.time;
     if (v.batt !== hudWas.batt) {
       hudEls.batt.textContent = b + "%";
       hudEls.fill.style.width = b + "%";
@@ -2041,8 +2108,8 @@
     note: "Four orders. One help chat. It's never rude, and it never helps.",
     pitch: "Your food never came. The help chat is a bot. Get past it.",
     hints: {
-      keys: "1 to 4, or the arrows and Enter, to pick a reply. Or click. P to pause.",
-      touch: "Read it, then tap the reply that doesn't let it off."
+      keys: "Pick the reply that argues back: 1 to 4, or click. P to pause.",
+      touch: "Tap the reply that argues back. Get a human."
     },
     againLabel: "Complain again",
     daily: true,
