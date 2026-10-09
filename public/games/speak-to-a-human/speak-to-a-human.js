@@ -188,6 +188,7 @@
   var restarting = false;
   var calm = false;
   var lastState = "";
+  var verdict = null; // the last reply's result, for the flash: { ok, born }
 
   // ---------------------------------------------------------------------------
   // Planning the round: everything that should be the same for everyone in
@@ -499,6 +500,13 @@
   // ---------------------------------------------------------------------------
   // Picking a reply
   // ---------------------------------------------------------------------------
+  // Right or wrong, said at once: the reply you picked turns green with a tick
+  // or red with a cross, and the screen's edge flashes the same colour
+  function judge(ok, c) {
+    verdict = { ok: ok, born: clock };
+    if (c) c.verdict = ok;
+  }
+
   function chipAt(slot) {
     if (!ex) return null;
     for (var i = 0; i < ex.chips.length; i++) if (ex.chips[i].slot === slot && !ex.chips[i].gone) return ex.chips[i];
@@ -519,6 +527,7 @@
     sg.pendingHeal = 0;
     auto = null;
     if (c.kind === "close") {   // the survey's No thanks: no bubble, it just goes
+      judge(true, c);
       callout("Survey: dismissed");
       damage(BASE * 0.6, rt, { noStreak: true });
       sound("hit");
@@ -529,6 +538,7 @@
     post("you", c.said);
     sound("send");
     if (c.kind === "take") { takeVoucher(); return; }
+    judge(!!c.honest, c);
     if (c.honest) {
       if (ex.kind === "open") run.taught.open = true;
       else run.taught.basic = true;
@@ -590,6 +600,8 @@
     sg.hurt = 1;
     mood("hit", 0.35);
     floater("-" + Math.max(1, Math.round(d)) + "%", "bar");
+    // and in the chat, where the eyes are: what that reply did
+    post("res", Math.max(1, Math.round(d)) + "% closer to a human", { ok: true });
     if (quick > QUICK * 0.55 && !o.fin) floater("Quick", "you");
     if (sg.hp <= 0) { win(); return; }
     tell("bar", "Get it to 0%");
@@ -631,6 +643,7 @@
     if ((ex.kind === "std" || ex.kind === "open") && run.hints < 3) { run.hints++; run.taught.basic = false; }
     if (drain(cost)) return;
     tell("batt", "Phone dies at 0%");
+    post("res", "Played along: battery -" + Math.round(cost) + "%", { ok: false });
     heal(heals);
     var lines = isDave() ? L.DAVE_HEAL : L.HEAL;
     var said = c.kind === "number" ? (sg.i === 2 ? L.SPECIAL.number.wrongHedge : L.SPECIAL.number.wrong)
@@ -646,6 +659,7 @@
   // a timer ran out
   function expire() {
     var k = ex.kind;
+    if (k !== "voucher") judge(false);
     ex.state = "done";
     ex.wait = 0.55;
     sg.pendingHeal = 0;
@@ -1248,6 +1262,7 @@
     if (!Lay.chat || !ctx) return 30;
     var fs = Lay.fs, lh = Math.round(fs * 1.12);
     if (m.who === "sys") return Math.round(Math.max(12, fs * 0.8) * 1.4);
+    if (m.who === "res") return Math.round(Math.max(13, fs * 0.82) * 2);
     if (m.who === "card") return Math.round(fs * 1.25 + 2 * Math.max(13, fs * 0.82) * 1.3 + 22);
     if (m.who === "voucher") return Math.round(fs * 2.6);
     var wr = wrap(m.text, Lay.chat.w * 0.74 - 24, fs);
@@ -1350,6 +1365,22 @@
     if (m.who === "sys") {
       var sp = Math.max(12, fs * 0.8);
       A.text(ctx, m.text, c.x + c.w / 2, y + h * 0.7, sp, T.smoke, "center");
+      ctx.restore();
+      return;
+    }
+    if (m.who === "res") {
+      // what your reply did: a green pill with a tick, or a red one with a cross
+      var rs = Math.max(13, fs * 0.82);
+      ctx.font = A.font(rs);
+      var rw = ctx.measureText(m.text.toUpperCase()).width + rs * 2.6, rh = h - 4;
+      var rx = c.x + c.w - rw - 8;
+      ctx.globalAlpha = pop;
+      A.rr(ctx, rx, y + 1, rw, rh, rh / 2);
+      ctx.fillStyle = m.ok ? T.right : T.red;
+      ctx.fill();
+      var rc = m.ok ? T.ink : T.paper;
+      mark(m.ok, rx + rs * 0.95, y + 1 + rh / 2, rs * 0.32, rc);
+      A.text(ctx, m.text, rx + rs * 1.7, y + 1 + rh / 2 + rs * 0.36, rs, rc, "left");
       ctx.restore();
       return;
     }
@@ -1457,8 +1488,10 @@
     A.rr(ctx, r.x + 3, r.y + 4, r.w, r.h, rad);
     ctx.fillStyle = A.ht(ctx, T.accent, 5, 1.3);
     ctx.fill();
+    var judged = c.verdict != null && ex.picked === c;
     A.rr(ctx, r.x, r.y, r.w, r.h, rad);
-    A.ink(ctx, fin ? T.accent : T.paper, 2.5);
+    A.ink(ctx, judged ? (c.verdict ? T.right : T.red) : fin ? T.accent : T.paper, 2.5);
+    var ink = judged && !c.verdict ? T.paper : T.ink;
     var slotFocus = (inputMode === "keys" || inputMode === "pad") ? focus === c.slot : hover === c.slot;
     if (slotFocus && ex.state === "open") {
       A.rr(ctx, r.x - 4, r.y - 4, r.w + 8, r.h + 8, rad + 4);
@@ -1506,8 +1539,37 @@
     var cx = keyed && r.w > 60 ? left + room / 2 : r.x + r.w / 2;
     lines.forEach(function (l, i) {
       var ly = r.y + r.h / 2 + fs * 0.36 + (i - (lines.length - 1) / 2) * fs * 1.05;
-      A.text(ctx, l, cx, ly, fs, T.ink, "center");
+      A.text(ctx, l, cx, ly, fs, ink, "center");
     });
+    if (judged) mark(c.verdict, r.x + r.w - Math.min(22, r.h * 0.4), r.y + r.h / 2, Math.min(9, r.h * 0.17), ink);
+    ctx.restore();
+  }
+
+  // a tick or a cross, so the colour is never the only signal
+  function mark(ok, x, y, s, color) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(2.5, s * 0.45);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    if (ok) { ctx.moveTo(x - s, y); ctx.lineTo(x - s * 0.3, y + s * 0.75); ctx.lineTo(x + s, y - s * 0.75); }
+    else { ctx.moveTo(x - s * 0.8, y - s * 0.8); ctx.lineTo(x + s * 0.8, y + s * 0.8); ctx.moveTo(x + s * 0.8, y - s * 0.8); ctx.lineTo(x - s * 0.8, y + s * 0.8); }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // the edge of the screen flashes with the last reply's result
+  function drawVerdict() {
+    if (!verdict) return;
+    var a = clock - verdict.born, len = 0.5;
+    if (a > len) { verdict = null; return; }
+    var k = calm ? 1 : 1 - a / len;
+    ctx.save();
+    ctx.globalAlpha = 0.85 * k;
+    ctx.strokeStyle = verdict.ok ? T.right : T.red;
+    ctx.lineWidth = 10;
+    ctx.strokeRect(5, 5, W - 10, H - 10);
     ctx.restore();
   }
 
@@ -1688,9 +1750,9 @@
       var a = clock - f.born, k = ease(a / 0.9);
       var x, y, color = T.paper, size = 18;
       var b = Lay.bar;
-      if (f.where === "bar") { x = b.x + b.w * clamp(sg.hp / 100, 0, 1) + 6; y = b.y + b.h + 20; }
+      if (f.where === "bar") { x = b.x + b.w * clamp(sg.hp / 100, 0, 1) + 6; y = b.y + b.h + 20; color = T.right; }
       else if (f.where === "heal") { x = b.x + b.w * clamp(sg.hp / 100, 0, 1); y = b.y + b.h + 20; color = T.red; }
-      else if (f.where === "batt") { x = 96; y = hudB + 14; size = 16; }
+      else if (f.where === "batt") { x = 96; y = hudB + 14; size = 16; color = T.red; }
       else { x = Lay.chat.x + Lay.chat.w - 40; y = Lay.chat.y + Lay.chat.h - 30; size = 14; color = T.accent; }
       // clear of the streak pips under the middle of the bar on a wide screen
       if ((f.where === "bar" || f.where === "heal") && Math.abs(x - (Lay.wide ? b.x + b.w / 2 : b.x + 20)) < Math.max(4, b.h * 0.3) * 4 + 30) y += 30;
@@ -1904,8 +1966,9 @@
     var st = shell.state();
     if (st !== "paused") clock += dt;
     if (st !== lastState) { lastState = st; measureHud(); }
-    // the tracking screen starts under the countdown, so the chat isn't far behind Go
-    if (st === "countdown" && sg && sg.phase === "track") sg.trackT = Math.min(sg.trackT + dt, 3);
+    // the tracking screen starts under the last second of the countdown, so
+    // the chat isn't far behind Go but the notice still has time to be read
+    if (st === "countdown" && sg && sg.phase === "track") sg.trackT = Math.min(sg.trackT + dt, 1);
     if (shell.state() === "countdown" && sg && !sg.briefed) {
       sg.briefed = true;
       // what's new this order, said once, before it starts (not while filming)
@@ -1939,6 +2002,7 @@
     drawArrow();
     drawFloaters();
     drawUnmask();
+    drawVerdict();
     // the scroll settles
     sg.scroll = calm ? 0 : sg.scroll * Math.exp(-dt * 16);
     if (sg.closing > 0) {
