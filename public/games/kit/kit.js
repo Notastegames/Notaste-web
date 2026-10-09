@@ -1049,7 +1049,8 @@
 
     // ---------- Fullscreen ----------
     // Real fullscreen where the browser allows it, otherwise the screen fills
-    // the window (iPhones can't make a page element fullscreen).
+    // the window (iPhones can't make a page element fullscreen, and iPads
+    // drop out of it on a drag).
     function isFull() {
       return !!(document.fullscreenElement || document.webkitFullscreenElement) || screen.classList.contains("kit-full");
     }
@@ -1067,9 +1068,13 @@
     function tooShort() {
       return screen.getBoundingClientRect().height > window.innerHeight;
     }
+    // iPads get the full window too: Safari's real fullscreen there ends on a
+    // drag down the screen, which is how half the games are played.
+    var apple = /iP(hone|ad|od)/.test(navigator.platform || "") ||
+      (/Mac/.test(navigator.platform || "") && navigator.maxTouchPoints > 1);
     function enterFull() {
       var req = screen.requestFullscreen || screen.webkitRequestFullscreen;
-      if (req) {
+      if (req && !apple) {
         var p = req.call(screen);
         if (p && p.catch) p.catch(fakeFull);
       } else {
@@ -1259,6 +1264,17 @@
     root.addEventListener("pointercancel", lift);
     // stop the long-press menu on the buttons
     touch.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    // Mid-round, a held or double-tapped finger is the game's, not Safari's:
+    // no text selection, copy menu or magnifier (pointer events still come).
+    // The kit's own buttons still need their taps to become clicks.
+    root.addEventListener("touchstart", function (e) {
+      if (!active[state] || state === "paused") return;
+      if (e.target.closest && e.target.closest("a, button:not(.kit-pad), .kit-panel")) return;
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener("selectstart", function (e) {
+      if (active[state] && state !== "paused") e.preventDefault();
+    });
 
     // ---------- Gamepads ----------
     var padStartWas = false;
