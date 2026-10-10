@@ -392,12 +392,14 @@
     return line;
   }
 
-  function chip(text, honest, kind, said) {
-    return { text: text, honest: !!honest, kind: kind || (honest ? "honest" : "decoy"), said: said || text, slot: 0, from: -1, swap: 1, phase: 0 };
+  // along: what the bot says back if you pick this one and it plays along
+  function chip(text, honest, kind, said, along) {
+    return { text: text, honest: !!honest, kind: kind || (honest ? "honest" : "decoy"), said: said || text, along: along || null, slot: 0, from: -1, swap: 1, phase: 0 };
   }
-  // a line from lines.js: [what it says, the true reply, three that play along]
+  // a line from lines.js: [what it says, the true reply, three that play
+  // along, what it says back to any of those three]
   function fromLine(line) {
-    return [chip(line[1], true)].concat(line.slice(2, 5).map(function (d) { return chip(d); }));
+    return [chip(line[1], true)].concat(line.slice(2, 5).map(function (d) { return chip(d, false, null, null, line[5]); }));
   }
 
   function build(kind, entry) {
@@ -409,8 +411,8 @@
     var fuse = function (name) { return FUSE[name][k] * (run.perk === "notify" ? 1.5 : 1); };
     if (kind === "open") {
       e.bot = dave ? L.DAVE_OPEN : L.OPEN;
-      if (dave) e.chips = [chip(L.DAVE_COMPLAINT[0], true)].concat(L.DAVE_COMPLAINT[1].map(function (d) { return chip(d); }));
-      else e.chips = [chip(sg.st.complaint, true)].concat(sg.st.looks.map(function (d) { return chip(d); }));
+      if (dave) e.chips = [chip(L.DAVE_COMPLAINT[0], true)].concat(L.DAVE_COMPLAINT[1].map(function (d, i) { return chip(d, false, null, null, L.DAVE_COMPLAINT[2][i]); }));
+      else e.chips = [chip(sg.st.complaint, true)].concat(sg.st.looks.map(function (d, i) { return chip(d, false, null, null, sg.st.along[i]); }));
     } else if (kind === "std" || kind === "shrink") {
       line = nextLine();
       e.bot = line[0];
@@ -418,11 +420,11 @@
       if (kind === "shrink") { e.shrink = fuse("shrink"); e.timer = { kind: "shrink", dur: e.shrink, label: "" }; }
     } else if (kind === "frustrated") {
       e.bot = dave ? S.frustrated.dave : S.frustrated.bot;
-      e.chips = [chip(pickFrom(r, S.frustrated.honest), true)].concat(shuffled(r, S.frustrated.decoys).slice(0, 3).map(function (d) { return chip(d); }));
+      e.chips = [chip(pickFrom(r, S.frustrated.honest), true)].concat(shuffled(r, S.frustrated.decoys).slice(0, 3).map(function (d) { return chip(d, false, null, null, S.frustrated.along); }));
       e.timer = { kind: "ring", dur: fuse("ring"), label: "Healing" };
     } else if (kind === "yesyes") {
       e.bot = dave ? S.yesyes.dave : S.yesyes.bot;
-      e.chips = [chip("Yes", false, "yes"), chip("Yes", false, "yes"), chip(S.yesyes.no, true, "no", S.yesyes.said)];
+      e.chips = [chip("Yes", false, "yes", null, S.yesyes.along), chip("Yes", false, "yes", null, S.yesyes.along), chip(S.yesyes.no, true, "no", S.yesyes.said)];
       e.timer = { kind: "no", dur: fuse("no"), label: "" };
     } else if (kind === "number") {
       e.bot = dave ? S.number.dave : S.number.bot;
@@ -641,19 +643,34 @@
     mood("smug", 0.8);
     // played along with an ordinary line: show the next one's true reply again
     if ((ex.kind === "std" || ex.kind === "open") && run.hints < 3) { run.hints++; run.taught.basic = false; }
+    // "OK, close it": so it does, and you start again from hello
+    if (ex.kind === "still") {
+      loop("Chat closed. You asked");
+      return;
+    }
     if (drain(cost)) return;
     tell("batt", "Phone dies at 0%");
     post("res", "Played along: battery -" + Math.round(cost) + "%", { ok: false });
     heal(heals);
     var lines = isDave() ? L.DAVE_HEAL : L.HEAL;
+    // it answers what you actually said
     var said = c.kind === "number" ? (sg.i === 2 ? L.SPECIAL.number.wrongHedge : L.SPECIAL.number.wrong)
-      : c.kind === "star" ? "Thank you. That really helps me." : pickFrom(sg.rng, lines);
+      : c.kind === "star" ? "Thank you. That really helps me." : c.along || pickFrom(sg.rng, lines);
     later(0.28, function () { post("bot", said); });
     if (c.kind === "yes") callout("Ticket: closed", { routine: "closed", gap: 6 });
     else if (c.kind === "star") callout("Rated. Why", { routine: "rated", gap: 6 });
     else if (c.kind === "number") callout("Wrong order", { routine: "wrongno", gap: 6 });
     else callout("Played along", { routine: "along", gap: 5 });
     ex.wait = 0.75;
+    // you said it was fine, so it closes the chat as resolved, and it's
+    // hello again: the complaint has to be made before anything else
+    if (ex.kind === "open") {
+      var who = isDave() ? "Dave" : "Assistant";
+      later(1.1, function () { post("sys", "Chat closed: resolved"); sound("loop"); });
+      later(1.5, function () { post("sys", "New chat with " + who); });
+      sg.inject.unshift("open");
+      ex.wait = 1.9;
+    }
   }
 
   // a timer ran out
@@ -700,7 +717,7 @@
   }
 
   // It closed the chat on you: the chat starts again from hello
-  function loop() {
+  function loop(why) {
     sg.hp = Math.min(100, sg.hp + HEAL.still);
     sg.ghost = Math.max(sg.ghost, sg.hp);
     sg.streak = 0;
@@ -710,13 +727,15 @@
     callout("Loop detected");
     sound("loop");
     mood("smug", 1);
-    post("sys", "Chat closed due to inactivity");
-    post("sys", "New chat with Assistant");
+    post("res", "Chat closed: battery -" + LOOPED + "%", { ok: false });
+    post("sys", why || "Chat closed due to inactivity");
+    post("sys", "New chat with " + (isDave() ? "Dave" : "Assistant"));
     sg.inject.unshift("open");
-    if (drain(LOOPED)) return;
+    if (drain(LOOPED)) return true;
     tell("batt", "Phone dies at 0%");
     ex.state = "done";
     ex.wait = 0.7;
+    return false;
   }
 
   // ---------------------------------------------------------------------------
