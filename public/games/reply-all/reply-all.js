@@ -40,9 +40,12 @@
 // arrow ("Stop the reply") on whoever is nearest to sending, a dashed ring
 // round the clock ("Home at 17:00") once you've got the hang of it, and a
 // ring round the server ("Melts when full") the first time a reply lands in
-// it. Let a reply out and the arrow comes back, three times a day at most.
+// it. The arrow comes first: a ring waits while it has someone to point at.
+// Let a reply out and the arrow comes back, three times a day at most.
 // Every stop and every reply that gets out says so at the desk, green with a
 // tick or red with a cross, and the screen's edge flashes the same colour.
+// And the line you stopped stays up a moment where you're looking, struck
+// out in red, so the joke gets read; then the grumble, if there is one.
 //
 // Between stages (shell.interlude) IT offer three fixes, each with a cost:
 // turn the server off and on again, a bigger server, etiquette training,
@@ -628,15 +631,21 @@
     }
     pts = Math.round(pts / 10) * 10;
     run.score += pts;
-    var c = at(d, 40, 8);
-    G.pops.push({ x: c.x + clamp(L.k * 6, 6, 14), y: Math.max(c.y, L.top + 24), text: "+" + pts, t: 0, ok: true });   // rising, but clear of the HUD
+    // the points beside the tick, where the bar was (the line they were
+    // typing never sits on their own bar, and the hand is drawn under both)
+    var tk = at(d, 11, 3);
+    G.pops.push({ x: tk.x + clamp(L.k * 7, 10, 16) + 4, y: Math.max(tk.y, L.top + 14), text: "+" + pts, t: 0, ok: true, left: true, rise: 6 });
     if (how !== "intern") judge(d, true);
     addStamp(d, close && how !== "mute" ? "Just in time" : pick(STOPS), 0.75);
-    dropBubble(d);
-    if (how === "mute") { if (Math.random() < 0.25) say1(d, pick(MUTED)); }
-    else if (how === "intern") { if (Math.random() < 0.3) say1(d, "Who are you."); }
-    else if (d.look.id === "party" && !G.birthday && Math.random() < 0.6) { G.birthday = true; say1(d, BIRTHDAY); }
-    else if (Math.random() < 0.3) say1(d, pick(GRUMBLES));
+    if (how === "mute") { dropBubble(d); if (Math.random() < 0.25) say1(d, pick(MUTED)); }
+    else if (how === "intern") { dropBubble(d); if (Math.random() < 0.3) say1(d, "Who are you."); }
+    else {
+      // what they were typing stays up a moment, struck out, then what they think of that
+      var grumble = null;
+      if (d.look.id === "party" && !G.birthday && Math.random() < 0.6) { G.birthday = true; grumble = BIRTHDAY; }
+      else if (Math.random() < 0.3) grumble = pick(GRUMBLES);
+      strikeLine(d, grumble);
+    }
     sfx.stop(close);
     if (how !== "intern" && mult() > m0) {
       say("Streak: x" + mult(), 1);
@@ -1055,11 +1064,18 @@
     G.fx = G.fx.filter(function (p) { p.t += dt; return p.t < p.life; });
     G.bubbles = G.bubbles.filter(function (b) {
       b.t += dt;
+      if (b.struck != null) b.struck += dt;
       if (b.typing && b.desk.state !== "typing") return false;
+      if (b.t >= b.life && b.then) {
+        // the struck line goes, and the grumble pops up in its place
+        b.text = b.then; b.then = null; b.struck = null; b.pin = null;
+        b.t = 0; b.life = 1.4 + b.text.length * 0.03;
+        return true;
+      }
       return b.t < b.life;
     });
     // the most urgent typists get their words shown, a few at a time
-    var max = W < 420 ? 2 : 3;
+    var max = bubbleMax();
     if (G.phase === "play" && G.bubbles.length < max) {
       var best = null;
       G.desks.forEach(function (d) {
@@ -1094,9 +1110,11 @@
   }
 
   // The pointer's dashed ring, for what decides the day: the clock (how you
-  // win) and the server (how you lose). Once a visit each, one at a time; the
-  // arrow waits while one is up.
-  var told = {}, tag = null, tagNext = [], TAG_LEN = 2.2;
+  // win) and the server (how you lose). Once a visit each, one at a time. It
+  // steps aside while the arrow has something to point at (the next reply to
+  // stop matters more), and comes back after, unless it had already been up
+  // long enough to read.
+  var told = {}, tag = null, tagNext = [], TAG_LEN = 2.2, TAG_READ = 1.2;
   function tell(what, word) {
     if (told[what] || N.flags.clip || AUTOPILOT) return;
     told[what] = true;
@@ -1105,6 +1123,11 @@
   }
   function tickTag(dt) {
     if (!tag) return;
+    if (G.hint) {
+      if (tag.t > TAG_READ) { tag = tagNext.shift() || null; if (tag) tag.t = -0.5; }
+      else tag.t = -0.5;
+      return;
+    }
     tag.t += dt;
     if (tag.t > TAG_LEN || G.phase !== "play") { tag = tagNext.shift() || null; if (tag) tag.t = -0.3; }
   }
@@ -1119,13 +1142,14 @@
   }
 
   function bub(d, text, life) { return { desk: d, text: text, t: 0, life: life || (1.4 + text.length * 0.03) }; }
+  function bubbleMax() { return W < 420 ? 2 : 3; }
   // say1: one speech bubble, one per speaker, a few at once
   function say1(d, text, force) {
     if (!d || !text) return;
     for (var i = 0; i < G.bubbles.length; i++) {
       if (G.bubbles[i].desk === d) { if (!force && !G.bubbles[i].typing) return; G.bubbles.splice(i, 1); break; }
     }
-    var max = W < 420 ? 2 : 3;
+    var max = bubbleMax();
     if (G.bubbles.length >= max) {
       if (!force) return;
       var drop = G.bubbles.findIndex ? G.bubbles.findIndex(function (b) { return !b.boss; }) : 0;
@@ -1136,6 +1160,27 @@
     G.bubbles.push(b);
   }
   function dropBubble(d) { G.bubbles = G.bubbles.filter(function (b) { return b.desk !== d; }); }
+  // Someone you stopped: the line they were typing stays where it was for a
+  // moment and a red pen goes through it, right where you're looking, so
+  // the joke gets read. Then their grumble, if they have one (then). One at
+  // a time: the next stop clears the last.
+  function strikeLine(d, then) {
+    G.bubbles.forEach(function (o) {
+      if (o.struck != null && o.desk !== d) { o.then = null; o.life = Math.min(o.life, o.t + 0.3); }
+    });
+    var b = G.bubbles.filter(function (o) { return o.desk === d; })[0];
+    if (!b) {
+      if (G.bubbles.length >= bubbleMax()) return;      // no room: the others are still typing
+      b = bub(d, d.line);
+      G.bubbles.push(b);
+    }
+    b.text = d.line;
+    b.typing = false;
+    b.struck = 0;
+    b.pin = b.box || null;
+    b.life = b.t + clamp(0.9 + d.line.length * 0.025, 1.1, 1.8);
+    b.then = then || null;
+  }
 
   // Callouts: one at a time, the important ones win
   function say(text, priority) {
@@ -1249,10 +1294,11 @@
     }
   }
 
-  // The one thing worth pointing at right now (DESIGN.md, section 10)
+  // The one thing worth pointing at right now (DESIGN.md, section 10). The
+  // ring (tell) waits while there is.
   function pickHint() {
     G.hint = null;
-    if (G.phase !== "play" || shell.state() !== "playing" || tag) return;      // one pointer at a time
+    if (G.phase !== "play" || shell.state() !== "playing") return;
     var typing = G.desks.filter(function (d) { return d.state === "typing"; });
     // on keys the word keeps its rule and adds the key: "Stop the reply: Q"
     function word(d, w) { return capsOn() && run.learned.keys ? w + ": " + keyName(d) : w; }
@@ -1323,8 +1369,11 @@
     var endH = 11 + run.stage * 2;
     setText(hudEls.clock, clockText());
     setText(hudEls.ends, " / " + endH + ":00");
+    var was = hudEls.score.textContent + hudEls.mult.textContent;
     setText(hudEls.score, fmt(run.score));
     setText(hudEls.mult, mult() > 1 ? "x" + mult() : "");
+    // a longer score takes more of the top row: speech bubbles get out of its way at once
+    if (hudEls.score.textContent + hudEls.mult.textContent !== was) hudCache = null;
     if (shell.padFill && info().mute) shell.padFill("mute", 1 - G.muteWait / (MUTE_CD * run.mods.muteCd));
     // no Mute thread until stage 2
     var pad = mutePad || (mutePad = root.querySelector('.kit-pad[data-key="mute"]'));
@@ -1416,10 +1465,12 @@
     var arrowBox = drawHint(c, true);
     drawBubbles(c, arrowBox);
     drawServerSays(c);
+    // the hand, under the pointer and the points, so it never hides what
+    // they say (it sits on the arrow's desk when that desk is selected)
+    if ((st === "playing" || st === "countdown") && G.phase === "play") drawHand(c);
     drawHint(c, false);
     drawPops(c);
     drawTag(c);
-    if ((st === "playing" || st === "countdown") && G.phase === "play") drawHand(c);
     drawVerdict(c);
     tickHum();
   }
@@ -1751,7 +1802,7 @@
     c.textBaseline = "middle";
     G.pops.forEach(function (p) {
       var k = p.t / 0.9;
-      var y = p.y - (shell.reduceMotion ? 0 : k * 16);
+      var y = p.y - (shell.reduceMotion ? 0 : k * (p.rise != null ? p.rise : 16));
       c.globalAlpha = 1 - k * k;
       if (p.ok === false) {
         // a miss: paper on a red tab, so it reads on the black
@@ -1763,11 +1814,13 @@
         A.text(c, text, x, y + size * 0.05, size);
         return;
       }
+      // (left: p.x is where the text starts, not its middle)
+      var half = c.measureText(p.text).width / 2, px = clamp(p.left ? p.x + half : p.x, half + 4, W - half - 4);
       c.lineWidth = 3;
       c.strokeStyle = T.ink;
-      c.strokeText(p.text, p.x, y);
+      c.strokeText(p.text, px, y);
       c.fillStyle = p.ok ? T.right : T.paper;
-      c.fillText(p.text, p.x, y);
+      c.fillText(p.text, px, y);
     });
     c.globalAlpha = 1;
   }
@@ -1816,7 +1869,7 @@
 
   // The ring round the clock or the server, and its word
   function drawTag(c) {
-    if (!tag || tag.t < 0 || shell.state() !== "playing") return;
+    if (!tag || tag.t < 0 || G.hint || shell.state() !== "playing") return;      // one pointer at a time
     var r;
     if (tag.what === "server") r = { x: L.server.x, y: L.server.y, w: L.server.w, h: L.server.h };
     else {
@@ -1834,7 +1887,7 @@
     c.lineDashOffset = shell.reduceMotion ? 0 : -tag.t * 20;
     c.stroke();
     c.setLineDash([]);
-    var px = clamp(L.k * 7, 12, 17);
+    var px = Math.max(12, hintSize() * 0.6);      // as big as the arrow's word
     c.font = px + "px " + T.display;
     var tw = A.textWidth(c, tag.word.toUpperCase(), px) + 14, th = px + 9;
     var bob = shell.reduceMotion ? 0 : Math.sin(tag.t * 6) * 1.5;
@@ -1911,6 +1964,8 @@
     c.fillText("INTERN", bx + w / 2, by + h / 2 + fs * 0.05);
   }
 
+  // The arrow's size (its word is 0.6 of it, 12px at the least)
+  function hintSize() { return clamp(L.k * 20, 20, 28); }
   // The arrow: first pass just reserves its space (so bubbles keep clear)
   function drawHint(c, measureOnly) {
     var h = G.hint;
@@ -1925,18 +1980,23 @@
       var r = pad.getBoundingClientRect(), base = root.getBoundingClientRect();
       x = r.left - base.left + r.width / 2; y = r.top - base.top - 4;
     } else return null;
-    var size = clamp(L.k * 20, 20, 28);
+    var size = hintSize();
     var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(performance.now() / 250)) * 5;
     if (dir === "left") {
+      // the word sits over the arrow and runs as far as it's long, unless
+      // that would put it on the next desk's bar, or (at the screen's edge)
+      // back over this one's: then it goes under the arrow, where no bar is
+      var s = size / 22, wfs = Math.max(12, size * 0.6);
+      c.font = wfs + "px " + T.display;
+      var x0 = x + 4 * s, x1 = x0 + A.textWidth(c, h.word.toUpperCase(), wfs) + 5;      // (5: the bob)
+      var under = x1 > Math.min(W - 4, origin(h.desk).x + L.px + 14 * L.k);
       if (measureOnly) {
-        // the word sits above the arrow, and runs as far as it's long
-        var wfs = Math.max(12, size * 0.6);
-        c.font = wfs + "px " + T.display;
-        var ww = A.textWidth(c, h.word.toUpperCase(), wfs) + size * 0.4;
-        return { x: x - 2, y: y - size * 1.45, w: Math.max(size * 3.6, ww), h: size * 1.95 };
+        var shift = Math.max(0, x1 - (W - 4)), left = Math.min(x, x0 - shift);
+        var top = under ? y - 11 * s : y - 13 * s - wfs, bottom = under ? y + 13 * s + wfs : y + 11 * s;
+        return { x: left - 2, y: top - 2, w: Math.max(x + size + 5, x1 - shift) - left + 4, h: bottom - top + 4 };
       }
       c.setTransform(DPR, 0, 0, DPR, 0, 0);
-      A.arrow(c, x + bob, y, h.word, size, "left", W - 4);
+      A.arrow(c, x + bob, y, h.word, size, "left", W - 4, under);
       return null;
     }
     if (measureOnly) return { x: x - size * 2, y: y - size * 1.9, w: size * 4, h: size * 1.9 };
@@ -1979,8 +2039,10 @@
     return best.lines;
   }
   // 12px at the least; bigger in the clip frame, so it reads on a phone held upright
-  // (and on a big screen, big enough to read while you play: an iPad gets 18)
-  function bubbleSize() { return N.flags.clip ? clamp(L.k * 12.5, 14, 20) : clamp(L.k * 9.5, 12, 18); }
+  // (and on a big screen, big enough to read while you play: 14px at the
+  // least, so the sixteen-desk office on an iPad isn't the one that's hard
+  // to read, and up to 18)
+  function bubbleSize() { return N.flags.clip ? clamp(L.k * 12.5, 14, 20) : clamp(L.k * 9.5, W >= 600 ? 14 : 12, 18); }
   // A face, in screen pixels: no bubble sits on one if it can help it, and
   // never on the CEO's assistant's
   function faceBox(d, wide) {
@@ -2026,8 +2088,12 @@
       ];
       // the first spot that's clear of everything; then let it sit on other
       // people's faces, then their bars, then other bubbles. Never on the HUD,
-      // the speaker's own face, or the CEO's assistant's.
+      // the speaker's own face, or the CEO's assistant's. A struck line stays
+      // where it was.
       var box = null;
+      if (b.pin && b.pin.w === bw && b.pin.h === bh && b.pin.x + bw <= W && b.pin.y + bh <= H &&
+          !hud.some(function (p) { return overlaps(b.pin, p, 3); })) box = b.pin;
+      else b.pin = null;
       var hard = [faceBox(d, true)];
       if (bossFace && bossFace.desk !== d) hard.push(bossFace);
       for (var pass = 0; pass < 4 && !box; pass++) {
@@ -2041,11 +2107,15 @@
         }
       }
       if (!box) box = { x: clamp(tries[5].x, 4, W - bw - 4), y: clamp(tries[5].y, 4, H - bh - 4), w: bw, h: bh };
+      b.box = box;
+      if (b.struck != null && !b.pin) b.pin = box;
       placed.push(box);
       bubbleHits.push({ box: box, desk: d });
       var pop = shell.reduceMotion ? 1 : clamp(b.t * 8, 0, 1);
       var fade = b.typing ? 1 : clamp((b.life - b.t) * 3, 0, 1);
-      A.bubble(c, box, at(d, 40, d.kind === "ooo" ? 40 : 22), lines, fs, Math.min(pop, fade), b.boss);
+      // the red pen takes a moment over each line (no time at all with reduced motion)
+      var strike = b.struck == null ? 0 : shell.reduceMotion ? 1 : clamp(b.struck / (0.09 * lines.length), 0, 1);
+      A.bubble(c, box, at(d, 40, d.kind === "ooo" ? 40 : 22), lines, fs, Math.min(pop, fade), b.boss, strike);
     });
   }
 
@@ -2249,6 +2319,8 @@
         });
       },
       state: function () { return shell.state(); },
+      // the ring that's showing ("clock" or "server"), if one is
+      ring: function () { return tag && tag.t >= 0 && !G.hint ? tag.what : null; },
       score: function () {
         return { stage: run.stage + 1, clock: clockText(), score: Math.round(run.score), stopped: run.stopped, out: run.out,
                  load: Math.round(run.load), cap: cap(), streak: run.streak, taken: run.taken.join(",") };
