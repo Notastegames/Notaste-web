@@ -41,6 +41,19 @@
 //      it. Three catches and he goes on lunch. Faster again.
 //   4. Final push (35s, target 2,800 for approval). Everything, faster, and
 //      fewer real people post. Beat the target and it's Approved.
+// TEACHING IT IN THE FIRST SECONDS. The move has one name everywhere: slop a
+// real post. The first notice says the goal, the move and the cost. Point at
+// the phone and the barrel turns so the charge reaches the post under the
+// finger (on an iPad the finger used to sit low by the cannon, where only the
+// bottom posts were in reach). Then the pointer teaches in play, one thing at
+// a time: "Slop this" on a real post, "Let go now" while the brackets are on
+// one, a ring round the target ("Fill it to pass") the first time it moves
+// and a ring round the clock ("Short at 0:00: out"). Every shot says right or
+// wrong where it lands: a green tick and the points, or a red cross and what
+// went wrong, and the screen's edge flashes the same colour. A wrong shot
+// brings "Slop this" back, three times a round at most. Stage 1's feed scrolls
+// slowly until the first real post is slopped.
+//
 // Between stages you pick one upgrade of three, each with a cost (UPGRADES):
 // More fingers (bigger splash, slower reload), Bot farm (B: ten seconds of
 // double engagement once a stage; targets up a tenth), Engagement bait
@@ -98,6 +111,8 @@
   var MIN_ANGLE = 0.15, MAX_ANGLE = 1.3;
   var POINTS = { real: 100 };
   var COST = 25;               // a shot that only gets slop: the platform downranks duplicate content
+  var SLOW = 0.55;             // stage 1's feed speed until the first real post is slopped
+  var HINTS = 3;               // times a round a wrong shot brings "Slop this" back
 
   var STAGES = [
     { name: "The feed", time: 35, speed: 15, real: 0.7, trend: 0, fact: 0, mod: false, target: 800,
@@ -184,7 +199,8 @@
   // it's read during the countdown: it's gone soon after Go.
   function briefText(i) {
     var target = " Target: " + fmt(targetFor(i)) + ".";
-    if (i === 0) return "Real posts pay. Slop on slop costs. Four real posts in a row goes viral." + target;
+    // the first: the goal, the move and the cost, in three short sentences
+    if (i === 0) return "Make " + fmt(targetFor(0)) + " engagement before the clock runs out. Slop a real post: hold, and let go on the red brackets. Slop on slop costs you.";
     if (i === 1) return "Fact checks bounce it back at the cannon. Trending posts pay triple." + target;
     if (i === 2) {
       return run.mods.noMod ? "No Moderator. Twice the fact checks, out of spite." + target
@@ -216,6 +232,9 @@
   var bg = null, hudEls = null, poses = {}, hudBox = null, hudAge = 0;
   var shown = 0, offers = [], auto = { target: null, ang: 0.8, think: 0, slop: 0, careless: false, rest: 0, idle: 0, hold: 0 };
   var stage = 0;
+  var verdict = null;                  // the last shot's result, for the screen's edge: { ok, t }
+  var told = {}, tag = null;           // the rings round the target and the clock, once a visit
+  var slow = 1;                        // stage 1's slow start, easing to full speed
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function rand(a, b) { return a + Math.random() * (b - a); }
@@ -225,7 +244,7 @@
   function touching() { return root.classList.contains("kit-touching"); }
   function stageInfo() { return STAGES[stage]; }
   function targetFor(i) { return FREE ? 10 : Math.round(STAGES[i].target * (run ? run.mods.target : 1) / 10) * 10; }
-  function feedSpeed() { return stageInfo().speed * run.mods.feed * K; }
+  function feedSpeed() { return stageInfo().speed * run.mods.feed * K * slow; }
   function short(n) {
     if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, "") + "m";
     if (n >= 1000) return (n / 1000).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, "") + "k";
@@ -294,8 +313,11 @@
     run = {
       score: 0, stageScore: 0, chain: 0, bestChain: 0, shots: 0, hits: 0, realSlopped: 0, trends: 0,
       caught: 0, bounced: 0, virals: 0, seen: 0, slopSeen: 0, costs: 0, mods: newMods(), taken: [],
-      learned: {}, daily: sh.daily, reached: 0, breaks: {}
+      learned: {}, daily: sh.daily, reached: 0, breaks: {}, hints: 0
     };
+    slow = FIRST === 0 && !FREE ? SLOW : 1;
+    verdict = null;
+    tag = null;
     stage = FIRST;
     // ?debug&take=bait,bots: start with these upgrades already picked
     if (DEBUG && params.get("take")) {
@@ -351,6 +373,8 @@
     if (hudEls) hudEls.bots.style.display = run.mods.bots ? "" : "none";
     auto.target = null;
     auto.think = 0.4;
+    tag = null;
+    verdict = null;
     // the HUD says this stage, not the last one, while the countdown runs
     paintHud(0);
   }
@@ -463,6 +487,22 @@
     if (top > bot) { top = hi; bot = Math.max(hi, Math.min(lo, L.floor)); }
     return { top: top, bot: bot };
   }
+  // Pointing at the phone picks the post: the angle nearest the pointer's
+  // line whose charge passes height h, so the brackets always get there.
+  // (Pointing low by the cannon, as a thumb does on an iPad, the barrel lay
+  // flat and only the bottom posts were in reach.)
+  function angleFor(h, want) {
+    for (var d = 0; d <= MAX_ANGLE - MIN_ANGLE; d += 0.01) {
+      for (var s = -1; s <= 1; s += 2) {
+        var a = want + s * d;
+        if (a < MIN_ANGLE || a > MAX_ANGLE) continue;
+        var r = sweepRange(a);
+        if (h >= r.top + 1 && h <= r.bot - 1) return a;
+      }
+    }
+    return want;
+  }
+
   // The power that lands a shot at height h on the glass, at this angle
   function powerFor(ang, h) {
     var mz = muzzleAt(ang), dx = L.phoneX - mz.x, c = Math.cos(ang);
@@ -585,15 +625,35 @@
   function miss(b, where, p) {
     if (b.bounced) return;
     breakChain("miss " + where);
+    // the first of each kind a stage, the Gaffer always has something to say
+    var first = !said["miss " + where];
+    said["miss " + where] = true;
     if (where === "top") {
       if (!said.top) { said.top = true; shell.callout("Nobody saw it", { sound: false, ms: 1100 }); }
-      gafferSay(GAFFER.top);
+      wrong(L.phoneX - 1, L.head + 4, "Too high");
+      gafferSay(GAFFER.top, first);
     } else if (where === "chin") {
-      gafferSay(GAFFER.chin);
+      wrong(L.phoneX - 1, L.sy1 - 3, "Too low");
+      gafferSay(GAFFER.chin, first);
       sfx.floor();
     } else {
-      gafferSay(GAFFER.floor);
+      wrong(p.x + 6, Math.min(p.y, L.floor - 4), "Missed");
+      gafferSay(GAFFER.floor, first);
     }
+  }
+
+  // Right or wrong, said at once where the shot lands (DESIGN.md, section 3,
+  // "Right and wrong"): a green pill with a tick and the points, or a red one
+  // with a cross and what went wrong, and the screen's edge flashes the same
+  // colour. x is the pill's right-hand end.
+  function judge(ok, x, y, words) {
+    verdict = { ok: ok, t: 0 };
+    fx.push({ kind: "res", ok: ok, x: x, y: y, text: words, t: 0, life: 1.4 });
+  }
+  // ...and a wrong one shows "Slop this" again, three times a round at most
+  function wrong(x, y, words) {
+    judge(false, x, y, words);
+    if (run.learned.slop && run.hints < HINTS) { run.hints++; run.learned.slop = false; }
   }
 
   function breakChain(why) {
@@ -626,7 +686,9 @@
     });
     // only real posts keep the chain going: slop on slop breaks it, and costs
     if (wasReal) {
-      pop(L.phoneX - 1, y, "+" + fmt(total), wasTrend || total >= 200);
+      judge(true, L.phoneX - 1, y, "+" + fmt(total));
+      run.learned.slop = true;
+      tell("target", "Fill it to pass", ["time", "Short at 0:00: out"]);
       run.chain++;
       run.bestChain = Math.max(run.bestChain, run.chain);
       // the new caption, big enough to read on a phone: it's the joke
@@ -643,7 +705,7 @@
       run.score -= cost;
       run.stageScore -= cost;
       run.costs += cost;
-      if (cost) pop(L.phoneX - 1, y, "-" + cost, false, true);
+      wrong(L.phoneX - 1, y, cost ? "Slop on slop -" + cost : "Slop on slop");
       if (!said.already) {
         said.already = true;
         shell.callout("Slop on slop", { sound: false, ms: 1100 });
@@ -731,6 +793,7 @@
     signT = 0;
     fact.flash = 0.5;
     fact.bounces = (fact.bounces || 0) + 1;
+    wrong(L.phoneX - 1, p.y, "Fact checked");
     shell.callout("Context added", { sound: false, ms: 1200 });
     sfx.bounce();
     gafferSay(GAFFER.bounce, true);
@@ -741,6 +804,7 @@
     splash(p.x, p.y, 4);
     run.caught++;
     breakChain("caught");
+    wrong(L.modX + A.NET.x - 4, p.y + 5, "Caught");
     mod.catches++;
     mod.swing = 1;
     mod.full = 1.2;
@@ -924,6 +988,8 @@
     tickFx(dt);
     tickBubbles(dt);
     paintHud(dt);
+    if (verdict && (verdict.t += dt) > 0.5) verdict = null;
+    if (tag && (tag.t += dt) > TAG_LEN) { var then = tag.then; tag = null; if (then && phase === "play") tell(then[0], then[1]); }
 
     if (phase === "finale") {
       flood = Math.min(1, flood + dt / 1.6);
@@ -940,6 +1006,8 @@
 
     clock += dt;
     signT += dt;
+    // stage 1 starts slow, and speeds up once you've slopped a real post
+    if (slow < 1 && (stage > 0 || run.learned.slop)) slow = Math.min(1, slow + dt / 1.5);
     if (signT > 1) { signT = 0; signDays++; }
     scrollFeed(dt);
     updateBalls(dt);
@@ -979,6 +1047,8 @@
     } else if (input.aim.on) {
       var ax = input.aim.x / U, ay = input.aim.y / U;
       var want = Math.atan2(L.pivot.y - ay, Math.max(0.5, ax - L.pivot.x));
+      // on the phone, it's the post under the pointer you want
+      if (ax > L.phoneX - 2 && ay > L.head - 6 && ay < L.sy1 + 4) want = angleFor(clamp(ay, L.head + 2, L.sy1 - 2), want);
       aim = want;
       lastMode = input.mode === "touch" ? "touch" : "mouse";
     } else {
@@ -1030,7 +1100,7 @@
     prevBots = botsNow;
 
     updateMod(dt, pv);
-    pickHint(dt);
+    pickHint(dt, pv);
 
     // the Gaffer gets impatient
     gaffer.idle += dt;
@@ -1285,17 +1355,22 @@
   // ---------------------------------------------------------------------------
   // The arrow: the one thing worth pointing at right now (DESIGN.md, 10)
   // ---------------------------------------------------------------------------
-  function pickHint(dt) {
+  function pickHint(dt, pv) {
     hintNow = null;
     var lr = run.learned;
-    if (!lr.fire) {
-      var word = touching() || lastMode === "touch" ? "Hold, then let go" : lastMode === "keys" ? "Hold Space" : "Hold to fire";
-      hintNow = { x: L.pivot.x + 2, y: L.pivot.y - 17, word: word };
-      return;
-    }
-    if (stage === 0 && !lr.real) {
-      var r = firstOnScreen(function (q) { return q.type === "real" && !q.slopped; });
-      if (r) hintNow = { x: L.cardX + L.cardW * 0.5, y: r.y + 1, word: "Real post" };
+    // the move, until you've done it (and again after a wrong shot): "Slop
+    // this" on a real post, and "Let go now" while the brackets are on one.
+    // A ring round the target or the clock has the floor while it's up.
+    if (!lr.slop) {
+      if (tag) return;
+      var keys = lastMode === "keys" && !touching();
+      if (charging && pv && isGood(pv.target)) {
+        hintNow = { x: L.cardX + L.cardW * 0.5, y: Math.max(L.head + 1, pv.target.y + 1), word: keys ? "Let go of Space" : "Let go now" };
+        return;
+      }
+      var r = firstOnScreen(function (q) { return isGood(q) && q.y > L.head + 2; });
+      if (r) hintNow = { x: L.cardX + L.cardW * 0.5, y: r.y + 1, word: charging ? "Slop this" : keys ? "Slop this: hold Space" : "Slop this: hold on it" };
+      else if (!lr.fire) hintNow = { x: L.pivot.x + 2, y: L.pivot.y - 17, word: keys ? "Hold Space" : "Hold, then let go" };
       return;
     }
     if (stage >= 1 && !lr.trend) {
@@ -1312,6 +1387,82 @@
       hintNow = { x: L.pivot.x + 2, y: L.pivot.y - 17, word: touching() ? "Tap Bots" : "Bots: press B" };
     }
   }
+  // The target and the clock decide the round, so each gets a ring once a
+  // visit, a moment after the first real post pays: a dashed paper ring round
+  // it and a word under it. One at a time, and the clock's follows the
+  // target's. (The pointer's arrow waits while a ring is up.)
+  var TAG_LEN = 2.4;
+  function tell(what, word, then) {
+    if (told[what] || N.flags.clip) return;
+    told[what] = true;
+    tag = { what: what, word: word, then: then, t: -0.6 };
+  }
+  function drawTag(c) {
+    if (!tag || tag.t < 0 || !hudEls) return;
+    var el = tag.what === "target" ? hudEls.target : hudEls.time;
+    var box = root.getBoundingClientRect(), e = el.getBoundingClientRect();
+    if (!e.width) return;
+    var calm = shell.reduceMotion, p = 6;
+    var r = { x: e.left - box.left - p, y: e.top - box.top - p, w: e.width + p * 2, h: e.height + p * 2 };
+    c.save();
+    c.beginPath();
+    if (c.roundRect) c.roundRect(r.x, r.y, r.w, r.h, 8); else c.rect(r.x, r.y, r.w, r.h);
+    c.strokeStyle = T.paper;
+    c.lineWidth = 3;
+    c.setLineDash([7, 5]);
+    c.lineDashOffset = calm ? 0 : -tag.t * 20;
+    c.stroke();
+    c.setLineDash([]);
+    var px = 12;
+    c.font = px + "px " + T.display;
+    var word = tag.word.toUpperCase();
+    var tw = c.measureText(word).width + 14, th = px + 9;
+    // under what it's round, or for the clock, under the target just below
+    // it (beside it, a phone's pause button is in the way)
+    var under = r.y + r.h;
+    if (tag.what === "time") { var m = hudEls.target.getBoundingClientRect(); if (m.width) under = Math.max(under, m.bottom - box.top + p); }
+    var tx = clamp(r.x + 6, 4, W - tw - 4);
+    var ty = under + 3 + (calm ? 0 : Math.sin(tag.t * 6) * 1.5);
+    c.beginPath();
+    if (c.roundRect) c.roundRect(tx, ty, tw, th, 4); else c.rect(tx, ty, tw, th);
+    c.fillStyle = T.ink;
+    c.fill();
+    c.strokeStyle = T.paper;
+    c.lineWidth = 2;
+    c.stroke();
+    c.fillStyle = T.paper;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(word, tx + tw / 2, ty + th / 2 + 1);
+    c.restore();
+  }
+
+  // The edge of the screen flashes green for a right shot, red for a wrong one
+  function drawVerdict(c) {
+    if (!verdict) return;
+    var k = shell.reduceMotion ? 1 : 1 - verdict.t / 0.5;
+    c.save();
+    c.globalAlpha = 0.85 * k;
+    c.strokeStyle = verdict.ok ? T.right : T.red;
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, W - 10, H - 10);
+    c.restore();
+  }
+
+  // a tick or a cross, so the colour is never the only signal
+  function mark(c, ok, x, y, s, color) {
+    c.save();
+    c.strokeStyle = color;
+    c.lineWidth = s * 0.45;
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.beginPath();
+    if (ok) { c.moveTo(x - s, y); c.lineTo(x - s * 0.3, y + s * 0.75); c.lineTo(x + s, y - s * 0.75); }
+    else { c.moveTo(x - s * 0.8, y - s * 0.8); c.lineTo(x + s * 0.8, y + s * 0.8); c.moveTo(x + s * 0.8, y - s * 0.8); c.lineTo(x - s * 0.8, y + s * 0.8); }
+    c.stroke();
+    c.restore();
+  }
+
   function firstOnScreen(test) {
     for (var i = 0; i < feed.length; i++) {
       var q = feed[i];
@@ -1342,7 +1493,7 @@
         '<p class="kit-meter" data-bots data-pad style="display: none"><span class="kit-meter-label">Bots</span><span class="kit-meter-bar"><span data-bots-bar></span></span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
-        '<p class="kit-stat kit-stat-big"><span class="kit-sr">Engagement</span><span data-score>0</span></p>' +
+        '<p class="kit-stat kit-stat-big"><span data-score>0</span><small>engagement</small></p>' +
         '<p class="kit-stat"><small>Chain</small><span data-chain>0</span></p>' +
       '</div>';
     hudEls = {};
@@ -1367,7 +1518,8 @@
     var target = targetFor(stage);
     setWidth(hudEls["target-bar"], run.stageScore / target);
     var met = run.stageScore >= target;
-    setText(hudEls["target-label"], met ? "Target: met" : "Target");
+    // the number to make, said on the bar, so the bar means something
+    setText(hudEls["target-label"], met ? "Target: met" : "Target " + fmt(target));
     setText(hudEls["target-n"], fmt(run.stageScore) + " of " + fmt(target));
     hudEls.target.classList.toggle("is-full", met);
     setText(hudEls.score, fmt(shown));
@@ -1758,6 +1910,18 @@
         c.lineWidth = 2.4; c.strokeStyle = T.ink; c.stroke();
         c.lineWidth = 1.2; c.strokeStyle = T.accent; c.stroke();
         c.globalAlpha = 1;
+      } else if (e.kind === "res") {
+        // what the shot did: green with a tick, or red with a cross
+        c.globalAlpha = k < 0.8 ? 1 : (1 - k) / 0.2;
+        var rs = Math.max(3.4, 12 / U), rw = A.measure(c, e.text, rs) + rs * 2.4, rh = rs * 1.6;
+        var rx = clamp(e.x - rw, 1, WW - rw - 1), ry = clamp(e.y - rh / 2 - k * 4, 1, WH - rh - 1);
+        A.rrect(c, rx, ry, rw, rh, rh / 2);
+        c.fillStyle = e.ok ? T.right : T.red; c.fill();
+        A.ink(c, 0.45); c.stroke();
+        var rc = e.ok ? T.ink : T.paper;
+        mark(c, e.ok, rx + rs * 0.85, ry + rh / 2, rs * 0.28, rc);
+        A.text(c, e.text, rx + rs * 1.55, ry + rh / 2 + rs * 0.06, rs, null, { align: "left", fill: rc });
+        c.globalAlpha = 1;
       } else if (e.kind === "pop") {
         c.globalAlpha = k < 0.75 ? 1 : (1 - k) / 0.25;
         var size = e.big ? 5 : 3.8;
@@ -1949,6 +2113,8 @@
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     captions.forEach(function (k) { drawCaption(c, k); });
     bubbles.forEach(function (b) { drawBubble(c, b, placed); });
+    if (phase === "play" && shell.state() === "playing") drawTag(c);
+    drawVerdict(c);
     if (arrow) {
       c.setTransform(DPR * U, 0, 0, DPR * U, 0, 0);
       var bob = shell.reduceMotion ? 0 : -Math.abs(Math.sin(clock * 4)) * 1.4;
@@ -1985,8 +2151,8 @@
     tilt: -5,
     note: "A content farm, a cannon and a feed full of real people's dinners. Three stages and a final push.",
     hints: {
-      keys: "Aim with the mouse or the arrow keys. Hold the mouse button or Space to charge, let go to fire. P to pause.",
-      touch: "Hold a finger anywhere to aim and charge. Let go to fire."
+      keys: "Slop a real post: point at it with the mouse or the arrows, hold the button or Space, let go on the red brackets. P to pause.",
+      touch: "Slop a real post: hold a finger on it, let go when the red brackets are on it."
     },
     againLabel: "Fire again",
     aim: true,
