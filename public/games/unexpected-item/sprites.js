@@ -145,15 +145,20 @@
   // ---------------------------------------------------------------------------
   // The shopping. w and h in world units; bar is the barcode (x: its centre
   // as a share of the width from the left, y: its centre up from the bottom,
-  // w: its width, which is how long it spends on the red line). Items lean
-  // on the four inks; the names are what the till prints.
+  // w: its width, which is how long it spends on the red line). Everything
+  // is the shop's own brand: white packs with one small stripe or picture in
+  // red or green, so no item reads as a red one or a green one (on this belt
+  // green means right and red means wrong, and nothing else does). The names
+  // are what the till prints.
   // ---------------------------------------------------------------------------
   var ITEMS = {
     beans: { name: "Beans", w: 8, h: 9.6, bar: { x: 0.66, y: 4, w: 3.6 }, draw: function (c, w, h) {
       var body = rr(-w / 2, -h + 0.9, w, h - 0.9, 0.7);
       solid(c, body, T.paper);
       c.save(); c.clip(body);
-      c.fillStyle = T.red; c.fillRect(-w / 2, -h + 2.3, w, h - 3.8);
+      c.fillStyle = T.red;
+      c.fillRect(-w / 2, -h + 2.3, w, 0.7);
+      c.fillRect(-w / 2, -2.2, w, 0.7);
       c.restore();
       shade(c, body, rr(w * 0.22, -h, w, h, 0));
       ink(c, LW); c.stroke(body);
@@ -214,19 +219,32 @@
     } },
     tea: { name: "Tea", w: 9, h: 10.5, bar: { x: 0.3, y: 2.3, w: 3.4 }, draw: function (c, w, h) {
       var body = rr(-w / 2, -h, w, h, 0.4);
-      solid(c, body, T.red);
-      solid(c, rr(-w / 2 + 1.2, -h + 1.4, w - 2.4, 4.6, 0.3), T.paper, 0.4);
+      solid(c, body, T.paper);
+      c.save(); c.clip(body);
+      c.fillStyle = T.red; c.fillRect(-w / 2, -h, w, 0.9);
+      c.restore();
+      shade(c, body, rr(w * 0.26, -h, w, h, 0));
+      ink(c, LW); c.stroke(body);
+      line(c, [[-w / 2, -h + 0.9], [w / 2, -h + 0.9]], 0.35);
       solid(c, rr(-1.6, -h + 2.4, 3, 2.6, 0.6), T.paper, 0.4);
       line(c, [[1.6, -h + 3], [2.3, -h + 3.6], [1.6, -h + 4.3]], 0.4);
       line(c, [[-0.6, -h + 2.1], [-0.2, -h + 1.6]], 0.3);
-      ink(c, LW); c.stroke(body);
-      line(c, [[-w / 2, -h + 0.9], [w / 2, -h + 0.9]], 0.35);
     } },
     jam: { name: "Jam", w: 7, h: 9, bar: { x: 0.5, y: 2.6, w: 3.4 }, draw: function (c, w, h) {
       var body = rr(-w / 2, -h + 2.4, w, h - 2.4, 1.4);
-      solid(c, body, T.red);
-      shade(c, body, rr(w * 0.15, -h, w, h, 0), 0.75, T.ink);
+      solid(c, body, T.paper);
+      shade(c, body, rr(w * 0.15, -h, w, h, 0));
       ink(c, LW); c.stroke(body);
+      // a strawberry on the label
+      var berry = new Path2D();
+      berry.moveTo(0, -4.45);
+      berry.quadraticCurveTo(-1.35, -5.15, -1, -5.85);
+      berry.quadraticCurveTo(0, -6.25, 1, -5.85);
+      berry.quadraticCurveTo(1.35, -5.15, 0, -4.45);
+      berry.closePath();
+      solid(c, berry, T.red, 0.3);
+      c.fillStyle = T.paper;
+      [[-0.45, -5.55], [0.45, -5.55], [0, -5.05]].forEach(function (p) { c.beginPath(); c.arc(p[0], p[1], 0.17, 0, 7); c.fill(); });
       var lid = rr(-w / 2 - 0.3, -h, w + 0.6, 2.6, 0.5);
       solid(c, lid, T.paper);
       c.save(); c.clip(lid);
@@ -245,9 +263,9 @@
         solid(c, ell(x, -h + 1.2, 1, 0.45), T.ink, 0.2);
       });
       c.fillStyle = T.red;
-      c.fillRect(-w / 2 + 0.2, -h * 0.58, w - 0.4, 2.6);
+      c.fillRect(-w / 2 + 0.2, -h * 0.58, w - 0.4, 1.6);
       ink(c, 0.4);
-      c.strokeRect(-w / 2 + 0.2, -h * 0.58, w - 0.4, 2.6);
+      c.strokeRect(-w / 2 + 0.2, -h * 0.58, w - 0.4, 1.6);
     } },
     cheese: { name: "Cheese", w: 10, h: 7, bar: { x: 0.34, y: 1.9, w: 3.4 }, draw: function (c, w, h) {
       var body = new Path2D();
@@ -266,7 +284,7 @@
     } },
     cereal: { name: "Cereal", w: 9, h: 14, bar: { x: 0.7, y: 2.4, w: 3.4 }, draw: function (c, w, h) {
       var body = rr(-w / 2, -h, w, h, 0.4);
-      solid(c, body, T.accent);
+      solid(c, body, T.paper);
       shade(c, body, rr(w * 0.25, -h, w, h, 0));
       ink(c, LW); c.stroke(body);
       var bowl = new Path2D();
@@ -275,7 +293,7 @@
       [[-1.8, -h * 0.66], [-0.2, -h * 0.68], [1.4, -h * 0.66], [0.6, -h * 0.72]].forEach(function (p) {
         solid(c, ell(p[0], p[1], 0.8, 0.55), T.red, 0.3);
       });
-      solid(c, rr(-w / 2 + 1, -h + 1.2, w - 2, 2.4, 0.3), T.paper, 0.35);
+      solid(c, rr(-w / 2 + 1, -h + 1.2, w - 2, 2.4, 0.3), T.accent, 0.35);
     } },
     washing: { name: "Washing-up liquid", w: 6, h: 14, bar: { x: 0.5, y: 3, w: 3.4 }, draw: function (c, w, h) {
       solid(c, rr(-1, -h, 2, 2.6, 0.4), T.red, 0.4);
@@ -288,10 +306,16 @@
       body.lineTo(-w / 2, -h + 6.4);
       body.quadraticCurveTo(-w / 2, -h + 4, -1.4, -h + 2.4);
       body.closePath();
-      solid(c, body, T.accent);
+      solid(c, body, T.paper);
+      // the label: a green band with bubbles on it
+      c.save(); c.clip(body);
+      c.fillStyle = T.accent; c.fillRect(-w / 2, -h + 6, w, 3.2);
+      c.restore();
+      line(c, [[-w / 2, -h + 6], [w / 2, -h + 6]], 0.3);
+      line(c, [[-w / 2, -h + 9.2], [w / 2, -h + 9.2]], 0.3);
       shade(c, body, rr(w * 0.18, -h, w, h, 0));
       ink(c, LW); c.stroke(body);
-      [[-0.8, -h + 6.4, 0.7], [0.7, -h + 7.6, 0.5], [-0.3, -h + 8.6, 0.4]].forEach(function (b) {
+      [[-0.9, -h + 7.3, 0.75], [0.9, -h + 7, 0.45], [0.3, -h + 8.4, 0.4]].forEach(function (b) {
         solid(c, ell(b[0], b[1], b[2], b[2]), T.paper, 0.25);
       });
     } },
@@ -320,28 +344,29 @@
       for (var j = 8; j >= 0; j--) body.lineTo(-w / 2 + j * w / 8, -h + (j % 2 ? 0 : 0.5));
       body.quadraticCurveTo(-w / 2 - 0.8, -h / 2, -w / 2, -0.4);
       body.closePath();
-      solid(c, body, T.red);
+      solid(c, body, T.paper);
       shade(c, body, rr(w * 0.2, -h, w, h, 0));
       ink(c, LW); c.stroke(body);
-      solid(c, ell(1.2, -h * 0.56, 2.8, 2.2), T.paper, 0.4);
-      solid(c, ell(1.2, -h * 0.56, 1.4, 1, 0.5), T.accent, 0.3);
+      solid(c, ell(1.2, -h * 0.56, 2.8, 2.2), T.accent, 0.4);
+      solid(c, ell(1.2, -h * 0.56, 1.4, 1, 0.5), T.paper, 0.3);
     } },
     catfood: { name: "Cat food", w: 7, h: 5.6, bar: { x: 0.66, y: 2.6, w: 3.2 }, draw: function (c, w, h) {
       var body = rr(-w / 2, -h + 0.7, w, h - 0.7, 0.5);
-      solid(c, body, T.accent);
+      solid(c, body, T.paper);
       shade(c, body, rr(w * 0.2, -h, w, h, 0));
       ink(c, LW); c.stroke(body);
       solid(c, ell(0, -h + 0.7, w / 2, 0.7), T.paper, 0.4);
       var fish = new Path2D();
       fish.moveTo(-2.9, -2.6); fish.quadraticCurveTo(-1.8, -4, -0.6, -2.6); fish.quadraticCurveTo(-1.8, -1.3, -2.9, -2.6);
       fish.moveTo(-0.6, -2.6); fish.lineTo(0.2, -3.3); fish.lineTo(0.2, -1.9); fish.closePath();
-      solid(c, fish, T.paper, 0.3);
+      solid(c, fish, T.red, 0.3);
     } },
     biscuits: { name: "Biscuits", w: 13, h: 5.4, bar: { x: 0.66, y: 2.7, w: 3.4 }, draw: function (c, w, h) {
       var body = rr(-w / 2, -h, w, h, h / 2);
       solid(c, body, T.paper);
       c.save(); c.clip(body);
-      c.fillStyle = T.red; c.fillRect(-w / 2 + 2.2, -h, w - 4.4, h);
+      c.fillStyle = T.red;
+      [-1, 1].forEach(function (s) { c.fillRect(s * (w / 2 - 1.9) - 0.4, -h, 0.8, h); });
       c.restore();
       shade(c, body, rr(-w, -h * 0.4, w * 2, h, 0));
       ink(c, LW); c.stroke(body);
@@ -355,7 +380,7 @@
       body.quadraticCurveTo(-w / 2 - 0.6, -h * 0.5, -w / 2 + 0.4, 0);
       body.closePath();
       solid(c, body, T.paper);
-      c.save(); c.clip(body); c.fillStyle = T.accent; c.fillRect(-w / 2, -h * 0.62, w, 3.2); c.restore();
+      c.save(); c.clip(body); c.fillStyle = T.accent; c.fillRect(-w / 2, -h * 0.62, w, 2.6); c.restore();
       shade(c, body, ell(w * 0.42, -h * 0.5, w * 0.3, h * 0.6));
       ink(c, LW); c.stroke(body);
       line(c, [[-w / 2 + 1.4, -h + 1.4], [w / 2 - 1.4, -h + 1.4]], 0.4);
@@ -421,8 +446,8 @@
       drip.moveTo(-3.6, -h + 2.6); drip.quadraticCurveTo(-3.3, -h + 4.6, -2.8, -h + 2.8); drip.closePath();
       solid(c, drip, T.paper, 0.3);
       c.fillStyle = T.accent;
-      c.fillRect(-w / 2 + 0.3, -h * 0.5 - 1.2, w - 0.6, 3.6);
-      ink(c, 0.35); c.strokeRect(-w / 2 + 0.3, -h * 0.5 - 1.2, w - 0.6, 3.6);
+      c.fillRect(-w / 2 + 0.3, -h * 0.5 - 1.2, w - 0.6, 2.6);
+      ink(c, 0.35); c.strokeRect(-w / 2 + 0.3, -h * 0.5 - 1.2, w - 0.6, 2.6);
     } },
     turkey: { name: "Turkey", w: 16, h: 10, heavy: true, bar: { x: 0.74, y: 1.3, w: 3.8 }, draw: function (c, w, h) {
       [-1, 1].forEach(function (s) {
@@ -446,14 +471,15 @@
     } },
     crackers: { name: "Crackers", w: 15, h: 6, age: true, bar: { x: 0.8, y: 2.8, w: 3.4 }, draw: function (c, w, h) {
       var body = rr(-w / 2, -h, w, h, 0.4);
-      solid(c, body, T.red);
+      solid(c, body, T.paper);
       shade(c, body, rr(-w / 2, -2, w, 2, 0));
       ink(c, LW); c.stroke(body);
+      // a picture of a cracker, the one red thing on the box
       var cr = new Path2D();
       cr.moveTo(-5.6, -h + 1.6); cr.lineTo(-4, -h + 2.4); cr.lineTo(1, -h + 2.4); cr.lineTo(2.6, -h + 1.6);
       cr.lineTo(2.6, -1.6); cr.lineTo(1, -2.4); cr.lineTo(-4, -2.4); cr.lineTo(-5.6, -1.6); cr.closePath();
-      solid(c, cr, T.paper, 0.4);
-      c.fillStyle = T.accent; c.fillRect(-2.6, -h + 2.4, 1.6, 1.2);
+      solid(c, cr, T.red, 0.4);
+      c.fillStyle = T.paper; c.fillRect(-2.6, -h + 2.4, 1.6, 1.2);
       ink(c, 0.3); c.strokeRect(-2.6, -h + 2.4, 1.6, 1.2);
     } },
     pies: { name: "Mince pies", w: 10, h: 5, bar: { x: 0.74, y: 2.4, w: 3.2 }, draw: function (c, w, h) {
@@ -470,24 +496,29 @@
     } },
     wrap: { name: "Wrapping paper", w: 22, h: 4.4, bar: { x: 0.12, y: 2.2, w: 3.4 }, draw: function (c, w, h) {
       var body = rr(-w / 2, -h, w, h, 0.6);
-      solid(c, body, T.red);
+      solid(c, body, T.paper);
       c.save(); c.clip(body);
-      ink(c, 0.6, T.paper);
+      ink(c, 0.8, T.red);
       for (var x = -w / 2 + 2; x < w / 2 + 2; x += 3.2) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x - 2, -h); c.stroke(); }
       c.restore();
       ink(c, LW); c.stroke(body);
-      solid(c, ell(w / 2, -h / 2, 0.8, h / 2), T.red, 0.4);
+      solid(c, ell(w / 2, -h / 2, 0.8, h / 2), T.paper, 0.4);
       solid(c, ell(w / 2, -h / 2, 0.3, 0.7), T.ink, 0.1);
     } },
     choc: { name: "Chocolates", w: 10, h: 9, bar: { x: 0.28, y: 2.8, w: 3.4 }, draw: function (c, w, h) {
       var body = new Path2D();
       body.moveTo(-w / 2 + 0.6, 0); body.lineTo(w / 2 - 0.6, 0); body.lineTo(w / 2, -h + 2);
       body.lineTo(-w / 2, -h + 2); body.closePath();
-      solid(c, body, T.accent);
+      solid(c, body, T.paper);
+      // a ribbon down the box
+      c.save(); c.clip(body); c.fillStyle = T.red; c.fillRect(2.2, -h, 0.8, h); c.restore();
       shade(c, body, rr(w * 0.2, -h, w, h, 0));
       ink(c, LW); c.stroke(body);
-      solid(c, rr(-w / 2 - 0.3, -h, w + 0.6, 2.2, 0.6), T.paper);
-      // a ribbon bow on the lid
+      var lid = rr(-w / 2 - 0.3, -h, w + 0.6, 2.2, 0.6);
+      solid(c, lid, T.paper);
+      c.save(); c.clip(lid); c.fillStyle = T.red; c.fillRect(2.2, -h, 0.8, 2.2); c.restore();
+      ink(c, LW); c.stroke(lid);
+      // and its bow
       solid(c, ell(1.6, -h * 0.5, 1.4, 1.1), T.red, 0.35);
       solid(c, ell(3.6, -h * 0.5, 1.4, 1.1), T.red, 0.35);
       solid(c, ell(2.6, -h * 0.5, 0.6, 0.6), T.paper, 0.3);
@@ -495,13 +526,16 @@
     tape: { name: "Sticky tape", w: 7, h: 9, bar: { x: 0.5, y: 2, w: 3 }, draw: function (c, w, h) {
       // a roll on a card, small and easy to miss
       var card = rr(-w / 2, -h, w, h, 0.5);
-      solid(c, card, T.red);
+      solid(c, card, T.paper);
+      c.save(); c.clip(card); c.fillStyle = T.accent; c.fillRect(-w / 2, -h, w, 2.1); c.restore();
+      ink(c, LW); c.stroke(card);
+      line(c, [[-w / 2, -h + 2.1], [w / 2, -h + 2.1]], 0.3);
       solid(c, ell(0, -h + 1, 0.8, 0.45), T.ink, 0.2);
       var roll = ell(0, -h + 4.6, 2.6, 2.6);
       solid(c, roll, T.paper, 0.45);
       shade(c, roll, ell(1.2, -h + 5.6, 1.6, 1.6));
       ink(c, 0.45); c.stroke(roll);
-      solid(c, ell(0, -h + 4.6, 1.1, 1.1), T.red, 0.35);
+      solid(c, ell(0, -h + 4.6, 1.1, 1.1), T.ink, 0.35);
     } },
     baguette: { name: "Baguette", w: 20, h: 4.6, bar: { x: 0.82, y: 2.2, w: 3.4 }, draw: function (c, w, h) {
       var body = rr(-w / 2, -h, w, h, h / 2);

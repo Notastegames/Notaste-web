@@ -64,19 +64,23 @@
 // notice, the pointer, the title's hint, How to play): "Scan on the line"
 // and "Bag on OK". The basket's notice says the goal, the moves and the cost
 // in three sentences. Then the pointer (a dashed ring and a word) teaches in
-// play, one thing at a time: the shop's clock ("Pay before 0:00") as the
-// notice lifts, "Scan on the line" round the first barcode, "Bag on OK"
-// round the scale, "Bag all 6" round the items the first time it moves, the
-// ritual when the machine first accuses you, and from the trolley the
-// suspicion lights ("Five lit: accused") the first time one comes on. A
-// mistake brings its ring back next time, three times a round at most.
-// Every scan, bag and fruit says right or wrong at once, where you're
-// looking: a green tick or a red cross on the thing, the screen's edge
-// flashing for anything perfect or wrong, and what it did written under it
-// ("Early. Suspicious", "Bagged on Wait"). Every accusation says why, by the
-// scale. The basket is for finding your feet: nothing in it makes the
-// machine suspicious, so the only accusations are its false alarm and
-// bagging on Wait.
+// play, one thing at a time: "Scan on the line" round the first barcode,
+// "Bag on OK" round the scale, the shop's clock ("Pay before 0:00") once
+// that first thing's in the bag, "Bag all 6" round the items, the ritual
+// when the machine first accuses you, and from the trolley the suspicion
+// lights ("Five lit: accused") the first time one comes on. A meter's ring
+// never flashes up between two moves. A mistake brings its ring back next
+// time, three times a round at most. Every scan, bag and fruit says right or
+// wrong at once, where you're looking: a green tick or a red cross on the
+// thing, the screen's edge flashing for anything perfect or wrong, and what
+// it did written under it ("Early. Suspicious", "Round again. Suspicious",
+// "Bagged on Wait"). Every
+// accusation says why, by the scale. Green and red mean right and wrong (and
+// OK and Wait) and nothing else: the shopping is white own-brand packs with
+// one small print each, the bag's print is a leaf, and the look-up's frame
+// for the arrow keys is ink, and only there for keys or a pad. The basket is
+// for finding your feet: nothing in it makes the machine suspicious, so the
+// only accusations are its false alarm and bagging on Wait.
 //
 // TODAY'S RUN. Everyone gets the same shopping in the same order, the same
 // fruit pictures in the same places and the same ways of shopping offered
@@ -306,6 +310,7 @@
   var prev = {}, taps = [], tiles = [], auto = null;
   var learned = freshLearned();
   var verdict = null, marks = [];                // right or wrong: the screen's edge, and ticks and crosses
+  var ringWord = "";                             // ?debug: what the pointer says this frame
   var told = {}, ptag = null, tagQ = [];          // the meter rings, once a run
   var shake = 0, sorryT = 0, blinkT = 3, flashT = 0, endT = 0, clearT = 0, shutter = 0;
   var hudEls = null, back = null, front = null, noticed = false;
@@ -757,10 +762,17 @@
           belt.splice(j, 1);
           falls.push({ item: b, x: b.x, t: 0 });
           sfx.fall();
-          // something got past unscanned: the machine noticed
+          // something got past unscanned: the machine noticed, and says so
+          // where it went, unless it's only just told you that one was late
           suspect(SUS_ROUND);
           streak = 0;
-          if (!run.roundCalled) { run.roundCalled = true; shell.callout("Round again", { sound: false, ms: 1100 }); }
+          var said = stage > 0 ? "Round again. Suspicious" : "Round again";
+          if (!b.late) {
+            wrongAt(L.chute, L.belt + 5);
+            if (run.roundCalled) float(L.sx, L.belt + 11, said, "miss");
+            if (learned.scan && learned.againScan < 3 && !learned.redoScan) { learned.redoScan = true; learned.againScan++; }
+          }
+          if (!run.roundCalled) { run.roundCalled = true; shell.callout(said, { sound: false, ms: 1100 }); }
           else if (Math.random() < 0.35) dennis(pick(SAY.round));
         }
       }
@@ -812,7 +824,7 @@
       wrongAt(L.sx, L.belt + 5);
       if (learned.scan && learned.againScan < 3 && !learned.redoScan) { learned.redoScan = true; learned.againScan++; }
       if (word === "Early") dennis(pick(SAY.early));
-      else if (word === "Late") dennis(pick(SAY.late));
+      else if (word === "Late") { near.late = true; dennis(pick(SAY.late)); }
       else if (Math.random() < 0.4) dennis(pick(SAY.missed));
       return;
     }
@@ -1028,6 +1040,9 @@
     }
     if (p.left) { look.sel = (look.sel + 3) % 4; sfx.pick(); }
     if (p.right) { look.sel = (look.sel + 1) % 4; sfx.pick(); }
+    // the arrow keys' frame only shows to someone playing on keys or a pad:
+    // to a finger or a mouse it would look like the till's suggestion
+    look.focus = p.mode === "pad" || (lastMode === "keys" && !touching());
     // Space (or the pad's button) picks the highlighted one, but not in the
     // first moment, in case you were still scanning, and not from the Scan button
     var confirm = p.scan && look.t > 0.35 && (p.mode === "keys" || p.mode === "pad" || AUTOPILOT);
@@ -1757,7 +1772,8 @@
     if (frozen) return frozen.step === "lift" ? (settling() ? "Unexpected item" : "Remove the item") : frozen.step === "back" ? (settling() ? "Please wait" : "Replace the item") : "Please wait";
     if (look) return "Look up item";
     if (hand) return settling() ? "Please wait" : "Bag your item";
-    if (approvals) return "Approval needed";
+    // waiting on Bev only once there's nothing left to scan: until then, carry on
+    if (approvals && !belt.length && !pending.length && !falls.length) return "Approval needed";
     if (beltWait > 0) return "Please wait";
     return "Scan your item";
   }
@@ -1915,9 +1931,16 @@
     S.shade(c, body, S.rr(x + w * 0.18, y - h, w, h, 0), 1);
     S.ink(c, 0.8);
     c.stroke(body);
-    // the print: a big green tick-shaped promise
-    S.solid(c, S.ell(x - 1, y - h * 0.48, 4.4, 4.4), T.accent, 0.5);
-    S.line(c, [[x - 3, y - h * 0.48], [x - 1.4, y - h * 0.48 + 1.8], [x + 1.6, y - h * 0.48 - 2]], 0.9, T.paper);
+    // the print: a leaf, for life. Not a tick: a green tick is only ever a
+    // right answer (DESIGN.md, section 3)
+    var lx = x - 1, ly = y - h * 0.48;
+    var leaf = new Path2D();
+    leaf.moveTo(lx - 3.4, ly + 3);
+    leaf.quadraticCurveTo(lx - 4.4, ly - 3.6, lx + 3.6, ly - 3.4);
+    leaf.quadraticCurveTo(lx + 3.4, ly + 3.8, lx - 3.4, ly + 3);
+    leaf.closePath();
+    S.solid(c, leaf, T.accent, 0.5);
+    S.line(c, [[lx - 4.2, ly + 3.8], [lx - 3.4, ly + 3], [lx + 2, ly - 2]], 0.5, T.ink);
     if (L.tmin <= 2.4) S.text(c, "Bag for life", x - 1, y - 2.4, 2.4);
     // front handle
     c.beginPath();
@@ -2112,15 +2135,16 @@
     tiles = [];
     for (var i = 0; i < 4; i++) {
       var tx = ox + (i % cols) * (tw + gap), ty = by + Math.floor(i / cols) * (th + gap);
-      var sel = i === look.sel;
+      var sel = i === look.sel && look.focus;
       var res = look.result;
       var isAns = res && i === look.answer, isPick = res && i === res.i;
       // right or wrong: the right picture turns green, a wrong pick gets a red edge
       c.fillStyle = isAns ? T.right : T.paper;
       c.fillRect(tx, ty, tw, th);
       if (sel && !res) {
+        // where the arrow keys are: a heavier frame, in ink, as green only ever means right
         S.ink(c, 1.6); c.strokeRect(tx, ty, tw, th);
-        S.ink(c, 3.4, T.accent); c.strokeRect(tx + 2.4, ty + 2.4, tw - 4.8, th - 4.8);
+        S.ink(c, 3.4); c.strokeRect(tx + 2.4, ty + 2.4, tw - 4.8, th - 4.8);
       } else {
         S.ink(c, isPick ? 3.4 : 1.6, isPick && !res.ok ? T.red : T.ink);
         c.strokeRect(tx, ty, tw, th);
@@ -2383,11 +2407,22 @@
     return null;
   }
 
+  // A move's ring is due: you've yet to scan (or to scan again, after a
+  // miss) and a barcode's on its way, or you're holding something you've yet
+  // to bag. A meter's ring waits for it rather than flashing up in between.
+  function moveDue() {
+    if (phase !== "play" || look || frozen) return false;
+    if (hand) return !learned.bag || learned.redoBag;
+    if (learned.scan && !learned.redoScan) return false;
+    return beltWait > 0 || belt.some(function (it) { return it.bar && barCentre(it) < L.sx + it.bar.half + 1; });
+  }
+
   // The meters decide the shop, so each gets the pointer once a run, the
   // first time it matters: the clock ("Pay before 0:00") as the first notice
   // lifts, the items ("Bag all 6") after the first thing's bagged, and the
   // suspicion lights from the trolley on. One at a time, and a move's ring
-  // always goes first.
+  // always goes first: in the basket the clock waits until you've scanned
+  // and bagged one thing.
   var TAG_LEN = 2;
   function tell(what, word, delay) {
     if (told[what] || N.flags.clip) return;
@@ -2559,10 +2594,16 @@
     // the pointer: a move's ring first; a meter's ring only while no move needs one
     var h = hint(), m = null;
     if (ptag && phase !== "play") ptag = null;
-    // it waits for the move (or the look-up, or an accusation), then has its full turn
-    if ((h || look || frozen) && ptag) ptag.t = Math.min(ptag.t, 0);
-    if (!h && !look && !frozen && ptag && ptag.t >= 0) m = tagRect();
+    // it waits for the move (or the look-up, or an accusation), then has its
+    // full turn; cut off after most of its turn, it's had it
+    var due = moveDue();
+    if ((h || look || frozen || due) && ptag) {
+      if (ptag.t > TAG_LEN * 0.6) ptag = null;
+      else ptag.t = Math.min(ptag.t, 0);
+    }
+    if (!h && !look && !frozen && !due && ptag && ptag.t >= 0) m = tagRect();
     var ring = h ? h : m ? { r: m.r, word: ptag.word, at: m.at } : null;
+    if (DEBUG) ringWord = ring ? ring.word : "";
     var drawn = null;
     if (ring) {
       // measured first, so speech bubbles keep clear of it
@@ -2673,7 +2714,7 @@
           look: look ? { answer: look.answer, t: look.t, limit: look.limit, result: !!look.result } : null,
           score: Math.round(run.score), accused: run.accused, perfect: run.perfect, scanned: run.scanned,
           timeLeft: timeLeft, approvals: approvals, sus: sus, bev: bev.state, U: U,
-          falseAlarms: run.falseAlarms, fault: st.fault, streak: streak
+          falseAlarms: run.falseAlarms, fault: st.fault, streak: streak, ring: ringWord
         };
       }
     };
