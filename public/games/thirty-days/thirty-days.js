@@ -26,7 +26,7 @@
 //      refill: they come back once.
 //   4. The late one (23:45): half the stickers have come off, so you have to
 //      know a doughnut is sugar. The big items have two stickers and need
-//      sorting twice.
+//      sorting twice, either sticker first.
 // TEACHING IT IN THE FIRST SECONDS. The move has one name everywhere (the
 // notice, the pointer, the title hint, How to play): match the sticker.
 // Breakfast opens with four items served one at a time, grease and sugar,
@@ -176,11 +176,13 @@
 
   // What the clerks say. Two short lines at most.
   var SAY = {
-    // the first line names what they've been given ("A cola?"), this is the second
+    // the first line names what they've been given ("A cola?"), this is the
+    // second. Never "Not my department" (the callout says it at the same
+    // moment) or "Wrong desk" (so does the cost under the plate)
     wrong: {
-      liver: ["Not grease", "Try next door", "Does that look greasy", "Not my department"],
-      pancreas: ["Not sugar", "Try next door", "Wrong desk", "Not my department"],
-      kidneys: ["We only do salt", "Not ours", "Wrong desk. Both of us"]
+      liver: ["Not grease", "Try next door", "Does that look greasy"],
+      pancreas: ["Not sugar", "Try next door", "Does that look sweet"],
+      kidneys: ["We only do salt", "Not ours", "Not salt. Both of us"]
     },
     full: [["We're full"], ["Take a", "number"], ["Tray's full"], ["One pair", "of hands"]],
     filed: {
@@ -415,6 +417,12 @@
     }
     var need = it.kinds[it.step];
     var leaf = need === "leaf";
+    // a big one wears two stickers, and either can go first
+    var other = it.kinds.indexOf(DEPT[id], it.step + 1);
+    if (!leaf && DEPT[id] !== need && other > 0) {
+      it.kinds[other] = need;
+      it.kinds[it.step] = need = DEPT[id];
+    }
     if (!leaf && DEPT[id] !== need) {
       // wrong desk: thrown back
       G.stageWrong++;
@@ -770,7 +778,8 @@
       G.ring = { what: to, word: keys ? "Any desk: " + KEYS[to] : "Any desk" };
     } else if (id && G.desks[id].open && !G.taught[id]) {
       G.ring = { what: id, word: keys ? MOVE + ": " + KEYS[id] : MOVE };
-    } else if (info().flush && !G.taught.flush && G.flushWait === 0 && id && G.desks[id].tray.length >= cap() - 1) {
+    } else if (info().flush && !G.taught.flush && G.flushWait === 0 && id && G.desks[id].tray.length + countFlying(id) >= cap()) {
+      // the first time Flush would save a spill: that desk's tray is full
       G.ring = { what: "hatch", word: keys ? "Flush: Space" : "Flush" };
     } else if (G.hint.flush > 0) {
       G.ring = { what: "hatch", word: "Recharging" };
@@ -927,27 +936,27 @@
   }
 
   // ---------------------------------------------------------------------------
-  // HUD: the day and which meal of four top left, the score top right. The
-  // pipes are the gauge by the Heart, and nothing else: one meter, one place.
-  // No clock or streak in play; the streak says itself in callouts.
+  // HUD: which meal of four top left, the score top right. The pipes are the
+  // gauge by the Heart, and nothing else: one meter, one place. No day, clock
+  // or streak in play: "Day 6 of 30" over "Breakfast 1 of 4" read as thirty
+  // days to get through, so the day waits for the doctor's note, and the
+  // streak says itself in callouts.
   // ---------------------------------------------------------------------------
   function buildHud() {
     shell.hud.innerHTML =
       '<div class="kit-hud-tl">' +
-        '<p class="kit-stat"><small>Day</small><span data-day>1</span></p>' +
         '<p class="kit-stat" data-meals><small data-meal>Breakfast</small><span data-of>1 of 4</span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big" data-score>0</p>' +
       '</div>';
     hudEls = {};
-    ["day", "meal", "meals", "of", "score"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
+    ["meal", "meals", "of", "score"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
   }
   function setText(node, text) { if (node && node.textContent !== text) node.textContent = text; }
   function paintHud() {
     if (!hudEls || !run || !G) return;
     var st = info();
-    setText(hudEls.day, run.day + " of 30");
     setText(hudEls.meal, st.name);
     setText(hudEls.of, (run.stage + 1) + " of " + STAGES.length);
     setText(hudEls.score, fmt(run.score));
@@ -1176,11 +1185,19 @@
     if (it.chomp) size *= 1 - it.chomp * 0.12;
     A.item(c, it, p.x + bx, y, size, { minSticker: 5.4, squash: it.drop < 1 ? 0 : (it.bounce > 0 ? -0.08 * it.bounce : 0) });
     if (it.bare && it.drop >= 1) {
-      // the sticker's come off: a sticky patch where it was
-      A.rr(c, p.x + bx + size * 0.08, y + size * 0.3, size * 0.5, size * 0.22, size * 0.08);
-      c.setLineDash([0.8, 0.8]);
-      A.stroke(c, 0.4, T.paper);
+      // the sticker's come off: a dotted outline where it was, in the
+      // sticker's place and size, ink on paper so it shows on the plate as
+      // well as the food (and blank, so it can't pass for a Salt sticker)
+      var ps = 5.4;
+      c.save();
+      c.translate(p.x + bx + size * 0.3, y + size * 0.42);
+      c.rotate(-0.12);
+      A.rr(c, -ps * 1.1, -ps / 2, ps * 2.2, ps, ps * 0.22);
+      A.fill(c, T.paper);
+      c.setLineDash([0.9, 0.7]);
+      A.stroke(c, 0.5, T.ink);
       c.setLineDash([]);
+      c.restore();
     }
     if (it.isRefill && it.drop >= 1) A.label(c, "Refill", p.x - size * 0.55 + bx, y - size * 0.5, 4, "right", T.accent);
   }
@@ -1401,7 +1418,7 @@
 
   function drawTeaching(c) {
     if (G.phase !== "play" || shell.state() !== "playing") { if (shell.state() !== "paused") tag = null; return; }
-    var r = null, word = null, below = true;
+    var r = null, word = null, below = true, tuck = false;
     if (tag) {
       var age = anim - tag.born;
       if (age > TAG_LEN || (age > 1.2 && G.ring)) tag = null;
@@ -1410,7 +1427,10 @@
         if (tag.what === "pipes") {
           var g = L.gauge;
           r = { x: g.x - g.w / 2 - 2, y: g.y - 2, w: g.w + 7, h: g.h + 4 };
+          // the word sits on the ring's top edge: any higher and it covers
+          // the Liver's sticker, the thing a player is matching against
           below = false;
+          tuck = true;
         } else if (hudEls && hudEls.meals) {
           r = boxOf(hudEls.meals);
           r.x -= 1; r.y -= 0.6; r.w += 2; r.h += 1.2;
@@ -1447,7 +1467,7 @@
     var tw = A.textWidth(c, text, fs) + fs * 1.2, th = fs + fs * 0.8;
     var bob = shell.reduceMotion ? 0 : Math.sin(anim * 6) * 0.4;
     var tx = clamp(r.x + r.w / 2 - tw / 2, 1, WW - tw - 1);
-    var ty = below ? r.y + r.h + 1 + bob : r.y - th - 1 + bob;
+    var ty = below ? r.y + r.h + 1 + bob : tuck ? r.y - th * 0.55 + bob : r.y - th - 1 + bob;
     A.rr(c, tx, ty, tw, th, 1);
     A.fill(c, T.ink, lw * 0.8, T.paper);
     c.fillStyle = T.paper;
@@ -1606,7 +1626,7 @@
     pitch: "Thirty days of fast food. Your insides are a council office, and the in-trays are full.",
     hints: {
       keys: "Match the sticker: left, right or down sends the food to that desk. P to pause.",
-      touch: "Match the sticker: tap the desk with the same one. Make it to bed."
+      touch: "Match the sticker: tap the desk wearing the same one. Make it to bed."
     },
     againLabel: "Another day",
     daily: true,
