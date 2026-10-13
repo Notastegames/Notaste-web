@@ -51,6 +51,18 @@
 // circles, the pop-ups, the perks), so a different perk picked between apps
 // changes nothing about the next app's terms.
 //
+// CLEAR IN THE FIRST SECONDS. The move has one name everywhere (the notice,
+// the pointer, the title hint, How to play): strike it. The bad clauses are
+// "daft", which is what to look for. The first app is practice: a third
+// slower, shorter clauses, and what gets away is signed but costs no right.
+// The pointer teaches in play, one thing at a time: "Strike it" on the first
+// daft clause (back on the next one after a miss or a wrong strike, three
+// times a round at most), a ring round the scrollbar ("Accept at the bottom")
+// after the first strike, and a ring round the rights ("Lose all 5, it's
+// over") the first time one goes. Every strike says right or wrong at once,
+// on the clause: a green tick or a red cross, a pill with what it did, and
+// the screen's edge flashes (DESIGN.md section 3, "Right and wrong").
+//
 // Built on the shared kit (/games/kit/kit.js). clauses.js holds the words,
 // cast.js draws Legal and the mascots. Everything is drawn on the canvas in
 // the four inks from Notaste.tokens(); the clause text is cached as bitmaps.
@@ -83,25 +95,29 @@
   var WAIT_ACCEPT = 9;         // seconds before the mascot presses Accept for you
   var READ = 1.2;              // seconds a clause must have been all on screen before a push can carry it off the top
   var SIGNED_MS = 0.85;        // how long the Signed stamp stays up at the top of the page
+  var PRACTICE = 0;            // the first app is practice: what gets away costs no right
+  var SHORT = 64;              // ...and its clauses are the short ones, in characters
+  var HINTS = 3;               // the strike pointer comes back after a mistake, this often a round
 
   // What each app's terms hold. lps: lines a second the page scrolls, and
   // ramp: how much faster it is by the end. Reading every clause in full as
-  // it arrives takes about 24 characters a second in the first app on a
+  // it arrives takes about 24 characters a second in the second app on a
   // desktop, an ordinary reading speed, rising to about 30 by the end of the
-  // bank (stings and small print pack more words into a line, so the later
+  // bank; the first app, practice, is a third slower than that (stings and small print pack more words into a line, so the later
   // apps ask more of you than their speed suggests)
   var STAGES = [
-    { normal: 6, bad: 5, sting: 0, smallBad: 0, smallOk: 0, amend: 0, popups: 0, lps: 1.12, ramp: 0.06 },
+    { normal: 6, bad: 5, sting: 0, smallBad: 0, smallOk: 0, amend: 0, popups: 0, lps: 0.76, ramp: 0.06 },
     { normal: 6, bad: 3, sting: 3, smallBad: 0, smallOk: 0, amend: 0, popups: 1, lps: 1.18, ramp: 0.08 },
     { normal: 5, bad: 3, sting: 2, smallBad: 3, smallOk: 2, amend: 0, popups: 2, lps: 1.3, ramp: 0.1 },
     { normal: 5, bad: 2, sting: 3, smallBad: 3, smallOk: 2, amend: 3, popups: 2, lps: 1.42, ramp: 0.12 }
   ];
 
   // What's new each app, shown as a notice with the countdown
+  // (the first: the goal, the move and the cost, in three short sentences)
   var BRIEFS = [
-    "Most clauses are normal. Strike the ones that aren't before they scroll off the top: {how}. Each one that gets away signs off one of your rights. Strike a normal one and Legal bills you.",
-    "Read to the end. Some clauses turn bad in their last few words. And a pop-up will ask if you're still reading: {close}.",
-    "A dating app for dogs. Read the small print: a fine clause with a bad footnote is a bad clause. A harmless footnote is fine.",
+    "Read down to Accept. {move}. From the next app, each one that gets away costs a right.",
+    "Rights count from here. Some clauses turn daft in their last few words, so read to the end. A pop-up will ask if you're still reading: {close}.",
+    "A dating app for dogs. Read the small print: a daft footnote makes the clause daft. A harmless one doesn't.",
     "Legal edits clauses while you read. When his pen comes out, read that clause again. It's a bank, so everything's faster."
   ];
 
@@ -159,6 +175,9 @@
   var gesture = { left: 0, wheelAt: -9 };
   var signs = [];                      // Signed stamps at the top of the page
   var greetAt = -1;                    // when the notice went, so the cast can say hello
+  var verdict = null;                  // the last strike's result, for the edge flash: { ok, born }
+  var told = {}, ring = null;          // the rings round the scrollbar and the rights, once a visit
+  var POP_LEN = 1.5;                   // how long a pill stays up
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function fmt(n) { return Math.round(n).toLocaleString("en-GB"); }
@@ -184,10 +203,12 @@
   // Building the terms for an app, from the run's seed
   // ---------------------------------------------------------------------------
   // n unused items: some from the app's own list, the rest from the general one
-  function take(own, general, n, ownShare) {
+  // (short: only the ones that fit in SHORT characters, for the practice app)
+  function take(own, general, n, ownShare, short) {
     var out = [];
-    var mine = shuffle((own || []).filter(function (x) { return !run.used[key(x)]; }));
-    var theirs = shuffle((general || []).filter(function (x) { return !run.used[key(x)]; }));
+    function fresh(x) { return !run.used[key(x)] && (!short || key(x).length <= SHORT); }
+    var mine = shuffle((own || []).filter(fresh));
+    var theirs = shuffle((general || []).filter(fresh));
     var fromOwn = Math.min(mine.length, Math.round(n * ownShare));
     out = mine.slice(0, fromOwn).concat(theirs.slice(0, n - fromOwn));
     out.forEach(function (x) { run.used[key(x)] = true; });
@@ -200,11 +221,12 @@
     app = C.apps[i];
     rnd = stream(i, 1);
     var badItems = [], normals = [], amendables = [];
-    take(app.bad, C.bad, st.bad, 0.45).forEach(function (t) { badItems.push({ type: "bad", text: t }); });
+    var short = i === PRACTICE;
+    take(app.bad, C.bad, st.bad, 0.45, short).forEach(function (t) { badItems.push({ type: "bad", text: t }); });
     take(app.sting, C.sting, st.sting, 0.4).forEach(function (s) { badItems.push({ type: "sting", text: s[0], n: s[1] }); });
     take(app.smallBad, C.smallBad, st.smallBad, 0.34).forEach(function (s) { badItems.push({ type: "small", text: s[0], foot: s[1] }); });
     // real: a clause from real terms that sounds bad. Strike it and Legal says so.
-    take(app.normal, C.normal, st.normal, 0.35).forEach(function (t) { normals.push({ type: "normal", text: t, real: C.real.indexOf(t) >= 0 }); });
+    take(app.normal, C.normal, st.normal, 0.35, short).forEach(function (t) { normals.push({ type: "normal", text: t, real: C.real.indexOf(t) >= 0 }); });
     take(app.smallOk, C.smallOk, st.smallOk, 0.34).forEach(function (s) { normals.push({ type: "smallok", text: s[0], foot: s[1] }); });
     take(null, C.amend, st.amend, 0).forEach(function (s) { amendables.push({ type: "amendable", text: s[0], from: s[1], to: s[2] }); });
     shuffle(badItems);
@@ -584,7 +606,8 @@
     CAST.init(T, DPR);
     run = {
       score: 0, caught: 0, missed: 0, wrong: 0, fees: 0, rights: RIGHTS, streak: 0, best: 0,
-      used: {}, taken: [], agreed: [], real: [], mods: freshMods(), daily: sh.daily, quick: 0, popupsClosed: 0
+      used: {}, taken: [], agreed: [], real: [], mods: freshMods(), daily: sh.daily, quick: 0, popupsClosed: 0,
+      hints: 0
     };
     if (!hudEls) buildHud();
     stampCache = {};
@@ -623,6 +646,8 @@
     accepted = false;
     noticed = false;
     hintNow = null;
+    verdict = null;
+    ring = null;
     autoT = 0;
     bg = null;
     hudBoxes = null;
@@ -754,7 +779,7 @@
     bubbles = bubbles.filter(function (bb) { bb.t += dt; return bb.t < bb.life; });
     signs = signs.filter(function (e) { e.t += dt; return e.t < SIGNED_MS; });
     fx = fx.filter(function (e) { e.t += dt; return e.t < e.life; });
-    pops = pops.filter(function (e) { e.t += dt; return e.t < 0.9; });
+    pops = pops.filter(function (e) { e.t += dt; return e.t < POP_LEN; });
   }
 
   // ---------- Striking ----------
@@ -783,7 +808,9 @@
     run.caught++;
     run.stageCaught++;
     run.best = Math.max(run.best, Math.floor(run.streak));
-    pops.push({ text: "+" + points + (mult > 1 ? " x" + mult : ""), x: L.view.x + L.view.w * 0.62, y: b.top + b.h * 0.3, t: 0 });
+    pops.push({ text: "Struck: +" + points + (mult > 1 ? " x" + mult : ""), y: b.top + b.h * 0.3, t: 0 });
+    judge(true, b);
+    tell("bar", "Accept at the bottom");
     splat(b);
     hitch = 0.22;
     if (!calm()) { shake = Math.max(shake, 0.5); pull = Math.max(pull, 5); }
@@ -812,14 +839,17 @@
     run.wrong++;
     run.stageWrong++;
     var free = run.mods.free > 0;
+    judge(false, b);
+    again();
     if (free) {
       run.mods.free--;
       shell.callout("Legal aid", { sound: false, ms: 900 });
+      pops.push({ text: "Normal clause: free", y: b.top + b.h * 0.3, t: 0, bad: true });
     } else {
       var cost = Math.round(WRONG * run.mods.wrong);
       run.score = Math.max(0, run.score - cost);
       run.fees += FEE;
-      pops.push({ text: "-" + cost, x: L.view.x + L.view.w * 0.62, y: b.top + b.h * 0.3, t: 0, bad: true });
+      pops.push({ text: "Normal clause: -" + cost, y: b.top + b.h * 0.3, t: 0, bad: true });
     }
     sfx.wrong();
     if (!calm()) shake = Math.max(shake, 0.3);
@@ -847,9 +877,14 @@
     run.streak = 0;
     run.missed++;
     run.stageMissed++;
-    run.rights--;
+    if (stage !== PRACTICE) run.rights--;
     run.agreed.push(b);
     sfx.signed();
+    judge(false);
+    again();
+    // said at the top of the page, where it went: what it cost
+    pops.push({ text: stage === PRACTICE ? "Got away. Practice: right kept" : "Got away: right -1", top: true, t: 0, bad: true });
+    if (stage !== PRACTICE) tell("rights", "Lose all " + RIGHTS + ", it's over");
     // it goes off the top half read, so say so where you're looking: a Signed
     // stamp pinned at the top of the page, and the right going in the HUD
     signs.push({ t: 0, x: L.view.x + L.view.w * (0.3 + ((b.top * 7) % 40) / 100), tilt: ((b.top * 13) % 9 - 4) * 0.02 });
@@ -949,7 +984,7 @@
         b.atAccept = true;
         run.missed++;
         run.stageMissed++;
-        run.rights--;
+        if (stage !== PRACTICE) run.rights--;
         run.agreed.push(b);
         signed++;
       }
@@ -963,7 +998,7 @@
     var kept = Math.max(0, run.rights);
     var bonus = kept * PER_RIGHT + (run.stageMissed === 0 && run.stageWrong === 0 ? CLEAN : 0);
     run.score += bonus;
-    pops.push({ text: "+" + bonus, x: L.view.x + L.view.w * 0.5, y: scroll + L.view.h * 0.5, t: 0 });
+    pops.push({ text: "Accepted: +" + bonus, y: scroll + L.view.h * 0.5, t: 0 });
     // the HUD only repaints in play: show the bonus before the round stops
     paintHud();
     phase = "done";
@@ -1396,7 +1431,18 @@
   function pickHint() {
     hintNow = null;
     var learned = run.learned || (run.learned = {});
-    if (briefUp()) return;
+    // one thing at a time: a ring round the scrollbar or the rights has the floor
+    if (ring && ring.born <= clock) return;
+    // the notice sits over the bottom of the page: while it's up, only the
+    // first strike is pointed at, on a clause above it, so the first daft
+    // clause is shown the moment it's there to read
+    var briefOn = briefUp();
+    if (briefOn && (learned.strike || popup || phase !== "read")) return;
+    var clear = L.view.y + L.view.h;
+    if (briefOn) {
+      var br = briefEl.getBoundingClientRect(), base = root.getBoundingClientRect();
+      if (br.height) clear = Math.min(clear, br.top - base.top - 4);
+    }
     if (popup) {
       if (!learned.popup) {
         var r = popupRect();
@@ -1417,9 +1463,10 @@
       var b = doc[i];
       if (!isClause(b) || b.state !== "open" || b.type !== want || !onScreen(b)) continue;
       var y = L.view.y + b.top - scroll;
-      if (y < L.view.y + L.lh * 1.2 || y + b.h > L.view.y + L.view.h) continue;
+      if (y < L.view.y + L.lh * 1.2 || y + b.h > clear) continue;
       // on keys, which way the highlight has to go to get there
-      var word = want === "bad" ? (keyMode ? (sel === i ? "Space" : sel > i ? "Up, then Space" : "Down, then Space") : touchy() ? "Tap it" : "Click it")
+      // the move's name, and on keys the key as well: "Strike it: Space"
+      var word = want === "bad" ? (keyMode ? "Strike it: " + (sel === i ? "Space" : sel > i ? "Up, Space" : "Down, Space") : "Strike it")
                : want === "sting" ? "Read to the end" : want === "small" ? "Read the small print" : "Legal changed this";
       // from the left margin, where the clause starts; a sting's tag over its last words
       var x = null;
@@ -1431,6 +1478,30 @@
       hintNow = { x: x, left: x == null, y: y, word: word, block: i };
       return;
     }
+  }
+
+  // A mistake (a daft clause got away, a normal one struck) brings the strike
+  // pointer back on the next daft clause, three times a round at most, so
+  // nobody is left guessing and nobody who's got it is told twice
+  function again() {
+    if (!run.learned || !run.learned.strike || run.hints >= HINTS) return;
+    run.hints++;
+    run.learned.strike = false;
+  }
+
+  // Right or wrong, said at once: the clause flashes green or red, and so
+  // does the edge of the screen
+  function judge(ok, b) {
+    verdict = { ok: ok, born: clock };
+    if (b) { b.verdict = ok; b.judgedAt = clock; }
+  }
+
+  // The scrollbar and the rights decide the round, so each gets a ring once a
+  // visit, a moment after what moved it: a dashed ring round it and a word
+  function tell(what, word) {
+    if (told[what] || AUTOPILOT) return;
+    told[what] = true;
+    ring = { what: what, word: word, born: clock + 0.7 };
   }
 
   // ---------------------------------------------------------------------------
@@ -1487,7 +1558,8 @@
   };
 
   // ---------------------------------------------------------------------------
-  // HUD: the app top left with your rights, the score and the streak top right
+  // HUD: the app top left with your rights, the points top right. No streak:
+  // the multiplier is on each catch's pill ("Struck: +200 x2"), where you look.
   // ---------------------------------------------------------------------------
   function buildHud() {
     var pips = "";
@@ -1498,11 +1570,10 @@
         '<p class="kit-stat tc-rights"><small>Rights</small><span class="tc-pips" data-rights>' + pips + '</span><span class="kit-sr" data-rights-n></span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
-        '<p class="kit-stat kit-stat-big"><span data-score>0</span></p>' +
-        '<p class="kit-stat" data-minor><small>Streak</small><span data-streak>x1</span></p>' +
+        '<p class="kit-stat kit-stat-big"><span data-score>0</span><small>points</small></p>' +
       '</div>';
     hudEls = {};
-    ["stage", "rights", "rights-n", "score", "streak"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
+    ["stage", "rights", "rights-n", "score"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
     hudEls.pips = Array.prototype.slice.call(shell.hud.querySelectorAll(".tc-pip"));
   }
   function setText(node, text) { if (node && node.textContent !== text) node.textContent = text; }
@@ -1541,7 +1612,6 @@
     // a longer score is a wider corner: measure the HUD again
     if (hudEls.score && hudEls.score.textContent.length !== fmt(run.score).length) hudBoxes = null;
     setText(hudEls.score, fmt(run.score));
-    setText(hudEls.streak, "x" + Math.min(4, 1 + Math.floor(run.streak / 3)));
   }
 
   // ---------------------------------------------------------------------------
@@ -1660,7 +1730,9 @@
     drawCast(c);
     drawFx(c);
     drawBubbles(c);
+    if (state === "playing" || state === "paused") drawRing(c);
     if (hintNow && state === "playing") drawTag(c, hintNow);
+    drawVerdict(c);
     // under the results and the choices between apps, the page steps back so
     // the words on top aren't read against the words underneath
     var back = state === "results" || state === "interlude";
@@ -1693,10 +1765,11 @@
 
   // The stage's notice goes up with the countdown, so it's read before Go
   function notice() {
-    var how = touchy() ? "tap them" : "click them, or pick one with up and down and press Space";
+    var move = touchy() ? "Tap a daft clause to strike it" : "Click a daft clause to strike it, or use Up, Down and Space";
     var close = touchy() ? "tap it to close it" : "click it or press Space";
-    var text = BRIEFS[stage].replace("{how}", how).replace("{close}", close);
-    shell.brief({ title: "App " + (stage + 1) + ": " + app.name, text: text, ms: stage === 0 ? 7600 : 6800 });
+    var text = BRIEFS[stage].replace("{move}", move).replace("{close}", close);
+    var title = stage === PRACTICE ? "Practice: " + app.name : "App " + (stage + 1) + ": " + app.name;
+    shell.brief({ title: title, text: text, ms: stage === 0 ? 6400 : 6800 });
   }
 
   function screenY(b) { return Math.round((L.view.y + b.top - scroll + pull) * DPR) / DPR; }
@@ -1735,18 +1808,28 @@
       c.drawImage(img, v.x, y, v.w, b.h);
       if (isClause(b)) drawMarks(c, b, y);
     }
-    // points, floating up off the page
-    pops.forEach(function (p) {
-      var k = p.t / 0.9, py = L.view.y + p.y - scroll + pull - (calm() ? 0 : k * 22);
-      c.globalAlpha = 1 - k * k;
-      c.font = Math.round(L.fs * 1.15) + "px " + T.display;
-      c.textAlign = "center";
+    // what each strike did, said on the page where it happened: a green pill
+    // with a tick or a red one with a cross (one that got away, at the top)
+    var rs = Math.round(clamp(L.fs * 0.85, 12, 15)), rh = Math.round(rs * 1.9);
+    c.font = rs + "px " + T.display;
+    pops.forEach(function (p, n) {
+      var k = p.t / POP_LEN, rise = calm() ? 0 : Math.min(1, p.t / 0.3) * 10 + k * 10;
+      var py = p.top ? L.view.y + L.lh * 1.9 + rh / 2 : L.view.y + p.y - scroll + pull - rise;
+      var text = p.text.toUpperCase(), rw = c.measureText(text).width + rs * 2.6;
+      var rx = clamp(L.view.x + L.view.w * 0.5 - rw / 2, L.view.x + 6, L.view.x + L.view.w - rw - 12);
+      c.globalAlpha = clamp((1 - k) * 4, 0, 1) * (calm() ? 1 : Math.min(1, p.t / 0.12));
+      CAST.roundRect(c, rx, py - rh / 2, rw, rh, rh / 2);
+      c.fillStyle = p.bad ? T.red : T.right;
+      c.fill();
+      c.lineWidth = 2;
+      c.strokeStyle = T.ink;
+      c.stroke();
+      var ink = p.bad ? T.paper : T.ink;
+      mark(c, !p.bad, rx + rs * 0.95, py, rs * 0.32, ink);
+      c.fillStyle = ink;
+      c.textAlign = "left";
       c.textBaseline = "middle";
-      c.lineWidth = 4;
-      c.strokeStyle = T.paper;
-      c.strokeText(p.text, p.x, py);
-      c.fillStyle = T.ink;
-      c.fillText(p.text, p.x, py);
+      c.fillText(text, rx + rs * 1.75, py + 1);
       c.globalAlpha = 1;
     });
     c.restore();
@@ -1757,6 +1840,16 @@
   // it away; "stet" for a wrong strike; a signature for one that got through
   function drawMarks(c, b, y) {
     var x0 = L.view.x + L.pad, base = y + L.pad * 0.55 + L.lh * 0.5;
+    // right or wrong: the clause you struck is outlined green or red for a moment
+    if (b.judgedAt != null && clock - b.judgedAt < 0.8) {
+      c.save();
+      c.globalAlpha = calm() ? 1 : clamp((0.8 - (clock - b.judgedAt)) / 0.3, 0, 1);
+      c.strokeStyle = b.verdict ? T.right : T.red;
+      c.lineWidth = 4;
+      CAST.roundRect(c, L.view.x + 3, y + 2, L.view.w - 12, b.h - 4, 6);
+      c.stroke();
+      c.restore();
+    }
     if (b.hinted && b.state === "open") {
       c.save();
       c.strokeStyle = T.accent;
@@ -1938,6 +2031,89 @@
     c.rotate(tilt);
     c.scale(scale, scale);
     c.drawImage(s.img, -s.w / 2, -s.h / 2, s.w, s.h);
+    c.restore();
+  }
+
+  // a tick or a cross, so the colour is never the only signal
+  function mark(c, ok, x, y, s, color) {
+    c.save();
+    c.strokeStyle = color;
+    c.lineWidth = Math.max(2.5, s * 0.45);
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.beginPath();
+    if (ok) { c.moveTo(x - s, y); c.lineTo(x - s * 0.3, y + s * 0.75); c.lineTo(x + s, y - s * 0.75); }
+    else { c.moveTo(x - s * 0.8, y - s * 0.8); c.lineTo(x + s * 0.8, y + s * 0.8); c.moveTo(x + s * 0.8, y - s * 0.8); c.lineTo(x - s * 0.8, y + s * 0.8); }
+    c.stroke();
+    c.restore();
+  }
+
+  // the edge of the screen flashes with the last strike's result
+  function drawVerdict(c) {
+    if (!verdict) return;
+    var a = clock - verdict.born, len = 0.5;
+    if (a > len || a < 0) { verdict = null; return; }
+    c.save();
+    c.globalAlpha = 0.85 * (calm() ? 1 : 1 - a / len);
+    c.strokeStyle = verdict.ok ? T.right : T.red;
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, W - 10, H - 10);
+    c.restore();
+  }
+
+  // The ring: dashed, round the scrollbar or the rights, with its word beside
+  // it. It goes after a couple of seconds, or when Accept comes up.
+  function drawRing(c) {
+    if (!ring) return;
+    var age = clock - ring.born;
+    if (age < 0) return;
+    // a pop-up covers it: it waits until the pop-up's closed
+    if (popup) { ring.born = clock; return; }
+    if (age > 2.4 || phase !== "read") { ring = null; return; }
+    var r, base = root.getBoundingClientRect();
+    if (ring.what === "bar") {
+      var v = L.view;
+      r = { x: v.x + v.w - 7, y: v.y + 4, w: 8, h: v.h - 8 };
+    } else {
+      var el = root.querySelector(".tc-rights");
+      if (!el) { ring = null; return; }
+      var e = el.getBoundingClientRect();
+      r = { x: e.left - base.left, y: e.top - base.top, w: e.width, h: e.height };
+    }
+    var p = 5;
+    c.save();
+    CAST.roundRect(c, r.x - p, r.y - p, r.w + p * 2, r.h + p * 2, 8);
+    c.strokeStyle = T.accent;
+    c.lineWidth = 3;
+    c.setLineDash([7, 5]);
+    c.lineDashOffset = calm() ? 0 : -clock * 20;
+    c.stroke();
+    c.setLineDash([]);
+    var size = Math.round(clamp(L.fs * 0.78, 12, 14));
+    c.font = size + "px " + T.display;
+    var text = ring.word.toUpperCase(), tw = c.measureText(text).width + 14, th = size + 9;
+    var bob = calm() ? 0 : Math.sin(clock * 6) * 1.5;
+    var tx, ty;
+    if (ring.what === "bar") {
+      // beside the bar, level with where you are in the terms, inside the page
+      var at = clamp(scroll / Math.max(1, docH - L.view.h), 0, 1);
+      tx = r.x - p - tw - 4;
+      ty = clamp(r.y + r.h * at, r.y + 6, r.y + r.h - th - 6) + bob;
+    } else {
+      // under the rights
+      tx = clamp(r.x - p, 4, W - tw - 4);
+      ty = r.y + r.h + p + 4 + bob;
+    }
+    CAST.roundRect(c, tx, ty, tw, th, 4);
+    c.fillStyle = T.ink;
+    c.fill();
+    c.lineWidth = 2;
+    c.strokeStyle = T.accent;
+    c.stroke();
+    c.fillStyle = T.paper;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(text, tx + tw / 2, ty + th / 2 + 1);
     c.restore();
   }
 
@@ -2445,11 +2621,11 @@
     title: "Terms and Conditions",
     stamp: "Unread",
     tilt: -5,
-    note: "Four apps, four sets of terms. Strike the bad clauses. Then accept anyway.",
+    note: "Four apps, four sets of terms. Strike the daft clauses. Then accept anyway.",
     pitch: "Read the terms. Strike out the bad bits. Accept anyway. There is no other button.",
     hints: {
-      keys: "Click a bad clause to strike it, or pick one with up and down (W, S) and press Space. P to pause.",
-      touch: "Tap a bad clause to strike it before it scrolls off the top."
+      keys: "Click a daft clause to strike it, or pick it with up and down (W, S) and press Space. P to pause.",
+      touch: "Tap a daft clause to strike it before it scrolls off the top."
     },
     againLabel: "Read again",
     daily: { label: "Today's terms" },
@@ -2521,6 +2697,8 @@
       // the pop-ups still to come this app, and when
       plan: function () { return popupPlan.map(function (p) { return [+p.at.toFixed(4), p.def.title]; }); },
       say: say,
+      // show a ring now, for test scripts: "bar" or "rights"
+      ring: function (what) { told = {}; tell(what, what === "bar" ? "Accept at the bottom" : "Lose all " + RIGHTS + ", it's over"); ring.born = clock; },
       // jump to the bottom of the terms, having struck everything bad on the way
       skip: function () {
         doc.forEach(function (b) { if (isClause(b) && b.state === "open" && isBad(b)) { b.state = "struck"; b.struckAt = clock - 1; } });

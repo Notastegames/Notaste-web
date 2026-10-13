@@ -49,6 +49,7 @@
 #game-root .kit-choice-detail,
 #game-root .kit-brief-text { font-size: 0.75rem; }
 #game-root .kit-stat small { font-size: max(0.62em, 0.75rem); }
+#game-root .kit-stat-big small { margin-left: 0.25em; font-size: max(0.42em, 0.75rem); }
 
 /*
   The clip frame (?clip) puts a phone-sized screen on a desktop-sized page.
