@@ -228,20 +228,24 @@
     return { x: bx, y: by, w: w, h: h };
   }
 
-  // The pointer: a bobbing arrow pointing down at (x, y) with a word on it
-  function arrow(c, x, y, word, t, size, reduce) {
+  // The pointer: a bobbing arrow pointing down at (x, y) with a word on it;
+  // up, it sits under (x, y) and points up at it (a pin at the town's top edge)
+  function arrow(c, x, y, word, t, size, reduce, up) {
+    var d = up ? -1 : 1;
     var bob = reduce ? 0 : Math.sin(t * 6) * size * 0.25;
-    var ay = y - size * 0.4 + bob;
-    var shaft = poly([[x, ay], [x - size * 0.75, ay - size * 0.9], [x - size * 0.3, ay - size * 0.9], [x - size * 0.3, ay - size * 1.6],
-                      [x + size * 0.3, ay - size * 1.6], [x + size * 0.3, ay - size * 0.9], [x + size * 0.75, ay - size * 0.9]]);
+    var ay = y - d * size * 0.4 + bob;
+    function at(k) { return ay - d * size * k; }
+    var shaft = poly([[x, ay], [x - size * 0.75, at(0.9)], [x - size * 0.3, at(0.9)], [x - size * 0.3, at(1.6)],
+                      [x + size * 0.3, at(1.6)], [x + size * 0.3, at(0.9)], [x + size * 0.75, at(0.9)]]);
     solid(c, shaft, T.paper, size * 0.14);
     var tw = measure(c, word, size * 0.8) + size * 0.9;
-    var tag = rr(x - tw / 2, ay - size * 2.75, tw, size * 1.15, size * 0.25);
+    var ty = up ? at(1.6) : at(2.75);
+    var tag = rr(x - tw / 2, ty, tw, size * 1.15, size * 0.25);
     solid(c, tag, T.accent, size * 0.14);
-    text(c, word, x, ay - size * 2.17, size * 0.8, { colour: T.ink });
+    text(c, word, x, ty + size * 0.58, size * 0.8, { colour: T.ink });
     // its box, bob and all, for a tap
     var w = Math.max(tw, size * 1.5);
-    return { x: x - w / 2, y: y - size * 3.4, w: w, h: size * 3.25 };
+    return { x: x - w / 2, y: up ? y + size * 0.15 : y - size * 3.4, w: w, h: size * 3.25 };
   }
 
   // Red corner brackets round a box (the thing that's live right now)
