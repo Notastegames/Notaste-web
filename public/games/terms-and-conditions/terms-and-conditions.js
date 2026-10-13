@@ -55,13 +55,15 @@
 // the pointer, the title hint, How to play): strike it. The bad clauses are
 // "daft", which is what to look for. The first app is practice: a third
 // slower, shorter clauses, and what gets away is signed but costs no right.
-// The pointer teaches in play, one thing at a time: "Strike it" on the first
-// daft clause (back on the next one after a miss or a wrong strike, three
-// times a round at most), a ring round the scrollbar ("Accept at the bottom")
-// after the first strike, and a ring round the rights ("Lose all 5, it's
-// over") the first time one goes. Every strike says right or wrong at once,
-// on the clause: a green tick or a red cross, a pill with what it did, and
-// the screen's edge flashes (DESIGN.md section 3, "Right and wrong").
+// The pointer teaches in play, one thing at a time: a dashed ring round the
+// first daft clause with "Strike it" on it (back on the next one after a miss
+// or a wrong strike, three times a round at most), a ring round the scrollbar
+// ("Accept at the bottom") after the first strike, and a ring round the
+// rights ("Lose all 5, it's over") the first time one goes. Every strike says
+// right or wrong at once, on the clause: a green tick or a red cross, a pill
+// with what it did (kept inside the clause, so it never hides the one above),
+// and the screen's edge flashes (DESIGN.md section 3, "Right and wrong"). One
+// that gets away says what it cost on the app's header, off the page.
 //
 // Built on the shared kit (/games/kit/kit.js). clauses.js holds the words,
 // cast.js draws Legal and the mascots. Everything is drawn on the canvas in
@@ -175,6 +177,7 @@
   var gesture = { left: 0, wheelAt: -9 };
   var signs = [];                      // Signed stamps at the top of the page
   var greetAt = -1;                    // when the notice went, so the cast can say hello
+  var greeted = {};                    // ...once each, when they aren't answering something you did
   var verdict = null;                  // the last strike's result, for the edge flash: { ok, born }
   var told = {}, ring = null;          // the rings round the scrollbar and the rights, once a visit
   var POP_LEN = 1.5;                   // how long a pill stays up
@@ -642,6 +645,7 @@
     gesture = { left: 0, wheelAt: -9 };
     signs = [];
     greetAt = -1;
+    greeted = {};
     drag = null;
     accepted = false;
     noticed = false;
@@ -678,13 +682,15 @@
 
     keys(input, dt);
     if (AUTOPILOT) autopilot(dt);
-    // the cast say hello once the notice has gone, so it isn't said under it
+    // the cast say hello once the notice has gone, so it isn't said under it,
+    // and wait their turn while they're answering something you did, so a
+    // hello never talks over what your strike got
     var briefOn = briefUp();
     if (greetAt < 0 && (!briefOn || stageClock > 9)) greetAt = stageClock;
-    if (greetAt >= 0) {
+    if (greetAt >= 0 && phase === "read") {
       var since = stageClock - greetAt;
-      if (since - dt < 0.3 && since >= 0.3) say("mascot", app.hello, true);
-      if (since - dt < 3.3 && since >= 3.3) say("legal", app.legal, true);
+      if (!greeted.mascot && since >= 0.3 && !speaking("mascot")) { greeted.mascot = true; say("mascot", app.hello, true); }
+      if (!greeted.legal && since >= 3.3 && !speaking("legal")) { greeted.legal = true; say("legal", app.legal, true); }
     }
 
     if (phase === "read") {
@@ -808,7 +814,7 @@
     run.caught++;
     run.stageCaught++;
     run.best = Math.max(run.best, Math.floor(run.streak));
-    pops.push({ text: "Struck: +" + points + (mult > 1 ? " x" + mult : ""), y: b.top + b.h * 0.3, t: 0 });
+    pops.push({ text: "Struck: +" + points + (mult > 1 ? " x" + mult : ""), y: b.top + b.h * 0.3, b: b, t: 0 });
     judge(true, b);
     tell("bar", "Accept at the bottom");
     splat(b);
@@ -844,12 +850,12 @@
     if (free) {
       run.mods.free--;
       shell.callout("Legal aid", { sound: false, ms: 900 });
-      pops.push({ text: "Normal clause: free", y: b.top + b.h * 0.3, t: 0, bad: true });
+      pops.push({ text: "Normal clause: free", y: b.top + b.h * 0.3, b: b, t: 0, bad: true });
     } else {
       var cost = Math.round(WRONG * run.mods.wrong);
       run.score = Math.max(0, run.score - cost);
       run.fees += FEE;
-      pops.push({ text: "Normal clause: -" + cost, y: b.top + b.h * 0.3, t: 0, bad: true });
+      pops.push({ text: "Normal clause: -" + cost, y: b.top + b.h * 0.3, b: b, t: 0, bad: true });
     }
     sfx.wrong();
     if (!calm()) shake = Math.max(shake, 0.3);
@@ -882,7 +888,7 @@
     sfx.signed();
     judge(false);
     again();
-    // said at the top of the page, where it went: what it cost
+    // said on the app's header, just over where it went: what it cost
     pops.push({ text: stage === PRACTICE ? "Got away. Practice: right kept" : "Got away: right -1", top: true, t: 0, bad: true });
     if (stage !== PRACTICE) tell("rights", "Lose all " + RIGHTS + ", it's over");
     // it goes off the top half read, so say so where you're looking: a Signed
@@ -1424,9 +1430,9 @@
 
   // ---------------------------------------------------------------------------
   // Hints: one at a time, pointing at the thing to deal with now, until you've
-  // shown you know (DESIGN.md, section 10). A hint is a small tag that sits on
-  // the dotted rule above its clause, in the gap between the lines, so it
-  // never covers the words of the clause above.
+  // shown you know (DESIGN.md, section 10). On a clause, a hint is a dashed
+  // ring round it with a small tag on the dotted rule above it, in the gap
+  // between the lines, so it never covers the words of the clause above.
   // ---------------------------------------------------------------------------
   function pickHint() {
     hintNow = null;
@@ -1724,6 +1730,7 @@
     drawPage(c);
     drawSigns(c);
     drawHeader(c);
+    drawPills(c, true);
     if (phase === "accept" || ((phase === "done" || phase === "over") && footer > 0)) drawFooter(c);
     if (popup) drawPopup(c);
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -1786,12 +1793,13 @@
       if (y + b.h < v.y - 2) continue;
       if (y > v.y + v.h) break;
       // the highlight: solid peach for the keys' choice, halftone for the mouse
+      // (the pointer has its own ring, drawTag)
       if (keyMode && sel === i) {
         c.fillStyle = T.accent;
         c.fillRect(v.x, y, v.w, b.h);
         c.fillStyle = T.ink;
         c.fillRect(v.x, y, 5, b.h);
-      } else if (!keyMode && ((hover === i && b.state === "open") || (hintNow && hintNow.block === i))) {
+      } else if (!keyMode && hover === i && b.state === "open") {
         // (on keys there's one highlight only: the keys' own)
         c.fillStyle = CAST.dots(c, T.accent, DPR, 2.6);
         c.fillRect(v.x, y, v.w, b.h);
@@ -1808,13 +1816,28 @@
       c.drawImage(img, v.x, y, v.w, b.h);
       if (isClause(b)) drawMarks(c, b, y);
     }
-    // what each strike did, said on the page where it happened: a green pill
-    // with a tick or a red one with a cross (one that got away, at the top)
+    drawPills(c, false);
+    c.restore();
+    drawScrollbar(c);
+  }
+
+  // What each strike did, said where it happened: a green pill with a tick or
+  // a red one with a cross. A strike's stays inside its own clause, so it
+  // never covers the one above; one that got away goes on the app's header,
+  // off the page, so it never covers the next clause on its way out.
+  function drawPills(c, top) {
+    if (!pops.some(function (p) { return !p.top === !top; })) return;
     var rs = Math.round(clamp(L.fs * 0.85, 12, 15)), rh = Math.round(rs * 1.9);
+    c.save();
     c.font = rs + "px " + T.display;
-    pops.forEach(function (p, n) {
+    pops.forEach(function (p) {
+      if (!p.top !== !top) return;
       var k = p.t / POP_LEN, rise = calm() ? 0 : Math.min(1, p.t / 0.3) * 10 + k * 10;
-      var py = p.top ? L.view.y + L.lh * 1.9 + rh / 2 : L.view.y + p.y - scroll + pull - rise;
+      var py = p.top ? L.page.y + L.status + L.bar / 2 : L.view.y + p.y - scroll + pull - rise;
+      if (p.b) {
+        var bt = L.view.y + p.b.top - scroll + pull, lo = bt + rh / 2 + 2, hi = bt + p.b.h - rh / 2 - 2;
+        py = hi < lo ? bt + p.b.h / 2 : clamp(py, lo, hi);
+      }
       var text = p.text.toUpperCase(), rw = c.measureText(text).width + rs * 2.6;
       var rx = clamp(L.view.x + L.view.w * 0.5 - rw / 2, L.view.x + 6, L.view.x + L.view.w - rw - 12);
       c.globalAlpha = clamp((1 - k) * 4, 0, 1) * (calm() ? 1 : Math.min(1, p.t / 0.12));
@@ -1833,7 +1856,6 @@
       c.globalAlpha = 1;
     });
     c.restore();
-    drawScrollbar(c);
   }
 
   // Red pen through the lines, a stamp, a circle round the words that gave
@@ -2569,36 +2591,51 @@
     });
   }
 
-  // The hint: a small ink tag with a word on it and a peach arrowhead under
-  // it, sitting on a line (the rule above a clause, the top of the pop-up or
-  // of Accept's panel) in the gap between the words, so it covers none of
-  // them. It nudges towards its target (not with reduced motion).
+  // The hint. On a clause: a dashed ink ring round it (where the green or red
+  // outline lands once it's struck), with the word on a small ink tag on the
+  // ring's top edge, in the gap between the lines, so it covers none of the
+  // words. On the pop-up or Accept's panel: the tag on its top edge, with a
+  // peach arrowhead pointing down at it. The ring marches and the tag nudges
+  // (neither with reduced motion).
   function drawTag(c, h) {
+    var b = h.block != null ? doc[h.block] : null;
+    if (b && b.state !== "open") return;
     var size = Math.round(clamp(L.fs * 0.78, 12, 14));
+    var v = L.view;
+    // the line it sits on: the ring's top edge, or the top of the pop-up or panel
+    var line = b ? screenY(b) + 2 : h.y + 1;
+    c.save();
+    if (b) {
+      CAST.roundRect(c, v.x + 3, line, v.w - 12, b.h - 4, 6);
+      c.strokeStyle = T.ink;
+      c.lineWidth = 3;
+      c.setLineDash([7, 5]);
+      c.lineDashOffset = calm() ? 0 : -clock * 20;
+      c.stroke();
+      c.setLineDash([]);
+    }
     c.font = size + "px " + T.display;
     var text = h.word.toUpperCase(), tw = c.measureText(text).width;
     var bw = tw + 12, bh = size + 4;
-    var v = L.view;
-    // from the left margin (the arrowhead in the margin, just short of the
-    // clause number), or centred on a word, kept on the page
+    // from the ring's corner, by the clause number, or centred on a word, kept on the page
     var cx = h.left ? v.x + 3 + bw / 2 : clamp(h.x, v.x + bw / 2 + 2, v.x + v.w - bw / 2 - 8);
-    var ax = h.left ? v.x + Math.max(8, L.pad - 6) : clamp(h.x, cx - bw / 2 + 8, cx + bw / 2 - 8);
     var bob = calm() ? 0 : Math.abs(Math.sin(clock * 4)) * 2;
-    // centred a touch below the line: there's more room under a rule than over it
-    var top = Math.round(h.y - bh / 2 + 1 - bob);
-    c.save();
+    var top = Math.round(line - bh / 2 - bob);
     c.lineJoin = "round";
-    // the arrowhead, pointing down at the thing
-    c.beginPath();
-    c.moveTo(ax - 6, top + bh - 1);
-    c.lineTo(ax + 6, top + bh - 1);
-    c.lineTo(ax, top + bh + 6);
-    c.closePath();
-    c.fillStyle = T.accent;
-    c.fill();
-    c.lineWidth = 1.6;
-    c.strokeStyle = T.ink;
-    c.stroke();
+    if (!b) {
+      // the arrowhead, pointing down at the thing
+      var ax = clamp(h.x, cx - bw / 2 + 8, cx + bw / 2 - 8);
+      c.beginPath();
+      c.moveTo(ax - 6, top + bh - 1);
+      c.lineTo(ax + 6, top + bh - 1);
+      c.lineTo(ax, top + bh + 6);
+      c.closePath();
+      c.fillStyle = T.accent;
+      c.fill();
+      c.lineWidth = 1.6;
+      c.strokeStyle = T.ink;
+      c.stroke();
+    }
     CAST.roundRect(c, Math.round(cx - bw / 2), top, Math.round(bw), bh, 4);
     c.fillStyle = T.ink;
     c.fill();
