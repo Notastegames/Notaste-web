@@ -5,10 +5,11 @@
 //
 // You are a hand: the pointing cursor, pointing down the page, with a cuff in
 // rust. The page scrolls itself; you steer left and right (arrows or A and D,
-// the mouse, or a finger dragged anywhere) and click (Space, a mouse click or
-// the Click button) on whatever your fingertip is touching. One rule for
-// clicking: only the thing under your fingertip gets clicked, and anything
-// that's an advert opens a new tab and costs you two seconds.
+// the mouse, or a finger dragged anywhere) and click (Space, a mouse click,
+// the Click button, or a tap on the thing itself) on whatever your fingertip
+// is touching. One rule for clicking: only the thing under your fingertip
+// gets clicked, and anything that's an advert opens a new tab and costs you
+// two seconds.
 //
 // The score is the time it takes to reach all three recipes, and how much of
 // the life story you skipped. Nothing kills you. Everything costs time.
@@ -157,6 +158,8 @@
   var prevAct = false, autoCd = 0;
   var bubbles = [], fx = [], shake = 0, clock = 0;
   var hint = null, noticed = false, hudEls = null, talkWait = 0, mumble = 0, jingle = 0;
+  var verdict = null;   // the last click's result, for the edge flash: { ok, born }
+  var tapAt = null;     // a finger tapped straight on something clickable (touch)
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
@@ -171,7 +174,7 @@
     T = sh.tokens;
     run = {
       time: 0, read: 0, total: 0, accepted: 0, rejected: 0, closed: 0, dodged: 0, clicked: 0, jumps: 0,
-      owed: 0, times: [], picked: [], expired: false,
+      owed: 0, times: [], picked: [], expired: false, hints: 0,
       mods: { speed: 1, warn: 1, videoLife: 1, reader: false, adblock: false, forever: false },
       knows: { reject: false, close: false, video: false, jump: false, gap: false }
     };
@@ -196,6 +199,8 @@
     bubbles = []; fx = [];
     noticed = false;
     hint = null;
+    tapAt = null;
+    verdict = null;
     paintHud();   // the countdown shows the new course, not the last one
   }
 
@@ -358,6 +363,8 @@
     var act = auto ? auto.act : input.action;
     if (act && !prevAct) press();
     prevAct = act;
+    if (tapAt && !auto) tapped(tapAt);
+    tapAt = null;
 
     updatePopups(dt);
     updateVideo(dt);
@@ -368,6 +375,7 @@
     scrollPage(dt);
     G.hover = hovering();
     pickHint(dt);
+    tickTags(dt);
     chatter(dt);
     noises(dt);
 
@@ -413,7 +421,10 @@
       var s = closeSpan(p);
       if (x >= s[0] && x <= s[1]) closePopup(p);
       else if (p.kind === "confirm") { var no = sureBox(p).no; if (x >= no[0] && x <= no[1]) takeMeBack(p); }
-      else if (p.kind === "news" && Math.random() < 0.5) say(catAnchor(p), pick(SAY.catWrong));
+      else {
+        judge(false, hand.x, "Find the X");
+        if (p.kind === "news" && Math.random() < 0.5) say(catAnchor(p), pick(SAY.catWrong));
+      }
       return;
     }
 
@@ -441,10 +452,13 @@
 
   function clickButton(b, btn) {
     var anchor = chefAnchor(b);
+    var mid = (btn.x0 + btn.x1) / 2;
     if (btn.type === "reject") {
       b.state = "gone"; b.t = 0;
       run.rejected++;
       run.knows.reject = true;
+      judge(true, mid, "No adverts");
+      metersNext();
       if (!once("reject", "Cookies: rejected")) shell.sound.stamp();
       puff(hand.x, HY + 2);
       if (Math.random() < 0.6) say(anchor, pick(SAY.chefRejected));
@@ -452,6 +466,9 @@
       b.state = "gone"; b.t = 0;
       run.accepted++;
       run.owed++;
+      judge(false, mid, "Adverts incoming");
+      missed();
+      metersNext();
       shell.callout(btn.type === "confirm" ? "Choices: confirmed. All of them" : "Cookies: accepted. All of them", { tilt: 4 });
       say(anchor, pick(SAY.chefAccepted));
       puff(hand.x, HY + 2);
@@ -463,6 +480,11 @@
       shove(at, PG.PH + 6, null);
       insert(ad);
     } else if (btn.type === "manage") {
+      // Manage is the way in on the banner that hides Reject all; anywhere
+      // else it's a wait you didn't need
+      var hidden = !b.buttons.some(function (k) { return k.type === "reject"; });
+      judge(hidden, mid, hidden ? "Reject all is in here" : "Please wait");
+      if (!hidden) missed();
       b.state = "wait"; b.t = 0;
       once("manage", "Preferences: loading", { tilt: -3 });
       say(anchor, pick(SAY.chefManage));
@@ -473,6 +495,7 @@
   function newTab(what) {
     G.tab = { t: 0, life: TAB_TIME, ad: pick(PG.TABS), what: what };
     run.clicked++;
+    judge(false, hand.x, null);
     shell.callout("Advert: clicked", { tilt: 3 });
     shell.sound.tone(700, 0.4, { type: "sawtooth", slide: 160, vol: 0.09 });
     if (!shell.reduceMotion) shake = Math.max(shake, 0.4);
@@ -483,6 +506,7 @@
     j.used = true;
     run.jumps++;
     run.knows.jump = true;
+    judge(true, (j.x0 + j.x1) / 2, null);
     // down the page until the next thing that isn't the life story
     var to = G.recipe.y, at = G.recipe;
     for (var i = 0; i < G.items.length; i++) {
@@ -563,11 +587,13 @@
           shell.sound.tone(150, 0.18, { type: "square", slide: 90, vol: 0.12 });
           if (!shell.reduceMotion) shake = Math.max(shake, 0.35);
           hand.squash = 1;
+          judge(false, null, null);
           if (p.kind === "news") say(catAnchor(p), pick(SAY.catOpen));
           else say(chefAt(p.cx + p.w / 2 - 12, HY - POP_TOP - 4), pick(SAY.adblock));
         } else {
           p.state = "miss";
           run.dodged++;
+          judge(true, null, null);
           if (!once("dodge", "Subscribed: no", { tilt: 4 })) shell.sound.tone(880, 0.08, { vol: 0.05 });
           if (Math.random() < 0.7) say(catAnchor(p), pick(SAY.catMissed));
         }
@@ -582,6 +608,7 @@
     p.state = "close"; p.t = 0;
     run.closed++;
     run.knows.close = true;
+    judge(true, (closeSpan(p)[0] + closeSpan(p)[1]) / 2, "Closed");
     shell.sound.tone(900, 0.08, { slide: 500, vol: 0.08 });
     puff(closeSpan(p)[1] - 3, HY);
     if (p.kind === "news") {
@@ -601,6 +628,7 @@
   // No, take me back: back to the newsletter, as asked
   function takeMeBack(p) {
     p.state = "gone";
+    judge(false, hand.x, "Newsletter again");
     var w = POP_W, q = { kind: "news", w: w, cx: clamp(hand.x, w / 2 + 1, 99 - w / 2), side: p.side, t: 0, state: "open", confirm: false };
     G.popups.push(q);
     shell.sound.tone(150, 0.18, { type: "square", slide: 90, vol: 0.12 });
@@ -651,6 +679,7 @@
     v.state = "close"; v.lt = 0;
     run.closed++;
     run.knows.video = true;
+    judge(true, (videoX(v)[0] + videoX(v)[1]) / 2, "Closed");
     once("videoClosed", "Video: closed");
     shell.sound.tone(900, 0.08, { slide: 400, vol: 0.08 });
     puff(videoX(v)[1] - 3, HY + 2);
@@ -986,43 +1015,148 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Hints: the bobbing arrow, pointing at the one thing to deal with now,
-  // until you've shown you know.
+  // Teaching it in the first seconds (playtest/clarity-pattern.md). The move
+  // is "Reject all", said the same way on the title, in the first notice, on
+  // the pointer and in How to play. The pointer is a dashed ring round the
+  // one thing to deal with now, with a word on it, until you've shown you
+  // know. Accept all, or Manage when Reject all was right there, brings the
+  // Reject all ring back for the next banner (three times a run at most).
   // ---------------------------------------------------------------------------
+  // on keys the word keeps its rule and adds the key: "Reject all: Space"
+  function keyed(word) {
+    var m = shell.input.mode;
+    if (m === "keys" && lastPress === "mouse") m = "mouse";
+    return m === "keys" ? word + ": Space" : m === "pad" ? word + ": A" : word;
+  }
   function pickHint() {
     hint = null;
     var p = openPopup();
     if (p) {
-      if (!run.knows.close) { var s = closeSpan(p); hint = { x: (s[0] + s[1]) / 2, y: HY - 3, word: p.kind === "confirm" ? "Yes" : "Close" }; }
+      if (!run.knows.close) hint = { hv: { what: "close", p: p }, word: keyed(p.kind === "confirm" ? "Yes" : "Close") };
       return;
     }
-    var b = G.blocked && G.blocked.kind === "banner" ? G.blocked : null;
+    // the banner's Reject all, as it comes up, so there's time to get there
+    var b = bannerNear(G.scroll, 30);
     if (b && !run.knows.reject && b.state === "up") {
       var r = null, m = null;
       b.buttons.forEach(function (k) { if (k.type === "reject") r = k; if (k.type === "manage") m = k; });
       var t = r || m;
-      if (t) hint = { x: (t.x0 + t.x1) / 2, y: HY - 1, word: r ? "Reject all" : "Manage" };
+      if (t) hint = { hv: { what: "button", b: b, btn: t }, word: keyed(r ? "Reject all" : "Manage") };
       return;
     }
     var v = G.video;
     if (v && v.state === "dock" && v.t >= VIDEO_X && !run.knows.video) {
-      var vs = videoX(v);
-      hint = { x: (vs[0] + vs[1]) / 2, y: HY - 1, word: "Close" };
+      hint = { hv: { what: "videoX" }, word: keyed("Close") };
       return;
     }
     if (!run.knows.jump) {
       for (var i = 0; i < G.items.length; i++) {
         var it = G.items[i];
         if (it.kind === "jump" && !it.fake && !it.used && it.y > G.scroll - 2 && it.y < G.scroll + 40) {
-          hint = { x: (it.x0 + it.x1) / 2, y: HY + it.y - G.scroll - 1, word: "Jump" };
+          hint = { hv: { what: "jump", j: it }, word: keyed("Jump") };
           return;
         }
       }
     }
     if (G.n === 0 && !run.knows.gap && G.wadeT > 0.7) {
       var row = storyRowAt(G.scroll + 6) || storyRowAt(G.scroll);
-      if (row) hint = { x: row.gx, y: HY + row.y - G.scroll + 2, word: "White space" };
+      if (row) hint = { rect: { x0: row.gx - row.gw / 2 + 1, x1: row.gx + row.gw / 2 - 1, y0: HY + row.y - G.scroll, y1: HY + row.y - G.scroll + 12 }, word: "White space" };
     }
+  }
+
+  // Where a clickable thing is on screen: page x, screen y, in units
+  function rectOf(hv) {
+    if (hv.what === "close" && hv.p.kind === "confirm") { var ys = closeSpan(hv.p); return { x0: ys[0], x1: ys[1], y0: HY - 3.2, y1: HY + 3.2 }; }
+    if (hv.what === "no") { var no = sureBox(hv.p).no; return { x0: no[0], x1: no[1], y0: HY - 3.2, y1: HY + 3.2 }; }
+    if (hv.what === "close") { var s = closeSpan(hv.p), y0 = HY - POP_TOP + 0.6; return { x0: s[0], x1: s[1], y0: y0, y1: y0 + (s[1] - s[0]) }; }
+    if (hv.what === "button") {
+      var big = hv.btn.type === "accept" ? 1.6 : 0, by = HY + hv.b.y + hv.b.row - G.scroll - big;
+      return { x0: hv.btn.x0, x1: hv.btn.x1, y0: by, y1: by + hv.b.rowH + big * 2 };
+    }
+    if (hv.what === "videoX") { var vs = videoX(G.video); return { x0: vs[0], x1: vs[1], y0: HY - 0.4, y1: HY - 0.4 + (vs[1] - vs[0]) }; }
+    if (hv.what === "jump") { var jy = HY + hv.j.y - G.scroll; return { x0: hv.j.x0, x1: hv.j.x1, y0: jy, y1: jy + hv.j.h }; }
+    if (hv.what === "video") { var vx = G.video.x - VIDEO_W / 2, vy = HY + G.video.off; return { x0: vx, x1: vx + VIDEO_W, y0: vy, y1: vy + VIDEO_H }; }
+    if (hv.what === "advert") { var ay = HY + hv.a.y - G.scroll; return { x0: hv.a.x0, x1: hv.a.x1, y0: ay, y1: ay + hv.a.h }; }
+    return null;
+  }
+
+  // A wrong button on a banner: the Reject all ring comes back for the next one
+  function missed() {
+    if (run.hints < 3 && !CLIP) { run.hints++; run.knows.reject = false; }
+  }
+
+  // Right or wrong, said at once where your eyes are: a tick or a cross on
+  // what you clicked, what it did in a few words beside it, and the screen's
+  // edge flashing green or red (DESIGN.md, 3, "Right and wrong")
+  function judge(ok, x, word) {
+    verdict = { ok: ok, born: clock };
+    if (x == null) return;
+    fx.push({ kind: "mark", ok: ok, x: x, y: HY, t: 0, life: 0.7 });
+    if (word) {
+      fx = fx.filter(function (e) { return e.kind !== "pill"; });
+      fx.push({ kind: "pill", ok: ok, x: x, y: HY, word: word, t: 0, life: 1.5 });
+    }
+  }
+
+  // On a touch screen, tapping the button you want clicks it, as long as the
+  // hand can get there: Reject all, a pop-up's X, Jump to recipe. Only a
+  // quick tap counts, so a thumb put down on a banner to steer doesn't press
+  // Accept all. The Click button still works for anyone who'd rather.
+  var touchDown = {};
+  root.addEventListener("pointerdown", function (e) {
+    if (e.pointerType === "mouse" || !shell || shell.state() !== "playing") return;
+    var t = e.target;
+    if (t && t.closest && t.closest(".kit-panel, .kit-bar, .kit-pad, button, a")) return;
+    touchDown[e.pointerId] = { x: e.clientX, y: e.clientY, at: performance.now() };
+  });
+  root.addEventListener("pointerup", function (e) {
+    var d = touchDown[e.pointerId];
+    delete touchDown[e.pointerId];
+    if (!d || !shell || shell.state() !== "playing") return;
+    if (performance.now() - d.at > 350 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 14) return;
+    var box = root.getBoundingClientRect();
+    tapAt = { x: (d.x - box.left - OX) / U, y: (d.y - box.top) / U };
+  });
+  root.addEventListener("pointercancel", function (e) { delete touchDown[e.pointerId]; });
+  function tapped(at) {
+    if (!G || G.tab || G.over) return;
+    var keep = hand.x, found = null;
+    // a fingertip is wide: try where it landed, then a little either side
+    [0, -2, 2, -4, 4].some(function (d) {
+      var x = clamp(at.x + d, TIP, 100 - TIP);
+      hand.x = x;
+      var hv = hovering();
+      if (!hv || hv.what === "advert" || hv.what === "video") return false;
+      var r = rectOf(hv);
+      if (!r || at.y < r.y0 - 5 || at.y > r.y1 + 4) return false;
+      found = x;
+      return true;
+    });
+    hand.x = keep;
+    if (found == null) return;
+    var nx = walls(hand.x, found);
+    if (Math.abs(nx - found) > 0.01) return;
+    hand.x = found;
+    press();
+  }
+
+  // The two numbers that decide the run get the pointer once a visit, after
+  // the first banner: a dashed ring round the page's progress ("Recipe at
+  // 100%"), then round the clock ("Beat 0:25"). One ring at a time: they wait
+  // while the pointer has something to point at, and they're gone in a few
+  // seconds.
+  var told = false, tags = [], TAG_LEN = 2.4;
+  function metersNext() {
+    if (told || CLIP || AUTO) return;
+    told = true;
+    var par = 0;
+    for (var i = 0; i <= G.n; i++) par += COURSES[i].par;
+    tags = [{ el: "[data-page]", word: "Recipe at 100%", age: -0.9 }, { el: "[data-time]", word: "Beat " + Math.floor(par / 60) + ":" + (par % 60 < 10 ? "0" : "") + par % 60, age: 0 }];
+  }
+  function tickTags(dt) {
+    if (!tags.length || hint || shell.state() !== "playing") return;
+    tags[0].age += dt;
+    if (tags[0].age > TAG_LEN) tags.shift();
   }
 
   // ---------------------------------------------------------------------------
@@ -1136,12 +1270,18 @@
   function how() {
     var m = shell.input.mode;
     if (m === "keys" && lastPress === "mouse") m = "mouse";
-    return m === "touch" ? "tap Click" : m === "mouse" ? "click" : m === "pad" ? "press A" : "press Space";
+    return m;
   }
+  // The first notice is the goal, the move and the cost, and nothing else.
+  // The rest is taught by the pointer as it comes up.
   function notice() {
+    var m = how();
+    var move = m === "touch" ? "Tap the tiny Reject all." : m === "mouse" ? "Click the tiny Reject all."
+      : "Steer onto the tiny Reject all and press " + (m === "pad" ? "A." : "Space.");
+    var x = m === "touch" ? "tap the little X" : m === "mouse" ? "click the little X" : "close the little X";
     var texts = [
-      "Steer onto the tiny Reject all and " + how() + ". Accept all costs you adverts. The words slow you down: keep to the white space.",
-      "Pop-ups land where you are: move, or close the little X. Adverts jump open late and can't be closed. Go round.",
+      "Get to the recipe at the bottom, fast. " + move + " Everything else on the page costs you time.",
+      "Pop-ups land where you are: move, or " + x + ". Adverts jump open late and can't be closed. Go round.",
       "Videos follow you: keep away until the X turns up. Some Jump buttons are adverts. One banner hides Reject all under Manage."
     ];
     shell.brief({ title: ["Course one: starter", "Course two: main", "Course three: pudding"][G.n], text: texts[G.n], ms: 5200 });
@@ -1158,14 +1298,12 @@
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big" data-time>0:00</p>' +
-        '<p class="kit-stat" data-minor><small>Skipped</small><span data-skip>100%</span></p>' +
       '</div>';
     hudEls = {
       course: shell.hud.querySelector("[data-course]"),
       of: shell.hud.querySelector("[data-of]"),
       page: shell.hud.querySelector("[data-page]"),
-      time: shell.hud.querySelector("[data-time]"),
-      skip: shell.hud.querySelector("[data-skip]")
+      time: shell.hud.querySelector("[data-time]")
     };
   }
   function setText(node, text) { if (node.textContent !== text) node.textContent = text; }
@@ -1177,8 +1315,6 @@
     setText(hudEls.of, (G.n + 1) + "/3");
     setText(hudEls.page, pct(clamp((G.scroll - START) / (G.recipe.y - START), 0, 1)));
     setText(hudEls.time, Math.floor(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + (s % 60));
-    var read = run.read + G.read, total = run.total + passedStory();
-    setText(hudEls.skip, pct(total ? 1 - read / total : 1));
   }
   // how much life story is above the fingertip so far this page
   function passedStory() {
@@ -1322,21 +1458,20 @@
     drawScrollbar(c);
     drawTab(c);
 
-    // speech bubbles and the arrow, in CSS pixels
+    // speech bubbles and the pointer, in CSS pixels
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     if (++boxAge > 60) { boxes = null; boxAge = 0; }
     var placed = keepClear();
-    // no arrow once you're already on the thing it points at (never an advert or the video)
-    if (hint && G.hover && G.hover.what !== "advert" && G.hover.what !== "video" && Math.abs(hint.x - hand.x) < 6) hint = null;
-    if (hint && shell.state() === "playing" && !G.tab) {
-      var ax = clamp(hint.x, 14, 86);
-      placed.push({ x: OX + (ax - 14) * U, y: (hint.y - 24) * U, w: 28 * U, h: 24 * U });
-    }
+    var ring = hint && shell.state() === "playing" && !G.tab ? (hint.rect || rectOf(hint.hv)) : null;
+    if (ring) placed.push({ x: OX + (ring.x0 - 3) * U, y: (ring.y0 - 9) * U, w: (ring.x1 - ring.x0 + 6) * U, h: (ring.y1 - ring.y0 + 11) * U });
     if (!G.tab) bubbles.forEach(function (b) { drawBubble(c, b, placed); });
-    if (hint && shell.state() === "playing" && !G.tab) {
-      screenSpace(c, 0, 0);
-      drawArrow(c, clamp(hint.x, 10, 90), hint.y, hint.word);
+    if (ring) drawRing(c, OX + ring.x0 * U, ring.y0 * U, (ring.x1 - ring.x0) * U, (ring.y1 - ring.y0) * U, hint.word, false);
+    else if (tags.length && tags[0].age >= 0 && hudEls && shell.state() === "playing" && !G.tab) {
+      var el = shell.hud.querySelector(tags[0].el), base = root.getBoundingClientRect();
+      var hr = el && el.parentNode.getBoundingClientRect();
+      if (hr && hr.width) drawRing(c, hr.left - base.left, hr.top - base.top, hr.width, hr.height, tags[0].word, true);
     }
+    drawVerdict(c);
     // between courses and on the results the page goes dark under a heavy
     // ink halftone, so nothing on it reads through the panel's words
     var st = shell.state();
@@ -1998,16 +2133,9 @@
   function drawHover(c) {
     var hv = G.hover;
     if (!hv || shell.state() !== "playing") return;
-    var x0, x1, y0, y1;
-    if (hv.what === "close" && hv.p.kind === "confirm") { var ys = closeSpan(hv.p); x0 = ys[0]; x1 = ys[1]; y0 = HY - 3.2; y1 = HY + 3.2; }
-    else if (hv.what === "no") { var no = sureBox(hv.p).no; x0 = no[0]; x1 = no[1]; y0 = HY - 3.2; y1 = HY + 3.2; }
-    else if (hv.what === "close") { var s = closeSpan(hv.p); x0 = s[0]; x1 = s[1]; y0 = HY - POP_TOP + 0.6; y1 = y0 + (s[1] - s[0]); }
-    else if (hv.what === "button") { x0 = hv.btn.x0; x1 = hv.btn.x1; y0 = HY + hv.b.y + hv.b.row - G.scroll - (hv.btn.type === "accept" ? 1.6 : 0); y1 = y0 + hv.b.rowH + (hv.btn.type === "accept" ? 3.2 : 0); }
-    else if (hv.what === "videoX") { var vs = videoX(G.video); x0 = vs[0]; x1 = vs[1]; y0 = HY - 0.4; y1 = y0 + (vs[1] - vs[0]); }
-    else if (hv.what === "jump") { x0 = hv.j.x0; x1 = hv.j.x1; y0 = HY + hv.j.y - G.scroll; y1 = y0 + hv.j.h; }
-    else if (hv.what === "video") { x0 = G.video.x - VIDEO_W / 2; x1 = x0 + VIDEO_W; y0 = HY + G.video.off; y1 = y0 + VIDEO_H; }
-    else if (hv.what === "advert") { x0 = hv.a.x0; x1 = hv.a.x1; y0 = HY + hv.a.y - G.scroll; y1 = y0 + hv.a.h; }
-    else return;
+    var r = rectOf(hv);
+    if (!r) return;
+    var x0 = r.x0, x1 = r.x1, y0 = r.y0, y1 = r.y1;
     CA.rrect(c, x0 - 1.2, y0 - 1.2, x1 - x0 + 2.4, y1 - y0 + 2.4, 1.6);
     CA.ink(c, 1.6, T.ink);
     c.stroke();
@@ -2048,6 +2176,21 @@
       } else if (e.kind === "spark") {
         var r0 = 2 + k * 3, r1 = r0 + 2;
         CA.seg(c, [[e.x + Math.cos(e.a) * r0, e.y + Math.sin(e.a) * r0 * 0.6], [e.x + Math.cos(e.a) * r1, e.y + Math.sin(e.a) * r1 * 0.6]], 0.45, T.paper);
+      } else if (e.kind === "mark") {
+        // a tick or a cross, just over what you clicked
+        var my = e.y - 5 - (shell.reduceMotion ? 0 : k * 2), m = 2.2;
+        c.globalAlpha = k < 0.6 ? 1 : (1 - k) / 0.4;
+        c.beginPath();
+        if (e.ok) { c.moveTo(e.x - m, my); c.lineTo(e.x - m * 0.3, my + m * 0.75); c.lineTo(e.x + m, my - m * 0.75); }
+        else { c.moveTo(e.x - m * 0.8, my - m * 0.8); c.lineTo(e.x + m * 0.8, my + m * 0.8); c.moveTo(e.x + m * 0.8, my - m * 0.8); c.lineTo(e.x - m * 0.8, my + m * 0.8); }
+        c.lineCap = "round";
+        CA.ink(c, 1.6, T.ink);
+        c.stroke();
+        CA.ink(c, 0.9, e.ok ? T.right : T.red);
+        c.stroke();
+        c.globalAlpha = 1;
+      } else if (e.kind === "pill") {
+        drawPill(c, e, k);
       } else if (e.kind === "puff") {
         var r = e.r * (1 - k * 0.5);
         c.globalAlpha = 1 - k;
@@ -2056,6 +2199,27 @@
         c.globalAlpha = 1;
       }
     });
+  }
+
+  // What a click did, in a few words beside the fingertip, on the side with
+  // more room, in green or red
+  function drawPill(c, e, k) {
+    var s = font(c, 3, T.display), t = e.word.toUpperCase(), w = textW(c, t) + 3.4, h = s + 2.4;
+    var left = e.x < 50, x = left ? e.x + 6 : e.x - 6 - w;
+    x = clamp(x, -MARGIN + 1, 100 + MARGIN - w - 1);
+    var y = e.y + 3.5 - (shell.reduceMotion ? 0 : ease(k) * 2);
+    c.globalAlpha = k < 0.75 ? 1 : (1 - k) / 0.25;
+    CA.rrect(c, x, y, w, h, 1);
+    c.fillStyle = e.ok ? T.right : T.red;
+    c.fill();
+    CA.ink(c, 0.5);
+    c.stroke();
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillStyle = e.ok ? T.ink : T.paper;
+    text(c, t, x + w / 2, y + h / 2 + 0.2);
+    c.textBaseline = "alphabetic";
+    c.globalAlpha = 1;
   }
 
   // The page's own scrollbar: a long page means a tiny thumb
@@ -2223,31 +2387,51 @@
     return boxes;
   }
 
-  // A bobbing arrow pointing down at something, with a word over it
-  function drawArrow(c, x, y, word) {
-    var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(clock * 4)) * -1.6;
+  // The pointer: a dashed ring round something, in CSS pixels, with its word
+  // on the ring's top edge (or under it, for the HUD's numbers)
+  function drawRing(c, x, y, w, h, word, below) {
+    var calm = shell.reduceMotion, p = 5;
+    // kept on the screen, whatever it's round
+    var x0 = Math.max(x - p, 3), x1 = Math.min(x + w + p, W - 3);
     c.save();
-    c.translate(x, y - 1 + bob);
-    c.lineJoin = "round";
-    c.beginPath();
-    c.moveTo(-1.6, -6.4); c.lineTo(1.6, -6.4); c.lineTo(1.6, -3); c.lineTo(3.6, -3); c.lineTo(0, 0.8); c.lineTo(-3.6, -3); c.lineTo(-1.6, -3);
-    c.closePath();
-    c.fillStyle = T.paper;
-    c.fill();
-    CA.ink(c, 0.6);
-    c.stroke();
-    var s = font(c, 3.4);
-    var t = word.toUpperCase();
-    var tw = textW(c, t);
-    c.textAlign = "center";
-    c.textBaseline = "bottom";
-    var tx = clamp(0, -x + tw / 2 + 1, 100 - x - tw / 2 - 1);
-    c.lineWidth = s * 0.28 * U;
+    CA.rrect(c, x0, y - p, x1 - x0, h + p * 2, 6);
+    c.lineWidth = 4;
     c.strokeStyle = T.ink;
-    text(c, t, tx, -7.2, 0, true);
+    c.stroke();
+    c.lineWidth = 2.5;
+    c.strokeStyle = T.paper;
+    c.setLineDash([7, 5]);
+    c.lineDashOffset = calm ? 0 : -clock * 20;
+    c.stroke();
+    c.setLineDash([]);
+    var px = Math.round(clamp(2.6 * U, 13, 20));
+    c.font = "400 " + px + "px " + T.display;
+    var t = word.toUpperCase(), tw = c.measureText(t).width + 14, th = px + 9;
+    var tx = clamp(x + w / 2 - tw / 2, 4, W - tw - 4);
+    var ty = (below ? y + h + p + 3 : y - p - th / 2) + (calm ? 0 : Math.sin(clock * 6) * 1.5);
+    CA.rrect(c, tx, ty, tw, th, 4);
+    c.fillStyle = T.ink;
+    c.fill();
+    c.lineWidth = 2;
+    c.strokeStyle = T.paper;
+    c.stroke();
     c.fillStyle = T.paper;
-    text(c, t, tx, -7.2);
-    c.textBaseline = "alphabetic";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(t, tx + tw / 2, ty + th / 2 + 1);
+    c.restore();
+  }
+
+  // The edge of the screen flashes with the last click's result
+  function drawVerdict(c) {
+    if (!verdict) return;
+    var a = clock - verdict.born, len = 0.5;
+    if (a > len || shell.state() !== "playing") { verdict = null; return; }
+    c.save();
+    c.globalAlpha = 0.85 * (shell.reduceMotion ? 1 : 1 - a / len);
+    c.strokeStyle = verdict.ok ? T.right : T.red;
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, W - 10, H - 10);
     c.restore();
   }
 
@@ -2263,8 +2447,8 @@
     note: "Three courses. Three recipes. About nine thousand words in the way.",
     pitch: "Scroll down to the recipe. The page has other ideas.",
     hints: {
-      keys: "Arrow keys, A and D, or the mouse to steer. Space or a mouse click to click. P to pause.",
-      touch: "Drag anywhere to steer. Tap Click, bottom right, to click."
+      keys: "Steer with the arrows or the mouse. Reject all: Space or a click. P to pause.",
+      touch: "Drag to steer. Tap the tiny Reject all on cookie banners."
     },
     againLabel: "Scroll again",
     aim: true,

@@ -26,9 +26,11 @@
       key: "starter", name: "Starter", dish: "Nan's tomato soup", food: "Soup",
       sub: "Ready in 20 minutes. Reading time: 45 minutes.",
       speed: 25, gap: [28, 34], shift: 34, par: 25, limit: 90, art: "soup",
+      // the first cookie banner greets you at the top, as they do, so the
+      // first thing to do comes a few seconds after Go
       plan: [
-        { t: "story", rows: 5, quote: 1 },
         { t: "banner", v: "edge" },
+        { t: "story", rows: 5, quote: 1 },
         { t: "story", rows: 7, photo: 1 },
         { t: "jump" },
         { t: "story", rows: 6, quote: 1 },
@@ -215,10 +217,13 @@
     // The top of the page: the site, the title, a big photo of the dish
     items.push({ kind: "head", y: 0, h: 104, def: def });
     var y = 108;
+    // a page that opens with a cookie banner has it before the top Jump button
+    if (slots[0] && slots[0].t === "banner") place(slots.shift());
     if (!mods.reader) items.push({ kind: "jump", y: y, h: 9, x0: 33, x1: 67, fake: false, first: true });
     y += 18;
 
-    slots.forEach(function (sl) {
+    slots.forEach(place);
+    function place(sl) {
       if (sl.t === "story") {
         sl.rows.forEach(function (r) {
           y += r.pre;
@@ -253,7 +258,7 @@
         items.push({ kind: "video", y: y, h: 25, x0: sl.cx - 20, x1: sl.cx + 20 });
         y += 33;
       }
-    });
+    }
 
     // A pop-up asking you to turn the ad blocker off, twice a page
     if (mods.adblock) {
