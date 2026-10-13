@@ -19,16 +19,18 @@
 // things: which pickup first, what to drop on the way, when to wait.
 //
 // THE DOORS. At every door the customer's note says what to do, and the
-// doorstep offers three choices: the bell, a knock or the letterbox ("Don't
-// ring, baby asleep"), three gate codes ("Gate code 2741"), three doors for
-// the photo ("Leave it at the door. We're 14B"). Match the note: pick the one
-// it asks for. One rule, everywhere. A wrong pick is answered (nobody comes,
-// or the baby does) and says what the note said. Some flats are round the
-// back through the bins, and the app's pin is at the front.
+// doorstep offers three choices: Ring, Knock or Shout, in the note's own
+// words ("Bell's broken. Knock."), three gate codes ("Gate code 2741"),
+// three doors for the photo ("Leave it at the door. We're 14B"). Match the
+// note: pick the one it asks for. One rule, everywhere. A wrong pick is
+// answered (nobody comes, or the baby does) and says what the note said.
+// Some flats are round the back through the bins, and the app's pin is at
+// the front.
 //
 // TEACHING IT IN THE FIRST SECONDS. The first notice says the goal, the move
 // and the cost. Lunch starts with one order at a time until the first is
-// delivered. The pointer teaches one thing at a time: "Pick up" on the first
+// delivered, and its door has the plainest note ("Ring the bell. I'm
+// upstairs."). The pointer teaches one thing at a time: "Pick up" on the first
 // pickup, "Deliver" on its door, and at the first door a dashed ring round
 // the choice the note asks for, "Match the note". A wrong pick brings the
 // ring back at the next door (three times a round). The first time the
@@ -107,9 +109,11 @@
   // Copy
   // ---------------------------------------------------------------------------
   var NAMES = ["Dawn", "Gary", "Priya", "Tom", "Shaz", "Kev", "Jo", "Linda", "Mo", "Bex", "Dev", "Pat", "Ellie", "Sunil", "Marge", "Craig", "Aisha", "Den"];
+  // Every note names what it wants in the choices' own words: ring, knock
+  // or shout (the choices are what you do, so the note and the pick match)
   var NOTES = {
     bell: ["Ring the bell. I'm upstairs.", "Ring the bell. Loudly.", "Bell works. Ring it.", "Ring the bell. Ignore the dog."],
-    knock: ["Don't ring. Baby asleep.", "Bell's broken. Knock.", "Don't ring the bell. Knock.", "Knock. The dog goes mad at the bell.", "Don't ring. Night shift. Knock."],
+    knock: ["Don't ring. Baby asleep. Knock.", "Bell's broken. Knock.", "Don't ring the bell. Knock.", "Knock. The dog goes mad at the bell.", "Don't ring. Night shift. Knock."],
     shout: ["Bell's broken. Don't knock, the dog. Shout through the letterbox.", "Shout through the letterbox. I'm in the bath.", "Don't ring, don't knock. Shout through the letterbox."],
     code: ["Gate code {code}.", "Code for the gate is {code}.", "Buzz in. Code {code}."],
     photo: ["Leave it at the door. We're {no}.", "Leave it at the door. Photo please. {no}, not next door."],
@@ -117,21 +121,31 @@
   };
   // what ringing or shouting at a "knock" door does, note by note (in NOTES.knock's order)
   var KNOCK_WAKE = ["baby", null, "said", "dog", "sleep"];
-  var BACK_BK = { Bell: "Ring.", Knock: "Knock." };
-  // A wrong pick gets an answer to what you did, and says what the note said
+  var BACK_BK = { Ring: "Ring.", Knock: "Knock." };
+  // A wrong pick gets an answer to what you did, and says what the note said;
+  // a list goes note by note, in NOTES' order
   var MISS = {
-    bell: { Knock: "You knock. Nobody comes. The note said ring.", Letterbox: "You shout through the letterbox. Next door shouts back." },
-    shout: { Bell: "The bell does nothing. The note said shout.", Knock: "You knock. Nobody comes. The note said shout." },
-    knock: { Bell: "Nothing. The bell's broken. The note said.", Letterbox: "You shout. Nobody comes. The note said knock." },
-    back: { Bell: "You ring. Nobody comes. The note said knock.", Knock: "You knock. Nobody comes. The note said ring.", Letterbox: "You shout. Nobody comes. The note said {bk}." },
+    bell: {
+      Knock: ["You knock. They're upstairs. The note said ring.", "You knock. Quietly. The note said ring.",
+              "You knock. The bell was fine. The note said ring.", "You knock. The dog barks. The note said ring."],
+      Shout: ["You shout. They're upstairs. The note said ring.", "You shout. Next door shouts back. The note said ring.",
+              "You shout. The bell was fine. The note said ring.", "You shout. The dog joins in. The note said ring."]
+    },
+    shout: {
+      Ring: ["Nothing. The bell's broken. The note said shout.", "You ring. They're in the bath. The note said shout.", "You ring. Nobody comes. The note said shout."],
+      Knock: ["You knock. The dog goes off. The note said shout.", "You knock. They're in the bath. The note said shout.", "You knock. Nobody comes. The note said shout."]
+    },
+    knock: { Ring: "Nothing. The bell's broken. The note said knock.", Shout: "You shout. Nobody comes. The note said knock." },
+    back: { Ring: "You ring. Nobody comes. The note said knock.", Knock: "You knock. Nobody comes. The note said ring.", Shout: "You shout. Nobody comes. The note said {bk}." },
     photo: "That's next door. The customer has a photo of next door."
   };
-  // Ringing or shouting where the note said knock: they come to the door, and they aren't pleased
+  // Ringing or shouting where the note said knock: they come to the door,
+  // they aren't pleased, and they say what the note said
   var WAKE = {
-    baby: { word: "Baby: awake", lines: ["That's the baby up. Brilliant.", "The note said. The note."] },
-    dog: { word: "Dog: awake", lines: ["That's the dog off. Thanks.", "The note said. The dog read it too."] },
-    sleep: { word: "Woken", lines: ["I'm on nights. I was asleep.", "That was my sleep. Thanks."] },
-    said: { word: "Woken", lines: ["Knock, it said. It's on the note.", "I said knock. I wrote it down."] }
+    baby: { word: "Baby: awake", lines: ["That's the baby up. It said knock.", "The note said knock. The note."] },
+    dog: { word: "Dog: awake", lines: ["That's the dog off. It said knock.", "It said knock. The dog read it too."] },
+    sleep: { word: "Woken", lines: ["I'm on nights. It said knock.", "That was my sleep. It said knock."] },
+    said: { word: "Note: ignored", lines: ["Knock, it said. It's on the note.", "I said knock. I wrote it down."] }
   };
   var LINES = {
     onTime: ["The app said you were outside.", "Ta. The app said you'd been.", "It says here you're a {r}. You look like a {r2}.", "The app said ten past. It's ten past.", "Thanks. Sorry about the stairs.", "On the app you were a little car."],
@@ -248,6 +262,9 @@
     deals = [];
     var gapK = owned.all ? 0.75 : 1;
     for (var i = 0; i < 40; i++) deals.push({ gap: (stage.gap[0] + rng() * (stage.gap[1] - stage.gap[0])) * gapK, d: makeDeal() });
+    // the shift's first door has the plainest note there is ("Ring the bell.
+    // I'm upstairs."), so the pointer's first lesson is the rule, not the reading
+    if (stageIdx === 0) { deals[0].d.type = "bell"; deals[0].d.note = 0; }
     // goals in the cup final: two bursts
     goalsAt = [];
     if (stage.goals) {
@@ -293,7 +310,7 @@
       pay: 180 + Math.floor(r() * 90), fee: 249 + Math.floor(r() * 4) * 50, service: 160 + Math.floor(r() * 120),
       small: r() < 0.3 ? 150 : 0, prep: stage.prep[0] + r() * (stage.prep[1] - stage.prep[0]),
       shrinkAt: 0.25 + r() * 0.35, shrinkBy: 1 + Math.floor(r() * 3), shrink: r() < stage.shrink,
-      code: [r(), r(), r(), r()].map(function (x) { return Math.floor(x * 10); }), perm: r(), bk: r() < 0.5 ? "Bell" : "Knock",
+      code: [r(), r(), r(), r()].map(function (x) { return Math.floor(x * 10); }), perm: r(), bk: r() < 0.5 ? "Ring" : "Knock",
       first: r(), tip: r(), opt: r(), batch: r()
     };
     return d;
@@ -333,14 +350,15 @@
       assignedAt: clock, readyAt: clock + (batched ? 1.0 : deal.prep * (rest.dark ? 0.75 : 1)),
       soggy: false, frontTried: false, deal: deal
     };
-    // the note, and what the doorstep will cycle through
-    var tmpl = NOTES[type][deal.note % NOTES[type].length];
-    if (type === "knock") o.wake = KNOCK_WAKE[deal.note % NOTES.knock.length];
+    // the note, and the doorstep's three choices
+    o.noteNo = deal.note % NOTES[type].length;
+    var tmpl = NOTES[type][o.noteNo];
+    if (type === "knock") o.wake = KNOCK_WAKE[o.noteNo];
     if (type === "bell" || type === "knock" || type === "shout") {
-      o.options = rotate(["Bell", "Knock", "Letterbox"], Math.floor(deal.opt * 3));
-      o.answer = type === "bell" ? "Bell" : type === "knock" ? "Knock" : "Letterbox";
+      o.options = rotate(["Ring", "Knock", "Shout"], Math.floor(deal.opt * 3));
+      o.answer = type === "bell" ? "Ring" : type === "knock" ? "Knock" : "Shout";
     } else if (type === "back") {
-      o.options = rotate(["Bell", "Knock", "Letterbox"], Math.floor(deal.opt * 3));
+      o.options = rotate(["Ring", "Knock", "Shout"], Math.floor(deal.opt * 3));
       o.answer = deal.bk;
       tmpl = tmpl.replace("{flat}", flatName(house)).replace("{bk}", BACK_BK[deal.bk]);
     } else if (type === "code") {
@@ -415,8 +433,12 @@
     } else if (bannerGap > 0) bannerGap -= dt;
     else if (banners.length && !bannerHeld()) bannerNow = { text: banners.shift(), t: 0 };
   }
-  // where the banner sits on the town, the doorstep card needs the room
-  function bannerHeld() { return L && !L.bannerIn && doorstep && !doorstep.done;
+  // where the banner would sit on the doorstep card, the card needs the room
+  // until it's gone (its bottom line says what your pick did)
+  function bannerHeld() {
+    if (!L || L.bannerIn || !doorstep) return false;
+    var b = L.banner, d = doorBox();
+    return b.y < d.y + d.h && b.y + b.h > d.y;
   }
   function say(x, y, line, who) {
     mapBubbles = mapBubbles.filter(function (b) { return b.who !== who; });
@@ -820,9 +842,9 @@
     if (shown === o.answer) {
       d.marks[i] = true;
       judge(true);
-      if (shown === "Bell") sfx("bell");
+      if (shown === "Ring") sfx("bell");
       else if (shown === "Knock") sfx("knock");
-      else if (shown === "Letterbox") sfx("shout");
+      else if (shown === "Shout") sfx("shout");
       else if (o.type === "code") sfx("buzz");
       else sfx("shutter");
       deliver(o, d.wrongs ? "fixed" : "ok");
@@ -833,9 +855,9 @@
     judge(false);
     // shown the right one again at the next door
     if (hints < 3) { hints++; hintNext = true; }
-    if (o.type === "knock" && o.wake && (shown === "Bell" || shown === "Letterbox")) {
+    if (o.type === "knock" && o.wake && (shown === "Ring" || shown === "Shout")) {
       // they come to the door, and they aren't pleased
-      sfx(shown === "Bell" ? "bell" : "shout");
+      sfx(shown === "Ring" ? "bell" : "shout");
       sfx(o.wake === "baby" ? "baby" : o.wake === "dog" ? "bark" : "low");
       d.awake = o.wake === "baby";
       if (d.awake) babies++;
@@ -856,8 +878,9 @@
       rare("photo", "Wrong door", 2);
       return;
     }
-    sfx(shown === "Bell" ? "bell" : shown === "Knock" ? "knock" : "shout");
-    d.miss = MISS[o.type][shown].replace("{bk}", o.answer === "Bell" ? "ring" : "knock");
+    sfx(shown === "Ring" ? "bell" : shown === "Knock" ? "knock" : "shout");
+    var miss = MISS[o.type][shown];
+    d.miss = (typeof miss === "string" ? miss : miss[o.noteNo]).replace("{bk}", o.answer === "Ring" ? "ring" : "knock");
     rare("noanswer", "No answer", 2);
   }
   // On keys the choice the arrows are on only lights once you've used them,
@@ -1284,18 +1307,24 @@
     var sCol = Math.min((W - colW - pad * 3) / 100, (H - top - pad) / 80);
     var sBot = Math.min((W - pad * 2) / 100, (H - top - 96 - pad * 2) / 80);
     if (W > 520 && sCol >= sBot * 0.9) {
-      o.mode = "col"; o.S = sCol;
+      o.mode = "col";
+      // the banner goes in the black above the town when there's room for it;
+      // a town a tenth smaller at most makes the room (an iPad on its side)
+      var need = o.bannerH + 6, sRoom = (H - top - pad - need) / 80;
+      if (H - top - pad - 80 * sCol < need && sRoom >= sCol * 0.9) sCol = sRoom;
+      o.S = sCol;
       var used = 100 * sCol + colW + pad;
       var x0 = Math.max(pad, (W - used) / 2);
       var free = H - top - pad - 80 * sCol;
-      // the banner goes in the black over the town when there's room for it
-      o.bannerIn = free >= o.bannerH + 6;
+      o.bannerIn = free >= need - 0.01;
       o.mapX = x0;
-      o.mapY = top + (o.bannerIn ? Math.max(o.bannerH + 6, free / 2 + o.bannerH / 2) : free / 2);
+      o.mapY = top + (o.bannerIn ? Math.max(need, free / 2 + o.bannerH / 2) : free / 2);
       if (o.mapY + 80 * sCol > H - pad) o.mapY = H - pad - 80 * sCol;
       o.panel = { x: x0 + 100 * sCol + pad, y: top, w: colW, h: H - top - pad };
+      // with no room, it goes over the town's bottom edge, clear of the pins
+      // (they stand up from their street) and the top street's pointer
       o.banner = o.bannerIn ? { x: o.mapX + 6, y: o.mapY - o.bannerH - 4, w: 100 * sCol - 12, h: o.bannerH } :
-        { x: o.mapX + 10, y: o.mapY + 6, w: 100 * sCol - 20, h: o.bannerH };
+        { x: o.mapX + 10, y: o.mapY + 80 * sCol - o.bannerH - 6, w: 100 * sCol - 20, h: o.bannerH };
     } else {
       o.mode = "bot"; o.S = sBot;
       o.mapX = (W - 100 * sBot) / 2; o.mapY = top;
@@ -1305,7 +1334,7 @@
       var py = top + 80 * sBot + pad + (o.bannerIn ? o.bannerH + 6 : 0);
       o.panel = { x: pad, y: py, w: W - pad * 2, h: H - py - pad };
       o.banner = o.bannerIn ? { x: pad, y: top + 80 * sBot + pad, w: W - pad * 2, h: o.bannerH } :
-        { x: o.mapX + 8, y: o.mapY + 4, w: 100 * sBot - 16, h: o.bannerH };
+        { x: o.mapX + 8, y: o.mapY + 80 * sBot - o.bannerH - 4, w: 100 * sBot - 16, h: o.bannerH };
     }
     o.W = W; o.H = H;
     return o;
@@ -1317,9 +1346,10 @@
     L = layout();
     townKey = "";
     if (shell) {
-      // stamps land on the town's top edge, clear of the phone's numbers
+      // stamps land on the town's top edge, clear of the phone's numbers and
+      // of the banner (never at the top of the town)
       var right = L.mode === "col" ? W - L.panel.x : 0;
-      shell.placeCallouts({ top: L.mapY + (L.bannerIn || L.mode === "col" ? 4 : L.bannerH + 10), left: L.mode === "col" ? L.mapX : 0, right: right });
+      shell.placeCallouts({ top: L.mapY + 4, left: L.mode === "col" ? L.mapX : 0, right: right });
       // the stage's notice goes over the phone, not the town
       if (L.mode === "col") {
         root.style.setProperty("--leave-brief-x", Math.round(L.panel.x + L.panel.w / 2) + "px");
@@ -1587,7 +1617,10 @@
     }
     if (!target || !target.box) return;
     var bx = target.box, st = target.st;
-    var ab = A.arrow(c, bx.x + bx.w / 2, bx.y - size * 0.1, word, t, size, shell.reduceMotion);
+    // over the pin, unless that's off the top of the town (Station Road):
+    // then under it, pointing up, so it's never under the numbers at the top
+    var up = bx.y - size * 3.5 < 0;
+    var ab = A.arrow(c, bx.x + bx.w / 2, up ? bx.y + bx.h + size * 0.1 : bx.y - size * 0.1, word, t, size, shell.reduceMotion, up);
     // the arrow is part of the pin: tapping it rides there too
     hits.push({ x: L.mapX + ab.x * L.S, y: L.mapY + ab.y * L.S, w: ab.w * L.S, h: ab.h * L.S,
                 fn: function () { routeTo({ e: st.e, s: st.s }, st.id); } });
@@ -1636,7 +1669,7 @@
     // the latest notification, where there's plenty of room
     if (left >= 360 && toasts[0]) {
       var tt = toasts[0];
-      var tl = A.wrap(c, tt.text, 12.5, w - 26, T.body, false).slice(0, 2);
+      var tl = A.wrap(c, tt.text, 12.5, w - 26, T.body, false).slice(0, 3);
       var nh = tl.length * 15 + 10;
       A.solid(c, A.rr(x, y, w, nh, 6), T.ink, 1.2, T.paper);
       A.solid(c, A.ell(x + 10, y + 11, 3.5, 3.5), tt.t < 3 ? T.accent : T.ink, 1, T.paper);
@@ -1837,12 +1870,13 @@
       A.solid(c, A.rr(r.x, r.y, r.w, r.h, 7), fill, 2.5);
       var cy = r.y + (r.h - 18) / 2 + 2;
       var sz = Math.min(r.h - 30, r.w * 0.62);
-      if (opt === "Bell") A.doorbell(c, cx, cy, sz * 0.85, false);
+      if (opt === "Ring") A.doorbell(c, cx, cy, sz * 0.85, false);
       else if (opt === "Knock") {
         A.mitten(c, cx + sz * 0.12, cy, sz * 0.3, T.paper, false, 2);
         [-1, 0, 1].forEach(function (k) { A.line(c, [[cx - sz * 0.36, cy + k * sz * 0.24], [cx - sz * 0.56, cy + k * sz * 0.3]], 2.2); });
       } else A.letterbox(c, cx, cy, sz, false);
-      A.text(c, opt, cx, r.y + r.h - 11, r.w < 80 ? 12 : 14, { colour: inkOn, max: r.w - 6 });
+      // what you do, in the note's own word
+      A.text(c, opt, cx, r.y + r.h - 12, r.w < 80 ? 14 : 17, { colour: inkOn, max: r.w - 6 });
       if (mark != null) {
         A.solid(c, A.ell(r.x + r.w - 14, r.y + 14, 10, 10), mark ? T.right : T.red, 2);
         tickCross(c, mark, r.x + r.w - 14, r.y + 14, 5, mark ? T.ink : T.paper);
