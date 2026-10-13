@@ -46,13 +46,16 @@
 // the phone and the barrel turns so the charge reaches the post under the
 // finger (on an iPad the finger used to sit low by the cannon, where only the
 // bottom posts were in reach). Then the pointer teaches in play, one thing at
-// a time: "Slop this" on a real post, "Let go now" while the brackets are on
-// one, a ring round the target ("Fill it to pass") the first time it moves
-// and a ring round the clock ("Short at 0:00: out"). Every shot says right or
-// wrong where it lands: a green tick and the points, or a red cross and what
-// went wrong, and the screen's edge flashes the same colour. A wrong shot
-// brings "Slop this" back, three times a round at most. Stage 1's feed scrolls
-// slowly until the first real post is slopped.
+// a time: "Slop this" on a real post (its arrow in the post's picture, its
+// word on an ink tag across the post's top, on the lowest real post there's
+// room for), "Let go now" while the brackets are on one, a ring round the
+// target ("Fill it to pass") the first time it moves and a ring round the
+// clock ("Short at 0:00: out"). Every shot says right or wrong where it
+// lands: a green tick and the points, or a red cross and what went wrong,
+// over anything else there, and the screen's edge flashes the same colour.
+// A wrong shot brings "Slop this" back, three times a round at most. Stamps
+// land over the room, never over the feed. Stage 1's feed scrolls slowly
+// until the first real post is slopped.
 //
 // Between stages you pick one upgrade of three, each with a cost (UPGRADES):
 // More fingers (bigger splash, slower reload), Bot farm (B: ten seconds of
@@ -229,7 +232,7 @@
   var botsLeft = 0, botsUsed = false, prevBots = false;
   var noticed = false, hintNow = null, modSeen = 0;
   var shake = 0, signDays = 1214, signT = 0;
-  var bg = null, hudEls = null, poses = {}, hudBox = null, hudAge = 0;
+  var bg = null, hudEls = null, poses = {}, hudBox = null, hudAge = 0, stampEl = null, stampBox = null;
   var shown = 0, offers = [], auto = { target: null, ang: 0.8, think: 0, slop: 0, careless: false, rest: 0, idle: 0, hold: 0 };
   var stage = 0;
   var verdict = null;                  // the last shot's result, for the screen's edge: { ok, t }
@@ -257,7 +260,7 @@
   // bottom left, the vat behind them.
   // ---------------------------------------------------------------------------
   function layout() {
-    var old = L.sy1;
+    var old = L.sy1, oldStep = L.cardH + L.gap, oldFloor = L.floor;
     L.floor = WH - 7;
     L.phoneW = clamp(WW * 0.43, 42, 60);
     L.phoneX = WW - L.phoneW - 2.4;
@@ -287,8 +290,45 @@
     // lot: there he moves slower, and is as hard to get past as on a wide one
     L.modPace = clamp((L.modX + A.NET.x - L.pivot.x) / 30, 0.5, 1);
     K = Math.max(1, WH / 100);
-    // keep the feed where it was, relative to the bottom of the screen
-    if (old != null && old !== L.sy1) feed.forEach(function (p) { p.y += L.sy1 - old; });
+    if (old != null && (old !== L.sy1 || oldStep !== L.cardH + L.gap)) refit(old, oldFloor);
+  }
+
+  // The screen changed shape (fullscreen, or an iPad turned round), so the
+  // feed has to fill it again with its posts the new distance apart. (It used
+  // to keep the old gaps, and a taller screen started with the phone empty
+  // down to the middle.) Before the round's first Go it's dealt again from
+  // the seed, so today's run starts the same for everyone. In play the posts
+  // close up from the lowest one on screen, and any room left at the top
+  // fills with throwaway posts, so the seeded ones still come next.
+  function refit(oldSy1, oldFloor) {
+    puddles.forEach(function (p) { p.y += L.floor - oldFloor; });
+    if (!run || !feed.length) return;
+    var keep = rng, kind = lastKind, since = sinceFact;
+    if (stage === FIRST && clock === 0 && !run.shots) {
+      lastKind = null;
+      sinceFact = 9;
+      rng = N.seeded((shell.seed + 1) | 0);
+      feed = [];
+      fillFeed(true);
+      rng = keep;
+      return;
+    }
+    var step = L.cardH + L.gap, a = 0;
+    feed.forEach(function (p, i) { if (p.y < oldSy1) a = i; });
+    var ay = feed[a].y + L.sy1 - oldSy1;
+    feed.forEach(function (p, i) { p.y = ay + (i - a) * step; });
+    rng = Math.random;
+    while (feed[0].y > 0) {
+      var p = makePost();
+      p.y = feed[0].y - step;
+      p.likesShown = p.likes;
+      p.id = Math.random();
+      feed.unshift(p);
+    }
+    rng = keep;
+    lastKind = kind;
+    sinceFact = since;
+    fillFeed(false);
   }
 
   function muzzleAt(ang) {
@@ -1055,6 +1095,8 @@
       var turn = (input.up || input.left ? 1 : 0) - (input.down || input.right ? 1 : 0) - (input.stick.y || 0);
       if (turn) { aim += clamp(turn, -1, 1) * AIM_SPEED * dt; lastMode = "keys"; }
     }
+    // Space held, not the mouse button: the pointer's words say Space
+    if (!a && input.action && !held && input.mode === "keys") lastMode = "keys";
     aim = clamp(aim, MIN_ANGLE, MAX_ANGLE);
 
     // load, charge, fire
@@ -1357,25 +1399,27 @@
   // ---------------------------------------------------------------------------
   function pickHint(dt, pv) {
     hintNow = null;
+    seen = L.sy1;
     var lr = run.learned;
     // the move, until you've done it (and again after a wrong shot): "Slop
     // this" on a real post, and "Let go now" while the brackets are on one.
     // A ring round the target or the clock has the floor while it's up.
     if (!lr.slop) {
-      if (tag) return;
+      // (and nothing while a shot's in the air: wait and see where it lands)
+      if (tag || balls.length) return;
       var keys = lastMode === "keys" && !touching();
-      if (charging && pv && isGood(pv.target)) {
-        hintNow = { x: L.cardX + L.cardW * 0.5, y: Math.max(L.head + 1, pv.target.y + 1), word: keys ? "Let go of Space" : "Let go now" };
+      if (charging && pv && isGood(pv.target) && fits(pv.target)) {
+        hintNow = onPost(pv.target, keys ? "Let go of Space" : "Let go now");
         return;
       }
-      var r = firstOnScreen(function (q) { return isGood(q) && q.y > L.head + 2; });
-      if (r) hintNow = { x: L.cardX + L.cardW * 0.5, y: r.y + 1, word: charging ? "Slop this" : keys ? "Slop this: hold Space" : "Slop this: hold on it" };
+      var r = pointAt("slop", isGood);
+      if (r) hintNow = onPost(r, charging ? "Slop this" : keys ? "Slop this: hold Space" : "Slop this: hold on it");
       else if (!lr.fire) hintNow = { x: L.pivot.x + 2, y: L.pivot.y - 17, word: keys ? "Hold Space" : "Hold, then let go" };
       return;
     }
     if (stage >= 1 && !lr.trend) {
-      var t = firstOnScreen(function (q) { return q.trending && !q.slopped; });
-      if (t) { hintNow = { x: L.cardX + L.cardW * 0.5, y: t.y + 1, word: "Worth triple" }; return; }
+      var t = pointAt("trend", isTrend);
+      if (t) { hintNow = onPost(t, "Worth triple"); return; }
     }
     if (mod && mod.state === "work" && !lr.mod) {
       modSeen += dt;
@@ -1402,8 +1446,10 @@
     var el = tag.what === "target" ? hudEls.target : hudEls.time;
     var box = root.getBoundingClientRect(), e = el.getBoundingClientRect();
     if (!e.width) return;
-    var calm = shell.reduceMotion, p = 6;
-    var r = { x: e.left - box.left - p, y: e.top - box.top - p, w: e.width + p * 2, h: e.height + p * 2 };
+    // close above and below: the clock and the target sit only 5px apart,
+    // and a ring round one mustn't cut through the other's words
+    var calm = shell.reduceMotion, p = 6, py = 2;
+    var r = { x: e.left - box.left - p, y: e.top - box.top - py, w: e.width + p * 2, h: e.height + py * 2 };
     c.save();
     c.beginPath();
     if (c.roundRect) c.roundRect(r.x, r.y, r.w, r.h, 8); else c.rect(r.x, r.y, r.w, r.h);
@@ -1420,7 +1466,7 @@
     // under what it's round, or for the clock, under the target just below
     // it (beside it, a phone's pause button is in the way)
     var under = r.y + r.h;
-    if (tag.what === "time") { var m = hudEls.target.getBoundingClientRect(); if (m.width) under = Math.max(under, m.bottom - box.top + p); }
+    if (tag.what === "time") { var m = hudEls.target.getBoundingClientRect(); if (m.width) under = Math.max(under, m.bottom - box.top + py); }
     var tx = clamp(r.x + 6, 4, W - tw - 4);
     var ty = under + 3 + (calm ? 0 : Math.sin(tag.t * 6) * 1.5);
     c.beginPath();
@@ -1463,13 +1509,50 @@
     c.restore();
   }
 
-  function firstOnScreen(test) {
-    for (var i = 0; i < feed.length; i++) {
-      var q = feed[i];
-      if (q.y > L.head - 2 && q.y + L.cardH < L.sy1 + 4 && test(q)) return q;
+  // The pointer on a post: the arrow points into its picture and the word
+  // sits across its top, so it can't be taken for the post above (it used to
+  // sit over the post above, which was often slop). It only goes on a post
+  // with room for all of it on the screen.
+  var POINT = 13.6;                    // from a post's top to the arrow's tip
+  function onPost(q, word) { return { x: L.cardX + L.cardW * 0.5, y: q.y + POINT, word: word }; }
+  function fits(q) { return q.y + POINT - 12.6 >= L.head && q.y + POINT + 1.5 <= seen; }
+  // ...and while the stage's notice is up (Go, and a moment after), on one
+  // it isn't covering if there is one, so it's there to see from the start
+  var seen = 0, briefEl = null, briefTop = null;
+  function inView(find) {
+    seen = seenTo();
+    var q = find();
+    if (!q && seen < L.sy1) { seen = L.sy1; q = find(); }
+    seen = L.sy1;
+    return q;
+  }
+  function seenTo() {
+    briefEl = briefEl || root.querySelector(".kit-brief");
+    if (!briefEl || !briefEl.classList.contains("is-on")) { briefTop = null; return L.sy1; }
+    if (briefTop == null) {
+      var box = root.getBoundingClientRect(), r = briefEl.getBoundingClientRect();
+      var over = r.right > box.left + L.cardX * U && r.left < box.left + (L.cardX + L.cardW) * U;
+      briefTop = over ? (r.top - box.top) / U - 1 : Infinity;
     }
+    return Math.min(L.sy1, briefTop);
+  }
+  function lowestThat(test) {
+    for (var i = feed.length - 1; i >= 0; i--) if (fits(feed[i]) && test(feed[i])) return feed[i];
     return null;
   }
+  // The post a pointer goes on ("Slop this" a real one, "Worth triple" a
+  // trending one): the lowest, since the brackets climb from the bottom and
+  // get there first, and it has longest left. It keeps that post until it's
+  // near the top, so the pointer doesn't hop about.
+  var pointed = {};
+  function pointAt(which, test) {
+    var near = L.head + (L.sy1 - L.head) * 0.25, q = pointed[which];
+    if (!(q && test(q) && fits(q) && q.y > near && feed.indexOf(q) >= 0)) {
+      q = pointed[which] = inView(function () { return lowestThat(function (p) { return test(p) && p.y > near; }); });
+    }
+    return q || inView(function () { return lowestThat(test); });
+  }
+  function isTrend(q) { return q.trending && !q.slopped; }
 
   // The stage's notice goes up with the countdown, so it's read before Go,
   // and comes down just after it, so it doesn't sit over the feed. Filming
@@ -1541,10 +1624,15 @@
     WW = W / U; WH = H / U;
     ctx = (shell ? shell.canvas : root.querySelector("canvas")).getContext("2d");
     layout();
+    // in-game stamps land over the room, never over the feed, where the
+    // pointer, the brackets and the posts you're aiming at are
+    if (shell) shell.placeCallouts({ right: W - L.phoneX * U });
     A.init(T || N.tokens(root), U * DPR);
     bg = null;
     poses = {};
     hudBox = null;
+    stampEl = null;
+    briefTop = null;
     feed.forEach(function (p) { p.img = null; });
   }
 
@@ -1910,24 +1998,38 @@
         c.lineWidth = 2.4; c.strokeStyle = T.ink; c.stroke();
         c.lineWidth = 1.2; c.strokeStyle = T.accent; c.stroke();
         c.globalAlpha = 1;
-      } else if (e.kind === "res") {
-        // what the shot did: green with a tick, or red with a cross
-        c.globalAlpha = k < 0.8 ? 1 : (1 - k) / 0.2;
-        var rs = Math.max(3.4, 12 / U), rw = A.measure(c, e.text, rs) + rs * 2.4, rh = rs * 1.6;
-        var rx = clamp(e.x - rw, 1, WW - rw - 1), ry = clamp(e.y - rh / 2 - k * 4, 1, WH - rh - 1);
-        A.rrect(c, rx, ry, rw, rh, rh / 2);
-        c.fillStyle = e.ok ? T.right : T.red; c.fill();
-        A.ink(c, 0.45); c.stroke();
-        var rc = e.ok ? T.ink : T.paper;
-        mark(c, e.ok, rx + rs * 0.85, ry + rh / 2, rs * 0.28, rc);
-        A.text(c, e.text, rx + rs * 1.55, ry + rh / 2 + rs * 0.06, rs, null, { align: "left", fill: rc });
-        c.globalAlpha = 1;
       } else if (e.kind === "pop") {
         c.globalAlpha = k < 0.75 ? 1 : (1 - k) / 0.25;
         var size = e.big ? 5 : 3.8;
         A.text(c, e.text, e.x - 1, e.y - k * 7, size, null, { align: "right", fill: e.bad ? T.red : e.big ? T.accent : T.paper, edge: T.ink, edgeW: size * 0.3 });
         c.globalAlpha = 1;
       }
+    });
+  }
+
+  // What a shot did: a green pill with a tick and the points, or a red one
+  // with a cross and what went wrong, its right-hand end by the phone where
+  // the shot landed, rising as it fades (still, with reduced motion). Drawn
+  // over the speech bubbles, which keep clear of it where they can: a post's
+  // owner shouts as it's slopped and the Gaffer has his say, right where the
+  // pill is, and on a phone the pill used to be lost under them.
+  function pillBox(c, e) {
+    var k = e.t / e.life, up = shell.reduceMotion ? 0 : 4;
+    var s = Math.max(3.4, 12 / U), w = A.measure(c, e.text, s) + s * 2.4, h = s * 1.6;
+    return { s: s, w: w, h: h, x: clamp(e.x - w, 1, WW - w - 1), y: clamp(e.y - h / 2 - k * up, 1, WH - h - 1), rise: (1 - k) * up };
+  }
+  function drawPills(c) {
+    fx.forEach(function (e) {
+      if (e.kind !== "res" || e.t < 0) return;
+      var k = e.t / e.life, b = pillBox(c, e), s = b.s;
+      c.globalAlpha = k < 0.8 ? 1 : (1 - k) / 0.2;
+      A.rrect(c, b.x, b.y, b.w, b.h, b.h / 2);
+      c.fillStyle = e.ok ? T.right : T.red; c.fill();
+      A.ink(c, 0.45); c.stroke();
+      var ink = e.ok ? T.ink : T.paper;
+      mark(c, e.ok, b.x + s * 0.85, b.y + b.h / 2, s * 0.28, ink);
+      A.text(c, e.text, b.x + s * 1.55, b.y + b.h / 2 + s * 0.06, s, null, { align: "left", fill: ink });
+      c.globalAlpha = 1;
     });
   }
 
@@ -1993,8 +2095,10 @@
     var boxes = hudBoxes();
     var bx, by, tail;
     if (b.who.side === "left") {
+      // beside their face and a little above it: they shout as their post is
+      // slopped, and what the shot did shows lower down, beside the post
       bx = clamp(ax - bw - size * 1.1, 4, W - bw - 4);
-      by = ay - bh / 2;
+      by = ay - bh + size * 0.5;
       tail = "right";
     } else {
       bx = clamp(ax - bw / 2, 4, W - bw - 4);
@@ -2017,18 +2121,33 @@
       });
       return sum;
     }
-    var want = { x: bx, y: by }, spots = [{ x: bx, y: by }];
+    // Once moved, it stays moved (by its speaker), rather than jump back the
+    // moment whatever was in the way has gone
+    var want = { x: bx, y: by }, spots = [{ x: bx, y: by }], was = b.off && b.off.w === W ? { x: ax + b.off.x, y: ay + b.off.y } : null;
+    if (was) spots.push(was);
     placed.forEach(function (o) {
       spots.push({ x: bx, y: o.y - bh - 6 }, { x: bx, y: o.y + o.h + 6 }, { x: o.x - bw - 6, y: by }, { x: o.x + o.w + 6, y: by });
     });
+    // Never so far off it reads as someone else's: one over a speaker's head
+    // stays over it, and never lower (it would cover their face), and one
+    // beside a post stays close enough for its tail to lean in. Better partly
+    // under a pill, a stamp or the pointer (they're drawn over it) than over
+    // the wrong person.
+    function near(x, y) {
+      if (tail === "down") return y <= want.y && ax >= x + 12 && ax <= x + bw - 12;
+      return x + bw <= ax && ax - x - bw <= size * 4 && ay >= y - size && ay <= y + bh + size * 2;
+    }
     var best = null;
-    spots.forEach(function (p) {
+    spots.forEach(function (p, i) {
       var x = clamp(p.x, 4, W - bw - 4);
       var y = clamp(p.y, topAt(x), H - bh - 4);
+      if (i && !near(x, y)) return;
       var cost = overlap(x, y) * 50 + Math.abs(x - want.x) + Math.abs(y - want.y);
+      if (was) cost += 1.5 * (Math.abs(x - was.x) + Math.abs(y - was.y));
       if (!best || cost < best.cost) best = { x: x, y: y, cost: cost };
     });
     bx = best.x; by = best.y;
+    b.off = { x: bx - ax, y: by - ay, w: W };
     placed.push({ x: bx, y: by, w: bw, h: bh });
     var pop = shell.reduceMotion ? 1 : clamp(b.t * 8, 0, 1);
     c.globalAlpha = Math.min(pop, clamp((b.life - b.t) * 3, 0, 1));
@@ -2037,8 +2156,9 @@
     c.moveTo(bx + r, by);
     c.arcTo(bx + bw, by, bx + bw, by + bh, r);
     if (tail === "right") {
-      var ty = clamp(ay, by + r + 2, by + bh - r - 2);
-      c.lineTo(bx + bw, ty - 4); c.lineTo(Math.min(ax - 2, bx + bw + size * 0.9), ty); c.lineTo(bx + bw, ty + 3);
+      // leaning towards who's talking, if the bubble's had to move off them
+      var ty = clamp(ay, by + r + 2, by + bh - r - 2), tip = ty + clamp(ay - ty, -size, size);
+      c.lineTo(bx + bw, ty - 4); c.lineTo(Math.min(ax - 2, bx + bw + size * 0.9), tip); c.lineTo(bx + bw, ty + 3);
     }
     c.arcTo(bx + bw, by + bh, bx, by + bh, r);
     if (tail === "down" && by + bh < ay) {
@@ -2108,15 +2228,31 @@
     var arrow = phase === "play" && shell.state() === "playing" ? hintNow : null;
     if (arrow) {
       arrow = { x: clamp(arrow.x, 12, WW - 12), y: Math.max(20, arrow.y), word: arrow.word };
-      placed.push({ x: (arrow.x - 12) * U, y: (arrow.y - 13) * U, w: 24 * U, h: 14 * U });
+      var aw = Math.max(24, A.measure(c, arrow.word, 3.6) + 4);
+      placed.push({ x: (arrow.x - aw / 2) * U, y: (arrow.y - 13) * U, w: aw * U, h: 14.5 * U });
     }
+    // and the right and wrong pills, all the way up they'll rise
+    fx.forEach(function (e) {
+      if (e.kind !== "res" || e.t < 0) return;
+      var b = pillBox(c, e);
+      placed.push({ x: b.x * U, y: (b.y - b.rise) * U, w: b.w * U, h: (b.h + b.rise) * U });
+    });
+    // and the stamp, while there is one (the kit's, over the canvas: a
+    // bubble under it can't be read)
+    var st = root.querySelector(".kit-callouts .stamp-label");
+    if (st !== stampEl) {
+      stampEl = st;
+      stampBox = st ? { x: st.parentNode.offsetLeft + st.offsetLeft - 6, y: st.parentNode.offsetTop + st.offsetTop - 6, w: st.offsetWidth + 12, h: st.offsetHeight + 12 } : null;
+    }
+    if (stampBox) placed.push(stampBox);
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     captions.forEach(function (k) { drawCaption(c, k); });
     bubbles.forEach(function (b) { drawBubble(c, b, placed); });
     if (phase === "play" && shell.state() === "playing") drawTag(c);
     drawVerdict(c);
+    c.setTransform(DPR * U, 0, 0, DPR * U, 0, 0);
+    drawPills(c);
     if (arrow) {
-      c.setTransform(DPR * U, 0, 0, DPR * U, 0, 0);
       var bob = shell.reduceMotion ? 0 : -Math.abs(Math.sin(clock * 4)) * 1.4;
       A.arrow(c, arrow.x, arrow.y + bob, arrow.word, 1);
     }

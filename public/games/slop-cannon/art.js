@@ -986,7 +986,9 @@
     c.fillStyle = T.accent; c.fill(); ink(c, lw * 0.8); c.stroke();
   }
 
-  // A bobbing arrow pointing down, with a word over it (DESIGN.md, section 10)
+  // A bobbing arrow pointing down, with its word on an ink tag over it
+  // (DESIGN.md, section 10). The tag keeps the word clean where it sits on a
+  // post, over the post's own name and likes.
   function arrow(c, x, y, word, size) {
     var k = (size || 1);
     c.save();
@@ -998,7 +1000,11 @@
     c.closePath();
     c.fillStyle = T.paper; c.fill();
     ink(c, 0.7); c.stroke();
-    text(c, word, 0, -9.4, 3.6, null, { align: "center", fill: T.paper, edge: T.ink, edgeW: 1 });
+    var w = measure(c, word, 3.6) + 2.8;
+    rrect(c, -w / 2, -12.2, w, 5.6, 0.9);
+    c.fillStyle = T.ink; c.fill();
+    ink(c, 0.45, T.paper); c.stroke();
+    text(c, word, 0, -9.3, 3.6, null, { align: "center", fill: T.paper });
     c.restore();
   }
 
