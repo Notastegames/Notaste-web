@@ -159,7 +159,7 @@
   var L = null;                        // the layout (rectangles and sizes)
   var mctx = document.createElement("canvas").getContext("2d");   // for measuring text
   var run = null;                      // the whole run's tallies
-  var stage = 0, app = null, doc = [], docH = 0;
+  var stage = 0, app = null, doc = [], docH = 0, slow = 1;
   var scroll = 0, speed = 0, hitch = 0, phase = "read";
   var clock = 0, stageClock = 0, phaseClock = 0;
   var sel = -1, keyMode = false, hover = -1;
@@ -297,12 +297,17 @@
   // Layout: where the phone, the page and the cast go, at any shape of screen
   //   wide    4:3 desktop. The phone in the middle, Legal and the mascot either side.
   //   tall    the 4:5 clip frame and phones in fullscreen. The cast stand in a
-  //           strip under the page, and talk in it.
+  //           strip under the page, and talk in it. An upright iPad gets bigger
+  //           print, and its page stops at a phone's worth of lines, the strip
+  //           taking the rest, so the terms scroll away there too rather than
+  //           fitting on one screen.
   //   square  phones in the page. The page fills the screen; the cast's heads
   //           peek up from a short strip under it, and talk in it, so nothing
   //           they say covers the terms.
   // ---------------------------------------------------------------------------
-  function layout() {
+  var LINES = 30;               // the most lines a page shows: about a phone's
+  var REF = 24;                 // ems to a line the scroll speeds are set for: a big phone's (measureAll)
+  function layout(extra) {
     var m = {};
     var ar = W / H;
     m.mode = ar >= 1.2 ? "wide" : H / W >= 1.15 ? "tall" : "square";
@@ -324,7 +329,7 @@
       var side = Math.round(clamp(W * 0.03, 7, 14));
       m.phone = { x: side - 6, y: top - 6, w: W - (side - 6) * 2, h: H, r: 20, bez: 6 };
       var tall = m.mode === "tall";
-      var strip = tall ? Math.round(clamp(W * 0.3, 96, 170)) : Math.round(clamp(H * 0.15, 40, 56));
+      var strip = (tall ? Math.round(clamp(W * 0.3, 96, 170)) : Math.round(clamp(H * 0.15, 40, 56))) + (extra || 0);
       m.page = { x: side, y: top, w: W - side * 2, h: H - top - strip };
       var sy = m.page.y + m.page.h + 2;
       m.strip = { x: 0, y: sy, w: W, h: H - sy };
@@ -354,8 +359,9 @@
       m.bubbleW = m.talk.w;
     }
     var p = m.page;
-    var fs = m.mode === "wide" ? clamp(Math.round(p.w / 21), 14, 17) : clamp(Math.round(p.w / 22), 13, 16);
-    fs = Math.round(fs * (run ? run.mods.size : 1) * 2) / 2;
+    var big = m.mode === "tall" && p.w >= 600;
+    var base = m.mode === "wide" ? clamp(Math.round(p.w / 21), 14, 17) : clamp(Math.round(p.w / 22), 13, big ? 19 : 16);
+    var fs = Math.round(base * (run ? run.mods.size : 1) * 2) / 2;
     m.fs = fs;
     m.lh = Math.round(fs * 1.34);
     m.pad = Math.round(fs * 0.85);
@@ -382,6 +388,11 @@
       bubble: Math.round(m.strip ? clamp(fs * 0.9, 12, 15) : clamp(fs * 0.98, 12, 16)) + "px " + T.display
     };
     m.footLh = Math.round(Math.max(12, fs * 0.82) * 1.3);
+    // an upright iPad: a page that would show more than a phone's lines is
+    // laid out again with a taller strip under it (counted in ordinary print,
+    // so Reading glasses still fit fewer)
+    var over = big && !extra ? Math.floor(m.view.h - Math.round(base * 1.34) * LINES) : 0;
+    if (over > 0) { layout(over); return; }
     L = m;
   }
 
@@ -508,6 +519,20 @@
     doc.forEach(measure);
     reflow();
     if (anchor != null && doc[anchor].top != null) scroll = doc[anchor].top + offset * doc[anchor].h;
+    // a page wider than a big phone's (an upright iPad) puts more words on a
+    // line, so it scrolls slower: the terms take as long as they would at
+    // REF ems a line, the same words a second to read
+    slow = 1;
+    var refW = L.fs * REF;
+    if (L.textW > refW) {
+      var more = 0;
+      doc.forEach(function (b) {
+        if (b.kind !== "clause") return;
+        more += (wrap(tokens(b), refW).length - b.lines.length) * L.lh;
+        if (b.foot) more += (wrap(words(b.foot, "foot"), refW - L.pad).length - b.footLines.length) * L.footLh;
+      });
+      slow = docH / (docH + more);
+    }
   }
 
   function reflow() {
@@ -663,7 +688,7 @@
     var st = STAGES[stage];
     var progress = clamp(scroll / Math.max(1, docH - L.view.h), 0, 1);
     var fit = clamp(L.view.h / L.lh / 15, 0.84, 1);
-    return st.lps * L.lh * run.mods.speed * (1 + st.ramp * progress) * fit;
+    return st.lps * L.lh * run.mods.speed * (1 + st.ramp * progress) * fit * slow;
   }
 
   function update(dt, input) {
@@ -2725,7 +2750,7 @@
       pace: function () {
         var st = STAGES[stage], v = scrollSpeed() / (1 + st.ramp * clamp(scroll / Math.max(1, docH - L.view.h), 0, 1));
         var avg = v * (1 + st.ramp / 2), travel = docH - L.view.h * 0.66 + L.view.h * 0.3;
-        return { mode: L.mode, fs: L.fs, viewH: Math.round(L.view.h), lines: +(L.view.h / L.lh).toFixed(1), pxs: +avg.toFixed(1),
+        return { mode: L.mode, fs: L.fs, viewH: Math.round(L.view.h), lines: +(L.view.h / L.lh).toFixed(1), ems: +(L.textW / L.fs).toFixed(1), slow: +slow.toFixed(2), pxs: +avg.toFixed(1),
                  seconds: Math.round(travel / avg), onScreen: +(L.view.h / avg).toFixed(1), clauses: doc.filter(isClause).length };
       },
       popup: function () { openPopup(C.popups[0]); },
