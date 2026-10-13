@@ -23,11 +23,22 @@
 // 4. Cancellations. Two questions, the options the other way round ("For
 //    a boat, press 7"), and the fast version is faster.
 //
+// TEACHING IT IN THE FIRST SECONDS. Two moves, one name each, everywhere:
+// "press your problem" (the menu) and "tap at the ring" (on hold). The
+// first notice is goal, move, cost. The dialling runs under the countdown,
+// so the menu picks up at Go. Then the pointer teaches in play, one thing
+// at a time (see hint and tell): the note, the right key in the first call,
+// the ring at your ear on the first hold, and each meter (queue, patience,
+// signal) the first time it moves. A mistake brings the move's pointer back
+// (three times a round), and right or wrong is said on the key or at the
+// ring, where the eyes already are.
+//
 // THE MENU. Each question is two beats, each option two beats, then "Please
 // choose now", a bar to choose, "Here they are again", the options again
 // (worth half), "Please choose now", another bar, and "Sorry, I didn't catch
-// that": dropped, and redialled. A wrong number transfers you to a useless
-// department (Lanyards, The car park) and back to the same question.
+// that": dropped, and redialled. A wrong number transfers you to the
+// department for what you pressed (Boats, The Tuesday team), or for a number
+// that isn't an option, a useless one (Lanyards), and back to the question.
 // Pressing before you're allowed just buzzes; 0, * and # are never options.
 // Spoken numbers are their keypad tones.
 //
@@ -129,24 +140,46 @@
   // ---------------------------------------------------------------------------
   // Your problem, and the menu's questions about it
   // ---------------------------------------------------------------------------
+  // Each value is also a department: press the wrong one and that's where
+  // you're put through, and it answers about the thing you pressed (dept:
+  // its name on the phone, how you'd say it, and what it says)
+  function dp(name, say, line) { return { name: name, say: say, line: line }; }
   var CATS = {
     topic: { q: "What's your call about.", line: function (v) { return v.note; }, values: [
-      { note: "Broadband", say: "broadband" }, { note: "Landline", say: "the landline" },
-      { note: "Telly box", say: "a telly box" }, { note: "Smart meter", say: "a smart meter" },
-      { note: "Mobile", say: "a mobile" }, { note: "Fax machine", say: "a fax machine" }] },
+      { note: "Broadband", say: "broadband", dept: dp("Broadband", "broadband", "Broadband. Have you tried waiting.") },
+      { note: "Landline", say: "the landline", dept: dp("Landlines", "landlines", "Landlines. People still have those.") },
+      { note: "Telly box", say: "a telly box", dept: dp("Telly boxes", "telly boxes", "Telly boxes. Yours is fine. We can see it.") },
+      { note: "Smart meter", say: "a smart meter", dept: dp("Smart meters", "smart meters", "Smart meters. It knows you're calling.") },
+      { note: "Mobile", say: "a mobile", dept: dp("Mobiles", "mobiles", "Mobiles. You're on one. So it works.") },
+      { note: "Fax machine", say: "a fax machine", dept: dp("Fax", "fax", "Fax. Please fax us your problem.") }] },
     place: { q: "Is it home, or business.", line: function (v) { return "Account: " + v.note; }, values: [
-      { note: "Home", say: "your home" }, { note: "Business", say: "a business" }, { note: "Boat", say: "a boat" },
-      { note: "Shed", say: "a shed" }, { note: "Caravan", say: "a caravan" }, { note: "Lighthouse", say: "a lighthouse" }] },
+      { note: "Home", say: "your home", dept: dp("Home", "home", "Home accounts. Have you tried going out.") },
+      { note: "Business", say: "a business", dept: dp("Business", "business", "Business accounts. That'll be extra.") },
+      { note: "Boat", say: "a boat", dept: dp("Boats", "boats", "Boats. Is it floating. Then it's fine.") },
+      { note: "Shed", say: "a shed", dept: dp("Sheds", "sheds", "Sheds. Nobody does sheds.") },
+      { note: "Caravan", say: "a caravan", dept: dp("Caravans", "caravans", "Caravans. Which field.") },
+      { note: "Lighthouse", say: "a lighthouse", dept: dp("Lighthouses", "lighthouses", "Lighthouses. Is the light on. Lovely.") }] },
     light: { q: "What colour is the light.", line: function (v) { return "Light: " + v.note; }, iff: true, values: [
-      { note: "Red", say: "red" }, { note: "Green", say: "green" }, { note: "Orange", say: "orange" },
-      { note: "Blue", say: "blue" }, { note: "Flashing", say: "flashing" }, { note: "Off", say: "off" }] },
+      { note: "Red", say: "red", dept: dp("Red lights", "red lights", "Red lights. Red means it's thinking.") },
+      { note: "Green", say: "green", dept: dp("Green lights", "green lights", "Green lights. Green means fine. Goodbye.") },
+      { note: "Orange", say: "orange", dept: dp("Orange lights", "orange lights", "Orange lights. Orange means maybe.") },
+      { note: "Blue", say: "blue", dept: dp("Blue lights", "blue lights", "Blue lights. Blue is new. Nobody knows.") },
+      { note: "Flashing", say: "flashing", dept: dp("Flashing", "flashing lights", "Flashing lights. It's pleased to see you.") },
+      { note: "Off", say: "off", dept: dp("Lights off", "lights off", "Lights off. Have you tried turning it on.") }] },
     since: { q: "When did it stop working.", line: function (v) { return "Since " + v.note; }, values: [
-      { note: "Monday", say: "Monday" }, { note: "Tuesday", say: "Tuesday" }, { note: "Wednesday", say: "Wednesday" },
-      { note: "Thursday", say: "Thursday" }, { note: "Friday", say: "Friday" }, { note: "Saturday", say: "Saturday" },
-      { note: "Sunday", say: "Sunday" }] },
+      { note: "Monday", say: "Monday", dept: dp("Mondays", "Mondays", "The Monday team. Mondays, eh.") },
+      { note: "Tuesday", say: "Tuesday", dept: dp("Tuesdays", "Tuesdays", "The Tuesday team. We're in on Thursdays.") },
+      { note: "Wednesday", say: "Wednesday", dept: dp("Wednesdays", "Wednesdays", "The Wednesday team. Halfway there.") },
+      { note: "Thursday", say: "Thursday", dept: dp("Thursdays", "Thursdays", "The Thursday team. Nearly the weekend.") },
+      { note: "Friday", say: "Friday", dept: dp("Fridays", "Fridays", "The Friday team. We've gone home.") },
+      { note: "Saturday", say: "Saturday", dept: dp("Saturdays", "Saturdays", "The Saturday team. There isn't one.") },
+      { note: "Sunday", say: "Sunday", dept: dp("Sundays", "Sundays", "Sundays. We're closed. This is a recording.") }] },
     tried: { q: "Tried it off and on again.", line: function (v) { return "Tried: " + v.note; }, values: [
-      { note: "Once", say: "once" }, { note: "Twice", say: "twice" }, { note: "Three times", say: "three times" },
-      { note: "Never", say: "never" }, { note: "Lost count", say: "lost count" }] }
+      { note: "Once", say: "once", dept: dp("Off and on", "Off and On", "Off and On. Once is a start. Try twice.") },
+      { note: "Twice", say: "twice", dept: dp("Off and on", "Off and On", "Off and On. Twice. Try three times.") },
+      { note: "Three times", say: "three times", dept: dp("Off and on", "Off and On", "Off and On. Three. Try four.") },
+      { note: "Never", say: "never", dept: dp("Off and on", "Off and On", "Off and On. Never. Bold.") },
+      { note: "Lost count", say: "lost count", dept: dp("Off and on", "Off and On", "Off and On. Lost count. Us too.") }] }
   };
 
   function optionText(cat, v, n, flip) {
@@ -159,13 +192,14 @@
       lock: false, scatter: false, flip: false, vo: false, arr: { please: "easy" },
       welcome: "Thank you for calling A Company.",
       agent: { name: "Sam", look: "glasses", lines: ["Sam, Billing. Oh, that's a fault.", "I'll put you through to Faults."] },
-      brief: "Find your problem on the note. When the menu reads it out, press its number. On hold, tap as each note reaches the ring at your ear.",
+      // goal, move, cost: three short sentences, nothing else
+      brief: "Get through four calls. Press your problem when the menu reads it, then tap at the ring on hold. Wrong numbers cost patience.",
       done: "Sam was lovely. Sam couldn't help. Sam has put you through to Faults." },
     { dept: "Faults", menuBpm: 104, hold: [100], key: [0, 0], fastAt: null, queue: 5, cats: ["place", "light"], opts: 4,
       lock: true, scatter: false, flip: false, vo: true, arr: { please: "tune" },
       welcome: "Welcome back. We missed you.",
       agent: { name: "Jo", look: "bun", lines: ["Jo, Faults. I can see it from here.", "It has to be a complaint first."] },
-      brief: "The keypad now stays locked until every option has been read, so remember your number. On hold, lose all your signal and you're cut off.",
+      brief: "The keypad stays locked until every option has been read, so remember your number. On hold, every missed note costs a bar of signal. No bars: cut off.",
       done: "Jo can see the fault from her desk. Jo is not allowed to touch it." },
     { dept: "Complaints", menuBpm: 112, hold: [104, 120], key: [0, 2], fastAt: 3, queue: 5, cats: ["since", "topic"], opts: 5,
       lock: true, scatter: true, flip: false, vo: true, arr: { please: "tune", fast: "medium" },
@@ -181,6 +215,7 @@
       done: "" }
   ];
 
+  // A number that isn't an option at all reaches one of A Company's own.
   // say: how you'd name it in the middle of a sentence
   var DEPTS = [
     { name: "Lanyards", say: "Lanyards", line: "Lanyards. None left for you." },
@@ -257,6 +292,9 @@
   var react = { shout: 0, steam: 0, drum: 0, puff: 0, cut: 0, said: null, saidT: 0, sweatT: 0 };
   var shake = 0, clockMin = 540, clockT = 0, animT = 0;
   var learned = { beat: 0, menu: false }, briefed = -1;
+  // the pointer, back after a mistake: up to three times a round for each move
+  var again = { menu: false, beat: 0, menuLeft: 3, beatLeft: 3 };
+  var verdict = null;   // the last number pressed, right or wrong: { ok, key, born }
   var hudEls = null, back = null, front = null, bot = null;
   var lastMode = "";
 
@@ -315,6 +353,8 @@
             menuFirst: 0, menuLevels: 0, streak: 0, best: 0, calls: 0, hungUp: false, daily: sh.daily, taken: [] };
     nextMods = freshMods();
     learned = { beat: 0, menu: false };
+    again = { menu: false, beat: 0, menuLeft: 3, beatLeft: 3 };
+    verdict = null;
     clockMin = 540;
     call = FIRST;
     startCall();
@@ -649,8 +689,10 @@
       run.score += pts;
       if (first) { run.menuFirst++; st.menuFirst++; }
       learned.menu = true;
+      again.menu = false;
+      verdict = { ok: true, key: d, born: animT };
       lcdFlash = { text: "Thank you", t: 0, good: true };
-      floats.push({ kind: "good", text: "+" + pts, t: 0, life: 0.8, key: d });
+      floats.push({ kind: "good", text: "+" + pts, t: 0, life: 0.9, key: d });
       go("thanks", Line.now() + 0.08, { li: p.li, pressed: d });
     } else {
       transferred(d);
@@ -665,7 +707,15 @@
   function transferred(d) {
     run.transfers++; st.transfers++;
     shell.callout("Transferred", { tilt: -5 });
-    var dept = pick(DEPTS);
+    // said on the key you pressed: wrong, and what it cost
+    verdict = { ok: false, key: d, born: animT };
+    floats.push({ kind: "bad", text: "-1 patience", t: 0, life: 1.4, key: d });
+    menuAgain();
+    // a wrong option reaches the department for what you pressed; a number
+    // that isn't an option reaches one of A Company's own
+    var wrong = null;
+    level().options.forEach(function (o) { if (String(o.n) === d) wrong = o; });
+    var dept = wrong ? wrong.v.dept : pick(DEPTS);
     // either you shout now, about the number, or later, about the department
     var late = Math.random() < 1 / 3;
     if (!late) {
@@ -678,6 +728,7 @@
 
   function dropped(t1) {
     run.drops++; st.drops++;
+    menuAgain();
     shell.callout("Call dropped", { tilt: 4 });
     youSay("drop");
     react.shout = 1;
@@ -685,11 +736,18 @@
     go("dial", t1, { redial: true, after: "level", li: ph.li });
   }
 
+  // a wrong number or a dropped call: the pointer comes back for the next go
+  function menuAgain() {
+    if (again.menu || again.menuLeft <= 0) return;
+    again.menu = true;
+    again.menuLeft--;
+  }
+
   // one less patience: true if that was the last of it, and you've hung up
   function losePatience() {
     run.patience = Math.max(0, run.patience - 1);
     paintHud();
-    if (run.patience > 0) return false;
+    if (run.patience > 0) { tell("patience", "At 0 you hang up"); return false; }
     run.hungUp = true;
     youSay("hang");
     Line.cancel("music"); Line.cancel("beat"); hush();
@@ -785,37 +843,54 @@
         shell.callout(run.streak === 16 ? "Sixteen in a row" : run.streak === 32 ? "Thirty-two in a row" : "Still holding", { tilt: 4, sound: false });
       }
       learned.beat++;
+      if (again.beat > 0) again.beat--;
       hitRun++;
-      if (hitRun >= RESTORE && signal < SIGNAL) { signal++; hitRun = 0; soundNow(function (a) { Line.inst.hit(a, true, "fx"); }); }
+      var gained = false;
+      if (hitRun >= RESTORE && signal < SIGNAL) { signal++; hitRun = 0; gained = true; soundNow(function (a) { Line.inst.hit(a, true, "fx"); }); }
       soundNow(function (a) { Line.inst.hit(a, perfect, "fx"); });
-      laneFloat(perfect ? "perfect" : "close", perfect ? "Perfect" : "Close", 0.6);
+      // what it did, said at the ring: a bar back comes with the word
+      laneFloat(perfect ? "perfect" : "close", (perfect ? "Perfect" : "Close") + (gained ? ": +1 bar" : ""), gained ? 0.9 : 0.6);
       return;
     }
     // a stray tap: costs a bar of signal, once in each gap between notes
     var gap = 0;
     while (gap < p.notes.length && p.notes[gap].t + CENTRE < t) gap++;
-    laneFloat("stray", "Off beat", 0.6);
     run.streak = 0;
     st.clean = false;
     hitRun = 0;
-    if (gap === strayGap) return;
+    beatAgain();
+    if (gap === strayGap) { laneFloat("stray", "Off beat", 0.6); return; }
     strayGap = gap;
-    loseSignal();
+    var was = signal, cut = loseSignal();
+    if (!cut) laneFloat("stray", "Off beat" + (signal < was ? ": -1 bar" : ""), 0.9);
+  }
+
+  // a missed note or a stray tap: the pointer comes back for the next few notes
+  function beatAgain() {
+    if ((call === 0 && learned.beat < 6) || again.beat > 0 || again.beatLeft <= 0) return;
+    again.beat = 3;
+    again.beatLeft--;
   }
 
   // a note gone by: missed outright, or tapped too early or too late
   function missNote(n, how) {
     n.state = 3;
+    // when it starts to drop off the cord (without this a missed note's
+    // cross stayed on the ring)
+    n.missAt = Line.heard();
     if (DEBUG) tapLog.push({ call: call, miss: +n.t.toFixed(3), how: how || "" });
     run.notes++; st.notes++;
     run.streak = 0;
     hitRun = 0;
-    laneFloat("miss", how || "Missed", 0.7);
     // a puff of steam from one ear
     react.puff = 0.7;
     st.clean = false;
     soundNow(function (a) { Line.inst.miss(a, "fx"); });
-    return loseSignal();
+    beatAgain();
+    // what it cost, said at the ring
+    var was = signal, cut = loseSignal();
+    laneFloat("miss", (how || "Missed") + (signal < was ? ": -1 bar" : ""), 0.9);
+    return cut;
   }
 
   function checkMisses(p, h) {
@@ -829,6 +904,8 @@
   // a bar of signal gone: true if that was the last, and you're cut off
   function loseSignal() {
     signal = Math.max(call === 0 ? 1 : 0, signal - 1);
+    // from the second call, when it can cut you off: what the bars are for
+    if (call >= 1 && signal > 0) tell("signal", "No bars: cut off");
     if (signal === 1 && !st.weakSaid) {
       st.weakSaid = true;
       shell.callout("Signal: weak", { tilt: 5, sound: false });
@@ -962,12 +1039,21 @@
   // ---------------------------------------------------------------------------
   // The frame
   // ---------------------------------------------------------------------------
+  // The dialling and the ringing start under the countdown, timed so the
+  // menu picks up at about Go: the first option is read about three and a
+  // half seconds after Go instead of five. GO_AT is when Go lands, from the
+  // kit's countdown (its quicker, reduced-motion timing, so it's never late).
+  var GO_AT = 2.2, DIAL_LEN = { dial: 1.97, through: 1.25 };
+  var cdT = 0, leading = false;
   var wasPaused = false, padWas = false;
   function update(dt, input) {
     var state = shell.state();
     animT += dt;
     animate(dt, state);
-    if (state !== "playing") return;
+    cdT = state === "countdown" ? cdT + dt : 0;
+    if (state === "countdown" && ph && ph.kind === "start" && cdT >= GO_AT - DIAL_LEN[call > 0 ? "through" : "dial"]) leading = true;
+    if (state !== "countdown") leading = false;
+    if (state !== "playing" && !leading) return;
     Line.advance(dt);
     var now = Line.now(), h = Line.heard();
     if (wasPaused) { wasPaused = false; resumed(); }
@@ -999,6 +1085,9 @@
       checkMisses(p, h);
       if (ph === p) {
         countNotes(p);
+        // the queue going down is how you win a hold: say so the first time
+        // it moves, once the pointer at the ring has gone
+        if (queueLeft(p, h) < p.queue0 && !beatPointer(p, h)) tell("queue", "Get to the front");
         // the last bar's notes are all judged before the pick-up
         if (p.nextIdx >= p.queue0 && p.end == null) {
           p.end = p.nextT + 0.45;
@@ -1097,7 +1186,8 @@
   }
 
   // ---------------------------------------------------------------------------
-  // HUD: the call and your patience top left, the score top right
+  // HUD: the call and your patience top left, the score top right. Nothing
+  // else: the notes in a row only matter for the callouts and the results.
   // ---------------------------------------------------------------------------
   function buildHud() {
     shell.hud.innerHTML =
@@ -1106,11 +1196,10 @@
         '<p class="kit-stat hm-patience"><small>Patience</small><span class="hm-pips" data-pips></span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
-        '<p class="kit-stat kit-stat-big"><span data-score>0</span></p>' +
-        '<p class="kit-stat" data-minor><small>In a row</small><span data-streak>0</span></p>' +
+        '<p class="kit-stat kit-stat-big"><span data-score>0</span><small>points</small></p>' +
       '</div>';
     hudEls = {};
-    ["call", "pips", "score", "streak"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
+    ["call", "pips", "score"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
     hudEls.pipsAt = -1;
   }
   function setText(node, text) { if (node && node.textContent !== text) node.textContent = text; }
@@ -1118,7 +1207,6 @@
     if (!hudEls || !run) return;
     setText(hudEls.call, (call + 1) + "/4");
     setText(hudEls.score, fmt(run.score));
-    setText(hudEls.streak, String(run.streak));
     var cap = Math.max(PATIENCE, run.patience);
     if (hudEls.pipsAt !== run.patience * 10 + cap) {
       hudEls.pipsAt = run.patience * 10 + cap;
@@ -1439,7 +1527,7 @@
   function render() {
     if (!ctx || !run) return;
     var state = shell.state();
-    if (state !== "playing") Line.idle();
+    if (state !== "playing" && !leading) Line.idle();
     if (state === "paused") wasPaused = true;
     if (briefed !== call && (state === "countdown" || state === "playing")) {
       briefed = call;
@@ -1478,11 +1566,26 @@
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     var placed = [];
     drawBubbles(c, v, h, placed, agentOn);
+    drawTag(c);
+    drawVerdict(c);
     var hn = hint(v, h);
     if (hn) {
       c.setTransform(DPR * U, 0, 0, DPR * U, 0, 0);
+      if (hn.ring) pointerRing(c, hn.ring);
       drawArrow(c, hn.x, hn.y, hn.word, hn.dir, hn.left);
     }
+  }
+
+  // the dashed ring round the ring at your ear: this is where to look
+  function pointerRing(c, ring) {
+    var nr = Lay.noteR, calm = shell.reduceMotion;
+    var r = nr * 2.6 * (calm ? 1 : 1 + 0.05 * Math.sin(animT * 6));
+    c.save();
+    D.ink(c, Math.max(0.35, nr * 0.2), T.paper);
+    c.setLineDash([nr * 0.7, nr * 0.5]);
+    c.lineDashOffset = calm ? 0 : -animT * nr * 2;
+    c.beginPath(); c.arc(ring.x, ring.y, r, 0, Math.PI * 2); c.stroke();
+    c.restore();
   }
 
   function padOn(v) {
@@ -1622,7 +1725,9 @@
     // the ring at the handset: magenta, with a paper edge; it swells on the beat
     var rr = nr * 1.75 * (calm || ph01 == null ? 1 : 1 + 0.08 * Math.max(0, 1 - ph01 * 4));
     var flash = floats.length && !floats[floats.length - 1].key && floats[floats.length - 1].t < 0.16 ? floats[floats.length - 1].kind : null;
-    D.solid(c, D.ell(ring.x, ring.y, rr, rr), flash === "perfect" || flash === "close" ? T.paper : T.accent, Math.max(0.35, nr * 0.24), T.ink);
+    // green for a hit, red for a miss or a stray, right where you're looking
+    var fill = flash === "perfect" || flash === "close" ? T.right : flash === "miss" || flash === "stray" ? T.red : T.accent;
+    D.solid(c, D.ell(ring.x, ring.y, rr, rr), fill, Math.max(0.35, nr * 0.24), T.ink);
     D.ink(c, Math.max(0.3, nr * 0.16), T.ink);
     c.beginPath(); c.arc(ring.x, ring.y, rr * 0.55, 0, Math.PI * 2); c.stroke();
     // the count-in: ghost notes
@@ -1920,9 +2025,27 @@
       var path = D.rr(r.x, r.y + (down ? 0.4 : 0), r.w, r.h - 0.4, r.w * 0.16);
       // the key's edge underneath
       D.solid(c, D.rr(r.x, r.y + 0.6, r.w, r.h - 0.4, r.w * 0.16), T.ink, 0.5, T.ink);
-      D.solid(c, path, down ? T.accent : T.paper, 0.6);
+      // the number you pressed turns green with a tick, or red with a cross
+      var judged = verdict && verdict.key === r.key && animT - verdict.born < 0.9 ? verdict : null;
+      D.solid(c, path, judged ? (judged.ok ? T.right : T.red) : down ? T.accent : T.paper, 0.6);
       if (locked && !r.small) D.shade(c, path, D.rr(r.x, r.y, r.w, r.h, 0), 0.75);
+      if (judged) { mark(c, judged.ok, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.22); return; }
       D.text(c, r.key, r.x + r.w / 2, r.y + r.h / 2 + (down ? 0.6 : 0.2), r.small ? size * 0.7 : size, { colour: T.ink, stroke: locked && !r.small ? size * 0.2 : 0, strokeColour: T.paper });
+    });
+  }
+
+  // a tick or a cross, so the colour is never the only signal
+  function mark(c, ok, x, y, s) {
+    var pts = ok ? [[x - s, y], [x - s * 0.3, y + s * 0.75], [x + s, y - s * 0.75]] : null;
+    [[T.ink, s * 0.7], [T.paper, s * 0.38]].forEach(function (pen) {
+      c.save();
+      c.lineCap = "round";
+      if (ok) D.line(c, pts, pen[1], pen[0]);
+      else {
+        D.line(c, [[x - s * 0.8, y - s * 0.8], [x + s * 0.8, y + s * 0.8]], pen[1], pen[0]);
+        D.line(c, [[x + s * 0.8, y - s * 0.8], [x - s * 0.8, y + s * 0.8]], pen[1], pen[0]);
+      }
+      c.restore();
     });
   }
 
@@ -1930,7 +2053,7 @@
   function padRect() { var k = Lay.keys; return { x: k.x, y: k.y, w: k.w, h: k.h }; }
 
   // The keypad goes dark on hold: four lamps for the beats of the bar, and
-  // what's going on in words. Tapping anywhere is a tap on the beat.
+  // what's going on in words. Tapping anywhere (this too) is a tap at the ring.
   function drawPad(c, v, h) {
     var r = padRect();
     var path = D.rr(r.x, r.y, r.w, r.h, 2);
@@ -1946,8 +2069,8 @@
     for (var i = 0; i < 4; i++) {
       var lx = r.x + r.w * (0.17 + i * 0.22);
       var lit = i === beatNow && beatT < 0.5;
+      // lit, but quiet: no burst, so the eyes stay on the ring at your ear
       D.solid(c, D.ell(lx, lampY, lampR, lampR), lit ? T.accent : T.ink, Math.max(0.4, lampR * 0.16), T.paper);
-      if (lit && !shell.reduceMotion) D.burst(c, lx, lampY, lampR * 1.35, lampR * 1.8, Math.max(0.25, lampR * 0.1), 6, 0);
     }
     // what's going on, in words
     var word = "";
@@ -1956,7 +2079,7 @@
     else if (bar && bar.first && h < bar.t + bar.b * 4) word = "Fast version";
     else if (bar && bar.last) word = "You're next";
     else if (mods && mods.speaker) word = "On speaker";
-    else word = Lay.touch ? "Tap anywhere" : "On hold";
+    else word = Lay.touch ? "Tap at the ring" : "On hold";
     D.text(c, word, r.x + r.w / 2, r.y + r.h * 0.66, s * (word.length < 3 ? 1.9 : 1.05), { colour: word.length < 3 || word === "Fast version" ? T.accent : T.paper });
   }
 
@@ -1975,7 +2098,9 @@
       if (f.key) {
         var kr = keyRects().filter(function (q) { return q.key === f.key; })[0];
         if (!kr) return;
-        x = kr.x + kr.w / 2; y = kr.y - 1;
+        // over the key, kept over the keypad
+        var hw = D.measure(c, f.text, size) / 2 + size * 0.3, kp = Lay.keys;
+        x = clamp(kr.x + kr.w / 2, kp.x + hw, kp.x + kp.w - hw); y = kr.y - 1;
       } else {
         // beside the ring, on the side away from you, clear of your face
         x = ring.x + nr * 2.3;
@@ -1986,7 +2111,7 @@
       // with reduced motion the words fade where they are
       var rise = shell.reduceMotion ? 0 : k * 3;
       D.text(c, f.text, x, y - rise, size, { base: "bottom", stroke: size * 0.3, align: f.key ? "center" : "left",
-        colour: f.kind === "miss" || f.kind === "stray" ? T.red : f.kind === "perfect" || f.kind === "good" ? T.accent : T.paper });
+        colour: f.kind === "miss" || f.kind === "stray" || f.kind === "bad" ? T.red : f.kind === "perfect" || f.kind === "good" ? T.right : T.paper });
       c.restore();
     });
   }
@@ -2120,32 +2245,126 @@
     c.restore();
   }
 
-  // ---------- The arrow: the one thing to deal with now ----------
+  // ---------- The pointer: the one thing to deal with now ----------
+  // Two moves, each with one name everywhere (the first notice, the pointer,
+  // the title screen and How to play): "Press your problem" in the menu and
+  // "Tap at the ring" on hold. On keys the word keeps its name and adds the
+  // key ("Press your problem: 4", "Tap at the ring: Space").
+  function moveWord(move, key) {
+    var how = touching() ? "touch" : lastMode || "keys";
+    var w = move === "menu" ? "Press your problem" : "Tap at the ring";
+    if (N.flags.clip) return w;
+    if (move === "menu") return how === "keys" ? w + ": " + key : w;
+    return w + (how === "keys" ? ": Space" : how === "mouse" ? ": click" : how === "pad" ? ": any button" : "");
+  }
+
+  // the ring at your ear gets the pointer for the first notes of the first
+  // hold, and again after a miss (up to three times a round)
+  function beatPointer(v, h) {
+    return v.kind === "hold" && h >= v.countAt && ((call === 0 && learned.beat < 6) || again.beat > 0);
+  }
+
   function hint(v, h) {
     if (shell.state() !== "playing") return null;
-    var how = touching() ? "touch" : lastMode || "keys";
-    if (call === 0 && v.kind === "hold" && learned.beat < 6 && h >= v.countAt) {
+    // one pointer at a time: a meter's ring goes first
+    if (tagLive()) return null;
+    if (beatPointer(v, h)) {
       var ring = lane().end, nr = Lay.noteR;
-      return { x: ring.x, y: ring.y + nr * 1.9 + 0.8, dir: "up", left: true,
-               word: N.flags.clip ? "Tap on the beat" : how === "touch" ? "Tap anywhere on the beat" : how === "mouse" ? "Click on the beat" : how === "pad" ? "Press on the beat" : "Space on the beat" };
+      // under the ring, or over it where the ring is near the bottom of the screen
+      var below = ring.y + nr * 3.1 + 0.6;
+      if (below + 6 < WH) return { x: ring.x, y: below, dir: "up", left: true, word: moveWord("beat"), ring: ring };
+      return { x: ring.x, y: ring.y - nr * 3.1 - 0.6, dir: "down", word: moveWord("beat"), ring: ring };
     }
-    if (call === 0 && v.kind === "level" && !learned.menu) {
+    if (v.kind === "level" && ((call === 0 && !learned.menu) || again.menu)) {
       var lv = levelOf(v), right = null;
       lv.options.forEach(function (o) { if (o.right) right = o; });
-      if (right && h >= right.heard1 + 0.6) {
-        var kr = keyRects().filter(function (q) { return q.key === String(right.n); })[0];
-        return { x: Lay.keys.x - 0.6, y: kr.y + kr.h / 2, word: how === "touch" ? "Tap " + right.n : how === "mouse" ? "Click " + right.n : "Press " + right.n, dir: "right" };
-      }
+      // while the question's asked: where your problem is
       if (h < (v.items[1] ? v.items[1].t : 0)) {
         return { x: Lay.note.x + Math.min(Lay.note.dw || 20, 26) * 0.5, y: Lay.note.y + (Lay.note.h || 12) + 1.2, word: "Your problem", dir: "up" };
+      }
+      // the first call: its key, once you've heard it (later calls are the
+      // memory test, so the pointer never gives the number away there)
+      if (call === 0 && right && h >= right.heard1 + 0.6) {
+        var kr = keyRects().filter(function (q) { return q.key === String(right.n); })[0];
+        return { x: Lay.keys.x - 0.6, y: kr.y + kr.h / 2, word: moveWord("menu", right.n), dir: "right" };
       }
     }
     return null;
   }
 
+  // The meters that decide a call get the pointer once a visit, the first
+  // time each one moves: a dashed ring round it and a word beside it. The
+  // queue on the phone's screen ("Get to the front"), your patience in the
+  // HUD ("At 0 you hang up") and, from the second call, the signal ("No
+  // bars: cut off"). One at a time, a moment after whatever moved it.
+  var told = {}, tag = null, TAG_LEN = 2.2;
+  function tell(what, word) {
+    if (told[what] || N.flags.clip || tagLive()) return;
+    told[what] = true;
+    tag = { what: what, word: word, born: animT + 0.6 };
+  }
+  function tagLive() { return !!tag && animT >= tag.born && animT - tag.born <= TAG_LEN; }
+
+  function drawTag(c) {
+    if (!tag) return;
+    var st0 = shell.state(), age = animT - tag.born;
+    if (age > TAG_LEN || (st0 !== "playing" && st0 !== "paused")) { tag = null; return; }
+    if (age < 0) return;
+    var r, l = Lay.lcd, s = Math.max(Lay.tmin, l.h * 0.26);
+    if (tag.what === "patience") {
+      var box = root.getBoundingClientRect(), e = hudEls.pips.parentNode.getBoundingClientRect();
+      r = { x: e.left - box.left, y: e.top - box.top, w: e.width, h: e.height };
+    } else if (tag.what === "queue") {
+      r = { x: l.x * U, y: l.y * U, w: (s * 3.2) * U, h: l.h * U };
+    } else {
+      r = { x: (l.x + l.w - s * 2.7) * U, y: (l.y + l.h - s * 2.6) * U, w: s * 2.6 * U, h: s * 2.45 * U };
+    }
+    var calm = shell.reduceMotion, p = 6;
+    c.save();
+    D.ink(c, 3, T.paper);
+    c.setLineDash([7, 5]);
+    c.lineDashOffset = calm ? 0 : -animT * 20;
+    c.beginPath();
+    c.roundRect ? c.roundRect(r.x - p, r.y - p, r.w + p * 2, r.h + p * 2, 8) : c.rect(r.x - p, r.y - p, r.w + p * 2, r.h + p * 2);
+    c.stroke();
+    c.setLineDash([]);
+    var px = Math.round(clamp(U * 1.9, 12, 17));
+    c.font = px + "px " + T.display;
+    var tw = c.measureText(tag.word.toUpperCase()).width + 14, th = px + 9;
+    // under the patience pips; over the phone's screen, clear of the keypad
+    var tx = clamp(tag.what === "patience" ? r.x - p : r.x + r.w / 2 - tw / 2, 4, W - tw - 4);
+    var bob = calm ? 0 : Math.sin(animT * 6) * 1.5;
+    var ty = tag.what === "patience" ? r.y + r.h + p + 3 + bob : Math.max(4, l.y * U - p - th - 4 + bob);
+    c.beginPath();
+    c.roundRect ? c.roundRect(tx, ty, tw, th, 4) : c.rect(tx, ty, tw, th);
+    c.fillStyle = T.ink;
+    c.fill();
+    D.ink(c, 2, T.paper);
+    c.stroke();
+    c.fillStyle = T.paper;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(tag.word.toUpperCase(), tx + tw / 2, ty + th / 2 + 1);
+    c.restore();
+  }
+
+  // the edge of the screen flashes with the last number's result
+  function drawVerdict(c) {
+    if (!verdict) return;
+    var a = animT - verdict.born, len = 0.5;
+    if (a > len) return;
+    c.save();
+    c.globalAlpha = 0.85 * (shell.reduceMotion ? 1 : 1 - a / len);
+    c.strokeStyle = verdict.ok ? T.right : T.red;
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, W - 10, H - 10);
+    c.restore();
+  }
+
   function drawArrow(c, x, y, word, dir, left) {
     var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(animT * 4)) * -1.4;
-    var size = Math.max(3, Lay.tmin);
+    // never under 15px: the pointer's word is the one that teaches the move
+    var size = Math.max(3, Lay.tmin * 1.25);
     c.save();
     if (dir === "right") c.translate(x + bob, y);
     else c.translate(x, y + (dir === "up" ? -bob : bob));
@@ -2165,7 +2384,11 @@
     if (dir === "right") D.text(c, word, -5.2, 0, size, { align: "right", colour: T.paper, stroke: size * 0.32 });
     else if (dir === "up" && left) D.text(c, word, toLeft ? -4 : 4, 2.6, size, { align: toLeft ? "right" : "left", colour: T.paper, stroke: size * 0.32 });
     else if (dir === "up") D.text(c, word, 0, 5.6, size, { base: "top", colour: T.paper, stroke: size * 0.32 });
-    else D.text(c, word, 0, -5.2, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
+    else {
+      // over the arrow, kept on the screen near an edge
+      var al = x < WW * 0.3 ? "left" : x > WW * 0.7 ? "right" : "center";
+      D.text(c, word, al === "left" ? -3 : al === "right" ? 3 : 0, -5.2, size, { align: al, base: "bottom", colour: T.paper, stroke: size * 0.32 });
+    }
     c.restore();
   }
 
@@ -2181,8 +2404,8 @@
     note: "Four calls. One problem. Your call is important to us.",
     pitch: "Phone a company. Remember the menu. Tap along to the hold music. Get put through to someone else.",
     hints: {
-      keys: "1 to 9 to pick an option. Space on the beat while you're on hold. P to pause, M to mute.",
-      touch: "Tap the keypad to pick an option. On hold, tap anywhere on the beat."
+      keys: "Press your problem: 1 to 9. On hold, tap at the ring: Space as each note gets there. P to pause.",
+      touch: "Press your problem on the keypad. On hold, tap at the ring: tap anywhere as each note gets there."
     },
     againLabel: "Call again",
     daily: true,
@@ -2194,7 +2417,8 @@
     pad: { beat: [0, 1, 2, 3, 4, 5, 6, 7] },
     reset: reset,
     update: function (dt, input) { update(dt, input); },
-    render: function () { render(); },
+    // the kit only steps the game in play: under the countdown the dialling is stepped from here
+    render: function (dt) { if (shell.state() === "countdown") update(dt || 0, null); render(); },
     resize: resize
   });
   T = shell.tokens;
@@ -2290,6 +2514,7 @@
         var out = [], lines = [];
         CALLS.forEach(function (c) { lines.push(c.welcome); c.agent.lines.forEach(function (l) { lines.push(l); }); });
         DEPTS.forEach(function (d) { lines.push(d.line); });
+        Object.keys(CATS).forEach(function (k) { CATS[k].values.forEach(function (v) { lines.push(v.dept.line); }); });
         VO.concat(THANKS).forEach(function (l) { lines.push(l); });
         ["Please choose now.", "Here they are again.", "Sorry, I didn't catch that.", "Transferring you now.", "Returning you to the menu.",
          "Let's skip that one.", "You are now number 12 in the queue.", "Thank you for calling A Company.", "Press 1 for billing."].forEach(function (l) { lines.push(l); });
