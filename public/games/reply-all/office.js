@@ -976,7 +976,7 @@
     c.closePath();
     fill(c, T.paper, 2);
     c.restore();
-    var fs = Math.max(10, 12 / s);
+    var fs = Math.max(12, size * 0.6) / s;      // 12px at the least, bigger on a big screen
     c.font = fs + "px " + T.display;
     c.textAlign = dir === "left" ? "left" : "center";
     c.textBaseline = "bottom";

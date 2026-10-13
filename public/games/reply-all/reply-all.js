@@ -31,6 +31,19 @@
 //      stop replying all. To everyone. That sets off three desks at once,
 //      then four.
 //      Hold on until 17:00.
+//
+// TEACHING IT IN THE FIRST SECONDS. One name for the move everywhere: "stop
+// the reply". The first notice says the goal, the move and the cost in three
+// sentences. Stage 1 opens slowly (one typist at a time, typing slower, no
+// forwards) until you've stopped three or twelve seconds have gone, so the
+// first lines can be read. Then the pointer teaches, one thing at a time: the
+// arrow ("Stop the reply") on whoever is nearest to sending, a dashed ring
+// round the clock ("Home at 17:00") once you've got the hang of it, and a
+// ring round the server ("Melts when full") the first time a reply lands in
+// it. Let a reply out and the arrow comes back, three times a day at most.
+// Every stop and every reply that gets out says so at the desk, green with a
+// tick or red with a cross, and the screen's edge flashes the same colour.
+//
 // Between stages (shell.interlude) IT offer three fixes, each with a cost:
 // turn the server off and on again, a bigger server, etiquette training,
 // hiding the reply all button, inbox rules, or an intern.
@@ -105,6 +118,9 @@
   var APPROVED_OUT = 3;              // replies that may get out in a day and still be Approved
   var POKES = 3, POKE_TIME = 1, SLAP = 1;   // poke this many people who aren't typing in this long, and your hand is slapped away for this long
   var LAST = 3;
+  var MOVE = "Stop the reply";       // the move's name, everywhere: notice, arrow, title hint, How to play
+  var WARM_TIME = 12, WARM_STOPS = 3;  // stage 1's slow start: until this long, or this many stops
+  var RESHOW = 3;                    // a reply that gets out brings the arrow back, this many times a day
 
   // spawn: seconds between new repliers, start to end of the stage. dur: how
   // long a reply takes to type. busy: no new ones start while this many are
@@ -238,6 +254,10 @@
   function padsOn() { return touching() && !N.flags.clip; }      // the kit's touch buttons are showing (never in the clip frame)
   function mult() { return Math.min(MULT_MAX, 1 + Math.floor(run.streak / STREAK_STEP)); }
   function cap() { return CAP * run.mods.cap; }
+  // stage 1's slow start, so a first-timer can read the first few lines
+  function warm() {
+    return run.stage === 0 && !AUTOPILOT && G.time < WARM_TIME && (run.learned.stops || 0) < WARM_STOPS;
+  }
 
   // ---------------------------------------------------------------------------
   // The day
@@ -248,7 +268,7 @@
     run = {
       stage: FIRST, score: 0, stopped: 0, out: 0, streak: 0, bestStreak: 0, load: 0,
       taken: [], melted: false, meltAt: "", mutes: 0,
-      learned: {},
+      learned: {}, hints: 0,
       mods: { cap: 1, drain: 1, typeSpeed: 1, points: 1, spread: 2, spawn: 1, muteCd: 1, intern: false, muteEmpty: false },
       // the office, the same for everyone in today's run: who sits where, and what's on their desk
       looks: shuffle(A.LOOKS.slice(), shell.random),
@@ -287,7 +307,7 @@
       stageOut: 0, stageStopped: 0, recentOut: [], keyAcc: 0,
       briefed: false, hint: null, groaned: 0, lastLand: -10,
       bursts: st.bursts.slice(), forwards: 0,
-      pokes: [], slapped: 0, lights: 0
+      pokes: [], slapped: 0, lights: 0, reshow: false, verdict: null
     };
     run.mods.muteEmpty = false;
     // who's at which desk this stage, and what sort of replier they are: from
@@ -504,7 +524,7 @@
     d.state = "typing";
     d.t = 0;
     d.stateT = 0;
-    d.dur = base * k * (0.9 + shell.random() * 0.2);
+    d.dur = base * k * (0.9 + shell.random() * 0.2) * (warm() ? 1.5 : 1);
     d.hits = d.kind === "stubborn" ? 2 : 1;
     // something nobody else is typing right now
     var taken = G.desks.map(function (o) { return o.state === "typing" ? o.line : ""; });
@@ -519,7 +539,7 @@
     if (G.spawnWait > 0) return;
     var st = info(), f = G.time / st.time;
     G.spawnWait = lerp(st.spawn[0], st.spawn[1], f) / run.mods.spawn * (0.75 + shell.random() * 0.5);
-    if (typingCount() >= st.busy) return;      // the office is busy enough
+    if (typingCount() >= (warm() ? 1 : st.busy)) return;      // the office is busy enough
     var d = pickIdle();
     if (d) itch(d);
   }
@@ -551,13 +571,14 @@
     if (d.kind === "ooo") {
       d.flash = 0.5;
       sfx.nope();
-      say("Out of office", 0);
+      addStamp(d, "Out of office", 0.9);
       return;
     }
     if (d.kind === "boss") {
       d.flash = 0.5;
       sfx.nope();
-      say("On behalf of the CEO", 0);
+      if (d.state === "typing") addStamp(d, "Can't be stopped", 0.9);
+      else say1(d, "I'm only the messenger.", true);
       return;
     }
     if (d.state !== "typing") {
@@ -608,7 +629,8 @@
     pts = Math.round(pts / 10) * 10;
     run.score += pts;
     var c = at(d, 40, 8);
-    G.pops.push({ x: c.x, y: Math.max(c.y, L.top + 24), text: "+" + pts, t: 0 });   // rising, but clear of the HUD
+    G.pops.push({ x: c.x + clamp(L.k * 6, 6, 14), y: Math.max(c.y, L.top + 24), text: "+" + pts, t: 0, ok: true });   // rising, but clear of the HUD
+    if (how !== "intern") judge(d, true);
     addStamp(d, close && how !== "mute" ? "Just in time" : pick(STOPS), 0.75);
     dropBubble(d);
     if (how === "mute") { if (Math.random() < 0.25) say1(d, pick(MUTED)); }
@@ -620,7 +642,11 @@
       say("Streak: x" + mult(), 1);
       sfx.streak();
     }
-    if (how !== "intern" && how !== "mute") run.learned.stops = (run.learned.stops || 0) + 1;
+    if (how !== "intern" && how !== "mute") {
+      run.learned.stops = (run.learned.stops || 0) + 1;
+      G.reshow = false;
+      if (run.learned.stops === 2) tell("clock", "Home at 17:00");
+    }
     if (d.kind === "stubborn") run.learned.stubborn = true;
   }
 
@@ -644,6 +670,11 @@
       return;
     }
     run.streak = 0;
+    // a miss: said at the desk, where your eyes are, and the arrow comes back
+    judge(d, false);
+    var c = at(d, 40, 8);
+    G.pops.push({ x: c.x + clamp(L.k * 8, 8, 18), y: Math.max(c.y, L.top + 24), text: "Server +" + Math.max(1, Math.round(LOAD[d.kind] / cap() * 100)) + "%", t: 0, ok: false });
+    if (run.hints < RESHOW && !G.reshow) { run.hints++; G.reshow = true; }
     run.out++;
     G.stageOut++;
     G.recentOut.push(G.time);
@@ -691,6 +722,7 @@
     sfx.land();
     var share = run.load / cap();
     if (share >= 1) { melt(); return; }
+    if (f.load > 0) tell("server", "Melts when full");
     if (share >= 0.7 && G.groaned < 2) { G.groaned = 2; say("Server: groaning", 2); sfx.groan(); }
     else if (share >= 0.5 && G.groaned < 1) { G.groaned = 1; sfx.groan(); }
     if (!f.spread) return;
@@ -942,7 +974,7 @@
       if (AUTOPILOT) autopilot(dt);
       if (DEBUG && window.__replyAll && window.__replyAll.onTick) window.__replyAll.onTick(dt);   // test players
       spawnTick(dt);
-      if (G.bursts.length && G.time >= G.bursts[0][0]) burst(G.bursts.shift()[1]);
+      if (G.bursts.length && G.time >= G.bursts[0][0] && !warm()) burst(G.bursts.shift()[1]);
       bossTick(dt);
       internTick(dt);
       G.muteWait -= dt;
@@ -1015,6 +1047,9 @@
 
   function tickFx(dt) {
     G.stamps = G.stamps.filter(function (s) { s.t += dt; return s.t < s.life; });
+    G.desks.forEach(function (d) { if (d.verdict && (d.verdict.t += dt) > 0.8) d.verdict = null; });
+    if (G.verdict && (G.verdict.t += dt) > 0.5) G.verdict = null;
+    tickTag(dt);
     G.pops = G.pops.filter(function (p) { p.t += dt; return p.t < 0.9; });
     G.tapes = G.tapes.filter(function (p) { p.t += dt; return p.t < 1.2; });
     G.fx = G.fx.filter(function (p) { p.t += dt; return p.t < p.life; });
@@ -1051,6 +1086,29 @@
     var c = at(d, 40, 47);
     G.stamps.push({ x: c.x, y: c.y, text: text, t: 0, life: life || 0.75, tilt: (Math.random() - 0.5) * 0.24 });
   }
+  // Right or wrong, said at once (DESIGN.md, section 3): a tick or a cross at
+  // the desk, and the screen's edge flashes the same colour
+  function judge(d, ok) {
+    d.verdict = { ok: ok, t: 0 };
+    G.verdict = { ok: ok, t: 0 };
+  }
+
+  // The pointer's dashed ring, for what decides the day: the clock (how you
+  // win) and the server (how you lose). Once a visit each, one at a time; the
+  // arrow waits while one is up.
+  var told = {}, tag = null, tagNext = [], TAG_LEN = 2.2;
+  function tell(what, word) {
+    if (told[what] || N.flags.clip || AUTOPILOT) return;
+    told[what] = true;
+    var t = { what: what, word: word, t: -0.5 };      // after the stamp or the pop has had its moment
+    if (tag) tagNext.push(t); else tag = t;
+  }
+  function tickTag(dt) {
+    if (!tag) return;
+    tag.t += dt;
+    if (tag.t > TAG_LEN || G.phase !== "play") { tag = tagNext.shift() || null; if (tag) tag.t = -0.3; }
+  }
+
   function addPuff(big) {
     var s = L.server;
     var blobs = [];
@@ -1194,27 +1252,28 @@
   // The one thing worth pointing at right now (DESIGN.md, section 10)
   function pickHint() {
     G.hint = null;
-    if (G.phase !== "play" || shell.state() !== "playing") return;
+    if (G.phase !== "play" || shell.state() !== "playing" || tag) return;      // one pointer at a time
     var typing = G.desks.filter(function (d) { return d.state === "typing"; });
-    if ((run.learned.stops || 0) < 2) {
+    // on keys the word keeps its rule and adds the key: "Stop the reply: Q"
+    function word(d, w) { return capsOn() && run.learned.keys ? w + ": " + keyName(d) : w; }
+    if ((run.learned.stops || 0) < 2 || G.reshow) {
       var first = typing.filter(stoppable).sort(function (a, b) { return b.t - a.t; })[0];
       if (first) {
-        var word = touching() ? "Tap" : capsOn() && run.learned.keys ? "Press " + keyName(first) : "Click";
-        G.hint = { desk: first, word: word };
+        G.hint = { desk: first, word: word(first, MOVE) };
         return;
       }
     }
     if (info().stubborn && !run.learned.stubborn) {
       var long = typing.filter(function (d) { return d.kind === "stubborn" && d.hits > 1; })[0];
-      if (long) { G.hint = { desk: long, word: "Twice" }; return; }
+      if (long) { G.hint = { desk: long, word: word(long, "Stop it twice") }; return; }
     }
     if (info().mute && !run.learned.mute && G.muteWait <= 0) {
       var r = muteRow();
       var inRow = typing.filter(function (d) { return d.row === r && stoppable(d); }).length;
       if (inRow >= 2) {
         // (not while the notice card is up: on a phone it sits over the button)
-        if (touching()) { if (!briefOn()) G.hint = { pad: true, word: "Mute" }; }
-        else G.hint = { mute: true, word: "Press Space" };
+        if (touching()) { if (!briefOn()) G.hint = { pad: true, word: "Mute thread" }; }
+        else G.hint = { mute: true, word: "Mute thread: Space" };
         return;
       }
     }
@@ -1225,9 +1284,10 @@
     var st = info(), touch = touching();
     var text;
     if (run.stage === 0) {
-      text = "Anyone with a bar over their head is replying too. " +
-        (touch ? "Tap them before it fills." : "Click them before it fills, or press the key on their desk.") +
-        " Every reply that gets out sets off two more.";
+      // the goal, the move and the cost
+      text = "Get to 17:00 before the server melts. " +
+        (touch ? "Tap anyone with a bar to stop the reply." : "Click anyone with a bar, or press their desk's key, to stop the reply.") +
+        " Every reply that gets out fills the server.";
     } else if (run.stage === 1) {
       text = "The +1 crowd reply from their phones, twice as fast. New: Mute thread " +
         (touch ? "(the Mute button)" : "(Space)") + " stops the row in red brackets, then recharges.";
@@ -1348,6 +1408,7 @@
     drawFlights(c);
     drawFx(c);
     drawStamps(c);
+    drawMarks(c);
     // the cursor
     if (G.phase === "play" && (st === "playing" || st === "countdown")) drawCursor(c);
     if (G.intern) drawIntern(c);
@@ -1357,7 +1418,9 @@
     drawServerSays(c);
     drawHint(c, false);
     drawPops(c);
+    drawTag(c);
     if ((st === "playing" || st === "countdown") && G.phase === "play") drawHand(c);
+    drawVerdict(c);
     tickHum();
   }
 
@@ -1690,13 +1753,100 @@
       var k = p.t / 0.9;
       var y = p.y - (shell.reduceMotion ? 0 : k * 16);
       c.globalAlpha = 1 - k * k;
+      if (p.ok === false) {
+        // a miss: paper on a red tab, so it reads on the black
+        var text = p.text.toUpperCase(), w = A.textWidth(c, text, size) + size * 0.8, h = size * 1.35;
+        var x = clamp(p.x, w / 2 + 4, W - w / 2 - 4);
+        A.rr(c, x - w / 2, y - h / 2, w, h, 3);
+        A.fill(c, T.red, 2, T.ink);
+        c.fillStyle = T.paper;
+        A.text(c, text, x, y + size * 0.05, size);
+        return;
+      }
       c.lineWidth = 3;
       c.strokeStyle = T.ink;
       c.strokeText(p.text, p.x, y);
-      c.fillStyle = T.paper;
+      c.fillStyle = p.ok ? T.right : T.paper;
       c.fillText(p.text, p.x, y);
     });
     c.globalAlpha = 1;
+  }
+
+  // A tick or a cross where the bar was (DESIGN.md, section 3)
+  function drawMarks(c) {
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    var r = clamp(L.k * 7, 10, 16);
+    G.desks.forEach(function (d) {
+      var v = d.verdict;
+      if (!v) return;
+      var p = at(d, 11, 3);      // just left of where the bar was, clear of the pop
+      var grow = shell.reduceMotion ? 1 : v.t < 0.1 ? 0.6 + v.t * 4 : 1;
+      c.save();
+      c.globalAlpha = clamp((0.8 - v.t) * 5, 0, 1);
+      c.translate(p.x, p.y);
+      c.scale(grow, grow);
+      c.beginPath();
+      c.arc(0, 0, r, 0, Math.PI * 2);
+      A.fill(c, v.ok ? T.right : T.red, 2.4, T.ink);
+      c.beginPath();
+      var s = r * 0.5;
+      if (v.ok) { c.moveTo(-s, 0); c.lineTo(-s * 0.3, s * 0.75); c.lineTo(s, -s * 0.75); }
+      else { c.moveTo(-s * 0.8, -s * 0.8); c.lineTo(s * 0.8, s * 0.8); c.moveTo(s * 0.8, -s * 0.8); c.lineTo(-s * 0.8, s * 0.8); }
+      c.lineCap = "round";
+      c.lineJoin = "round";
+      c.lineWidth = Math.max(2.4, r * 0.28);
+      c.strokeStyle = T.paper;
+      c.stroke();
+      c.restore();
+    });
+  }
+
+  // The edge of the screen flashes with the last stop or miss
+  function drawVerdict(c) {
+    var v = G.verdict;
+    if (!v) return;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    c.save();
+    c.globalAlpha = 0.85 * (shell.reduceMotion ? 1 : 1 - v.t / 0.5);
+    c.strokeStyle = v.ok ? T.right : T.red;
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, W - 10, H - 10);
+    c.restore();
+  }
+
+  // The ring round the clock or the server, and its word
+  function drawTag(c) {
+    if (!tag || tag.t < 0 || shell.state() !== "playing") return;
+    var r;
+    if (tag.what === "server") r = { x: L.server.x, y: L.server.y, w: L.server.w, h: L.server.h };
+    else {
+      var el = hudEls && hudEls.clock && hudEls.clock.parentNode;
+      if (!el) return;
+      var box = root.getBoundingClientRect(), e = el.getBoundingClientRect();
+      r = { x: e.left - box.left, y: e.top - box.top, w: e.width, h: e.height };
+    }
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    var p = 6;
+    A.rr(c, r.x - p, r.y - p, r.w + p * 2, r.h + p * 2, 8);
+    c.strokeStyle = T.paper;
+    c.lineWidth = 3;
+    c.setLineDash([7, 5]);
+    c.lineDashOffset = shell.reduceMotion ? 0 : -tag.t * 20;
+    c.stroke();
+    c.setLineDash([]);
+    var px = clamp(L.k * 7, 12, 17);
+    c.font = px + "px " + T.display;
+    var tw = A.textWidth(c, tag.word.toUpperCase(), px) + 14, th = px + 9;
+    var bob = shell.reduceMotion ? 0 : Math.sin(tag.t * 6) * 1.5;
+    // the clock's word under it; the server's over it (the strip is at the bottom)
+    var tx = clamp(r.x - p + 6, 4, W - tw - 4);
+    var ty = tag.what === "server" ? r.y - p - th - 4 + bob : r.y + r.h + p + 3 + bob;
+    A.rr(c, tx, ty, tw, th, 4);
+    A.fill(c, T.ink, 2, T.paper);
+    c.fillStyle = T.paper;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    A.text(c, tag.word.toUpperCase(), tx + tw / 2, ty + th / 2 + px * 0.05, px);
   }
 
   function drawCursor(c) {
@@ -1778,7 +1928,13 @@
     var size = clamp(L.k * 20, 20, 28);
     var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(performance.now() / 250)) * 5;
     if (dir === "left") {
-      if (measureOnly) return { x: x - 2, y: y - size * 1.45, w: size * 3.6, h: size * 1.95 };   // the word sits above the arrow
+      if (measureOnly) {
+        // the word sits above the arrow, and runs as far as it's long
+        var wfs = Math.max(12, size * 0.6);
+        c.font = wfs + "px " + T.display;
+        var ww = A.textWidth(c, h.word.toUpperCase(), wfs) + size * 0.4;
+        return { x: x - 2, y: y - size * 1.45, w: Math.max(size * 3.6, ww), h: size * 1.95 };
+      }
       c.setTransform(DPR, 0, 0, DPR, 0, 0);
       A.arrow(c, x + bob, y, h.word, size, "left", W - 4);
       return null;
@@ -1823,7 +1979,8 @@
     return best.lines;
   }
   // 12px at the least; bigger in the clip frame, so it reads on a phone held upright
-  function bubbleSize() { return N.flags.clip ? clamp(L.k * 12.5, 14, 20) : clamp(L.k * 9.5, 12, 15); }
+  // (and on a big screen, big enough to read while you play: an iPad gets 18)
+  function bubbleSize() { return N.flags.clip ? clamp(L.k * 12.5, 14, 20) : clamp(L.k * 9.5, 12, 18); }
   // A face, in screen pixels: no bubble sits on one if it can help it, and
   // never on the CEO's assistant's
   function faceBox(d, wide) {
@@ -2034,8 +2191,8 @@
     note: "Someone has replied all to the whole company. Stop the replies before the server melts. Home at 17:00.",
     pitch: "Someone has replied all to the whole company. Now everyone is replying all to say stop replying all.",
     hints: {
-      keys: "Click anyone about to reply, or press the key on their desk. Space mutes a row. P to pause.",
-      touch: "Tap anyone about to reply. Mute thread on the right."
+      keys: "Stop the reply: click anyone with a bar, or press their desk's key. Save the server. P to pause.",
+      touch: "Tap anyone with a bar to stop the reply. Save the server."
     },
     againLabel: "Start another day",
     daily: true,
