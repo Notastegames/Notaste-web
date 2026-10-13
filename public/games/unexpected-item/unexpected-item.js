@@ -34,7 +34,7 @@
 // false alarm is the machine's own mistake and doesn't count against you).
 //
 // SUSPICION. The till's face is a meter (and five lights under the screen
-// spell it out). Mistimed scans, things going round again and wrong fruit
+// spell it out). From the trolley on, mistimed scans, things going round again and wrong fruit
 // make it suspicious, and it doesn't forget quickly; perfect scans calm it
 // down. Calm (no more than one light), it never accuses you. When it fills,
 // it accuses you on the spot. On Christmas Eve it gets more nervous by the
@@ -59,6 +59,24 @@
 // scores more, but the machine starts every shop suspicious of you; waving
 // at the camera calms it, for fewer points; holding it very still widens the
 // red line but speeds up the belt; and so on.
+//
+// CLEAR IN THE FIRST SECONDS. Two moves, each with one name everywhere (the
+// notice, the pointer, the title's hint, How to play): "Scan on the line"
+// and "Bag on OK". The basket's notice says the goal, the moves and the cost
+// in three sentences. Then the pointer (a dashed ring and a word) teaches in
+// play, one thing at a time: the shop's clock ("Pay before 0:00") as the
+// notice lifts, "Scan on the line" round the first barcode, "Bag on OK"
+// round the scale, "Bag all 6" round the items the first time it moves, the
+// ritual when the machine first accuses you, and from the trolley the
+// suspicion lights ("Five lit: accused") the first time one comes on. A
+// mistake brings its ring back next time, three times a round at most.
+// Every scan, bag and fruit says right or wrong at once, where you're
+// looking: a green tick or a red cross on the thing, the screen's edge
+// flashing for anything perfect or wrong, and what it did written under it
+// ("Early. Suspicious", "Bagged on Wait"). Every accusation says why, by the
+// scale. The basket is for finding your feet: nothing in it makes the
+// machine suspicious, so the only accusations are its false alarm and
+// bagging on Wait.
 //
 // TODAY'S RUN. Everyone gets the same shopping in the same order, the same
 // fruit pictures in the same places and the same ways of shopping offered
@@ -149,12 +167,12 @@
   var STAGES = [
     { name: "A basket", count: 6, belt: 10.5, gap: [15, 25], time: 40, walk: 4, pool: "basket",
       sets: [], fruit: 0, age: [], heavy: [],
-      brief: "Scan each item as its barcode crosses the red line. Then bag it, but only when the scale says OK.",
+      brief: "Pay for it all before the shop shuts. Scan on the line, then bag on OK. Bag on Wait and the till locks.",
       clear: "One basket. The machine has opened a file on you.",
       hello: "Scan your first item. I'm watching." },
     { name: "A trolley", count: 10, belt: 12.5, gap: [12, 22], time: 52, walk: 5, pool: "trolley",
       sets: ["lime", "onion", "apple", "potato", "banana"], fruit: 3, age: [], heavy: [],
-      brief: "Loose fruit has no barcode. The belt stops and the till asks what it is: pick the matching picture before it guesses.",
+      brief: "Loose fruit has no barcode: pick its picture before the till guesses. Mistakes now light its suspicion. The more lights, the likelier it accuses you.",
       clear: "Every {fruit} accounted for. The machine has kept a note about the {fruit}.",
       hello: "Hello again. I remember you." },
     { name: "The big shop", count: 13, belt: 14.5, gap: [10, 20], time: 62, walk: 6, pool: "big",
@@ -199,12 +217,16 @@
   var SAY = {
     scanned: ["Thank you.", "Noted.", "Item accepted. You are pending.", "Good. Suspiciously good.", "Beep. That's me being polite."],
     streak: ["Five in a row. What are you hiding.", "Very smooth. Too smooth.", "Nobody scans like that. Nobody honest."],
+    early: ["Too early. It wasn't there yet.", "Early. You scanned the belt."],
+    late: ["Too late. It'll come round again.", "Late. That one's gone past."],
     missed: ["I didn't see a barcode.", "That was the belt.", "Please scan the item, not the air.", "Scanning nothing is suspicious.", "Was that a barcode. No."],
     fruitMiss: ["Fruit and veg have no barcode. Wait.", "No barcode on that. Hold on."],
     holding: ["Place the item in the bagging area.", "Bag that one first.", "One thing at a time. I'm watching both."],
     round: ["That one's going round again.", "Have you scanned your item.", "It'll be back. They always come back."],
     accuse: "Unexpected item in the bagging area.",
     accuseWatch: ["I've seen enough. Unexpected item.", "I've been watching. Unexpected item."],
+    // you touched the bag while the scale said Wait
+    accuseBag: ["I said wait. Unexpected item.", "Not yet. Unexpected item.", "Too soon. Unexpected item."],
     lift: "Remove the item from the bagging area.",
     back: "Replace the item in the bagging area.",
     again: ["Unexpected item in the bagging area.", "No. Unexpected item. Again.", "Still unexpected."],
@@ -226,6 +248,9 @@
     shut: "We're closed. You're staying."
   };
   var BEV = {
+    // why she came, said about the machine, never about you
+    bag: ["Dennis needs his OK. He's like that.", "He wants the OK first. Every time."],
+    watch: ["Dennis has been staring at you. He does that.", "He's been on edge all day, Dennis."],
     freeze: ["It does that.", "Not again, Dennis.", "Behave, Dennis.", "It's done that all day.",
              "Dennis thinks everyone's a thief. Even me.", "I've got nine of these. Dennis is the worst."],
     approve: ["Approved. Didn't look.", "You look over twenty-five. Or under. Either way.", "Approved. I've seen your face. It's fine."],
@@ -279,7 +304,9 @@
   var st = null;                                 // this stage's tallies
   var bubbles = [], floats = [], fx = [];
   var prev = {}, taps = [], tiles = [], auto = null;
-  var learned = { scan: 0, bag: 0, ritual: false };
+  var learned = freshLearned();
+  var verdict = null, marks = [];                // right or wrong: the screen's edge, and ticks and crosses
+  var told = {}, ptag = null, tagQ = [];          // the meter rings, once a run
   var shake = 0, sorryT = 0, blinkT = 3, flashT = 0, endT = 0, clearT = 0, shutter = 0;
   var hudEls = null, back = null, front = null, noticed = false;
   var noticeEnd = 0;                             // when this shop's notice lifts (performance.now), so the belt can wait
@@ -287,6 +314,9 @@
   var boxes = null, boxAge = 0;
   var dlog = [];                                 // ?debug: what each shop dealt out, to check today's run
 
+  // What the pointer still needs to teach. A mistake brings a ring back for
+  // the next go, up to three times a round for each move.
+  function freshLearned() { return { scan: 0, bag: 0, ritual: false, redoScan: false, redoBag: false, againScan: 0, againBag: 0 }; }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function fmt(n) { return Math.round(n).toLocaleString("en-GB"); }
   function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
@@ -374,7 +404,8 @@
     run = { score: 0, scanned: 0, perfect: 0, accused: 0, falseAlarms: 0, round: 0, fruitRight: 0, fruit: 0, approved: 0,
             shops: 0, taken: [], daily: sh.daily, roundCalled: false, heavyCalled: false };
     mods = freshMods();
-    learned = { scan: 0, bag: 0, ritual: false };
+    learned = freshLearned();
+    told = {}; tagQ = [];
     auto = { cool: 0, think: 0, guessed: false, wrong: false };
     streak = 0;
     stage = FIRST;
@@ -406,16 +437,18 @@
     var firstVeg = pending.filter(function (p) { return p.fruit; })[0];
     st = { dealt: pending.slice(), accused: 0, fault: 0, done: 0, perfect: 0, score: 0, heavySaid: false, tenSaid: false, turkeySaid: false,
            tutor: stage !== 0, alarmIn: 0, veg: firstVeg ? VEG[firstVeg.fruit] : "a turkey" };
-    bubbles = []; floats = []; fx = [];
+    bubbles = []; floats = []; fx = []; marks = []; verdict = null; ptag = null;
     queue = s.xmas ? [{ hat: "santa", coat: T.red, t: 0, shout: 0 }, { hat: "bobble", coat: T.paper, t: 0, shout: 0, tache: true }] : [];
     shutter = 0; clearT = 0; endT = 0; sorryT = 0;
     noticed = false;
     noticeEnd = 0;
-    // the first couple of things are already on the belt, waiting
+    // the first couple of things are already on the belt, waiting, the first
+    // one's barcode close to the red line so the first scan comes soon after
+    // the notice (the first thing always has one)
     var x = L.sx - 24;
     for (var i = 0; i < 2 && pending.length; i++) {
       var it = makeItem(pending.shift());
-      it.x = x - it.w / 2;
+      it.x = i === 0 && it.bar ? L.sx - 16 - it.bar.off : x - it.w / 2;
       it.gap = gapNext();
       belt.push(it);
       x = it.x - it.w / 2 - it.gap;
@@ -591,6 +624,8 @@
     }
     if (phase !== "play") return;
     if (!st.hello) { st.hello = true; dennis(info().hello, true); }
+    // the clock, as the first notice lifts and before the belt moves
+    if (noticeEnd && now() >= noticeEnd) tell("clock", "Pay before 0:00", 0);
     clock += dt;
     bagGrace = Math.max(0, bagGrace - dt);
     var p = readInput(input);
@@ -660,6 +695,13 @@
       floats[m].t += dt;
       if (floats[m].t > floats[m].life) floats.splice(m, 1);
     }
+    for (var q = marks.length - 1; q >= 0; q--) {
+      marks[q].t += dt;
+      if (marks[q].t > 0.6) marks.splice(q, 1);
+    }
+    if (verdict && (verdict.t += dt) > 0.5) verdict = null;
+    if (!ptag && tagQ.length) ptag = tagQ.shift();
+    if (ptag && (ptag.t += dt) > TAG_LEN) ptag = null;
     for (var n = fx.length - 1; n >= 0; n--) {
       fx[n].t += dt;
       if (fx[n].t > fx[n].life) fx.splice(n, 1);
@@ -716,7 +758,7 @@
           falls.push({ item: b, x: b.x, t: 0 });
           sfx.fall();
           // something got past unscanned: the machine noticed
-          sus += SUS_ROUND;
+          suspect(SUS_ROUND);
           streak = 0;
           if (!run.roundCalled) { run.roundCalled = true; shell.callout("Round again", { sound: false, ms: 1100 }); }
           else if (Math.random() < 0.35) dennis(pick(SAY.round));
@@ -763,10 +805,15 @@
       if (beltWait > 0) return;
       streak = 0;
       if (near && near.fruit && dist < 14) { dennis(pick(SAY.fruitMiss)); return; }
-      sus += SUS_MISS;
+      suspect(SUS_MISS);
       var word = !near || dist > 14 ? "Nothing there" : (near.bar ? barCentre(near) : near.x) < L.sx ? "Early" : "Late";
-      float(L.sx, L.belt + 11, word, "miss");
-      if (Math.random() < 0.4) dennis(pick(SAY.missed));
+      // what it did, said where you're looking
+      float(L.sx, L.belt + 11, stage > 0 ? word + ". Suspicious" : word, "miss");
+      wrongAt(L.sx, L.belt + 5);
+      if (learned.scan && learned.againScan < 3 && !learned.redoScan) { learned.redoScan = true; learned.againScan++; }
+      if (word === "Early") dennis(pick(SAY.early));
+      else if (word === "Late") dennis(pick(SAY.late));
+      else if (Math.random() < 0.4) dennis(pick(SAY.missed));
       return;
     }
     scan(it);
@@ -784,9 +831,13 @@
     var pts = Math.round((100 + bonus + run1) * mods.points / 10) * 10;
     addScore(pts, "scan", (100 + bonus) * mods.points, run1 * mods.points);
     if (perfect) { run.perfect++; st.perfect++; sfx.perfect(); sus -= SUS_PERFECT; }
-    else { sfx.beep(); sus += SUS_GOOD + mods.goodSus; }
+    else { sfx.beep(); suspect(SUS_GOOD + mods.goodSus); }
     sus = Math.max(0, sus);
+    learned.redoScan = false;
     float(L.sx, L.belt + 11, (perfect ? "Perfect " : "") + "+" + pts, perfect ? "perfect" : "good");
+    // a tick on the red line, just under the belt; perfect flashes the screen's edge too
+    marks.push({ x: L.sx, y: L.belt + 5, ok: true, t: 0 });
+    if (perfect) judge(true);
     if (!shell.reduceMotion) fx.push({ kind: "flash", t: 0, life: 0.25 });
     if (it.age) {
       approvals++;
@@ -801,6 +852,15 @@
       dennis(pick(SAY.scanned));
     }
   }
+
+  // The machine gets more suspicious. Not in the basket, which is for
+  // finding your feet: there only bagging on Wait gets you accused.
+  function suspect(n) { if (stage > 0) sus += n; }
+
+  // Right or wrong, at once (DESIGN.md, section 3): the screen's edge flashes
+  // green or red, and a tick or a cross lands on the thing itself
+  function judge(ok) { verdict = { ok: ok, t: 0 }; }
+  function wrongAt(x, y) { marks.push({ x: x, y: y, ok: false, t: 0 }); judge(false); }
 
   // part: what it was for (?debug keeps a tally, to tune the scoring by)
   function addScore(pts, part, a, b) {
@@ -835,7 +895,10 @@
     scale.total = scale.t = SETTLE * mods.settle * k;
     scale.kind = "bag";
     st.alarmIn = 0;              // a new thing in the bag: the machine starts its sums again
-    sus += mods.bagSus;          // your own bag, which it has never seen before
+    suspect(mods.bagSus);        // your own bag, which it has never seen before
+    learned.redoBag = false;
+    var sm = scaleMark(); marks.push({ x: sm.x, y: sm.y, ok: true, t: 0 });
+    if (learned.bag === 0) tell("items", "Bag all " + info().count, 0.5);
     bagGrace = 0.22;
     st.done++;
     learned.bag++;
@@ -869,8 +932,20 @@
     if (!itsMistake) st.fault++;
     if (cause === "false") run.falseAlarms++;
     streak = 0;
-    shell.callout("Unexpected item", { ms: 1600 });
-    dennis(cause === "watch" ? pick(SAY.accuseWatch) : SAY.accuse, true);
+    // the stamp says why, under the belt where you're looking: your fault in
+    // red at the edge of the screen, the machine's mistake with no flash
+    var lit = Math.ceil(sus / 20 - 0.001);
+    var why = cause === "bag" ? "Bagged on Wait" : cause === "watch" ? "Suspicion: full" :
+      itsMistake ? "False alarm. Not you" : "Suspicion: " + lit + (lit === 1 ? " light" : " lights");
+    shell.callout(why, { ms: 1800 });
+    if (cause === "bag") {
+      wrongAt(scaleMark().x, scaleMark().y);
+      if (learned.bag && learned.againBag < 3 && !learned.redoBag) { learned.redoBag = true; learned.againBag++; }
+    } else if (!itsMistake) judge(false);
+    // and the lights get their ring, if they haven't had it
+    if (!itsMistake && cause !== "bag") tell("sus", "Five lit: accused", 0.4);
+    bev.cause = cause;
+    dennis(cause === "watch" ? pick(SAY.accuseWatch) : cause === "bag" ? pick(SAY.accuseBag) : SAY.accuse, true);
     sfx.alarm();
     if (!shell.reduceMotion) shake = 1;
     flashT = 0;
@@ -907,6 +982,8 @@
       frozen.tries++;
       scale.total = scale.t = wobble;
       dennis(pick(SAY.again), true);
+      shell.callout("Too soon. Wait for OK", { ms: 1400 });
+      wrongAt(scaleMark().x, scaleMark().y);
       sfx.alarm();
       if (!shell.reduceMotion) shake = 0.6;
       return;
@@ -976,11 +1053,13 @@
       run.fruitRight++;
       sus = Math.max(0, sus - 5);
       sfx.right();
+      judge(true);
       float(L.sx, L.belt - 17, "+" + pts, "perfect");
       look.stamp = { text: name + ": confirmed", opts: { sound: false, ms: 1100 } };
     } else {
       streak = 0;
-      sus += guessed ? SUS_GUESS : SUS_WRONG;
+      suspect(guessed ? SUS_GUESS : SUS_WRONG);
+      judge(false);
       if (guessed) { sfx.guess(); look.stamp = { text: "Guessed: " + wrong.toLowerCase(), opts: { ms: 1300 } }; }
       else { sfx.wrong(); look.stamp = { text: "Charged as " + wrong.toLowerCase(), opts: { ms: 1300 } }; }
     }
@@ -1010,6 +1089,7 @@
     else sus -= SUS_DRAIN * mods.drain * dt;
     sus = clamp(sus, 0, 100);
     if (sus > 50 && !susCalled) { susCalled = true; dennis(pick(SAY.high)); }
+    if (stage > 0 && sus > 0.5) tell("sus", "Five lit: accused", 0.7);
     if (sus < 30) susCalled = false;
     if (sus >= 100) accuse("watch");
   }
@@ -1089,7 +1169,8 @@
         var what = ok && Math.random() < 0.65 ? BEV.what[approvalNames[approvalNames.length - 1]] : null;
         if (frozen) { frozen = null; afterAccuse(); sorryT = 0; }
         if (approvals) { run.approved += approvals; approvals = 0; approvalNames = []; }
-        var line = froze && ok ? pick(BEV.both) : ok ? what || pick(BEV.approve) : info().xmas && Math.random() < 0.5 ? pick(BEV.xmas) : pick(BEV.freeze);
+        var why = bev.cause === "bag" ? BEV.bag : bev.cause === "watch" ? BEV.watch : BEV.freeze;
+        var line = froze && ok ? pick(BEV.both) : ok ? what || pick(BEV.approve) : info().xmas && Math.random() < 0.5 ? pick(BEV.xmas) : pick(why);
         say("bev", line, true);
         shell.callout(ok ? "Approved. Didn't look" : "Sorted. Didn't look", { sound: false, ms: 1300 });
       }
@@ -1265,7 +1346,8 @@
   }
 
   // ---------------------------------------------------------------------------
-  // HUD: stage and the clock top left, score and items top right
+  // HUD: stage and the clock top left, items top right. The score isn't
+  // there: it doesn't change what you do next (the results say it)
   // ---------------------------------------------------------------------------
   function buildHud() {
     shell.hud.innerHTML =
@@ -1274,11 +1356,10 @@
         '<p class="kit-stat"><small>Shuts in</small><span data-time>0:45</span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
-        '<p class="kit-stat kit-stat-big"><span data-score>0</span></p>' +
-        '<p class="kit-stat"><small>Items</small><span data-items>0/6</span></p>' +
+        '<p class="kit-stat kit-stat-big"><span data-items>0/6</span><small>bagged</small></p>' +
       '</div>';
     hudEls = {};
-    ["stage", "time", "score", "items"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
+    ["stage", "time", "items"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
   }
   function setText(node, text) { if (node && node.textContent !== text) node.textContent = text; }
   function paintHud() {
@@ -1286,7 +1367,6 @@
     var s = Math.ceil(timeLeft);
     setText(hudEls.stage, (stage + 1) + "/4");
     setText(hudEls.time, Math.floor(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + (s % 60));
-    setText(hudEls.score, fmt(run.score));
     setText(hudEls.items, st.done + "/" + info().count);
     if (shell.padFill) shell.padFill("bag", settling() ? 1 - scale.t / scale.total : 1);
   }
@@ -2035,7 +2115,8 @@
       var sel = i === look.sel;
       var res = look.result;
       var isAns = res && i === look.answer, isPick = res && i === res.i;
-      c.fillStyle = isAns ? T.accent : T.paper;
+      // right or wrong: the right picture turns green, a wrong pick gets a red edge
+      c.fillStyle = isAns ? T.right : T.paper;
       c.fillRect(tx, ty, tw, th);
       if (sel && !res) {
         S.ink(c, 1.6); c.strokeRect(tx, ty, tw, th);
@@ -2075,6 +2156,17 @@
       c.textBaseline = "middle";
       c.fillText(String(i + 1), tx + nr + 3, ty + nr + 3.6);
       tiles.push({ x: tx, y: ty, w: tw, h: th });
+      // and a tick or a cross in its corner, so it's never colour alone
+      if (isAns || isPick) {
+        var mr = 11, mx = tx + tw - mr - 4, my = ty + mr + 4, ma = mr * 0.45;
+        c.beginPath(); c.arc(mx, my, mr, 0, Math.PI * 2);
+        c.fillStyle = isAns ? T.right : T.red; c.fill();
+        c.lineWidth = 2; c.strokeStyle = T.ink; c.stroke();
+        c.beginPath();
+        if (isAns) { c.moveTo(mx - ma, my); c.lineTo(mx - ma * 0.25, my + ma * 0.7); c.lineTo(mx + ma, my - ma * 0.65); }
+        else { c.moveTo(mx - ma * 0.75, my - ma * 0.75); c.lineTo(mx + ma * 0.75, my + ma * 0.75); c.moveTo(mx + ma * 0.75, my - ma * 0.75); c.lineTo(mx - ma * 0.75, my + ma * 0.75); }
+        c.lineWidth = 2.6; c.lineCap = "round"; c.lineJoin = "round"; c.strokeStyle = T.paper; c.stroke();
+      }
     }
     c.restore();
   }
@@ -2194,55 +2286,155 @@
     return lines;
   }
 
-  // A bobbing arrow pointing down at the one thing to deal with right now
-  function drawArrow(c, x, y, word, dir) {
-    var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(clock * 4)) * -1.4;
+  // The pointer (DESIGN.md, section 10, as in Speak to a Human): a dashed
+  // paper ring round the one thing to deal with now, and a word on its edge.
+  // r is in world units; at says which edge the word sits on.
+  function drawRing(c, r, word, at) {
+    var x = r.x * U, y = r.y * U, w = r.w * U, h = r.h * U;
+    var calm = shell.reduceMotion;
     c.save();
-    if (dir === "right") c.translate(x + bob, y); else c.translate(x, y + bob);
-    c.save();
-    if (dir === "right") c.rotate(-Math.PI / 2);
     c.beginPath();
-    c.moveTo(-1.4, -4.4); c.lineTo(1.4, -4.4); c.lineTo(1.4, -1.8); c.lineTo(3, -1.8); c.lineTo(0, 1.4); c.lineTo(-3, -1.8); c.lineTo(-1.4, -1.8);
-    c.closePath();
-    c.fillStyle = T.paper;
-    c.fill();
-    S.ink(c, 0.55);
+    c.roundRect ? c.roundRect(x, y, w, h, Math.min(8, h / 2)) : c.rect(x, y, w, h);
+    c.lineWidth = 5;
+    c.strokeStyle = T.ink;
     c.stroke();
+    c.lineWidth = 3;
+    c.strokeStyle = T.paper;
+    c.setLineDash([7, 5]);
+    c.lineDashOffset = calm ? 0 : -clock * 20;
+    c.stroke();
+    c.setLineDash([]);
+    var px = 12;
+    c.font = px + "px " + T.display;
+    var tw = c.measureText(word.toUpperCase()).width + 14, th = px + 9;
+    var bob = calm ? 0 : Math.sin(clock * 6) * 1.5;
+    var tx, ty;
+    if (at === "left" && x - tw - 4 >= 4) { tx = x - tw - 4 + bob; ty = y + h / 2 - th / 2; }
+    else if (at === "bottom") { tx = x + w / 2 - tw / 2; ty = y + h + 3 + bob; }
+    else { tx = x + w / 2 - tw / 2; ty = y - th - 3 + bob; }
+    tx = clamp(tx, 4, W - tw - 4);
+    ty = clamp(ty, 4, H - th - 4);
+    c.beginPath();
+    c.roundRect ? c.roundRect(tx, ty, tw, th, 4) : c.rect(tx, ty, tw, th);
+    c.fillStyle = T.ink;
+    c.fill();
+    c.lineWidth = 2;
+    c.strokeStyle = T.paper;
+    c.stroke();
+    c.fillStyle = T.paper;
+    c.textAlign = "center";
+    c.textBaseline = "alphabetic";
+    c.fillText(word.toUpperCase(), tx + tw / 2, ty + th / 2 + px * 0.36);
     c.restore();
-    var size = Math.max(3, 12 / U);
-    // a side arrow keeps its word underneath, clear of the callouts under the till
-    if (dir === "right") S.text(c, word, 1.6, 3.4, size, { align: "right", base: "top", colour: T.paper, stroke: size * 0.32 });
-    else S.text(c, word, 0, -5.2, size, { base: "bottom", colour: T.paper, stroke: size * 0.32 });
-    c.restore();
+    return { x: Math.min(x, tx), y: Math.min(y, ty), w: Math.max(x + w, tx + tw) - Math.min(x, tx), h: Math.max(y + h, ty + th) - Math.min(y, ty) };
   }
 
-  // The one hint worth showing right now, until you've shown you know.
-  // Bag hints come in from the side, so they stay clear of the till's voice.
+  // The words for each move, for how you're playing: touch, the mouse, keys,
+  // or (not yet known) keys and the mouse both. On keys a word keeps its
+  // rule and adds the key ("Scan on the line: Space").
+  function moveWord(move) {
+    var how = touching() ? "touch" : lastMode || "both";
+    var key = { scan: { mouse: "click", keys: "Space", both: "Space" }, bag: { mouse: "click", keys: "B", both: "B" } }[move];
+    var base = { scan: "Scan on the line", bag: "Bag on OK", lift: "Lift it", back: "Put back" }[move];
+    if (move === "lift" || move === "back") key = { mouse: "click", keys: "B", both: "B" };
+    return how === "touch" ? base : base + ": " + key[how];
+  }
+
+  // where the scale's readout is, in world units (as drawScale draws it)
+  function scaleRect() {
+    var w = Math.max(22, 12 / U * 2 + 10.8);
+    if (ctx) w = Math.max(22, S.measure(ctx, "Put back", L.tmin) + 10.8);
+    return { x: L.bagX - w / 2 - 1.2, y: L.belt + 2.6 - 1.2, w: w + 2.4, h: 8.4 + 2.4 };
+  }
+
+  // where a tick or a cross for the scale lands: just off its right end
+  function scaleMark() {
+    var r = scaleRect();
+    return { x: r.x + r.w + Math.max(2.2, 9 / U) + 0.4, y: r.y + r.h / 2 };
+  }
+
+  // The one thing the pointer teaches right now, until you've shown you
+  // know it, and again after a mistake.
   function hint() {
     if (phase !== "play" || look) return null;
-    // the words for how you've been playing: touch, the mouse, keys, or (not
-    // yet known) the keys and the mouse both
-    var how = touching() ? "touch" : lastMode || "both";
-    function say4(touch, mouse, keys, both) { return how === "touch" ? touch : how === "mouse" ? mouse : how === "both" ? both : keys; }
-    // the bag's arrow stays put when the bag goes up, so it never lands on
-    // whatever's in your hand; its word sits underneath, clear of the red line
-    var bx = L.bagX - L.bagW / 2 - 0.8, by = L.belt - 0.8 - L.bagH * 0.45;
+    var sr = scaleRect();
     if (frozen && !learned.ritual) {
-      if (settling()) return { x: bx, y: by, word: "Wait", dir: "right" };
-      if (frozen.step === "lift") return { x: bx, y: by, word: say4("Lift: tap Bag", "Lift it: click", "Lift it: B", "Lift it: B or click"), dir: "right" };
-      if (frozen.step === "back") return { x: bx, y: by, word: say4("Put back: tap Bag", "Put back: click", "Put back: B", "Put back: B or click"), dir: "right" };
+      if (settling()) return { r: sr, word: "Wait for OK", at: "top" };
+      if (frozen.step === "lift") return { r: sr, word: moveWord("lift"), at: "top" };
+      if (frozen.step === "back") return { r: sr, word: moveWord("back"), at: "top" };
       return null;
     }
     if (frozen) return null;
-    if (hand && hand.t >= 1 && learned.bag < 2) {
-      if (settling()) return { x: bx, y: by, word: "Wait", dir: "right" };
-      return { x: bx, y: by, word: say4("Tap Bag", "Click it", "Press B", "Press B"), dir: "right" };
+    if (hand && hand.t >= 1 && (!learned.bag || learned.redoBag)) {
+      return { r: sr, word: settling() ? "Wait for OK" : moveWord("bag"), at: "top" };
     }
-    if (!hand && learned.scan < 3 && beltWait <= 0) {
-      var soon = belt.some(function (it) { return it.bar && barCentre(it) > L.sx - 12 && barCentre(it) < L.sx + 2; });
-      if (soon) return { x: L.sx, y: L.lineTop - 3, word: say4("Tap Scan", "Scan: click", "Scan: Space", "Scan: Space or click") };
+    if (!hand && (!learned.scan || learned.redoScan) && beltWait <= 0) {
+      // round the next barcode, once it's close to the red line
+      var next = null;
+      belt.forEach(function (it) {
+        if (it.bar && barCentre(it) > L.sx - 14 && barCentre(it) < L.sx + it.bar.half + 1 && (!next || barCentre(it) > barCentre(next))) next = it;
+      });
+      if (next) {
+        var cx = barCentre(next), cy = L.belt - 0.3 - next.bar.y, hw = next.bar.half + 1.8, hh = 1.5 * K + 1.8;
+        // the word above it, clear of the Early or Perfect that lands under the belt
+        return { r: { x: cx - hw, y: cy - hh, w: hw * 2, h: hh * 2 }, word: moveWord("scan"), at: "top" };
+      }
     }
     return null;
+  }
+
+  // The meters decide the shop, so each gets the pointer once a run, the
+  // first time it matters: the clock ("Pay before 0:00") as the first notice
+  // lifts, the items ("Bag all 6") after the first thing's bagged, and the
+  // suspicion lights from the trolley on. One at a time, and a move's ring
+  // always goes first.
+  var TAG_LEN = 2;
+  function tell(what, word, delay) {
+    if (told[what] || N.flags.clip) return;
+    told[what] = true;
+    tagQ.push({ what: what, word: word, t: -(delay || 0) });   // one at a time: they queue
+  }
+  function tagRect() {
+    if (ptag.what === "sus") {
+      var g = L.gauge;
+      if (!g) return null;
+      return { r: { x: g.x - 0.8, y: g.y - 0.8, w: g.w + 1.6, h: g.h + 1.6 }, at: "left" };
+    }
+    var el = hudEls && (ptag.what === "clock" ? hudEls.time : hudEls.items);
+    var p = el && el.parentNode;
+    if (!p) return null;
+    var box = root.getBoundingClientRect(), e = p.getBoundingClientRect(), pad = 5;
+    return { r: { x: (e.left - box.left - pad) / U, y: (e.top - box.top - pad) / U, w: (e.width + pad * 2) / U, h: (e.height + pad * 2) / U }, at: "bottom" };
+  }
+
+  // a green tick or a red cross, on the thing itself
+  function drawMarks(c) {
+    marks.forEach(function (m) {
+      var k = m.t / 0.6, r = Math.max(2.2, 9 / U);
+      c.save();
+      c.globalAlpha = 1 - Math.max(0, k - 0.6) / 0.4;
+      var y = m.y - (shell.reduceMotion ? 0 : k * 1.5);
+      S.solid(c, S.ell(m.x, y, r, r), m.ok ? T.right : T.red, Math.max(0.4, 2 / U));
+      var a = r * 0.45;
+      if (m.ok) S.line(c, [[m.x - a, y + a * 0.05], [m.x - a * 0.25, y + a * 0.7], [m.x + a, y - a * 0.65]], Math.max(0.5, 2.6 / U), T.paper);
+      else {
+        S.line(c, [[m.x - a * 0.75, y - a * 0.75], [m.x + a * 0.75, y + a * 0.75]], Math.max(0.5, 2.6 / U), T.paper);
+        S.line(c, [[m.x + a * 0.75, y - a * 0.75], [m.x - a * 0.75, y + a * 0.75]], Math.max(0.5, 2.6 / U), T.paper);
+      }
+      c.restore();
+    });
+  }
+
+  // the screen's edge flashes with the last result
+  function drawVerdict(c) {
+    if (!verdict) return;
+    var k = shell.reduceMotion ? 1 : 1 - verdict.t / 0.5;
+    c.save();
+    c.globalAlpha = 0.85 * k;
+    c.strokeStyle = verdict.ok ? T.right : T.red;
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, W - 10, H - 10);
+    c.restore();
   }
 
   function drawFloats(c) {
@@ -2252,7 +2444,7 @@
       c.save();
       c.globalAlpha = 1 - k * k;
       S.text(c, f.text, f.x, f.y - k * 5, size, { base: "bottom", stroke: size * 0.3,
-        colour: f.kind === "miss" ? T.red : f.kind === "perfect" ? T.accent : T.paper });
+        colour: f.kind === "miss" ? T.red : f.kind === "perfect" ? T.right : T.paper });
       c.restore();
     });
   }
@@ -2326,7 +2518,7 @@
     if (!ctx || !run) return;
     if (!noticed && (shell.state() === "countdown" || shell.state() === "playing")) {
       noticed = true;
-      var ms = stage === 0 ? 6500 : 5500;
+      var ms = stage === 0 ? 6000 : 5500;
       shell.brief({ title: "Stage " + (stage + 1) + ": " + info().name, text: info().brief, ms: ms });
       noticeEnd = now() + ms;
     }
@@ -2356,6 +2548,7 @@
     drawHand(c);
     drawFx(c);
     drawFloats(c);
+    drawMarks(c);
     drawShutter(c);
 
     // words, in screen pixels, so they stay readable on a phone
@@ -2363,13 +2556,23 @@
     if (++boxAge > 60) { boxes = null; boxAge = 0; }
     drawLookup(c);
     var placed = [];
-    var h = hint();
-    if (h) placed.push(h.dir === "right" ? { x: (h.x - 24) * U, y: (h.y - 4) * U, w: 26 * U, h: 12 * U } : { x: (h.x - 9) * U, y: (h.y - 9) * U, w: 18 * U, h: 11 * U });
-    bubbles.forEach(function (b) { drawBubble(c, b, placed); });
-    if (h) {
-      c.setTransform(DPR * U, 0, 0, DPR * U, 0, 0);
-      drawArrow(c, h.x, h.y, h.word, h.dir);
+    // the pointer: a move's ring first; a meter's ring only while no move needs one
+    var h = hint(), m = null;
+    if (ptag && phase !== "play") ptag = null;
+    // it waits for the move (or the look-up, or an accusation), then has its full turn
+    if ((h || look || frozen) && ptag) ptag.t = Math.min(ptag.t, 0);
+    if (!h && !look && !frozen && ptag && ptag.t >= 0) m = tagRect();
+    var ring = h ? h : m ? { r: m.r, word: ptag.word, at: m.at } : null;
+    var drawn = null;
+    if (ring) {
+      // measured first, so speech bubbles keep clear of it
+      drawn = drawRing(c, ring.r, ring.word, ring.at);
+      placed.push(drawn);
     }
+    bubbles.forEach(function (b) { drawBubble(c, b, placed); });
+    // drawn again on top of any bubble that couldn't get out of its way
+    if (ring) drawRing(c, ring.r, ring.word, ring.at);
+    drawVerdict(c);
   }
 
   // ---------------------------------------------------------------------------
@@ -2384,8 +2587,8 @@
     note: "Four shops, one machine, one assistant. The machine thinks you're stealing.",
     pitch: "Scan your own shopping. The machine thinks you're stealing it.",
     hints: {
-      keys: "Space to scan as the barcode crosses the red line. B to bag, when the scale says OK. 1 to 4 to look up fruit. P to pause.",
-      touch: "Scan on the right, as the barcode crosses the red line. Bag on the left, when the scale says OK."
+      keys: "Space: scan on the line. B: bag on OK. 1 to 4 for loose fruit. P to pause.",
+      touch: "Scan on the line with the Scan button. Bag on OK with the Bag button."
     },
     againLabel: "Shop again",
     daily: true,
