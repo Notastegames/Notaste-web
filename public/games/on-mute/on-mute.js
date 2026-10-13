@@ -613,7 +613,7 @@
       cam: { on: true, off: 0 },
       cat: null,
       stall: 0, wrongBox: -1, stamps: [], pops: [], bubbles: [], toasts: [], flights: [], fx: [], later: [],
-      speaking: {}, gaze: null, tiles: [], volunteerAt: -9, chaseAt: -99, closedAt: -9, camNodAt: -9,
+      speaking: {}, backUntil: {}, gaze: null, tiles: [], volunteerAt: -9, chaseAt: -99, closedAt: -9, camNodAt: -9,
       missed: 0, forgiven: 0, stageYeps: 0, stageNods: 0, stageVolunteered: 0, stageBoxes: 0, stageSheets: 0,
       agreed: [], said: {}, rowCache: {},
       briefed: false, hint: null, nod: 0, yepT: 0, flash: 0, seen: 0, lastPaste: 0, sheetFlash: 0,
@@ -783,11 +783,12 @@
   function placeKitBits() {
     var brief = root.querySelector(".kit-brief");
     if (brief) {
-      // the countdown: 7% (or 3.2rem) down, in a stamp sized by the page (kit.css)
+      // the countdown: 7% of the screen's width (or 3.2rem) down, in a stamp
+      // sized by the page and tilted a little (kit.css)
       var rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
       var font = clamp(window.innerWidth * 0.03 + 1.1 * rem, 2 * rem, 3.6 * rem);
-      var countBottom = Math.max(H * 0.07, 3.2 * rem) + font * 1.9;
-      brief.style.top = Math.round(Math.max(L.call.y + 6, Math.min(countBottom + 4, H * 0.45))) + "px";
+      var countBottom = Math.max(W * 0.07, 3.2 * rem) + font * 1.9 + 6;
+      brief.style.top = Math.round(Math.max(L.call.y + 6, Math.min(countBottom + 8, H * 0.45))) + "px";
       brief.style.bottom = "auto";
     }
     // the callouts: in their lane, sized to fit it (and its width, for the
@@ -891,7 +892,7 @@
     if (G.share) {
       run.score += 100;
       var line = G.share.saved.shift();
-      if (line) speak(reactor(), line, 1.6);
+      if (line) speak(reactor(), line, 1.6, false, true);
     }
   }
 
@@ -915,12 +916,12 @@
     sfx.nod();
     if (o && o.kind === "name") { handled(o, "nod"); return; }
     if (o && (o.kind === "ask" || o.kind === "round" || o.kind === "share")) {
-      if (!o.nodSaid) { o.nodSaid = true; speak(o.who, G.cam.on ? NOD_AT_ASK : NOD_NO_CAM, 1.6); }
+      if (!o.nodSaid) { o.nodSaid = true; speak(o.who, G.cam.on ? NOD_AT_ASK : NOD_NO_CAM, 1.6, false, true); }
       return;
     }
     // with the camera off, nobody can see a nod: it costs nothing
     if (!G.cam.on) {
-      if (G.time - G.camNodAt > 3) { G.camNodAt = G.time; speak(reactor(), NOD_NO_CAM, 1.6); }
+      if (G.time - G.camNodAt > 3) { G.camNodAt = G.time; speak(reactor(), NOD_NO_CAM, 1.6, false, true); }
       return;
     }
     volunteer();
@@ -993,7 +994,7 @@
     G.volunteerAt = G.time;
     run.volunteered++;
     G.stageVolunteered++;
-    speak(reactor(), pickFrom("volunteer", VOLUNTEER), 1.8);
+    speak(reactor(), pickFrom("volunteer", VOLUNTEER), 1.8, false, true);
     addStamp("Volunteered", 0.9);
     say("Volunteered", 1);
     addEmail({ from: "Graham", subject: "Action: Sam" }, true);
@@ -1058,7 +1059,7 @@
       run.learned.yep = true;
       // and they take it at its word
       if (o.agree) G.agreed.push(o.agree);
-      if (o.reply) G.later.push({ t: G.time + 0.9, who: o.who, line: o.reply });
+      if (o.reply) G.later.push({ t: G.time + 0.9, who: o.who, line: o.reply, back: true });
     }
     run.score += pts;
     judge(true);
@@ -1092,7 +1093,7 @@
     // reputation gets its ring, so you know what it'll cost from now on)
     if (run.stage === 0) {
       G.forgiven++;
-      if (line) speak(who || info().host, line, 2);
+      if (line) speak(who || info().host, line, 2, false, true);
       addStamp("Forgiven", 0.9);
       pill("Practice: free", true);
       tell("practice", "Next meeting: -1");
@@ -1101,7 +1102,7 @@
     }
     if (run.mods.forgive && !G.forgiven && why !== "share") {
       G.forgiven = 1;
-      speak(who || info().host, "Sorry, you broke up there.", 1.8);
+      speak(who || info().host, "Sorry, you broke up there.", 1.8, false, true);
       addStamp("Forgiven", 0.9);
       return;
     }
@@ -1113,7 +1114,7 @@
     tell("rep", "None left: removed");
     shake(0.6);
     sfx.lose();
-    if (line) speak(who || (info().id === "email" ? reactor() : info().host), line, 2);
+    if (line) speak(who || (info().id === "email" ? reactor() : info().host), line, 2, false, true);
     addStamp(why === "cat" ? "Cat: seen" : why === "dish" ? "Heard" : why === "chase" ? "Unread" : why === "share" ? "Seen" : "Missed", 1);
     lookAtYou(1.6);
     paintHud();
@@ -1163,15 +1164,17 @@
   function chatClear(b) {
     if (G.open && G.open.who === b.who) return false;      // they're asking you something
     if (b.kind === "email") return true;
+    if (saidBack(b.who)) return false;                     // they've just answered what you did
     if (G.round || G.share || tellOn()) return false;
     return !(G.open && G.time - G.open.opened < 0.7);
   }
+  function saidBack(who) { return (G.backUntil[who] || 0) > G.time; }
   // Replies, a moment after the line they answer
   function tickLater() {
     G.later = G.later.filter(function (l) {
       if (l.t > G.time) return true;
-      if (G.open && G.open.who === l.who) { l.t = G.time + 0.4; return true; }
-      speak(l.who, l.line, 1.4);
+      if ((G.open && G.open.who === l.who) || (!l.back && saidBack(l.who))) { l.t = G.time + 0.4; return true; }
+      speak(l.who, l.line, 1.4, false, l.back);
       return false;
     });
   }
@@ -1589,7 +1592,8 @@
     G.fx = G.fx.filter(function (p) { p.t += dt; return p.t < p.life; });
     G.bubbles = G.bubbles.filter(function (b) { b.t += dt; return b.t < b.life; });
     if (G.rowAnim > 0) G.rowAnim = Math.max(0, G.rowAnim - dt * 9);
-    if (G.pasted > 0) G.pasted = Math.max(0, G.pasted - dt * 6);
+    // the box you've filled stays green for about a third of a second, long enough to see
+    if (G.pasted > 0) G.pasted = Math.max(0, G.pasted - dt * 1.8);
     if (G.nod > 0) G.nod = Math.max(0, G.nod - dt * 1.9);
     if (G.yepT > 0) G.yepT -= dt;
     if (G.flash > 0) G.flash = Math.max(0, G.flash - dt * 1.6);
@@ -1633,21 +1637,30 @@
     G.pops.push({ x: y.x + y.w - rad - 8, y: y.y + rad + 8 + (below ? rad * 2 + 16 : 0), text: text, t: 0 });
   }
 
-  // Someone says something: a bubble from their tile, and their mouth moves
-  function speak(who, text, life, toYou) {
+  // Someone says something: a bubble from their tile, and their mouth moves.
+  // back: it answers something you did (a miss, a nod at a question), so it
+  // stays up for its whole life: their own chatter waits for it, and when
+  // there are too many bubbles the chatter makes room first.
+  function speak(who, text, life, toYou, back) {
     if (!who || !text) return;
     var st0 = tileOf(who);
     if (st0) { bringIn(st0); st0.lastSpoke = G.time; }
     G.bubbles = G.bubbles.filter(function (b) { return b.who !== who; });
     var max = W < 480 ? 2 : 3;
     while (G.bubbles.filter(function (b) { return b.who !== "you"; }).length >= max) {
-      var drop = -1;
-      for (var i = 0; i < G.bubbles.length; i++) if (G.bubbles[i].who !== "you" && !G.bubbles[i].toYou) { drop = i; break; }
-      if (drop < 0) for (var j = 0; j < G.bubbles.length; j++) if (G.bubbles[j].who !== "you") { drop = j; break; }
+      // the oldest chatter goes first, then what was said back to you, then what's for you
+      var drop = -1, rank = 9;
+      for (var i = 0; i < G.bubbles.length; i++) {
+        var ob = G.bubbles[i];
+        if (ob.who === "you") continue;
+        var k = ob.toYou ? 2 : ob.back ? 1 : 0;
+        if (k < rank) { rank = k; drop = i; }
+      }
       if (drop < 0) break;
       G.bubbles.splice(drop, 1);
     }
-    G.bubbles.push({ who: who, text: text, t: 0, life: life || 1.8, toYou: !!toYou });
+    G.bubbles.push({ who: who, text: text, t: 0, life: life || 1.8, toYou: !!toYou, back: !!back });
+    if (back) G.backUntil[who] = G.time + (life || 1.8);
     if (DEBUG) (G.log || (G.log = [])).push([Math.round(G.time * 10) / 10, who, text]);
     G.speaking[who] = Math.min(life || 1.8, 0.35 + text.length * 0.045);
     sfx.voice(who, text);
@@ -1758,12 +1771,13 @@
   // The one thing worth pointing at right now (DESIGN.md, section 10). The
   // moves have one name each, the same in the notice, the title screen's hint
   // and How to play: Fill the gap, Nod, Say yep, Mute again, Camera off.
-  // On keys each word keeps its rule and adds the key.
+  // On keys each word keeps its rule and adds the key; on touch it adds the
+  // button's name, unless that's the same word ("Nod", not "Nod: Nod").
   function pickHint() {
     G.hint = null;
     if (G.phase !== "play" || shell.state() !== "playing" || AUTOPILOT) return;
     var touch = touching(), keys = !touch && pointerMode !== "mouse";
-    function word(rule, key, pad) { return touch ? rule + ": " + pad : keys ? rule + ": " + key : rule; }
+    function word(rule, key, pad) { return touch ? (pad === rule ? rule : rule + ": " + pad) : keys ? rule + ": " + key : rule; }
     var o = G.open;
     if (o && o.kind === "name" && !run.learned.nod) {
       G.hint = { at: "nod", word: word("Nod", "N", "Nod") };
@@ -1905,10 +1919,10 @@
     drawFlights(c);
     drawStamps(c);
     drawPops(c);
-    var arrowBox = hintBox();
-    drawBubbles(c, arrowBox);
+    var arrowBox = hintBox(), ringed = tagGeom(c);
+    drawBubbles(c, arrowBox, ringed && ringed.tag);
     drawHint(c);
-    drawTag(c);
+    drawTag(c, ringed);
     if (G.phase === "removed") drawRemoved(c);
     drawEdge(c);
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -2284,7 +2298,7 @@
     if (!p) return;
     var age = G.time - p.t;
     if (age > 1.6 || G.phase !== "play") { G.pill = null; return; }
-    var size = W < 480 ? 11 : 13;
+    var size = W < 480 ? 12 : 13;
     c.save();
     c.globalAlpha = clamp((1.6 - age) * 4, 0, 1);
     c.font = size + "px " + T.display;
@@ -2316,41 +2330,60 @@
     c.restore();
   }
 
-  // A meter's ring: dashed paper round it, and its word on a tag beside it
-  function drawTag(c) {
+  // A meter's ring: dashed paper round it, and its word on a tag beside it.
+  // The HUD's two lines are close together, so the ring keeps to the gap
+  // between them rather than crossing the other line. Worked out before the
+  // bubbles are placed, and from the moment it's due rather than when it
+  // shows, so a bubble that's up already doesn't jump out of its way.
+  function tagGeom(c) {
     var g = G.tag;
-    if (!g || G.time < g.t || (shell.state() !== "playing" && shell.state() !== "paused")) return;
-    var el = g.what === "meeting" ? hudEls && hudEls.stage && hudEls.stage.parentNode : hudEls && hudEls.rep;
-    if (!el) return;
+    if (!g || (shell.state() !== "playing" && shell.state() !== "paused")) return null;
+    var stat = hudEls && hudEls.stage && hudEls.stage.parentNode, line = hudEls && hudEls.clock && hudEls.clock.parentNode;
+    var el = g.what === "meeting" ? stat : hudEls && hudEls.rep;
+    if (!el || !stat || !line) return null;
     var box = root.getBoundingClientRect(), e = el.getBoundingClientRect();
-    if (!e.width) return;
+    if (!e.width) return null;
     var r = { x: e.left - box.left, y: e.top - box.top, w: e.width, h: e.height };
+    var p = 5, pt = p, pb = p;
+    var statBottom = stat.getBoundingClientRect().bottom, lr = line.getBoundingClientRect();
+    if (g.what === "meeting") pb = clamp((lr.top - statBottom) / 2 - 1.5, 0, p);
+    else pt = clamp((e.top - statBottom) / 2 - 1.5, 0, p);
+    var px = 12, word = g.word.toUpperCase();
+    c.font = px + "px " + T.display;
+    var tw = A.textWidth(c, word, px) + 14, th = px + 9;
+    // beside it, to the right (the HUD's other numbers are under it); for the
+    // reputation, where the pause bar is in the way, on the line above,
+    // beside the meeting; and where neither fits (a phone), under the HUD's
+    // corner, clear of the clock and the reputation
+    var tx = r.x + r.w + p + 6, ty = r.y + r.h / 2 - th / 2;
+    var bar = root.querySelector(".kit-bar"), bl = bar ? bar.getBoundingClientRect().left - box.left : W;
+    if (tx + tw > bl - 4 && g.what !== "meeting") {
+      var sr = stat.getBoundingClientRect();
+      tx = sr.right - box.left + p + 6; ty = sr.top - box.top + sr.height / 2 - th / 2;
+    }
+    if (tx + tw > bl - 4) { tx = r.x - p; ty = Math.max(r.y + r.h + pb, lr.bottom - box.top) + 4; }
+    tx = clamp(tx, 4, W - tw - 4);
+    return { ring: { x: r.x - p, y: r.y - pt, w: r.w + p * 2, h: r.h + pt + pb }, tag: { x: tx, y: ty, w: tw, h: th }, word: word, px: px, on: G.time >= g.t };
+  }
+  function drawTag(c, k) {
+    if (!k || !k.on) return;
     var calm = shell.reduceMotion, t = performance.now() / 1000;
-    var p = 5;
     c.save();
-    A.rr(c, r.x - p, r.y - p, r.w + p * 2, r.h + p * 2, 7);
+    A.rr(c, k.ring.x, k.ring.y, k.ring.w, k.ring.h, 7);
     c.strokeStyle = T.paper;
     c.lineWidth = 3;
     c.setLineDash([7, 5]);
     c.lineDashOffset = calm ? 0 : -t * 20;
     c.stroke();
     c.setLineDash([]);
-    var px = 12;
-    c.font = px + "px " + T.display;
-    var tw = A.textWidth(c, g.word.toUpperCase(), px) + 14, th = px + 9;
-    // beside it, to the right (the HUD's other numbers are under it), or
-    // under it where the pause bar is in the way
-    var bob = calm ? 0 : Math.sin(t * 6) * 1.5;
-    var tx = r.x + r.w + p + 6, ty = r.y + r.h / 2 - th / 2 + bob;
-    var bar = root.querySelector(".kit-bar"), bl = bar ? bar.getBoundingClientRect().left - box.left : W;
-    if (tx + tw > bl - 4) { tx = r.x - p; ty = r.y + r.h + p + 3 + bob; }
-    tx = clamp(tx, 4, W - tw - 4);
-    A.rr(c, tx, ty, tw, th, 4);
+    var bob = calm ? 0 : Math.sin(t * 6) * 1.5, tg = k.tag;
+    c.font = k.px + "px " + T.display;
+    A.rr(c, tg.x, tg.y + bob, tg.w, tg.h, 4);
     A.fill(c, T.ink, 2, T.paper);
     c.fillStyle = T.paper;
     c.textAlign = "left";
     c.textBaseline = "middle";
-    A.text(c, g.word.toUpperCase(), tx + 7, ty + th / 2 + px * 0.06, px);
+    A.text(c, k.word, tg.x + 7, tg.y + bob + tg.h / 2 + k.px * 0.06, k.px);
     c.restore();
   }
 
@@ -3019,10 +3052,11 @@
   }
   function bubbleSize() { return N.flags.clip ? 14 : W < 480 ? 12 : clamp(Math.round(L.tileH * 0.1), 13, 17); }
 
-  function drawBubbles(c, arrowBox) {
+  function drawBubbles(c, arrowBox, tagBox) {
     var size = bubbleSize();
     var placed = hudBoxes().slice();
     if (arrowBox) placed.push(arrowBox);
+    if (tagBox) placed.push({ x: tagBox.x - 2, y: tagBox.y - 3, w: tagBox.w + 4, h: tagBox.h + 6 });
     var hard = hudBoxes().slice();
     hard.push({ x: L.sheet.x, y: L.sheet.y, w: L.sheet.w, h: L.sheet.h });
     hard.push({ x: L.you.x, y: L.you.y, w: L.you.w, h: L.you.h });
