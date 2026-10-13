@@ -162,6 +162,13 @@
   var judgeTier = 0, judgeFrom = 0, judgeNext = 30;   // Judgement Day: which tier, and the bricks it starts and ends at
   var feeCalled = false, guide = null, lostSight = 0;
   var hintNow = null, hintSeen = 0, noticed = false;    // the arrow showing this frame, and how long the sea's has shown
+  var clockOn = true;                  // stage one's clock waits for the first brick on the statue
+  var mode = "keys";                   // how they're playing, for the keys on the pointer's words
+  var told = {}, tags = [], tag = null; // the HUD's rings: each one once a visit, one at a time
+  var note = null;                     // a short arrow on the field: the pit after a fall, the Priest's first fee
+  var redo = 0;                        // falls that brought the pit's arrow back this stage (three at most)
+  var missed = false, missRedo = 0;    // a smite that missed: the next target gets its arrow again (three a stage)
+  var verdict = null, marks = [], floaters = [];   // right or wrong, said at once where you're looking
 
   function rand(a, b) { return a + Math.random() * (b - a); }
   function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
@@ -336,6 +343,10 @@
     G.plan = planStage();
     G.permitSize = isFinite(info.target) ? Math.max(40, Math.round(info.target / 3)) : 80;
     G.rivals = G.plan.kinds.map(function (k) { return R[k](G, HELP, G.plan.spots[k]); });
+    // Stage one is for finding your feet: the clock and the Feed wait for the
+    // first brick on the statue
+    clockOn = G.stage !== 0;
+    if (!clockOn) G.rivals.forEach(function (r) { if (r.kind === "feed") r.wake = Infinity; });
     G.piles = [];
     layout();
     var st = G.place.start;
@@ -380,6 +391,15 @@
     hintNow = null;
     hintSeen = 0;
     noticed = false;
+    tags = [];
+    tag = null;
+    note = null;
+    redo = 0;
+    missed = false;
+    missRedo = 0;
+    verdict = null;
+    marks = [];
+    floaters = [];
     bg = null;
     statueImg = null;
     if (hudEls) paintHud();
@@ -534,6 +554,14 @@
 
   // Gone for good: into a pit, out to sea, or off to space
   function lose(list, how) {
+    // said where it happened: a red cross, the edge, and a count
+    var faithful = list.filter(function (f) { return f.state !== "gone" && !f.priest; });
+    if (faithful.length && phase === "play") {
+      var at = faithful[0].pit || faithful[0];
+      floatUp("lost-" + how, at.x, at.y - 30, G.T.red, function (k) { return "Lost " + k; }, faithful.length);
+      if (!verdict || verdict.t > 0.6) judge(false, at.x, at.y - 10);
+      tell("faithful", "None left: run over");
+    }
     list.forEach(function (f) {
       if (f.state === "gone") return;
       if (how === "rocket") {
@@ -657,9 +685,63 @@
     return { action: act, bless: bless };
   }
 
+  // ---------------------------------------------------------------------------
+  // Teaching it in the first seconds (DESIGN.md, section 13). The move is
+  // "lead them", and the pointer says so: an arrow on the bricks, then on the
+  // statue. A ring round the Statue meter the first time it fills a bit
+  // ("Fill it to clear the stage"), round the clock when it starts ("Time's up:
+  // run over") and round Faithful the first time one is lost ("None left: run
+  // over"). The Feed's phone wakes after that, with its own arrow. Every smite
+  // and bless says right or wrong where you struck, and losses and bricks show
+  // where they happen.
+  // ---------------------------------------------------------------------------
+  // On keys, a pad or a mouse, the pointer's word keeps its rule and adds the key
+  function keyed(word, what) {
+    if (mode === "touch") return word;
+    if (what === "bless") return word + ": B";
+    return word + ": " + (mode === "pad" ? "A" : mode === "mouse" ? "click" : "Space");
+  }
+
+  // A ring round a HUD meter, once a visit, a moment after whatever moved it
+  function tell(what, word) {
+    if (told[what] || N.flags.clip) return;
+    told[what] = true;
+    tags.push({ what: what, word: word });
+  }
+  var TAG_LEN = 2.4;
+  function tickTags(dt) {
+    if (note) return;    // a note on the field goes first; the ring waits
+    if (tag) {
+      tag.age += dt;
+      if (tag.age > TAG_LEN) tag = null;
+    }
+    if (!tag && tags.length) { tag = tags.shift(); tag.age = -0.7; }
+  }
+
+  // Right or wrong: a tick or a cross where it happened, and the screen's edge
+  function judge(ok, x, y) {
+    verdict = { ok: ok, t: 0 };
+    marks.push({ ok: ok, x: x, y: y, t: 0 });
+  }
+
+  // Words that rise from where something happened. A second one from the same
+  // place soon after adds to the first ("Lost 3", "+4").
+  function floatUp(key, x, y, colour, text, n) {
+    for (var i = 0; i < floaters.length; i++) {
+      var o = floaters[i];
+      if (o.key === key && o.t < 0.8 && n) {
+        o.n += n; o.t = Math.min(o.t, 0.2); o.x = x; o.y = y;
+        o.text = text(o.n);
+        return;
+      }
+    }
+    floaters.push({ key: key, x: x, y: y, colour: colour, n: n || 0, text: typeof text === "function" ? text(n) : text, t: 0 });
+  }
+
   function smite() {
     smiteWait = SMITE_CD * G.mods.smiteCd;
     var r = SMITE_R * G.mods.smiteR, hit = 0, x = G.light.x, y = G.light.y;
+    var landed = G.rivals.some(function (rv) { return rv.aim(x, y, r); });
     fx.push({ kind: "bolt", x: x, y: y, t: 0, life: 0.45, seed: Math.random() * 1000, r: r });
     fx.push({ kind: "scorch", x: x, y: y, t: 0, life: 6 });
     if (!shell.reduceMotion) shake = 0.3;
@@ -688,9 +770,11 @@
       if (G.priest && G.priest.state === "stun") say(G.priest, "I forgive you. Invoice to follow.", true);
       else say(someone(function (f) { return f.state === "stun"; }), pick(SMITTEN), true);
     }
-    if (said) shell.callout(said, { sound: false });
-    else if (hit) shell.callout(hit > 1 ? hit + " smitten" : "Smitten", { sound: false });
-    else shell.callout("Missed", { sound: false, ms: 900 });
+    // said where you struck: a rival stopped is right, anything else is wrong
+    var words = said || (hit ? (hit > 1 ? hit + " smitten" : "Smitten") : "Missed");
+    judge(landed, x, y - 20);
+    floatUp("smite", x, y - 30, landed ? G.T.right : G.T.red, words);
+    if (!landed) { missed = true; missRedo++; } else missed = false;
   }
 
   function bless() {
@@ -706,7 +790,8 @@
     });
     fx.push({ kind: "halo", x: G.light.x, y: G.light.y, t: 0, life: 0.7 });
     if (n) say(someone(function (f) { return f.blessed > 0; }), pick(BLESSED), true);
-    shell.callout(n ? "Blessed" : "Blessed nobody", { sound: false, ms: 900 });
+    judge(n > 0, G.light.x, G.light.y - 20);
+    floatUp("bless", G.light.x, G.light.y - 30, n ? G.T.right : G.T.red, n ? (n > 1 ? n + " blessed" : "Blessed") : "Blessed nobody");
   }
 
   function deliver(f) {
@@ -723,12 +808,23 @@
       sfx.till();
       say(G.priest, pick(FEES), true);
       if (!feeCalled) { feeCalled = true; shell.callout("Administration fee", { sound: false, ms: 1100 }); }
+      floatUp("fee", G.priest.x, G.priest.y - 50, G.T.paper, function (k) { return "Priest's cut: " + k; }, load);
+      // the first fee: who the Priest is and what he does
+      if (!told.priest) { told.priest = true; note = { who: G.priest, word: "Priest: takes a cut", t: 2.6 }; }
       return;
     }
     sfx.drop();
-    if (guide === "site") guide = null;
     var before = bricks;
     bricks += load;
+    floatUp("brick", G.place.site.x, G.place.site.y - 22 - Math.min(1, bricks / (isFinite(stageInfo().target) ? stageInfo().target : 120)) * 120, G.T.paper, function (k) { return "+" + k; }, load);
+    if (guide === "site") guide = null;
+    if (!clockOn) {
+      // the first brick's on: now the clock runs, and then the Feed wakes up
+      clockOn = true;
+      G.rivals.forEach(function (r) { if (r.kind === "feed") r.wake = 6; });
+    }
+    tell("statue", "Fill it to clear the stage");
+    tell("time", "Time's up: run over");
     run.score += 100 * load * G.devotion;
     if (office) office.used(load);
     var tier = stageInfo().target / 5;
@@ -854,6 +950,8 @@
       f.pit = pit;
       f.teeter = 0;
       lose([f], "pit");
+      // a fall brings the pit's arrow back, three times a stage at most
+      if ((!note || note.pit !== pit) && redo < 3) { redo++; note = { pit: pit, word: "Lead them round", t: 3 }; }
       if (f.priest) { shell.callout("Priest: lost"); say(f, "Admin fee waived. Just this once.", true); }
       else if (firstFall) { firstFall = false; shell.callout("Faith: tested", { sound: false }); }
       return;
@@ -914,26 +1012,50 @@
   // The one thing worth pointing at right now: the Office's queue whenever
   // it's needed, otherwise a rival causing trouble that you haven't yet
   // smitten this run. Stage one points at the bricks and the statue.
+  // One arrow at a time, and none while a HUD ring is up. A short note (the
+  // pit after a fall, the Priest's first fee) comes first.
   function pickHint(dt) {
     hintNow = null;
+    if (note) {
+      var at = note.pit ? { x: note.pit.x, y: note.pit.y - note.pit.ry - 30 } : { x: note.who.x, y: note.who.y - 62 };
+      hintNow = { x: at.x, y: at.y, word: note.word };
+      return;
+    }
+    if (tag && tag.age > -0.2) return;
     var office = officeRival();
     if (office) hintNow = office.hint();
+    var reach = SMITE_R * G.mods.smiteR;
     for (var i = 0; i < G.rivals.length && !hintNow; i++) {
       var rv = G.rivals[i];
+      // after a miss, the next target you're on gets its arrow again
+      if (missed && missRedo <= 3 && smiteWait <= 0 && rv.aim(G.light.x, G.light.y, reach)) {
+        var m = rv.mark();
+        hintNow = { x: m.x, y: m.y - m.h - 26, word: keyed("Now", "smite") };
+        break;
+      }
       if (rv === office || !rv.hint || run.learned[rv.kind]) continue;
-      hintNow = rv.hint();
-      if (hintNow && rv.kind === "sea") {
+      // the Feed's phone is pointed at as soon as it's on, the first time
+      if (rv.kind === "feed" && rv.live()) hintNow = { x: rv.x, y: rv.y - 66, word: "Smite the phone" };
+      else hintNow = rv.hint();
+      if (!hintNow) continue;
+      if (/^Smite/.test(hintNow.word)) {
+        // on it: say how
+        var aimed = smiteWait <= 0 && rv.aim(G.light.x, G.light.y, reach);
+        var word = aimed ? keyed("Now", "smite") : hintNow.word.indexOf(":") < 0 ? keyed(hintNow.word, "smite") : hintNow.word;
+        hintNow = { x: hintNow.x, y: hintNow.y, word: word };
+      }
+      if (rv.kind === "sea") {
         hintSeen += dt;
         if (hintSeen > 6) run.learned.sea = true;
       }
     }
     // until you've blessed once: when rivals have hold of a few near you, say so
     if (!hintNow && !run.learned.bless && blessWait <= 0) {
-      var held = 0, reach = FOLLOW_R * G.mods.reach;
+      var held = 0, near = FOLLOW_R * G.mods.reach;
       G.folk.forEach(function (f) {
-        if ((f.state === "stare" || f.state === "march" || f.state === "board") && dist(f, G.light) < reach) held++;
+        if ((f.state === "stare" || f.state === "march" || f.state === "board") && dist(f, G.light) < near) held++;
       });
-      if (held >= 4) hintNow = { x: G.light.x, y: G.light.y - 88, word: root.classList.contains("kit-touching") ? "Tap Bless" : "Bless: press B" };
+      if (held >= 4) hintNow = { x: G.light.x, y: G.light.y - 88, word: keyed("Bless them back", "bless") };
     }
   }
   function officeRival() {
@@ -948,8 +1070,12 @@
     var text = (BRIEFS[info.rival] || "").replace("{how}", smiteHow());
     var back = G.plan.kinds.filter(function (k) { return k !== info.rival; });
     if (info.old && back.length) text += " " + R.names[back[0]] + " is back.";
-    if (G.stage === 0) text = "Lead them to the bricks, then to the statue. " + text;
-    shell.brief({ title: title, text: text, ms: G.stage === 0 ? 9000 : 7000 });
+    // stage one: the goal, the move and the cost. The Feed is taught in play.
+    if (G.stage === 0) {
+      title = "Stage 1: Build the statue";
+      text = "Build your statue before the clock runs out. Lead them: bricks first, then the statue. They'll follow your light into a pit.";
+    }
+    shell.brief({ title: title, text: text, ms: 7000 });
   }
   function smiteHow() {
     return root.classList.contains("kit-touching") ? "(tap Smite)" : "(click, or Space)";
@@ -968,15 +1094,25 @@
     if (G.priest && alive(G.priest)) say(G.priest, "Collection plate's by the bum.", true);
   }
 
+  function tickTeach(dt) {
+    tickTags(dt);
+    if (note && (note.t -= dt) <= 0) note = null;
+    if (verdict && (verdict.t += dt) > 0.5) verdict = null;
+    [marks, floaters].forEach(function (list) {
+      for (var i = list.length - 1; i >= 0; i--) if ((list[i].t += dt) > (list === marks ? 0.7 : 1.2)) list.splice(i, 1);
+    });
+  }
+
   function update(dt, input) {
-    if (phase !== "play") { clock += dt; tickFx(dt); tickBubbles(dt); return; }
+    mode = input.mode === "touch" || root.classList.contains("kit-touching") ? "touch" : input.mode;
+    if (phase !== "play") { clock += dt; tickFx(dt); tickBubbles(dt); tickTeach(dt); return; }
     if (!announced) {
       announced = true;
       var fresh = G.rivals.filter(function (r) { return r.kind === stageInfo().rival; })[0] || G.rivals[0];
-      if (fresh && fresh.intro) say(fresh.who, fresh.intro, true);
+      if (fresh && fresh.intro && fresh.wake !== Infinity) say(fresh.who, fresh.intro, true);
     }
     clock += dt;
-    timeLeft = Math.max(0, timeLeft - dt);
+    if (clockOn) timeLeft = Math.max(0, timeLeft - dt);
 
     moveLight(dt, input);
 
@@ -1012,6 +1148,7 @@
     if (stepT <= 0) { stepT = 1; if (walking) sfx.step(); }
 
     chatter(dt, crowded);
+    tickTeach(dt);
     tickFx(dt);
     tickBubbles(dt);
     shake = Math.max(0, shake - dt);
@@ -1156,10 +1293,9 @@
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big"><span data-score>0</span></p>' +
         '<p class="kit-stat"><small>Faithful</small><span data-faithful>0</span></p>' +
-        '<p class="kit-stat" data-minor><small>Devotion</small><span data-devotion>x1.00</span></p>' +
       '</div>';
     hudEls = {};
-    ["stage", "stage-label", "time", "statue-bar", "smite", "smite-bar", "bless", "bless-bar", "score", "faithful", "devotion"].forEach(function (k) {
+    ["stage", "stage-label", "time", "statue-bar", "smite", "smite-bar", "bless", "bless-bar", "score", "faithful"].forEach(function (k) {
       hudEls[k] = hud.querySelector("[data-" + k + "]");
     });
   }
@@ -1185,7 +1321,6 @@
     if (shell.padFill) { shell.padFill("action", smiteShare); shell.padFill("bless", blessShare); }
     setText(hudEls.score, fmt(run.score));
     setText(hudEls.faithful, String(G.folk.filter(alive).length));
-    setText(hudEls.devotion, "x" + G.devotion.toFixed(2));
   }
 
   // ---------------------------------------------------------------------------
@@ -1296,13 +1431,13 @@
     return cv;
   }
 
-  function brick(c, x, y) {
+  function brick(c, x, y, fill) {
     c.beginPath();
     c.rect(x, y, 8, 5);
-    c.fillStyle = G.T.red;
+    c.fillStyle = fill || G.T.red;
     c.fill();
     c.lineWidth = 1.2;
-    c.strokeStyle = G.T.ink;
+    c.strokeStyle = fill ? G.T.paper : G.T.ink;
     c.stroke();
   }
 
@@ -1466,16 +1601,16 @@
     return pat;
   }
 
-  // The Priest's cut, piling up next to the statue in a heap that spreads
+  // The Priest's cut, stacked neatly next to the statue: grey, and signed,
+  // so it doesn't look like bricks you can pick up (only red ones are)
   function drawFees(c) {
     var fees = Math.min(run.fees, 45);
     if (!fees) return;
-    var x = G.place.fees.x, y = G.place.fees.y, n = 0;
-    var base = Math.ceil((Math.sqrt(8 * fees + 1) - 1) / 2);
-    for (var row = 0; n < fees; row++) {
-      var across = Math.max(1, base - row);
-      for (var i = 0; i < across && n < fees; i++, n++) brick(c, x + (i - across / 2) * 8, y - 5 - row * 5);
+    var x = G.place.fees.x, y = G.place.fees.y, n = 0, rows = 0;
+    for (var row = 0; n < fees; row++, rows++) {
+      for (var i = 0; i < 5 && n < fees; i++, n++) brick(c, x + (i - 2.5) * 8, y - 5 - row * 5, G.T.ash);
     }
+    sign(c, x, y - 5 - rows * 5 - 14, "Fees");
   }
 
   // Bricks the Landlord dropped, there for the taking
@@ -1649,7 +1784,7 @@
     c.lineWidth = 2;
     c.strokeStyle = T.ink;
     c.stroke();
-    c.font = "10px " + T.display;
+    c.font = Math.max(10, 12 / SC) + "px " + T.display;    // at least 12px on screen
     c.textAlign = "center";
     c.textBaseline = "bottom";
     c.lineWidth = 3;
@@ -1883,8 +2018,9 @@
     var arrow = null;
     if (phase === "play") {
       if (hintNow) arrow = { x: hintNow.x, y: hintNow.y, word: hintNow.word };
-      else if (guide === "bricks") arrow = { x: G.place.quarry.x, y: G.place.quarry.y - 52, word: "Bricks" };
-      else if (guide) arrow = { x: G.place.site.x, y: G.place.site.y - 50, word: "Statue" };
+      else if (tag && tag.age > -0.2 && !note) arrow = null;
+      else if (guide === "bricks") arrow = { x: G.place.quarry.x, y: G.place.quarry.y - 52, word: "Lead them here" };
+      else if (guide) arrow = { x: G.place.site.x, y: G.place.site.y - 50, word: "Now to the statue" };
     }
     if (arrow) {
       arrow.x = clamp(arrow.x, 44, G.WW - 44);
@@ -1895,11 +2031,117 @@
       });
       placed.push({ x: (arrow.x - 40) * SC, y: (arrow.y - 34) * SC, w: 80 * SC, h: 42 * SC });
     }
+    // bubbles keep clear of what just happened, too
+    floaters.forEach(function (f) { placed.push({ x: f.x * SC - 55, y: f.y * SC - 34, w: 110, h: 44 }); });
     bubbles.forEach(function (b) { drawBubble(c, b, placed); });
     if (arrow) {
       c.setTransform(DPR * SC, 0, 0, DPR * SC, 0, 0);
       drawArrow(c, arrow.x, arrow.y, arrow.word);
     }
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    marks.forEach(function (m) { drawMark(c, m); });
+    floaters.forEach(function (f) { drawFloater(c, f); });
+    drawTag(c);
+    drawVerdict(c);
+  }
+
+  // A tick or a cross where the smite, the bless or the fall happened
+  function drawMark(c, m) {
+    var T = G.T, k = m.t / 0.7, s = clamp(SC * 9, 9, 14);
+    var x = m.x * SC, y = m.y * SC - (shell.reduceMotion ? 0 : k * 10);
+    c.save();
+    c.globalAlpha = k < 0.6 ? 1 : (1 - k) / 0.4;
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    [[s * 0.7, T.ink], [s * 0.38, m.ok ? T.right : T.red]].forEach(function (pen) {
+      c.lineWidth = pen[0];
+      c.strokeStyle = pen[1];
+      c.beginPath();
+      if (m.ok) { c.moveTo(x - s, y); c.lineTo(x - s * 0.3, y + s * 0.75); c.lineTo(x + s, y - s * 0.75); }
+      else { c.moveTo(x - s * 0.8, y - s * 0.8); c.lineTo(x + s * 0.8, y + s * 0.8); c.moveTo(x + s * 0.8, y - s * 0.8); c.lineTo(x - s * 0.8, y + s * 0.8); }
+      c.stroke();
+    });
+    c.restore();
+  }
+
+  // What it did, rising from where it happened
+  function drawFloater(c, f) {
+    var T = G.T, k = f.t / 1.2, size = clamp(SC * 11, 12, 16);
+    var x = clamp(f.x * SC, 50, W - 50), y = f.y * SC - (shell.reduceMotion ? 0 : k * 22);
+    var top = 6;
+    hudBoxes().forEach(function (r) { if (x > r.left - 50 && x < r.right + 50) top = Math.max(top, r.bottom + 4); });
+    y = Math.max(y, top + size);
+    c.save();
+    c.globalAlpha = k < 0.7 ? 1 : (1 - k) / 0.3;
+    c.font = size + "px " + T.display;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.lineJoin = "round";
+    c.lineWidth = 4;
+    c.strokeStyle = T.ink;
+    c.strokeText(f.text.toUpperCase(), x, y);
+    c.fillStyle = f.colour;
+    c.fillText(f.text.toUpperCase(), x, y);
+    c.restore();
+  }
+
+  // The HUD's ring: a dashed ring round the meter and a word beside it, on
+  // the field side so it never sits on the HUD's own words
+  function drawTag(c) {
+    if (!tag || tag.age < 0 || note || !hudEls) return;
+    var el = tag.what === "statue" ? hudEls["statue-bar"].parentNode.parentNode : tag.what === "time" ? hudEls.time : hudEls.faithful.parentNode;
+    var base = root.getBoundingClientRect(), e = el.getBoundingClientRect();
+    if (!e.width) return;
+    var T = G.T, p = 5, calm = shell.reduceMotion;
+    var r = { x: e.left - base.left - p, y: e.top - base.top - p, w: e.width + p * 2, h: e.height + p * 2 };
+    c.save();
+    c.beginPath();
+    roundRect(c, r.x, r.y, r.w, r.h, 8);
+    c.strokeStyle = T.paper;
+    c.lineWidth = 3;
+    c.setLineDash([7, 5]);
+    c.lineDashOffset = calm ? 0 : -clock * 20;
+    c.stroke();
+    c.setLineDash([]);
+    var px = 12;
+    c.font = px + "px " + T.display;
+    var word = tag.word.toUpperCase(), tw = c.measureText(word).width + 14, th = px + 9;
+    var right = r.x + r.w / 2 < W / 2;
+    var tx = right ? r.x + r.w + 6 : r.x - 6 - tw;
+    if (tx < 4 || tx + tw > W - 4) tx = clamp(r.x + (right ? 0 : r.w - tw), 4, W - tw - 4);
+    var ty = (tx >= r.x + r.w || tx + tw <= r.x) ? r.y + r.h / 2 - th / 2 : r.y + r.h + 4;
+    // where it would run under the pause bar (a phone), it drops below the HUD instead
+    var bar = root.querySelector(".kit-bar"), b = bar && bar.getBoundingClientRect();
+    if (b && b.width && tx < b.right - base.left && tx + tw > b.left - base.left && ty < b.bottom - base.top) {
+      var hud = el.closest(".kit-hud-tl, .kit-hud-tr").getBoundingClientRect();
+      ty = hud.bottom - base.top + 6;
+      tx = clamp(right ? r.x : r.x + r.w - tw, 4, W - tw - 4);
+    }
+    ty += calm ? 0 : Math.sin(clock * 6) * 1.5;
+    c.beginPath();
+    roundRect(c, tx, ty, tw, th, 4);
+    c.fillStyle = T.ink;
+    c.fill();
+    c.strokeStyle = T.paper;
+    c.lineWidth = 2;
+    c.stroke();
+    c.fillStyle = T.paper;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(word, tx + tw / 2, ty + th / 2 + 1);
+    c.restore();
+  }
+
+  // The screen's edge flashes with the last right or wrong
+  function drawVerdict(c) {
+    if (!verdict) return;
+    var k = shell.reduceMotion ? 1 : 1 - verdict.t / 0.5;
+    c.save();
+    c.globalAlpha = 0.85 * k;
+    c.strokeStyle = verdict.ok ? G.T.right : G.T.red;
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, W - 10, H - 10);
+    c.restore();
   }
 
   // ---------------------------------------------------------------------------
@@ -1911,10 +2153,10 @@
     title: "Thonglets",
     stamp: "Classified",
     tilt: -3,
-    note: "They think you're god. Seven stages, seven statues, a lot of rivals. Mind the pit.",
+    note: "They think you're god. Lead them to the bricks, then the statue. Mind the pit.",
     hints: {
-      keys: "Mouse, arrows or WASD to lead them. Click or Space to smite a rival god. B to bless. P to pause.",
-      touch: "Drag to lead them. Smite rival gods on the right. Bless on the left."
+      keys: "Mouse, arrows or WASD to lead them. Click or Space to smite a rival god. B to bless them back. P to pause.",
+      touch: "Drag to lead them. Smite a rival god on the right. Bless them back on the left."
     },
     againLabel: "Play again",
     aim: true,
