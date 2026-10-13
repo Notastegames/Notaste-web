@@ -922,7 +922,9 @@
 
   // A speech bubble: paper, a thick ink outline, rounded corners, a tail to
   // the speaker, capitals. box: { x, y, w, h }, tail: the point it aims at.
-  function bubble(c, box, tail, lines, size, alpha, boss) {
+  // strike: how far a red pen has got through the lines, 0 to 1 (a reply
+  // that was stopped), or nothing.
+  function bubble(c, box, tail, lines, size, alpha, boss, strike) {
     var x = box.x, y = box.y, w = box.w, h = box.h;
     var r = Math.min(8, h / 2);
     c.save();
@@ -957,13 +959,30 @@
     c.textBaseline = "top";
     var lh = size * 1.02;
     lines.forEach(function (l, i) { text(c, l, x + w / 2, y + (h - lines.length * lh) / 2 + i * lh + size * 0.06, size); });
+    if (strike > 0) {
+      // the red pen, through each line in turn, a little unevenly
+      c.strokeStyle = T.red;
+      c.lineCap = "round";
+      c.lineWidth = Math.max(2, size * 0.16);
+      lines.forEach(function (l, i) {
+        var k = Math.max(0, Math.min(1, strike * lines.length - i));
+        if (!k) return;
+        var lw = textWidth(c, l, size) + size * 0.4, lx = x + (w - lw) / 2;
+        var ly = y + (h - lines.length * lh) / 2 + i * lh + size * 0.44;
+        var wob = (i % 2 ? -1 : 1) * size * 0.05;
+        c.beginPath();
+        c.moveTo(lx, ly + wob);
+        c.quadraticCurveTo(lx + lw * k * 0.5, ly - wob, lx + lw * k, ly + wob * 0.5);
+        c.stroke();
+      });
+    }
     c.restore();
   }
 
   // A bobbing arrow pointing at something, with a word over it. dir "down"
   // (the default) points down at x, y; "left" points left at it, for a desk
-  // with no room above it.
-  function arrow(c, x, y, word, size, dir, maxRight) {
+  // with no room above it. under: the word goes under a "left" arrow instead.
+  function arrow(c, x, y, word, size, dir, maxRight, under) {
     var s = size / 22;
     c.save();
     c.translate(x, y);
@@ -978,12 +997,13 @@
     c.restore();
     var fs = Math.max(12, size * 0.6) / s;      // 12px at the least, bigger on a big screen
     c.font = fs + "px " + T.display;
+    under = under && dir === "left";
     c.textAlign = dir === "left" ? "left" : "center";
-    c.textBaseline = "bottom";
+    c.textBaseline = under ? "top" : "bottom";
     c.lineWidth = 3.4;
     c.strokeStyle = T.ink;
     c.fillStyle = T.paper;
-    var tx = dir === "left" ? 4 : 0, ty = dir === "left" ? -13 : -25;
+    var tx = dir === "left" ? 4 : 0, ty = under ? 13 : dir === "left" ? -13 : -25;
     if (maxRight) {
       // keep the word on the screen
       var tw = textWidth(c, word.toUpperCase(), fs);
