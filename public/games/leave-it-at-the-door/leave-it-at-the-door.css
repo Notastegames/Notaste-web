@@ -9,6 +9,8 @@
   where (--leave-brief-*) when the phone is a column beside the town; under
   the town it keeps the kit's place.
 
+  The HUD's delivered count is labelled after the number ("3 delivered").
+
   Everything else is the kit's (games/kit/kit.css).
 */
 @container kit (min-height: 400px) {
@@ -28,3 +30,5 @@ body[data-game="leave-it-at-the-door"] #game-root .kit-brief {
   top: var(--leave-brief-top, auto);
   bottom: var(--leave-brief-bottom, 0.9rem);
 }
+
+body[data-game="leave-it-at-the-door"] .leave-done small:last-child { margin: 0 0 0 0.3em; }

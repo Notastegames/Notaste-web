@@ -19,21 +19,32 @@
 // things: which pickup first, what to drop on the way, when to wait.
 //
 // THE DOORS. At every door the customer's note says what to do, and the
-// doorstep cycles through the choices: the bell, a knock or the letterbox
-// ("Don't ring, baby asleep"), a gate code ("Gate code 2741"), the right door for the
-// photo ("Leave it at the door. We're 14B"). Press when it shows what the
-// note asked for. One rule for the one button, everywhere. Some flats are
-// round the back through the bins, and the app's pin is at the front.
+// doorstep offers three choices: the bell, a knock or the letterbox ("Don't
+// ring, baby asleep"), three gate codes ("Gate code 2741"), three doors for
+// the photo ("Leave it at the door. We're 14B"). Match the note: pick the one
+// it asks for. One rule, everywhere. A wrong pick is answered (nobody comes,
+// or the baby does) and says what the note said. Some flats are round the
+// back through the bins, and the app's pin is at the front.
+//
+// TEACHING IT IN THE FIRST SECONDS. The first notice says the goal, the move
+// and the cost. Lunch starts with one order at a time until the first is
+// delivered. The pointer teaches one thing at a time: "Pick up" on the first
+// pickup, "Deliver" on its door, and at the first door a dashed ring round
+// the choice the note asks for, "Match the note". A wrong pick brings the
+// ring back at the next door (three times a round). The first time the
+// rating moves, a ring round it says "Deactivated under 4.40". Every pick
+// turns green with a tick or red with a cross, the screen's edge flashes,
+// and the doorstep says what it did ("On time. Rating up to 4.72").
 //
 // THE CONTROLS. 1 to 4 ride to that order's next stop (Space or Enter
 // away from a door rides to the highlighted one). Arrow keys or WASD steer
 // along the streets like a tram with opinions: press a turn before the
 // junction and it's taken there; press back the other way to turn round.
-// Space (or Enter) at a door. A
+// At a door, 1 to 3 pick a choice, or the arrows and Space. A
 // click or a tap on the map rides there along the streets (on a pin, to
 // that stop); a tap on an order on the phone rides to its next stop; a
-// swipe steers like a key. At a door, a tap or a click on the doorstep is
-// the button. Nothing needs both hands.
+// swipe steers like a key. At a door, tap or click the choice. Nothing
+// needs both hands.
 //
 // RATING. Starts at 4.70. On time nudges it up, late takes it down by how
 // late, a woken baby, soggy food or a wrong photo take a bit, an order five
@@ -53,8 +64,8 @@
 // drawn from shell.random at the start; promised times follow your riding.
 //
 // THE AUTOPILOT (?autopilot, ?clip) picks the stop with the least time to
-// spare, rides there along the streets, reads the note and presses with a
-// human delay, and now and then presses on the wrong thing.
+// spare, rides there along the streets, reads the note and picks with a
+// human delay, and now and then picks the wrong thing first.
 //
 // ?debug exposes window.__leave, and takes &stage=N to start at stage N.
 (function () {
@@ -80,7 +91,7 @@
   var STAGES = [
     { key: "lunch", name: "Lunch", start: 12 * 60, len: 40, gap: [4.9, 5.9], types: { bell: 3, knock: 3, shout: 2, code: 2 },
       k: 1.7, slack: 5, shrink: 0.3, batch: 0.15, prep: [1.6, 3.4],
-      brief: "Orders arrive by themselves. Ride to the pickup, then the door: 1 to 4 rides to an order on the phone, arrow keys steer, or tap where to go. At the door, read the note and press when it shows what they asked for." },
+      brief: "Get each order to its door before the app's time runs out. At the door, match the note: pick what it asks for. Late or wrong costs rating, and under 4.40 you're deactivated." },
     { key: "rain", name: "Rain", start: 15 * 60, len: 40, gap: [4.3, 5.3], types: { bell: 2, knock: 2, shout: 1, code: 2, photo: 3 },
       k: 1.65, slack: 5, shrink: 0.45, batch: 0.22, prep: [1.5, 3.2], rain: true,
       brief: "Rain. Press your turn before the junction or you'll skid past it. Puddles soak the food. The app has added a 10p weather bonus for you, and a rain fee for them." },
@@ -104,11 +115,27 @@
     photo: ["Leave it at the door. We're {no}.", "Leave it at the door. Photo please. {no}, not next door."],
     back: ["{flat}. Round the back through the bins. {bk}", "{flat}. Round the back, past the bins. {bk}"]
   };
+  // what ringing or shouting at a "knock" door does, note by note (in NOTES.knock's order)
+  var KNOCK_WAKE = ["baby", null, "said", "dog", "sleep"];
   var BACK_BK = { Bell: "Ring.", Knock: "Knock." };
+  // A wrong pick gets an answer to what you did, and says what the note said
+  var MISS = {
+    bell: { Knock: "You knock. Nobody comes. The note said ring.", Letterbox: "You shout through the letterbox. Next door shouts back." },
+    shout: { Bell: "The bell does nothing. The note said shout.", Knock: "You knock. Nobody comes. The note said shout." },
+    knock: { Bell: "Nothing. The bell's broken. The note said.", Letterbox: "You shout. Nobody comes. The note said knock." },
+    back: { Bell: "You ring. Nobody comes. The note said knock.", Knock: "You knock. Nobody comes. The note said ring.", Letterbox: "You shout. Nobody comes. The note said {bk}." },
+    photo: "That's next door. The customer has a photo of next door."
+  };
+  // Ringing or shouting where the note said knock: they come to the door, and they aren't pleased
+  var WAKE = {
+    baby: { word: "Baby: awake", lines: ["That's the baby up. Brilliant.", "The note said. The note."] },
+    dog: { word: "Dog: awake", lines: ["That's the dog off. Thanks.", "The note said. The dog read it too."] },
+    sleep: { word: "Woken", lines: ["I'm on nights. I was asleep.", "That was my sleep. Thanks."] },
+    said: { word: "Woken", lines: ["Knock, it said. It's on the note.", "I said knock. I wrote it down."] }
+  };
   var LINES = {
     onTime: ["The app said you were outside.", "Ta. The app said you'd been.", "It says here you're a {r}. You look like a {r2}.", "The app said ten past. It's ten past.", "Thanks. Sorry about the stairs.", "On the app you were a little car."],
     late: ["The app said twelve minutes.", "The app had you in the canal.", "It said you were outside. Twice.", "Cold. Not your fault. Still cold.", "The map had you going round the park."],
-    baby: ["That's the baby up. Brilliant.", "The note said. The note."],
     soggy: ["Why is it wet.", "It's soup now. It wasn't soup."],
     gate: ["That's not the code, you lemon.", "Wrong code. Try the right one."],
     trap: ["The app always sends them to the front.", "Round the back, love. The app never knows."],
@@ -140,7 +167,7 @@
   var stageIdx = 0, stage = null, clock = 0, rng = null, carRng = null;
   var rider, route, orders, deals, dealAt, nextTag, nextDealT, lastDealT, pulledTold;
   var rating, earned, spent, fees, delivered, onTime, lateCount, cancelled, babies;
-  var stageStats, owned, toasts, mapBubbles, fx, doorstep, taught, prev, hudEls, briefed, ended, goalsAt, toldOutside;
+  var stageStats, owned, toasts, mapBubbles, fx, doorstep, taught, hints, prev, hudEls, briefed, ended, goalsAt, toldOutside;
   var pointerDown = null, autoT = 0, autoDoorT = 0, autoWrong = false;
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -157,7 +184,8 @@
     stageIdx = DEBUG ? clamp((parseInt(params.get("stage"), 10) || 1) - 1, 0, 3) : 0;
     rating = START; earned = 0; spent = 0; fees = 0; delivered = 0; onTime = 0; lateCount = 0; cancelled = 0; babies = 0;
     owned = {};
-    taught = { pick: false, door: false, note: false };
+    taught = { pick: false, door: false, match: false };
+    hints = 0;
     nextTag = 1;
     // every stage's own stream, drawn now, so a choice never changes what a later stage deals
     var seeds = [0, 1, 2, 3].map(function () { return Math.floor(sh.random() * 4294967296); });
@@ -230,8 +258,12 @@
     lastDealT = -99;
     pulledTold = false;
   }
+  // The start of the shift is for finding your feet: one order at a time
+  // until the first is delivered
+  function intro() { return stageIdx === 0 && delivered === 0; }
   function dealOrders() {
     if (clock >= stage.len - LAST) return;
+    if (intro() && dealAt > 0) return;
     var load = orders.filter(function (o) { return o.state === "assigned" || o.state === "bag"; }).length;
     var early = load <= 1 && dealAt > 0 && clock - lastDealT >= PULL && clock < nextDealT;
     if ((clock >= nextDealT || early) && dealAt < deals.length) {
@@ -303,6 +335,7 @@
     };
     // the note, and what the doorstep will cycle through
     var tmpl = NOTES[type][deal.note % NOTES[type].length];
+    if (type === "knock") o.wake = KNOCK_WAKE[deal.note % NOTES.knock.length];
     if (type === "bell" || type === "knock" || type === "shout") {
       o.options = rotate(["Bell", "Knock", "Letterbox"], Math.floor(deal.opt * 3));
       o.answer = type === "bell" ? "Bell" : type === "knock" ? "Knock" : "Letterbox";
@@ -723,7 +756,7 @@
     // the app batches more on, whether you like it or not
     var r = o.deal.batch;
     var pending = deals.length - dealAt;
-    if (r < stage.batch && !o.batched && pending > 0 && clock < stage.len - LAST - 2 && bagCount() < bagSize()) {
+    if (r < stage.batch && !o.batched && !intro() && pending > 0 && clock < stage.len - LAST - 2 && bagCount() < bagSize()) {
       var d = deals.splice(dealAt + Math.floor(o.deal.first * Math.min(3, pending)), 1)[0];
       var b = assign(d.d, true, o.rest);
       if (b) {
@@ -754,55 +787,39 @@
   }
 
   // ---------------------------------------------------------------------------
-  // The doorstep: the choices cycle; press when it shows what the note says
+  // The doorstep: the note at the top, the choices under it. Match the note:
+  // pick the one it asks for (tap or click it, 1 to 3, or the arrows and
+  // Space). A wrong pick is crossed out and answered; a right one opens the door.
   // ---------------------------------------------------------------------------
-  var STEP = [0.72, 0.64, 0.58, 0.54];
   function startDoor(o, st) {
-    var opts = o.options;
-    var at0 = Math.floor(o.deal.perm * 7) % opts.length;
-    if (opts[at0] === o.answer) at0 = (at0 + 1) % opts.length;
-    doorstep = { o: o, st: st, opts: opts, at: at0, stepT: 0, step: STEP[stageIdx],
-                 t: 0, done: false, doneT: 0, wrongs: 0, flash: 0, line: null, shout: false, awake: false, slide: 0 };
+    doorstep = { o: o, st: st, opts: o.options, focus: 0, marks: {}, arrowed: false,
+                 t: 0, done: false, doneT: 0, wrongs: 0, line: null, miss: null, shout: false, awake: false };
+    // the pointer rings the right one on the first door, and after a mistake (three times a round)
+    doorstep.ring = !taught.match || (hintNext && !N.flags.clip);
+    hintNext = false;
     rider.busy = { kind: "door", stop: st, t: 0 };
     sfx("brake");
   }
-  function showing() {
-    var d = doorstep;
-    if (d.o.type === "photo") return d.opts[clamp(Math.round(d.slide), 0, d.opts.length - 1)];
-    return d.opts[d.at];
-  }
+  var hintNext = false;
+  var DONE_T = 2.3;    // how long the opened door stays up (the pick's tick is the first half second)
+  var TICK_T = 0.45;
   function updateDoor(dt) {
     var d = doorstep;
     if (!d) { finishStop(); return; }
     d.t += dt;
-    if (d.flash > 0) d.flash -= dt;
-    if (d.done) return;
-    d.stepT += dt;
-    if (d.o.type === "photo") {
-      // the viewfinder slides from door to door and rests on each
-      var n = d.opts.length, seq = [], i;
-      for (i = 0; i < n; i++) seq.push(i);
-      for (i = n - 2; i > 0; i--) seq.push(i);
-      if (d.seq0 == null) {
-        d.seq0 = 0;
-        for (i = 0; i < seq.length; i++) if (d.opts[seq[i]] !== d.o.answer) { d.seq0 = i; break; }
-      }
-      var k = d.stepT / d.step + d.seq0, idx = Math.floor(k) % seq.length, f = k - Math.floor(k);
-      var a = seq[idx], b = seq[(idx + 1) % seq.length];
-      var was = Math.round(d.slide);
-      d.slide = a + (b - a) * (f < 0.62 ? 0 : (f - 0.62) / 0.38);
-      if (Math.round(d.slide) !== was) sfx("tick");
-    } else if (d.stepT >= d.step) {
-      d.stepT -= d.step;
-      d.at = (d.at + 1) % d.opts.length;
-      sfx("tick");
-    }
   }
-  function press() {
+  // Right or wrong, said at once: the pick turns green with a tick or red with
+  // a cross, and the screen's edge flashes the same colour
+  var verdict = null;
+  function judge(ok) { verdict = { ok: ok, born: tNow }; }
+  function choose(i) {
     var d = doorstep;
-    if (!d || d.done || d.t < 0.05) return;
-    var o = d.o, shown = showing();
+    if (!d || d.done || d.t < 0.05 || i < 0 || i >= d.opts.length || d.marks[i] === false) return;
+    var o = d.o, shown = d.opts[i];
+    d.focus = i;
     if (shown === o.answer) {
+      d.marks[i] = true;
+      judge(true);
       if (shown === "Bell") sfx("bell");
       else if (shown === "Knock") sfx("knock");
       else if (shown === "Letterbox") sfx("shout");
@@ -811,22 +828,57 @@
       deliver(o, d.wrongs ? "fixed" : "ok");
       return;
     }
+    d.marks[i] = false;
     d.wrongs++;
-    d.flash = 0.5;
-    if (o.type === "knock" || (o.type === "back" && o.answer === "Knock")) {
-      if (shown === "Bell" || shown === "Letterbox") {
-        sfx(shown === "Bell" ? "bell" : "shout");
-        sfx("baby");
-        d.awake = true;
-        babies++;
-        rate(-0.05);
-        deliver(o, "baby");
-        return;
-      }
+    judge(false);
+    // shown the right one again at the next door
+    if (hints < 3) { hints++; hintNext = true; }
+    if (o.type === "knock" && o.wake && (shown === "Bell" || shown === "Letterbox")) {
+      // they come to the door, and they aren't pleased
+      sfx(shown === "Bell" ? "bell" : "shout");
+      sfx(o.wake === "baby" ? "baby" : o.wake === "dog" ? "bark" : "low");
+      d.awake = o.wake === "baby";
+      if (d.awake) babies++;
+      rate(-0.05);
+      deliver(o, "woke");
+      return;
     }
-    if (o.type === "bell" || o.type === "back" || o.type === "shout") { sfx(shown === "Bell" ? "bell" : shown === "Knock" ? "knock" : "shout"); rare("noanswer", "No answer", 2); return; }
-    if (o.type === "code") { sfx("buzzWrong"); d.line = pick(LINES.gate); rare("gate", "Gate: shut", 2); return; }
-    if (o.type === "photo") { sfx("shutter"); rate(-0.04); rare("photo", "Wrong door", 2); banner("Customer says it isn't there. You photographed next door."); }
+    if (o.type === "code") {
+      sfx("buzzWrong");
+      d.miss = "Buzz. “" + pick(LINES.gate) + "”";
+      rare("gate", "Gate: shut", 2);
+      return;
+    }
+    if (o.type === "photo") {
+      sfx("shutter");
+      rate(-0.04);
+      d.miss = MISS.photo;
+      rare("photo", "Wrong door", 2);
+      return;
+    }
+    sfx(shown === "Bell" ? "bell" : shown === "Knock" ? "knock" : "shout");
+    d.miss = MISS[o.type][shown].replace("{bk}", o.answer === "Bell" ? "ring" : "knock");
+    rare("noanswer", "No answer", 2);
+  }
+  // On keys the choice the arrows are on only lights once you've used them,
+  // so a lit one never reads as the answer; Space before then lights it
+  function press() {
+    var d = doorstep;
+    if (!d) return;
+    if (!d.arrowed || d.marks[d.focus] === false) { d.arrowed = true; moveFocus(0); return; }
+    choose(d.focus);
+  }
+  function moveFocus(k) {
+    var d = doorstep, n = d.opts.length;
+    if (!d.arrowed || k === 0) {
+      d.arrowed = true;
+      if (d.marks[d.focus] !== false) { sfx("tick"); return; }
+      k = 1;
+    }
+    for (var j = 1; j <= n; j++) {
+      var i = (d.focus + k * j + n * 4) % n;
+      if (d.marks[i] !== false) { d.focus = i; sfx("tick"); return; }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -847,10 +899,11 @@
     var late = Math.max(0, Math.ceil(now() - o.due));
     var lines = late > 0 ? LINES.late : stageIdx === 3 && o.deal.tip < 0.4 ? LINES.final : LINES.onTime;
     var line = pick(lines).replace("{r2}", Math.max(1, rating - 0.3).toFixed(1)).replace("{r}", rating.toFixed(1));
-    if (how === "baby") line = pick(LINES.baby);
+    if (how === "woke") line = pick(WAKE[o.wake].lines);
     else if (o.soggy) line = pick(LINES.soggy);
     d.line = line;
-    d.shout = late > 0 || how === "baby" || o.soggy;
+    d.shout = late > 0 || how === "woke" || o.soggy;
+    var r0 = rating;
     delivered++; stageStats.delivered++;
     earned += o.pay; fees += o.fees;
     stageStats.earned += o.pay; stageStats.fees += o.fees;
@@ -863,11 +916,18 @@
     }
     if (o.soggy) rate(-0.015);
     if (!taught.door) taught.door = true;
-    if (how !== "baby") taught.note = true;
+    if (how === "ok") taught.match = true;
+    // what it did, said on the doorstep where you're looking (the woken
+    // already cost rating before this, so count from before the pick)
+    var before = how === "woke" ? r0 + 0.05 : r0;
+    var good = how !== "woke" && !late && !o.soggy;
+    d.result = { ok: good, text: (how === "woke" ? WAKE[o.wake].word : late > 0 ? late + " min late" : o.soggy ? "Soggy" : "On time") +
+                 ". Rating " + (rating >= before ? "up" : "down") + " to " + rating.toFixed(2) };
+    tell("rating", "Deactivated under 4.40");
     // the stamp
-    var word = how === "baby" ? "Baby: awake" : o.type === "photo" ? "Left at door" : o.soggy ? "Soggy" : late > 0 ? "Late" : o.type === "code" ? "Gate: open" : "Delivered";
+    var word = how === "woke" ? WAKE[o.wake].word : o.type === "photo" ? "Left at door" : o.soggy ? "Soggy" : late > 0 ? "Late" : o.type === "code" ? "Gate: open" : "Delivered";
     shell.callout(word, { tilt: (Math.random() - 0.5) * 9, sound: false });
-    sfx(late > 0 || how === "baby" ? "low" : "coin");
+    sfx(late > 0 || how === "woke" ? "low" : "coin");
     // the app has something to say about it
     var tip = o.deal.tip;
     if (tip < 0.22) banner(o.name + " tipped 0p. Say thanks.");
@@ -955,7 +1015,7 @@
     if (shakeT > 0) shakeT -= dt;
     if (doorstep && doorstep.done) {
       doorstep.doneT += dt;
-      if (doorstep.doneT > 1.6) doorstep = null;
+      if (doorstep.doneT > DONE_T) doorstep = null;
     }
   }
 
@@ -963,22 +1023,28 @@
   function shake(t) { shakeT = t; }
 
   function readInput(input) {
+    var atDoor = doorstep && !doorstep.done;
     ["up", "down", "left", "right"].forEach(function (k) {
       var d = { up: "U", down: "D", left: "L", right: "R" }[k];
-      if (input[k] && !prev[k]) queue(d);
+      if (input[k] && !prev[k]) {
+        // at a door the arrows move between the choices
+        if (atDoor) moveFocus(k === "left" || k === "up" ? -1 : 1);
+        else queue(d);
+      }
       prev[k] = input[k];
     });
-    // Space or Enter: at a door, the button; anywhere else, ride to the
-    // highlighted order. 1 to 4: ride to that order on the phone.
+    // Space or Enter: at a door, pick the one the arrows are on; anywhere
+    // else, ride to the highlighted order. 1 to 4: at a door, pick that
+    // choice; anywhere else, ride to that order on the phone.
     if (input.action && !prev.action) {
-      if (doorstep && !doorstep.done) press();
+      if (atDoor) press();
       else { var f = focusOrder(); if (f && !(doorstep && doorstep.o === f)) routeToOrder(f); }
     }
     prev.action = input.action;
     ["o1", "o2", "o3", "o4"].forEach(function (k, i) {
       if (input[k] && !prev[k]) {
-        var o = listed()[i];
-        if (o && !(doorstep && !doorstep.done)) routeToOrder(o);
+        if (atDoor) choose(i);
+        else { var o = listed()[i]; if (o) routeToOrder(o); }
       }
       prev[k] = input[k];
     });
@@ -1088,13 +1154,15 @@
   function autopilot(dt) {
     autoT -= dt;
     if (doorstep && !doorstep.done) {
+      // reads the note, then picks: now and then the wrong one first
       var d = doorstep;
-      if (d.t < 0.35) { autoDoorT = 0; autoWrong = Math.random() < 0.05; return {}; }
-      var target = autoWrong ? d.opts.filter(function (x) { return x !== d.o.answer; })[0] : d.o.answer;
-      if (showing() === target) {
-        autoDoorT += dt;
-        if (autoDoorT > 0.12 + Math.random() * 0.05) { press(); autoDoorT = 0; autoWrong = false; }
-      } else autoDoorT = 0;
+      if (d.t < 0.35) { autoDoorT = 0.5 + Math.random() * 0.5; autoWrong = !d.wrongs && Math.random() < 0.1; return {}; }
+      autoDoorT -= dt;
+      if (autoDoorT > 0) return {};
+      var target = autoWrong ? d.opts.filter(function (x, i) { return x !== d.o.answer && d.marks[i] !== false; })[0] : d.o.answer;
+      autoWrong = false;
+      autoDoorT = 0.6;
+      choose(d.opts.indexOf(target));
       return {};
     }
     if (rider.busy) return {};
@@ -1124,8 +1192,8 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Pointer: a tap or a click rides there; a swipe steers; a tap on the
-  // doorstep is the button; a tap on an order rides to its next stop
+  // Pointer: a tap or a click rides there; a swipe steers; at a door a tap
+  // on a choice picks it; a tap on an order rides to its next stop
   // ---------------------------------------------------------------------------
   var hits = [];   // tappable things drawn this frame: { x, y, w, h, fn }
   function onDown(e) {
@@ -1183,22 +1251,24 @@
   }
 
   // ---------------------------------------------------------------------------
-  // HUD: the stage and the clock top left, the rating top right
+  // HUD: the stage and what you've delivered top left, the rating top right.
+  // No clock: each order's minutes are on its pin and its row.
   // ---------------------------------------------------------------------------
   function buildHud() {
     shell.hud.innerHTML =
-      '<div class="kit-hud-tl"><p class="kit-stat"><small data-stage>Lunch</small><span data-clock>12:00</span></p></div>' +
-      '<div class="kit-hud-tr"><p class="kit-stat"><small>Rating</small><span data-rating>4.70</span></p></div>';
+      '<div class="kit-hud-tl"><p class="kit-stat leave-done"><small data-stage>Lunch</small><span data-done>0</span><small>delivered</small></p></div>' +
+      '<div class="kit-hud-tr"><p class="kit-stat" data-rate-box><small>Rating</small><span data-rating>4.70</span></p></div>';
     hudEls = {
       stage: shell.hud.querySelector("[data-stage]"),
-      clock: shell.hud.querySelector("[data-clock]"),
-      rating: shell.hud.querySelector("[data-rating]")
+      done: shell.hud.querySelector("[data-done]"),
+      rating: shell.hud.querySelector("[data-rating]"),
+      rateBox: shell.hud.querySelector("[data-rate-box]")
     };
   }
   function paintHud() {
     if (!hudEls || !stage) return;
     hudEls.stage.textContent = stage.name;
-    hudEls.clock.textContent = hhmm(now());
+    hudEls.done.textContent = String(delivered);
     hudEls.rating.textContent = rating.toFixed(2);
     hudEls.rating.style.color = rating < 4.65 ? T.red : "";
   }
@@ -1305,7 +1375,9 @@
     if (!quiet) {
       if (doorstep) drawDoorstep(c);
       drawBanner(c);
+      drawTag(c);
     }
+    drawVerdict(c);
   }
 
   function minSize() { return 12.5 / L.S; }
@@ -1504,12 +1576,14 @@
     if (N.flags.clip || doorstep) return;
     var size = Math.max(2.6, 13 / L.S);
     var target = null, word = "";
+    // on keys the word keeps its rule and adds the key: "Pick up: 1"
+    function say(o, w) { return keyed() ? w + ": " + (listed().indexOf(o) + 1) : w; }
     if (!taught.pick) {
       var o = orders.filter(function (q) { return q.state === "assigned"; })[0];
-      if (o) { target = pinBoxes[o.rest.stop.id]; word = coarse() ? "Tap it" : "Pick up"; }
+      if (o) { target = pinBoxes[o.rest.stop.id]; word = say(o, "Pick up"); }
     } else if (!taught.door) {
       var b = orders.filter(function (q) { return q.state === "bag"; })[0];
-      if (b) { target = pinBoxes[stopOf(b).id]; word = "Deliver"; }
+      if (b) { target = pinBoxes[stopOf(b).id]; word = say(b, "Deliver"); }
     }
     if (!target || !target.box) return;
     var bx = target.box, st = target.st;
@@ -1519,6 +1593,7 @@
                 fn: function () { routeTo({ e: st.e, s: st.s }, st.id); } });
   }
   function coarse() { return shell.input.mode === "touch"; }
+  function keyed() { return shell.input.mode === "keys" || shell.input.mode === "pad"; }
 
   // ---------------------------------------------------------------------------
   // The phone: the app, the two numbers, the orders, the note. On a short
@@ -1627,7 +1702,9 @@
     }
     var fit = Math.max(1, Math.floor((b.h - 52 - 22) / (size + 2)));
     lines.slice(0, fit).forEach(function (l, i) { A.text(c, l, b.x + 10, b.y + 56 + i * (size + 2), size, { align: "left", colour: T.ink }); });
-    var foot = o.state === "assigned" ? (o.readyAt <= clock ? "Ready to collect." : "Being prepared.") : "Due " + hhmm(o.due) + ". Promised " + hhmm(o.promised) + ".";
+    var mins = minutesLeft(o), cut = o.promised - o.due;
+    var foot = o.state === "assigned" ? (o.readyAt <= clock ? "Ready to collect." : "Being prepared.") :
+      (mins > 0 ? "Due in " + mins + " min." : "Late.") + (cut > 0 ? " The app took " + cut + " off." : "");
     A.text(c, foot, b.x + 10, b.y + b.h - 11, 12, { align: "left", colour: T.ink, font: T.body, upper: false, max: b.w - 20 });
   }
 
@@ -1665,72 +1742,222 @@
     var w = Math.min(mw - 12, 470), h = Math.min(mh - 12, 340);
     return { x: L.mapX + (mw - w) / 2, y: L.mapY + (mh - h) / 2, w: w, h: h };
   }
+  // Where everything on the doorstep card goes: the note, the door, the
+  // choices (one box each, for drawing, tapping and the pointer's ring) and,
+  // at the bottom, a strip that says what to do or what your pick did
+  var STRIP = 32;
+  function doorLayout(c, d) {
+    var o = d.o, b = doorBox();
+    var size = b.w < 330 ? 16 : 19;
+    var lines = A.wrap(c, "“" + o.note + "”", size, b.w - 24).slice(0, 3);
+    var top = b.y + 42 + lines.length * (size + 2) + 2;
+    var area = { x: b.x + 10, y: top, w: b.w - 20, h: b.y + b.h - STRIP - top - 4 };
+    var lay = { b: b, size: size, lines: lines, area: area, tiles: [] };
+    var n = d.opts.length, i;
+    if (o.type === "photo") {
+      // three doors along the street, each one a choice
+      var gap = 14, dh = area.h - 6;
+      var dw = Math.min(dh * 0.55, (area.w - gap * (n - 1)) / n * 0.8);
+      var step = Math.min((area.w - dw) / (n - 1), dw + 40);
+      var x0 = area.x + (area.w - (step * (n - 1) + dw)) / 2;
+      for (i = 0; i < n; i++) lay.tiles.push({ x: x0 + i * step, y: area.y + 4, w: dw, h: dh - 4 });
+      return lay;
+    }
+    // the door (or the gate) on the left, the choices on the right
+    var sideW = Math.min(area.h * 0.5, area.w * 0.3);
+    lay.door = { x: area.x + 4, y: area.y, w: sideW, h: area.h };
+    var ch = { x: area.x + sideW + 16, y: area.y, w: area.w - sideW - 16, h: area.h };
+    var g = 8;
+    var tw = Math.min(118, (ch.w - g * (n - 1)) / n);
+    var th = o.type === "code" ? Math.min(ch.h - 8, tw * 0.9, 84) : Math.min(ch.h - 8, tw * 1.5);
+    var total = tw * n + g * (n - 1);
+    var tx0 = ch.x + (ch.w - total) / 2, ty0 = ch.y + (ch.h - th) / 2;
+    for (i = 0; i < n; i++) lay.tiles.push({ x: tx0 + i * (tw + g), y: ty0, w: tw, h: th });
+    return lay;
+  }
+
   function drawDoorstep(c) {
     var d = doorstep, o = d.o, b = doorBox();
-    var fade = d.done ? clamp((1.6 - d.doneT) / 0.35, 0, 1) : 1;
+    var fade = d.done ? clamp((DONE_T - d.doneT) / 0.35, 0, 1) : 1;
     if (fade <= 0) return;
+    var lay = doorLayout(c, d);
     c.globalAlpha = fade;
     var card = A.rr(b.x, b.y, b.w, b.h, 10);
     A.solid(c, card, T.paper, 3);
     c.fillStyle = T.accent;
     c.fillRect(b.x + 2, b.y + 2, b.w - 4, 7);
-    if (!d.done) hits.push({ x: b.x, y: b.y, w: b.w, h: b.h, fn: function () { press(); } });
+    // the card swallows taps, so nothing rides off underneath it; each choice is its own button
+    if (!d.done) {
+      hits.push({ x: b.x, y: b.y, w: b.w, h: b.h, fn: function () {} });
+      lay.tiles.forEach(function (r, i) { hits.push({ x: r.x - 4, y: r.y - 4, w: r.w + 8, h: r.h + 8, fn: function () { choose(i); } }); });
+    }
     // the note
     var who = (o.type === "back" ? "Round the back. " : "") + "Note from " + o.name;
     A.text(c, who, b.x + 12, b.y + 22, 12, { align: "left", colour: T.ink, font: T.body, upper: false, max: b.w - 24 });
-    var size = b.w < 330 ? 16 : 19;
-    var lines = A.wrap(c, "“" + o.note + "”", size, b.w - 24).slice(0, 3);
-    lines.forEach(function (l, i) { A.text(c, l, b.x + 12, b.y + 42 + i * (size + 2), size, { align: "left", colour: T.ink }); });
-    var top = b.y + 42 + lines.length * (size + 2) + 2;
-    var hintH = d.done ? 6 : 20;
-    var area = { x: b.x + 10, y: top, w: b.w - 20, h: b.y + b.h - hintH - top - 4 };
-    if (d.done) drawDoorDone(c, area, d);
-    else if (o.type === "photo") drawPhoto(c, area, d);
+    lay.lines.forEach(function (l, i) { A.text(c, l, b.x + 12, b.y + 42 + i * (lay.size + 2), lay.size, { align: "left", colour: T.ink }); });
+    var opened = d.done && d.doneT > TICK_T;
+    if (opened) drawDoorDone(c, lay.area, d);
     else {
-      // the door on the left, the choices on the right
-      var dw = Math.min(area.h * 0.5, area.w * 0.3);
-      if (o.type === "code") drawGate(c, area.x + 4, area.y + 2, dw, area.h - 4, false);
-      else A.frontDoor(c, area.x + 4 + dw * 0.1, area.y + area.h * 0.04, dw * 0.8, area.h * 0.86, o.type === "back" ? null : o.house.no, false, o.type === "back");
-      var ch = { x: area.x + dw + 16, y: area.y, w: area.w - dw - 16, h: area.h };
-      if (o.type === "code") drawCode(c, ch, d);
-      else drawBellKnock(c, ch, d);
+      if (lay.door) {
+        var dr = lay.door;
+        if (o.type === "code") drawGate(c, dr.x, dr.y + 2, dr.w, dr.h - 4, false);
+        else A.frontDoor(c, dr.x + dr.w * 0.1, dr.y + dr.h * 0.04, dr.w * 0.8, dr.h * 0.86, o.type === "back" ? null : o.house.no, false, o.type === "back");
+      }
+      lay.tiles.forEach(function (r, i) { drawChoice(c, r, d, i); });
     }
-    if (!d.done) {
-      var hint = (coarse() ? "Tap" : shell.input.mode === "mouse" ? "Click" : "Space") + " when it shows what the note says";
-      A.text(c, hint, b.x + b.w / 2, b.y + b.h - 12, 12, { colour: T.ink, font: T.body, upper: false, max: b.w - 20 });
-    }
-    if (d.flash > 0 && !d.done) {
-      A.ink(c, 4, T.red);
-      c.globalAlpha = Math.min(1, d.flash * 3) * fade;
-      c.stroke(card);
-    }
+    drawStrip(c, lay, d, opened);
     c.globalAlpha = 1;
-    // first time: point at the note
-    if (!taught.note && !N.flags.clip && !d.done) {
-      A.arrow(c, b.x + b.w - 50, b.y + 10, "Read this", tNow, 14, shell.reduceMotion);
-    }
+    if (d.ring && !d.done && !N.flags.clip) drawMatchRing(c, lay, d);
   }
 
-  function drawBellKnock(c, area, d) {
-    var n = d.opts.length, gap = 8;
-    var tw = Math.min(118, (area.w - gap * (n - 1)) / n), th = Math.min(area.h - 6, tw * 1.5);
-    var total = tw * n + gap * (n - 1);
-    var x0 = area.x + (area.w - total) / 2, y0 = area.y + (area.h - th) / 2;
-    d.opts.forEach(function (opt, i) {
-      var tx = x0 + i * (tw + gap);
-      var on = i === d.at;
-      A.solid(c, A.rr(tx, y0, tw, th, 7), on ? T.accent : T.paper, 2.5);
-      var cx = tx + tw / 2, cy = y0 + (th - 18) / 2 + 2;
-      var s = Math.min(th - 30, tw * 0.62);
-      if (opt === "Bell") A.doorbell(c, cx, cy, s * 0.85, on);
+  // One choice: paper; green with a tick when it was right, red with a cross
+  // when it wasn't; on keys, the one the arrows are on is lit and each has its number
+  function drawChoice(c, r, d, i) {
+    var o = d.o, opt = d.opts[i], mark = d.marks[i];
+    var lit = keyed() && d.arrowed && !d.done && d.focus === i && mark == null;
+    var fill = mark === true ? T.right : mark === false ? T.red : lit ? T.accent : T.paper;
+    var inkOn = mark === false ? T.paper : T.ink;
+    var cx = r.x + r.w / 2;
+    if (o.type === "photo") {
+      A.frontDoor(c, r.x, r.y + 4, r.w, r.h - 4, opt, false, i % 2 === 1);
+      if (lit) A.brackets(c, r.x - 8, r.y - 4, r.w + 16, r.h + 8, 12, 3.5, T.ink);
+      if (mark != null) {
+        A.solid(c, A.ell(cx, r.y + r.h * 0.42, Math.min(r.w * 0.36, 26), Math.min(r.w * 0.36, 26)), fill, 2.5);
+        tickCross(c, mark, cx, r.y + r.h * 0.42, Math.min(r.w * 0.18, 13), inkOn);
+      }
+    } else if (o.type === "code") {
+      A.solid(c, A.rr(r.x, r.y, r.w, r.h, 7), T.ink, 2.5);
+      var screen = A.rr(r.x + 6, r.y + 6, r.w - 12, r.h - 12, 4);
+      A.solid(c, screen, mark == null ? (lit ? T.paper : T.accent) : fill, 1.5);
+      var fs = Math.max(13, Math.min(26, (r.w - 18) / 3.2, r.h * 0.4));
+      A.text(c, opt, cx, r.y + r.h / 2 + 1, fs, { colour: inkOn });
+      if (mark != null) tickCross(c, mark, r.x + r.w - 15, r.y + 15, 6, inkOn);
+      if (lit) A.brackets(c, r.x - 4, r.y - 4, r.w + 8, r.h + 8, 10, 3.5, T.red);
+    } else {
+      A.solid(c, A.rr(r.x, r.y, r.w, r.h, 7), fill, 2.5);
+      var cy = r.y + (r.h - 18) / 2 + 2;
+      var sz = Math.min(r.h - 30, r.w * 0.62);
+      if (opt === "Bell") A.doorbell(c, cx, cy, sz * 0.85, false);
       else if (opt === "Knock") {
-        A.mitten(c, cx + s * 0.12, cy, s * 0.3, T.paper, false, 2);
-        [-1, 0, 1].forEach(function (k) { A.line(c, [[cx - s * 0.36, cy + k * s * 0.24], [cx - s * 0.56, cy + k * s * 0.3]], 2.2); });
-      } else A.letterbox(c, cx, cy, s, on);
-      A.text(c, opt, cx, y0 + th - 11, tw < 80 ? 12 : 14, { colour: T.ink, max: tw - 6 });
-      if (on) A.brackets(c, tx - 4, y0 - 4, tw + 8, th + 8, 10, 3.5);
+        A.mitten(c, cx + sz * 0.12, cy, sz * 0.3, T.paper, false, 2);
+        [-1, 0, 1].forEach(function (k) { A.line(c, [[cx - sz * 0.36, cy + k * sz * 0.24], [cx - sz * 0.56, cy + k * sz * 0.3]], 2.2); });
+      } else A.letterbox(c, cx, cy, sz, false);
+      A.text(c, opt, cx, r.y + r.h - 11, r.w < 80 ? 12 : 14, { colour: inkOn, max: r.w - 6 });
+      if (mark != null) {
+        A.solid(c, A.ell(r.x + r.w - 14, r.y + 14, 10, 10), mark ? T.right : T.red, 2);
+        tickCross(c, mark, r.x + r.w - 14, r.y + 14, 5, mark ? T.ink : T.paper);
+      }
+      if (lit) A.brackets(c, r.x - 4, r.y - 4, r.w + 8, r.h + 8, 10, 3.5, T.red);
+    }
+    if (keyed() && !d.done && o.type !== "photo") A.text(c, String(i + 1), r.x + 11, r.y + 13, 13, { colour: inkOn });
+    if (keyed() && !d.done && o.type === "photo") A.text(c, String(i + 1), cx, r.y + r.h + 1, 13, { colour: T.ink });
+  }
+  // a tick or a cross, so the colour is never the only signal
+  function tickCross(c, ok, x, y, s, colour) {
+    c.save();
+    c.strokeStyle = colour;
+    c.lineWidth = Math.max(2.5, s * 0.45);
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.beginPath();
+    if (ok) { c.moveTo(x - s, y); c.lineTo(x - s * 0.3, y + s * 0.75); c.lineTo(x + s, y - s * 0.75); }
+    else { c.moveTo(x - s * 0.8, y - s * 0.8); c.lineTo(x + s * 0.8, y + s * 0.8); c.moveTo(x + s * 0.8, y - s * 0.8); c.lineTo(x - s * 0.8, y + s * 0.8); }
+    c.stroke();
+    c.restore();
+  }
+
+  // The bottom of the card: what your pick did, or how to pick
+  function drawStrip(c, lay, d, opened) {
+    var b = lay.b, y = b.y + b.h - STRIP / 2 - 4;
+    var res = opened ? d.result : null;
+    var text = null, ok = null;
+    if (res) { text = res.text; ok = res.ok; }
+    else if (d.done) return;
+    else if (d.miss) { text = d.miss; ok = false; }
+    else if (d.ring && !N.flags.clip) return;   // the pointer's word sits here
+    if (text == null) {
+      var hint = coarse() ? "Tap what the note asks for" : shell.input.mode === "mouse" ? "Click what the note asks for" :
+        "Match the note: 1 to " + d.opts.length + ", or the arrows and Space";
+      A.text(c, hint, b.x + b.w / 2, y, 12.5, { colour: T.ink, font: T.body, upper: false, max: b.w - 20 });
+      return;
+    }
+    // a pill: green with a tick, or red with a cross, and the words beside it
+    var lines = A.wrap(c, text, 12.5, b.w - 64, T.body, false).slice(0, 2);
+    var lh = 14.5;
+    A.solid(c, A.ell(b.x + 22, y, 10, 10), ok ? T.right : T.red, 2);
+    tickCross(c, ok, b.x + 22, y, 5, ok ? T.ink : T.paper);
+    lines.forEach(function (l, i) {
+      A.text(c, l, b.x + 40, y + (i - (lines.length - 1) / 2) * lh, 12.5, { align: "left", colour: T.ink, font: T.body, weight: 600, upper: false });
     });
   }
+
+  // The pointer at the door: a dashed ring round the choice the note asks
+  // for, and "Match the note" under it (on keys, with its number)
+  function drawMatchRing(c, lay, d) {
+    var i = d.opts.indexOf(d.o.answer), r = lay.tiles[i];
+    if (!r || d.marks[i] != null) return;
+    var p = 6, calm = shell.reduceMotion;
+    c.save();
+    A.ink(c, 3, T.ink);
+    c.setLineDash([7, 5]);
+    c.lineDashOffset = calm ? 0 : -tNow * 20;
+    c.stroke(A.rr(r.x - p, r.y - p, r.w + p * 2, r.h + p * 2, 10));
+    c.restore();
+    if (d.miss) return;
+    var word = "Match the note" + (keyed() ? ": " + (i + 1) : ""), px = 13;
+    var tw = A.measure(c, word, px) + 16, th = px + 9;
+    var b = lay.b;
+    var tx = clamp(r.x + r.w / 2 - tw / 2, b.x + 6, b.x + b.w - tw - 6);
+    var ty = Math.max(r.y + r.h + p + 3, b.y + b.h - STRIP - 2) + (calm ? 0 : Math.sin(tNow * 6) * 1.5);
+    ty = Math.min(ty, b.y + b.h - th - 6);
+    A.solid(c, A.rr(tx, ty, tw, th, 4), T.ink, 0);
+    A.text(c, word, tx + tw / 2, ty + th / 2 + 1, px, { colour: T.paper });
+  }
+
+  // the edge of the screen flashes with the last pick's result
+  function drawVerdict(c) {
+    if (!verdict) return;
+    var a = tNow - verdict.born, len = 0.5;
+    if (a > len) { verdict = null; return; }
+    var k = shell.reduceMotion ? 1 : 1 - a / len;
+    c.save();
+    c.globalAlpha = 0.85 * k;
+    c.strokeStyle = verdict.ok ? T.right : T.red;
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, W - 10, H - 10);
+    c.restore();
+  }
+
+  // The rating decides the shift, so the first time it moves it gets the
+  // pointer: a dashed ring round it and a word under it, once a visit
+  var told = {}, tag = null, TAG_LEN = 2.6;
+  function tell(what, word) {
+    if (told[what] || N.flags.clip) return;
+    told[what] = true;
+    tag = { what: what, word: word, born: tNow + 0.7 };
+  }
+  function drawTag(c) {
+    if (!tag || !hudEls) return;
+    var age = tNow - tag.born, st = shell.state();
+    if (age < 0) return;
+    if (age > TAG_LEN || (st !== "playing" && st !== "paused")) { tag = null; return; }
+    var box = root.getBoundingClientRect(), e = hudEls.rateBox.getBoundingClientRect();
+    var r = { x: e.left - box.left, y: e.top - box.top, w: e.width, h: e.height }, p = 6;
+    var calm = shell.reduceMotion;
+    c.save();
+    A.ink(c, 3, T.paper);
+    c.setLineDash([7, 5]);
+    c.lineDashOffset = calm ? 0 : -tNow * 20;
+    c.stroke(A.rr(r.x - p, r.y - p, r.w + p * 2, r.h + p * 2, 8));
+    c.restore();
+    var px = 12;
+    var tw = A.measure(c, tag.word, px) + 14, th = px + 9;
+    var tx = clamp(r.x + r.w + p - tw, 4, W - tw - 4);
+    var ty = r.y + r.h + p + 3 + (calm ? 0 : Math.sin(tNow * 6) * 1.5);
+    A.solid(c, A.rr(tx, ty, tw, th, 4), T.ink, 2, T.paper);
+    A.text(c, tag.word, tx + tw / 2, ty + th / 2 + 1, px, { colour: T.paper });
+  }
+
   function drawGate(c, x, y, w, h, open) {
     // railings and a keypad on a post
     for (var i = 0; i < 5; i++) {
@@ -1740,31 +1967,6 @@
     }
     A.line(c, [[x - 2, y + h * 0.3], [x + w * 0.95, y + h * 0.3]], 3);
     A.line(c, [[x - 2, y + h * 0.75], [x + w * 0.95, y + h * 0.75]], 3);
-  }
-  function drawCode(c, area, d) {
-    var w = Math.min(210, area.w), h = Math.min(area.h - 6, 120);
-    var x = area.x + (area.w - w) / 2, y = area.y + (area.h - h) / 2;
-    A.solid(c, A.rr(x, y, w, h, 7), T.ink, 2.5);
-    A.solid(c, A.rr(x + 9, y + 8, w - 18, h - 30, 4), T.accent, 1.5);
-    A.text(c, d.opts[d.at].split("").join(" "), x + w / 2, y + 8 + (h - 30) / 2, Math.min(30, (h - 30) * 0.7), { colour: T.ink });
-    // which of the codes this is
-    d.opts.forEach(function (o, i) {
-      A.solid(c, A.ell(x + w / 2 + (i - (d.opts.length - 1) / 2) * 14, y + h - 11, 3.5, 3.5), i === d.at ? T.paper : T.ink, 1.2, T.paper);
-    });
-    A.brackets(c, x - 4, y - 4, w + 8, h + 8, 10, 3.5);
-  }
-  function drawPhoto(c, area, d) {
-    var n = d.opts.length, gap = 14;
-    var dh = area.h - 14, dw = Math.min(dh * 0.55, (area.w - gap * (n - 1)) / n * 0.8);
-    var step = Math.min((area.w - dw) / (n - 1), dw + 40);
-    var x0 = area.x + (area.w - (step * (n - 1) + dw)) / 2;
-    d.opts.forEach(function (num, i) {
-      A.frontDoor(c, x0 + i * step, area.y + 8, dw, dh - 8, num, false, i % 2 === 1);
-    });
-    // the viewfinder
-    var fx2 = x0 + d.slide * step - 8, fy = area.y;
-    A.brackets(c, fx2, fy, dw + 16, dh + 8, 12, 3.5, T.red);
-    A.solid(c, A.ell(fx2 + dw + 6, fy + 8, 3.5, 3.5), T.red, 0);
   }
   function drawDoorDone(c, area, d) {
     var o = d.o;
@@ -1834,6 +2036,7 @@
       case "thunk": s.tone(120, 0.15, { type: "sine", slide: 60, vol: 0.3 }); s.noise(0.1, { freq: 600, vol: 0.25 }); break;
       case "click": s.tone(1500, 0.02, { vol: 0.03 }); break;
       case "nope": s.tone(330, 0.1, { vol: 0.06 }); s.tone(262, 0.18, { vol: 0.06, delay: 0.1 }); break;
+      case "bark": [0.5, 0.75].forEach(function (d) { s.tone(420, 0.09, { type: "square", slide: 240, vol: 0.06, delay: d }); s.noise(0.06, { freq: 700, vol: 0.15, delay: d }); }); break;
       case "shout": s.tone(260, 0.25, { type: "sawtooth", slide: 340, vol: 0.06 }); s.tone(300, 0.3, { type: "sawtooth", slide: 220, vol: 0.06, delay: 0.26 }); break;
       case "brake": s.noise(0.12, { type: "bandpass", freq: 3200, q: 4, vol: 0.06 }); break;
       case "crowd":
@@ -1874,8 +2077,8 @@
     note: "One shift. Four rushes. The pay is the joke.",
     pitch: "Deliver the food. The app has promised it was already here.",
     hints: {
-      keys: "1 to 4 rides to an order, or steer with the arrow keys. Space at the door. P to pause.",
-      touch: "Tap where to go, or swipe to turn. Tap the doorstep at the door."
+      keys: "1 to 4 rides to an order. At the door, match the note: 1 to 3. P to pause.",
+      touch: "Tap where to go. At the door, match the note: tap what it asks for."
     },
     againLabel: "Log on again",
     daily: true,
@@ -1903,7 +2106,7 @@
   if (DEBUG) {
     window.__leave = {
       get state() { return { stage: stageIdx, clock: clock, rating: rating, delivered: delivered, earned: earned, fees: fees, orders: orders, rider: rider, route: route, doorstep: doorstep, owned: owned, L: L }; },
-      routeTo: routeTo, tap: tap, press: press, queue: queue, TW: TW, showing: function () { return doorstep && showing(); },
+      routeTo: routeTo, tap: tap, press: press, choose: choose, queue: queue, TW: TW,
       stopOf: stopOf, realStop: realStop, travel: travel, now: now, bagCount: bagCount, bagSize: bagSize, riderPlace: riderPlace
     };
   }
