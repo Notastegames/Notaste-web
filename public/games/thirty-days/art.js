@@ -139,7 +139,7 @@
     grease: { word: "Grease" },
     sugar: { word: "Sugar" },
     salt: { word: "Salt" },
-    leaf: { word: "Leaf?" }
+    leaf: { word: "Any desk" }
   };
   function stickerColours(kind) {
     if (kind === "grease") return { bg: T.accent, fg: T.ink, edge: T.ink };
