@@ -159,7 +159,9 @@
   var bubbles = [], fx = [], shake = 0, clock = 0;
   var hint = null, noticed = false, hudEls = null, talkWait = 0, mumble = 0, jingle = 0;
   var verdict = null;   // the last click's result, for the edge flash: { ok, born }
-  var tapAt = null;     // a finger tapped straight on something clickable (touch)
+  var tapAt = null;     // where a finger tapped (touch), and
+  var clickAt = null;   // where the mouse clicked: both go to tapped()
+  var armed = null;     // where the hand's headed: a button or Jump tapped or clicked on its way up, or a spot tapped
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
@@ -176,7 +178,7 @@
       time: 0, read: 0, total: 0, accepted: 0, rejected: 0, closed: 0, dodged: 0, clicked: 0, jumps: 0,
       owed: 0, times: [], picked: [], expired: false, hints: 0,
       mods: { speed: 1, warn: 1, videoLife: 1, reader: false, adblock: false, forever: false },
-      knows: { reject: false, close: false, video: false, jump: false, gap: false }
+      knows: { reject: false, close: false, video: false, jump: false, gap: false, round: false }
     };
     startCourse(FIRST);
   }
@@ -200,6 +202,8 @@
     noticed = false;
     hint = null;
     tapAt = null;
+    clickAt = null;
+    armed = null;
     verdict = null;
     paintHud();   // the countdown shows the new course, not the last one
   }
@@ -359,11 +363,18 @@
     run.time += dt;
 
     var auto = AUTO ? autopilot(dt) : null;
+    // steering for yourself lets go of anything tapped on its way up
+    if (armed && (input.steer || (input.aim.on && armed.by === "touch"))) armed = null;
     steer(dt, input, auto);
     var act = auto ? auto.act : input.action;
-    if (act && !prevAct) press();
+    if (act && !prevAct) {
+      // a mouse click goes where the pointer is (tapped)
+      if (clickAt && !auto && !G.tab) tapped(clickAt, "mouse");
+      else press();
+    }
     prevAct = act;
-    if (tapAt && !auto) tapped(tapAt);
+    clickAt = null;
+    if (tapAt && !auto) tapped(tapAt, "touch");
     tapAt = null;
 
     updatePopups(dt);
@@ -372,6 +383,7 @@
     if (G.tab && (G.tab.t += dt) >= G.tab.life) G.tab = null;
     loadAdverts();
     fireTriggers();
+    fireArmed(input);
     scrollPage(dt);
     G.hover = hovering();
     pickHint(dt);
@@ -392,6 +404,7 @@
     var want = null, speed = HAND_SPEED, nx;
     if (auto) { want = auto.x; speed = AUTO_SPEED; }
     else if (input.aim.on) { want = (input.aim.x - OX) / U; speed = AIM_SPEED; }
+    else if (armed && armed.by === "touch") { want = armedX(); speed = AIM_SPEED; }
     if (want != null) {
       hand.kv = 0;
       nx = hand.x + clamp(want - hand.x, -speed * dt, speed * dt);
@@ -747,6 +760,8 @@
       if (was !== hit.it) impact(hit.it, !!G.jump);
       if (G.jump) endJump(hit.it);
     } else {
+      // moving again after an advert stopped you: you went round it
+      if (was && was.kind === "advert" && ds > 0) run.knows.round = true;
       G.blocked = null;
       G.scroll += ds;
     }
@@ -1035,13 +1050,22 @@
       if (!run.knows.close) hint = { hv: { what: "close", p: p }, word: keyed(p.kind === "confirm" ? "Yes" : "Close") };
       return;
     }
+    // stopped by an advert (Accept all sends one straight at you): nothing
+    // closes it, so the pointer rings the way past, and does again for
+    // anyone still sat on one a few seconds later
+    var stop = G.blocked;
+    if (stop && stop.kind === "advert" && ((G.blockT > 0.4 && !run.knows.round) || G.blockT > 3)) {
+      var lane = laneBy(stop);
+      if (lane) { hint = { rect: lane, word: "Go round" }; return; }
+    }
     // the banner's Reject all, as it comes up, so there's time to get there
     var b = bannerNear(G.scroll, 30);
     if (b && !run.knows.reject && b.state === "up") {
       var r = null, m = null;
       b.buttons.forEach(function (k) { if (k.type === "reject") r = k; if (k.type === "manage") m = k; });
       var t = r || m;
-      if (t) hint = { hv: { what: "button", b: b, btn: t }, word: keyed(r ? "Reject all" : "Manage") };
+      // tapped already, on its way: its own ring says so
+      if (t && !(armed && armed.btn === t)) hint = { hv: { what: "button", b: b, btn: t }, word: keyed(r ? "Reject all" : "Manage") };
       return;
     }
     var v = G.video;
@@ -1053,7 +1077,7 @@
       for (var i = 0; i < G.items.length; i++) {
         var it = G.items[i];
         if (it.kind === "jump" && !it.fake && !it.used && it.y > G.scroll - 2 && it.y < G.scroll + 40) {
-          hint = { hv: { what: "jump", j: it }, word: keyed("Jump") };
+          if (!(armed && armed.j === it)) hint = { hv: { what: "jump", j: it }, word: keyed("Jump") };
           return;
         }
       }
@@ -1062,6 +1086,24 @@
       var row = storyRowAt(G.scroll + 6) || storyRowAt(G.scroll);
       if (row) hint = { rect: { x0: row.gx - row.gw / 2 + 1, x1: row.gx + row.gw / 2 - 1, y0: HY + row.y - G.scroll, y1: HY + row.y - G.scroll + 12 }, word: "White space" };
     }
+  }
+
+  // The way past an advert you've run into: the open side the fingertip
+  // reaches first (a roomy one, if there is one), from the fingertip to the
+  // advert's bottom edge, clear of the scrollbar. It keeps to the side it
+  // picked, so it doesn't flick across as you move.
+  function laneBy(a) {
+    var y0 = HY - 2, y1 = HY + a.y - G.scroll + a.h;
+    var sides = [
+      { k: "left", gap: a.x0, d: hand.x - a.x0 + TIP, r: { x0: Math.min(1.5, a.x0 - 4), x1: a.x0 - 1, y0: y0, y1: y1 } },
+      { k: "right", gap: 100 - a.x1, d: a.x1 + TIP - hand.x, r: { x0: a.x1 + 1, x1: Math.max(96.5, a.x1 + 4), y0: y0, y1: y1 } }
+    ].filter(function (o) { return o.gap > TIP * 2 + 0.5; });
+    var roomy = sides.filter(function (o) { return o.gap >= 8; });
+    if (roomy.length) sides = roomy;
+    sides.sort(function (p, q) { return (q.k === a.lane) - (p.k === a.lane) || p.d - q.d; });
+    if (!sides.length) return null;
+    a.lane = sides[0].k;
+    return sides[0].r;
   }
 
   // Where a clickable thing is on screen: page x, screen y, in units
@@ -1099,14 +1141,21 @@
   }
 
   // On a touch screen, tapping the button you want clicks it, as long as the
-  // hand can get there: Reject all, a pop-up's X, Jump to recipe. Only a
-  // quick tap counts, so a thumb put down on a banner to steer doesn't press
-  // Accept all. The Click button still works for anyone who'd rather.
+  // hand can get there: Reject all, a pop-up's X, Jump to recipe. One still
+  // on its way up is clicked as it arrives (armAt), and a tap on nothing in
+  // particular sends the hand there. Only a quick tap counts, so a thumb put
+  // down on a banner to steer doesn't press Accept all. The Click button
+  // still works for anyone who'd rather.
   var touchDown = {};
   root.addEventListener("pointerdown", function (e) {
-    if (e.pointerType === "mouse" || !shell || shell.state() !== "playing") return;
+    if (!shell || shell.state() !== "playing") return;
     var t = e.target;
     if (t && t.closest && t.closest(".kit-panel, .kit-bar, .kit-pad, button, a")) return;
+    if (e.pointerType === "mouse") {
+      var box = root.getBoundingClientRect();
+      if (e.button === 0) clickAt = { x: (e.clientX - box.left - OX) / U, y: (e.clientY - box.top) / U };
+      return;
+    }
     touchDown[e.pointerId] = { x: e.clientX, y: e.clientY, at: performance.now() };
   });
   root.addEventListener("pointerup", function (e) {
@@ -1118,7 +1167,10 @@
     tapAt = { x: (d.x - box.left - OX) / U, y: (d.y - box.top) / U };
   });
   root.addEventListener("pointercancel", function (e) { delete touchDown[e.pointerId]; });
-  function tapped(at) {
+  // (a mouse click comes here too: what the pointer's on gets clicked, even
+  // if the hand hasn't caught it up, and a click on nothing presses whatever
+  // is at the fingertip, as it always did)
+  function tapped(at, by) {
     if (!G || G.tab || G.over) return;
     var keep = hand.x, found = null;
     // a fingertip is wide: try where it landed, then a little either side
@@ -1133,11 +1185,77 @@
       return true;
     });
     hand.x = keep;
-    if (found == null) return;
+    if (found == null) {
+      // nothing to click there: a button on its way up waits for the hand,
+      // or a tap sends the hand where you tapped
+      if (!modal() && armAt(at, by)) return;
+      if (by === "mouse") press();
+      else if (!modal()) armed = { what: "spot", x: clamp(at.x, TIP, 100 - TIP), by: by, born: clock };
+      return;
+    }
     var nx = walls(hand.x, found);
-    if (Math.abs(nx - found) > 0.01) return;
+    if (Math.abs(nx - found) > 0.01) { if (by === "mouse") press(); return; }
     hand.x = found;
     press();
+  }
+
+  // A banner's button or a Jump to recipe, tapped or clicked while it's still
+  // on its way up the screen, gets a ring and waits: a tap sends the hand
+  // over to it, and either way it's clicked the moment it's at the
+  // fingertip, so the page doesn't stop. Steering for yourself lets go of it
+  // (and with a mouse, so does moving off it).
+  function armAt(at, by) {
+    var t = ahead(at);
+    if (!t) return false;
+    t.by = by;
+    armed = t;
+    var r = rectOf(t);
+    fx.push({ kind: "ring", x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2, t: 0, life: 0.3 });
+    shell.sound.tone(1200, 0.025, { vol: 0.05 });
+    return true;
+  }
+  // What's under a tap below the fingertip: a banner's button or a Jump
+  function ahead(at) {
+    var best = null, bd = Infinity;
+    function consider(hv) {
+      var r = rectOf(hv);
+      if (!r || at.x < r.x0 - 2 || at.x > r.x1 + 2 || at.y < r.y0 - 5 || at.y > r.y1 + 4) return;
+      var d = Math.abs(at.x - (r.x0 + r.x1) / 2) + Math.abs(at.y - (r.y0 + r.y1) / 2);
+      if (d < bd) { bd = d; best = hv; }
+    }
+    var bottom = G.scroll - HY + VH;
+    for (var i = 0; i < G.items.length; i++) {
+      var it = G.items[i];
+      if (it.y > bottom) break;
+      if (it.kind === "banner" && it.state === "up" && !it.dead && it.y + it.row > G.scroll + 0.01) {
+        for (var k = 0; k < it.buttons.length; k++) consider({ what: "button", b: it, btn: it.buttons[k] });
+      } else if (it.kind === "jump" && !it.used && it.y > G.scroll) consider({ what: "jump", j: it });
+    }
+    return best;
+  }
+  // the nearest place on it, a little in from its edge
+  function armedX() {
+    if (armed.what === "spot") return armed.x;
+    var s = armed.what === "button" ? armed.btn : armed.j, m = Math.min(4, (s.x1 - s.x0) / 4);
+    return clamp(clamp(hand.x, s.x0 + m, s.x1 - m), TIP, 100 - TIP);
+  }
+  function fireArmed(input) {
+    var a = armed;
+    if (!a) return;
+    if (a.what === "spot") {
+      if (Math.abs(hand.x - a.x) < 0.3 || clock - a.born > 0.6) armed = null;
+      return;
+    }
+    var gone = a.what === "button" ? a.b.dead || a.b.state !== "up" || a.b.buttons.indexOf(a.btn) < 0
+                                   : a.j.used || a.j.y + a.j.h + 3 < G.scroll;
+    var s = a.what === "button" ? a.btn : a.j, mx = (input.aim.x - OX) / U;
+    if (gone || (a.by === "mouse" && input.aim.on && (mx < s.x0 - 2 || mx > s.x1 + 2))) { armed = null; return; }
+    if (modal()) return;
+    var hv = hovering();
+    if (hv && hv.what === a.what && (a.what === "button" ? hv.btn === a.btn : hv.j === a.j)) {
+      armed = null;
+      press();
+    }
   }
 
   // The two numbers that decide the run get the pointer once a visit, after
@@ -1155,6 +1273,14 @@
   }
   function tickTags(dt) {
     if (!tags.length || hint || shell.state() !== "playing") return;
+    // a phone's HUD has no room for the page's progress: straight to the clock
+    var el = shell.hud.querySelector(tags[0].el);
+    if (!el || !el.parentNode.getBoundingClientRect().width) {
+      var wait = Math.min(tags[0].age, 0);
+      tags.shift();
+      if (tags.length) tags[0].age = Math.min(tags[0].age, wait);
+      return;
+    }
     tags[0].age += dt;
     if (tags[0].age > TAG_LEN) tags.shift();
   }
@@ -1452,7 +1578,8 @@
     drawSideAds(c);
     drawVideo(c);
     drawPopups(c);
-    drawHover(c);
+    drawHover(c, G.hover);
+    drawHover(c, armed);
     if (!G.tab) drawHand(c);
     drawFx(c);
     drawScrollbar(c);
@@ -2130,8 +2257,8 @@
   }
 
   // ---------- you're on it: a ring round whatever the fingertip would click ----------
-  function drawHover(c) {
-    var hv = G.hover;
+  // (and the same ring round a button tapped on its way up, armAt)
+  function drawHover(c, hv) {
     if (!hv || shell.state() !== "playing") return;
     var r = rectOf(hv);
     if (!r) return;
@@ -2438,6 +2565,15 @@
   // ---------------------------------------------------------------------------
   // Start it up
   // ---------------------------------------------------------------------------
+  // An iPad fills the window rather than going into Safari's full screen,
+  // which closes (and so pauses the round) when a finger drags down the
+  // screen, and steering here is a finger on the screen. Given a screen that
+  // can't ask for full screen, the kit fills the window instead.
+  var screenEl = root.closest(".screen");
+  var apple = /iP(hone|ad|od)/.test(navigator.platform || "") ||
+    (/Mac/.test(navigator.platform || "") && navigator.maxTouchPoints > 1);
+  if (apple && screenEl) screenEl.requestFullscreen = screenEl.webkitRequestFullscreen = null;
+
   shell = N.createGame({
     root: root,
     slug: "just-the-recipe",
@@ -2474,6 +2610,8 @@
       G: function () { return G; },
       run: function () { return run; },
       hand: function () { return hand; },
+      armed: function () { return armed; },
+      hint: function () { return hint; },
       state: function () { return shell.state(); },
       view: function () { return { U: U, HY: HY, VH: VH, OX: OX, W: W, H: H }; },
       seed: function () { return shell.seed; },
