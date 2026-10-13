@@ -27,6 +27,18 @@
 //   4. The late one (23:45): half the stickers have come off, so you have to
 //      know a doughnut is sugar. The big items have two stickers and need
 //      sorting twice.
+// TEACHING IT IN THE FIRST SECONDS. The move has one name everywhere (the
+// notice, the pointer, the title hint, How to play): match the sticker.
+// Breakfast opens with four items served one at a time, grease and sugar,
+// and the meal's clock doesn't start until they're sorted. The pointer (a
+// dashed ring with a word on it) does the teaching, one thing at a time:
+// "Match the sticker" round the right desk until that desk has had something
+// right; "Four meals to bed" round the meal in the HUD after the first thing
+// filed; "Full: signed off" round the pipes the first time they move. A wrong
+// desk brings the desk's ring back (three times a round at most). Every send
+// says right or wrong on the plate: a green tick, or a red cross, the screen's
+// edge flashing red and what it cost under the plate ("Wrong desk: pipes +5%").
+//
 // The clerks tire as the day goes on: each meal they stamp a little slower,
 // so the in-trays fill, and Flush (or holding an item back while the chute
 // has room) is how you keep up.
@@ -130,6 +142,9 @@
   var RATE = 1 / 1.9;      // things a desk stamps through a second
   var QUEUE_MAX = 5;        // things waiting in the chute, not counting the plate
   var CLOG = { wrong: 5, spill: 14, swallow: 11 };
+  // breakfast opens with these, one at a time, before its clock starts
+  var INTRO = ["hashbrown", "cola", "burger", "doughnut"];
+  var MOVE = "Match the sticker";
   var DRAIN = 0.7;          // pipe cleared a second
   var FLUSH_WAIT = 8;       // seconds for the hatch to recharge
   var REST = 15;            // pipe cleared between meals
@@ -161,10 +176,11 @@
 
   // What the clerks say. Two short lines at most.
   var SAY = {
+    // the first line names what they've been given ("A cola?"), this is the second
     wrong: {
-      liver: [["Not my", "department"], ["Does that look", "greasy"], ["Try next door"]],
-      pancreas: [["Not my", "department"], ["That's not", "sugar"], ["Wrong desk"]],
-      kidneys: [["We only", "do salt"], ["Not ours"], ["Wrong desk.", "Both of us"]]
+      liver: ["Not grease", "Try next door", "Does that look greasy", "Not my department"],
+      pancreas: ["Not sugar", "Try next door", "Wrong desk", "Not my department"],
+      kidneys: ["We only do salt", "Not ours", "Wrong desk. Both of us"]
     },
     full: [["We're full"], ["Take a", "number"], ["Tray's full"], ["One pair", "of hands"]],
     filed: {
@@ -239,7 +255,7 @@
       streak: 0, bestStreak: 0, peak: 0, taken: [],
       mods: { score: 1, rate: 1, cap: 0, deals: 1, drain: 1, flush: 1, refillAll: false,
               speed: { liver: 1, pancreas: 1, kidneys: 1 }, mix: { grease: 1, sugar: 1, salt: 1 } },
-      signedOff: false, done: false,
+      signedOff: false, done: false, hints: 0,
       pipesCarry: 0
     };
     briefed = -1;
@@ -273,12 +289,17 @@
       flushSpin: 0,
       stageWrong: 0, stageSpills: 0, stageFiled: 0,
       speaker: { talk: 0, say: null, t: 0, idle: 4 },
+      intro: run.stage === 0 ? 0 : INTRO.length,
       heart: { say: null, t: 0, worried: false, poke: 0 },
       intakeOpen: 0,
       endT: 0,
       auto: { think: 0, item: null },
-      hint: { liver: 0, pancreas: 0, kidneys: 0, flush: 0 },
-      taught: run.taught || { first: 0, kidneys: false, flush: false },
+      hint: { flush: 0 },
+      ring: null,
+      marks: [],
+      pill: null,
+      verdict: null,
+      taught: run.taught || { liver: false, pancreas: false, kidneys: false, leaf: false, flush: false },
       nextId: 1,
       shake: 0,
       alarmT: 0
@@ -288,7 +309,6 @@
       G.desks[id] = { id: id, tray: [], proc: 0, stampK: 0, say: null, sayT: 0, mood: "idle", moodT: 0, flash: 0, wobble: 0,
                       open: id !== "kidneys" || !!st.kidneys };
     });
-    if (run.stage === 0 && !G.taught.first) G.taught.first = 0;
     speak(pick(SAY.speakerStart), 2.4);
     setFlushPad();
   }
@@ -404,13 +424,25 @@
       it.bounce = 1;
       it.bounceDir = id === "liver" ? -1 : id === "pancreas" ? 1 : 0;
       d.flash = 1;
-      say(d, pick(SAY.wrong[id]), 1.5);
+      // they say what you gave them, so the wrong move is its own joke
+      var what = FOODS[it.food].name;
+      say(d, [what.charAt(0).toUpperCase() + what.slice(1) + "?", pick(SAY.wrong[id])], 1.6);
       mood(d, "shout", 0.9);
       sfx.wrong();
       call("Not my department");
+      judge(false, L.plate.x, L.plate.y - 3);
+      pill("Wrong desk: pipes +" + CLOG.wrong + "%");
+      // and the right desk gets its ring back, three times a round at most
+      var right = deskFor(need);
+      if (right && run.hints < 3) { run.hints++; G.taught[right] = false; }
       return;
     }
     var full = d.tray.length + countFlying(id) >= cap();
+    // right: a tick on the plate, and while it's being taught the edge flashes too
+    var learning = (leaf ? !G.taught.leaf : !G.taught[id]) || (run.stage === 0 && G.stageFiled < INTRO.length);
+    if (!full) judge(true, L.plate.x, L.plate.y - 3, !learning);
+    if (leaf) G.taught.leaf = true;
+    else G.taught[id] = true;
     var piece = it;
     if (it.kinds.length > 1 && it.step < it.kinds.length - 1) {
       // a big one: half of it goes, the rest stays on the plate
@@ -433,6 +465,7 @@
     }
     G.stageFiled++;
     run.filed++;
+    tell("meal", "Four meals to bed");
     if (leaf) {
       run.leaves++;
       score(25);
@@ -495,6 +528,7 @@
 
   function clog(n, from) {
     G.pipes += n;
+    tell("pipes", "Full: signed off");
     run.peak = Math.max(run.peak, G.pipes);
     G.blobs.push({ t: 0, x: from ? L[from.id].tray.x : L.plate.x, y: from ? L[from.id].tray.y : L.plate.y, n: n });
     if (G.pipes > 60 && !G.heart.say && Math.random() < 0.5) heartSay(pick(SAY.heartWorry.slice(1)), 1.6);
@@ -549,7 +583,9 @@
 
   function play(dt, input) {
     var st = info();
-    G.clock += dt;
+    // breakfast's first few come one at a time, and its clock waits for them
+    var intro = G.intro < INTRO.length;
+    if (!intro) G.clock += dt;
 
     // controls: a fresh press only
     var auto = AUTOPILOT ? autopilot(dt) : null;
@@ -567,7 +603,16 @@
     }
 
     // arrivals
-    if (G.clock < st.time) {
+    if (intro) {
+      // the next one once the plate's clear and any ring has had its moment
+      if (!G.plate && !G.queue.length && !G.flying.length && !(tag && anim - tag.born < 1)) {
+        G.spawnWait -= dt;
+        if (G.spawnWait <= 0) {
+          arrive(makeItem(INTRO[G.intro++]));
+          G.spawnWait = 0.45;
+        }
+      }
+    } else if (G.clock < st.time) {
       G.spawnWait -= dt;
       if (G.spawnWait <= 0) spawn();
       if (st.deal) {
@@ -669,7 +714,10 @@
     if (G.heart.t > 0) { G.heart.t -= dt; if (G.heart.t <= 0) G.heart.say = null; }
     G.heart.poke = Math.max(0, G.heart.poke - dt * 2);
     G.shake = Math.max(0, G.shake - dt * 3);
-    ["liver", "pancreas", "kidneys", "flush"].forEach(function (k) { G.hint[k] = Math.max(0, G.hint[k] - dt); });
+    G.hint.flush = Math.max(0, G.hint.flush - dt);
+    G.marks = G.marks.filter(function (m) { m.t += dt; return m.t < 0.5; });
+    if (G.pill) { G.pill.t += dt; if (G.pill.t > 1.3) G.pill = null; }
+    if (G.verdict) { G.verdict.t += dt; if (G.verdict.t > 0.5) G.verdict = null; }
   }
 
   function land(f) {
@@ -679,6 +727,8 @@
     }
     if (f.to === "pipes") {
       clog(CLOG.swallow, null);
+      judge(false);
+      pill("Chute full: pipes +" + CLOG.swallow + "%");
       G.fx.push({ kind: "splat", x: L.gauge.x, y: L.gauge.y + L.gauge.h * 0.3, t: 0, dur: 0.6 });
       G.heart.poke = 1;
       if (!G.heart.say) heartSay(pick(SAY.heartSpill), 1.3);
@@ -695,6 +745,8 @@
       G.shake = Math.max(G.shake, 0.8);
       sfx.spill();
       call("Overflow");
+      judge(false);
+      pill("Tray full: pipes +" + CLOG.spill + "%");
       if (!f.spill) { G.stageSpills++; run.spills++; G.stageFiled--; run.filed--; breakStreak(); }
       return;
     }
@@ -702,23 +754,27 @@
     sfx.land();
   }
 
-  // Bobbing arrows that teach the controls, the first few times they matter
+  // The pointer: a dashed ring round the one thing to do right now, with the
+  // move's name on it, until you've shown you know
   function teach() {
+    G.ring = null;
     var it = G.plate;
-    if (!it || it.drop < 1) return;
+    if (run.flushed) G.taught.flush = true;
+    if (!it || it.drop < 1 || it.bounce > 0.3) return;
     var need = it.kinds[it.step];
     var id = need === "leaf" ? null : deskFor(need);
-    if (run.stage === 0 && G.stageFiled < 5 && id) G.hint[id] = 0.2;
-    // the first lettuce: any open desk takes it, so point at the least busy
-    if (need === "leaf" && !run.leaves) G.hint[it.leafTo = it.leafTo || leafDesk()] = 0.2;
-    if (id === "kidneys" && !G.taught.kidneys) {
-      G.hint.kidneys = 0.2;
-      if (G.desks.kidneys.tray.length) G.taught.kidneys = true;
+    var keys = pointerMode === "keys" && !touching();
+    // on keys the word keeps its rule and adds the key: "Match the sticker: Left"
+    if (need === "leaf" && !G.taught.leaf) {
+      var to = it.leafTo = it.leafTo || leafDesk();
+      G.ring = { what: to, word: keys ? "Any desk: " + KEYS[to] : "Any desk" };
+    } else if (id && G.desks[id].open && !G.taught[id]) {
+      G.ring = { what: id, word: keys ? MOVE + ": " + KEYS[id] : MOVE };
+    } else if (info().flush && !G.taught.flush && G.flushWait === 0 && id && G.desks[id].tray.length >= cap() - 1) {
+      G.ring = { what: "hatch", word: keys ? "Flush: Space" : "Flush" };
+    } else if (G.hint.flush > 0) {
+      G.ring = { what: "hatch", word: "Recharging" };
     }
-    if (info().flush && !G.taught.flush && G.flushWait === 0 && id && G.desks[id].tray.length >= cap() - 1) {
-      G.hint.flush = 0.2;
-    }
-    if (run.flushed) G.taught.flush = true;
   }
 
   // ---------------------------------------------------------------------------
@@ -871,21 +927,21 @@
   }
 
   // ---------------------------------------------------------------------------
-  // HUD: the day and the meal top left, the score and the pipes top right
+  // HUD: the day and which meal of four top left, the score top right. The
+  // pipes are the gauge by the Heart, and nothing else: one meter, one place.
+  // No clock or streak in play; the streak says itself in callouts.
   // ---------------------------------------------------------------------------
   function buildHud() {
     shell.hud.innerHTML =
       '<div class="kit-hud-tl">' +
         '<p class="kit-stat"><small>Day</small><span data-day>1</span></p>' +
-        '<p class="kit-stat"><small data-meal>Breakfast</small><span data-clock>07:30</span></p>' +
+        '<p class="kit-stat" data-meals><small data-meal>Breakfast</small><span data-of>1 of 4</span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big" data-score>0</p>' +
-        '<p class="kit-meter" data-pipes><span class="kit-meter-label">Pipes</span><span class="kit-meter-bar"><span data-pipes-bar style="background: var(--red)"></span></span></p>' +
-        '<p class="kit-stat" data-minor><small>Streak</small><span data-streak>x1</span></p>' +
       '</div>';
     hudEls = {};
-    ["day", "meal", "clock", "score", "streak", "pipes", "pipes-bar"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
+    ["day", "meal", "meals", "of", "score"].forEach(function (k) { hudEls[k] = shell.hud.querySelector("[data-" + k + "]"); });
   }
   function setText(node, text) { if (node && node.textContent !== text) node.textContent = text; }
   function paintHud() {
@@ -893,12 +949,8 @@
     var st = info();
     setText(hudEls.day, run.day + " of 30");
     setText(hudEls.meal, st.name);
-    setText(hudEls.clock, clockText(st.at + Math.min(G.clock, st.time)));
+    setText(hudEls.of, (run.stage + 1) + " of " + STAGES.length);
     setText(hudEls.score, fmt(run.score));
-    setText(hudEls.streak, "x" + mult());
-    var k = clamp(G.pipes / 100, 0, 1);
-    hudEls["pipes-bar"].style.width = (k * 100).toFixed(1) + "%";
-    hudEls.pipes.classList.toggle("is-full", k > 0.75);
   }
 
   // The Flush button only shows once there's a hatch, and fills as it recharges
@@ -1066,9 +1118,20 @@
     drawFlying(c);
     drawFx(c);
     drawBubbles(c);
-    drawHints(c);
+    drawMarks(c);
+    drawTeaching(c);
     if (G.phase === "off") {
       A.stamp(c, L.cx, L.plate.y - 2, "Signed off", 7, -0.1, Math.min(1, G.endT * 3), 1 + Math.max(0, 0.3 - G.endT) * 2);
+    }
+    // the edge of the screen flashes with a send's result
+    if (G.verdict) {
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ctx.save();
+      ctx.globalAlpha = 0.85 * (shell.reduceMotion ? 1 : 1 - G.verdict.t / 0.5);
+      ctx.strokeStyle = G.verdict.ok ? T.right : T.red;
+      ctx.lineWidth = 10;
+      ctx.strokeRect(5, 5, W - 10, H - 10);
+      ctx.restore();
     }
   }
 
@@ -1265,23 +1328,133 @@
     }
   }
 
-  function drawHints(c) {
-    if (G.phase !== "play" || shell.state() !== "playing") return;
-    var bob = shell.reduceMotion ? 0 : Math.sin(anim * 6) * 1.2;
-    DESKS.forEach(function (id) {
-      if (G.hint[id] <= 0) return;
-      var lo = L[id];
-      var word = touching() ? "Tap" : pointerMode === "keys" ? KEYS[id] : "Click";
-      if (id === "kidneys") A.arrow(c, lo.x + 15, lo.deskY - 14 + bob, word, 5, "down");
-      else if (id === "liver") A.arrow(c, L.plate.x - L.plate.r - 4 + bob, L.plate.y - 1, word, 5, "left");
-      else A.arrow(c, L.plate.x + L.plate.r + 4 - bob, L.plate.y - 1, word, 5, "right");
+  // Right or wrong, said at once on the plate, where the eyes are: a green
+  // tick or a red cross, and (for a mistake) what it cost, just under it.
+  // The edge flashes red for every mistake, and green only while it's being
+  // taught: right is most of the game, and a flash a second would be noise.
+  function judge(ok, x, y, quiet) {
+    if (x != null) G.marks.push({ ok: ok, x: x, y: y, t: 0 });
+    if (!quiet) G.verdict = { ok: ok, t: 0 };
+  }
+  function pill(text) { G.pill = { text: text, t: 0 }; }
+
+  function drawMarks(c) {
+    G.marks.forEach(function (m) {
+      var k = m.t / 0.5, s = 4.2 * (shell.reduceMotion ? 1 : 0.8 + Math.min(1, k * 4) * 0.2);
+      var x = m.x + (m.ok ? L.plate.r * 0.75 : 0), y = m.y - (m.ok ? 5 + (shell.reduceMotion ? 0 : k * 3) : 0);
+      c.save();
+      c.globalAlpha *= 1 - Math.max(0, k - 0.6) / 0.4;
+      A.ell(c, x, y, s, s);
+      A.fill(c, m.ok ? T.right : T.red, 0.6, T.ink);
+      mark(c, m.ok, x, y, s * 0.5, m.ok ? T.ink : T.paper);
+      c.restore();
     });
-    if (G.hint.flush > 0) {
-      var hh = L.hatch;
-      // on a touch screen it points at the Flush button in the corner
-      var ay = padsOn() ? WH - px(110) : hh.y - hh.r * 1.6;
-      A.arrow(c, padsOn() ? WW - px(52) : hh.x, ay + bob, touching() ? "Flush" : pointerMode === "keys" ? "Space" : "Flush", 5, "down");
+    if (G.pill) {
+      var p = G.pill, fs = Math.max(3.4, px(13));
+      A.font(c, fs);
+      var word = p.text.toUpperCase();
+      var tw = A.textWidth(c, word, fs) + fs * 2.6, th = fs * 1.9;
+      var x = clamp(L.plate.x - tw / 2, 1, WW - tw - 1), y = L.plate.y + L.plate.r * 0.5 + 2;
+      // under the plate, unless the notice is over that: then just over the food
+      var brief = root.querySelector(".kit-brief.is-on");
+      if (brief && brief.getBoundingClientRect().top - root.getBoundingClientRect().top < (y + th) * U) y = L.plate.y - 13 - th;
+      c.save();
+      c.globalAlpha *= p.t > 1 ? 1 - (p.t - 1) / 0.3 : 1;
+      A.rr(c, x, y, tw, th, th / 2);
+      A.fill(c, T.red, 0.6, T.ink);
+      mark(c, false, x + fs * 0.95, y + th / 2, fs * 0.32, T.paper);
+      c.fillStyle = T.paper;
+      c.textAlign = "left";
+      c.textBaseline = "middle";
+      A.text(c, word, x + fs * 1.7, y + th / 2 + fs * 0.05, fs);
+      c.restore();
     }
+  }
+
+  // a tick or a cross, so the colour is never the only signal
+  function mark(c, ok, x, y, s, colour) {
+    c.save();
+    A.pen(c, Math.max(0.5, s * 0.45), colour);
+    c.beginPath();
+    if (ok) { c.moveTo(x - s, y); c.lineTo(x - s * 0.3, y + s * 0.75); c.lineTo(x + s, y - s * 0.75); }
+    else { c.moveTo(x - s * 0.8, y - s * 0.8); c.lineTo(x + s * 0.8, y + s * 0.8); c.moveTo(x + s * 0.8, y - s * 0.8); c.lineTo(x - s * 0.8, y + s * 0.8); }
+    c.stroke();
+    c.restore();
+  }
+
+  // The meters that decide the day each get the pointer once a visit, the
+  // first time they matter: the meal in the HUD after the first thing filed,
+  // the pipes the first time they move. One ring at a time: a meter's ring
+  // waits a moment (so the clog has landed), and steps aside for a desk's
+  // ring once it's been read.
+  var told = {}, tag = null, TAG_LEN = 2.4;
+  function tell(what, word) {
+    if (told[what] || N.flags.clip || AUTOPILOT) return;
+    told[what] = true;
+    tag = { what: what, word: word, born: anim + 0.5 };
+  }
+
+  function boxOf(node) {
+    var r = root.getBoundingClientRect(), b = node.getBoundingClientRect();
+    return { x: (b.left - r.left) / U, y: (b.top - r.top) / U, w: b.width / U, h: b.height / U };
+  }
+
+  function drawTeaching(c) {
+    if (G.phase !== "play" || shell.state() !== "playing") { if (shell.state() !== "paused") tag = null; return; }
+    var r = null, word = null, below = true;
+    if (tag) {
+      var age = anim - tag.born;
+      if (age > TAG_LEN || (age > 1.2 && G.ring)) tag = null;
+      else if (age >= 0) {
+        word = tag.word;
+        if (tag.what === "pipes") {
+          var g = L.gauge;
+          r = { x: g.x - g.w / 2 - 2, y: g.y - 2, w: g.w + 7, h: g.h + 4 };
+          below = false;
+        } else if (hudEls && hudEls.meals) {
+          r = boxOf(hudEls.meals);
+          r.x -= 1; r.y -= 0.6; r.w += 2; r.h += 1.2;
+        }
+      }
+    }
+    if (!r && G.ring && !(tag && anim < tag.born)) {
+      word = G.ring.word;
+      if (G.ring.what === "hatch") {
+        var pad = padsOn() && root.querySelector('.kit-pad[data-key="flush"]');
+        if (pad) { r = boxOf(pad); r.x -= 1; r.y -= 1; r.w += 2; r.h += 2; }
+        else { var hh = L.hatch; r = { x: hh.x - hh.r * 1.6, y: hh.y - hh.r * 1.6, w: hh.r * 3.2, h: hh.r * 3.2 }; }
+        below = false;
+      } else {
+        var b = L[G.ring.what].hit;
+        r = { x: b.x, y: b.y + 1, w: b.w, h: b.h - 1 };
+        // the Kidneys are at the bottom, so their word goes over them
+        below = false;
+      }
+    }
+    if (!r) return;
+    var lw = Math.max(0.5, px(3));
+    c.save();
+    A.rr(c, r.x, r.y, r.w, r.h, 1.6);
+    c.lineWidth = lw;
+    c.strokeStyle = T.paper;
+    c.setLineDash([px(7), px(5)]);
+    c.lineDashOffset = shell.reduceMotion ? 0 : -anim * px(20);
+    c.stroke();
+    c.setLineDash([]);
+    var fs = Math.max(3.4, px(13));
+    A.font(c, fs);
+    var text = word.toUpperCase();
+    var tw = A.textWidth(c, text, fs) + fs * 1.2, th = fs + fs * 0.8;
+    var bob = shell.reduceMotion ? 0 : Math.sin(anim * 6) * 0.4;
+    var tx = clamp(r.x + r.w / 2 - tw / 2, 1, WW - tw - 1);
+    var ty = below ? r.y + r.h + 1 + bob : r.y - th - 1 + bob;
+    A.rr(c, tx, ty, tw, th, 1);
+    A.fill(c, T.ink, lw * 0.8, T.paper);
+    c.fillStyle = T.paper;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    A.text(c, text, tx + tw / 2, ty + th / 2 + fs * 0.05, fs);
+    c.restore();
   }
 
   // ---------------------------------------------------------------------------
@@ -1291,11 +1464,11 @@
     var touch = touching();
     var text;
     if (run.stage === 0) {
-      text = touch
-        ? "Tap the desk on each item's sticker: grease to the Liver, sugar to the Pancreas. A full in-tray spills into the pipes. Fill the pipes and you're signed off."
-        : "Send each item to the desk on its sticker: grease left to the Liver, sugar right to the Pancreas. A full in-tray spills into the pipes. Fill the pipes and you're signed off.";
+      // goal, move, cost: three short sentences
+      text = "Get through four meals to make it to bed. Match the sticker: " + (touch ? "tap" : "send the food to") +
+        " the desk wearing the same one. Mistakes fill the pipes, and full pipes sign you off.";
     } else if (run.stage === 1) {
-      text = "The Kidneys are back from their break: salt goes to them" + (touch ? "." : " (down arrow).") +
+      text = "The Kidneys are back from their break. Match the sticker: salt goes to them" + (touch ? "." : " (down arrow).") +
         " Meal deals come three at a time.";
     } else if (run.stage === 2) {
       text = "New: Flush " + (touch ? "(the Flush button)" : "(Space or up arrow)") +
@@ -1432,8 +1605,8 @@
     note: "Four meals a day. Three desks. Nobody does lettuce.",
     pitch: "Thirty days of fast food. Your insides are a council office, and the in-trays are full.",
     hints: {
-      keys: "Left, right and down send the food to a desk. Space flushes, from dinner. P to pause.",
-      touch: "Tap a desk to send it the food, or swipe from the plate."
+      keys: "Match the sticker: left, right or down sends the food to that desk. P to pause.",
+      touch: "Match the sticker: tap the desk with the same one. Make it to bed."
     },
     againLabel: "Another day",
     daily: true,
