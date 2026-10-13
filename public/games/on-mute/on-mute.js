@@ -73,7 +73,8 @@
 // down before anything's said to you). Each meeting talks on its own clock,
 // whatever's said to you, every line dealt from a deck.
 //   1. The stand-up (09:00, 24s). Graham, Priya and Dave (frozen). Your name
-//      and questions only, with long windows. Priya gives her update; Dave
+//      and questions only, with long windows. It's practice: nobody talks
+//      to you until you've filled three gaps, and what you miss is forgiven. Priya gives her update; Dave
 //      unfreezes at the end to ask if you can repeat that.
 //   2. The team meeting (10:00, 30s). Six tiles, and the cat. People ask Pam
 //      things, and Pam says no. Now and then a locked "Do not edit" row: let
@@ -111,7 +112,7 @@
 //   Approved        all four meetings, 4 or 5 reputation, at least 22,000
 //   Pending review  all four meetings
 //   Not approved    removed from the all-hands or the last meeting
-//   Rejected        removed from the stand-up or the team meeting
+//   Rejected        removed from the team meeting (the stand-up is practice)
 //
 // TODAY'S RUN
 // Each meeting is planned from its own seeded streams when it starts: who
@@ -163,6 +164,10 @@
   // The first thing anyone says to you, in seconds after Go: the notice is
   // up until just before its tell (the countdown is 2.35s of the notice's ms)
   var T0S = [4.4, 4.0, 4.0, 4.0], NOTICE_MS = [6000, 5700, 5700, 5700];
+  // The stand-up is practice: nobody talks to you until you've filled this
+  // many gaps (or this many seconds have gone), and what you miss is free
+  var WARM_GAPS = 3, WARM_MAX = 11;
+  var RESHOW = 3;               // the pointer comes back after a mistake, this often a day
 
   // start: the meeting's clock (minutes past midnight), mins: how long it says
   // it lasts. time: seconds of play. slots: what happens to you, in order
@@ -366,7 +371,7 @@
     run = {
       stage: FIRST, score: 0, rep: REP_MAX, inbox: INBOX_START, boxes: 0, sheets: 0, wrong: 0,
       nods: 0, yeps: 0, hidden: 0, missed: 0, volunteered: 0, streak: 0, bestStreak: 0,
-      taken: [], removed: false, removedAt: "", learned: {}, metCat: FIRST >= 2,
+      taken: [], removed: false, removedAt: "", learned: {}, reshown: {}, metCat: FIRST >= 2,
       mods: { grace: 1, askWin: 1, nameWin: 1, ahead: 0, boxPts: 1, extraAsks: 0, catCount: 1, catTime: 1, nodPts: 1,
               emailGap: 1, sheetPts: 1, forgive: 0, stall: 1, streakStep: 1 }
     };
@@ -611,7 +616,8 @@
       speaking: {}, gaze: null, tiles: [], volunteerAt: -9, chaseAt: -99, closedAt: -9, camNodAt: -9,
       missed: 0, forgiven: 0, stageYeps: 0, stageNods: 0, stageVolunteered: 0, stageBoxes: 0, stageSheets: 0,
       agreed: [], said: {}, rowCache: {},
-      briefed: false, hint: null, nod: 0, yepT: 0, flash: 0, seen: 0, lastPaste: 0, sheetFlash: 0
+      briefed: false, hint: null, nod: 0, yepT: 0, flash: 0, seen: 0, lastPaste: 0, sheetFlash: 0,
+      verdict: null, pill: null, tag: null
     };
     G.tiles = st.cast.map(function (id, i) {
       return { id: id, p: A.PEOPLE[id], i: i, dark: 0, tunnel: 0, tunnelT: 3 + i };
@@ -819,6 +825,8 @@
       run.streak = 0;
       sfx.wrong();
       shake(0.35);
+      judge(false, "sheet");
+      reshow("paste");
       if (G.share) loseRep("share", pickFrom("oops", SHARE_OOPS), reactor());
       else say("Not responding", 1, true);
       return;
@@ -833,6 +841,8 @@
     run.boxes++;
     G.stageBoxes++;
     run.learned.paste = (run.learned.paste || 0) + 1;
+    // the first gap: the meeting's count gets its ring, so you know what you're getting through
+    if (run.boxes === 1) tell("meeting", "Get through 4");
     nextRow();
     G.pasted = 1;
     sfx.paste(run.streak);
@@ -956,6 +966,7 @@
       if (G.cat && !G.cat.seen && (G.cat.phase === "door" || G.cat.phase === "walk")) {
         // hidden, just in time
         run.learned.camOff = true;
+        judge(true);
       }
     } else {
       run.learned.camOn = true;
@@ -1001,6 +1012,29 @@
   var decks = {};
   function pickFrom(name, list) { return (decks[name] || (decks[name] = deck(list)))(); }
 
+  // Right or wrong, said at once (DESIGN.md section 3, "Right and wrong"):
+  // your tile's frame goes green with a tick or red with a cross, and the
+  // screen's edge flashes the same colour. A wrong box flashes the edge red
+  // (the box itself already says #N/A); a right one goes green in the box.
+  function judge(ok, where) { G.verdict = { ok: ok, t: G.time, where: where || "you" }; }
+  // what a miss cost, said on your tile, where your eyes already are
+  function pill(text, free) { G.pill = { text: text, free: free, t: G.time }; }
+  // a mistake on something you'd been shown: the pointer comes back for it,
+  // up to three times a day
+  function reshow(what) {
+    if (!what || !run.learned[what] || (run.reshown[what] || 0) >= RESHOW) return;
+    run.reshown[what] = (run.reshown[what] || 0) + 1;
+    if (what === "paste") run.learned.paste = Math.min(run.learned.paste, 2);
+    else run.learned[what] = false;
+  }
+  // A meter's ring and its word: once a visit, a moment after whatever moved it
+  var told = {};
+  function tell(what, word) {
+    if (told[what] || N.flags.clip || AUTOPILOT) return;
+    told[what] = true;
+    G.tag = { what: what, word: word, t: G.time + 0.6 };
+  }
+
   // Something's been dealt with or missed: its bubble stops being for you
   function settle() {
     G.bubbles.forEach(function (b) {
@@ -1027,6 +1061,7 @@
       if (o.reply) G.later.push({ t: G.time + 0.9, who: o.who, line: o.reply });
     }
     run.score += pts;
+    judge(true);
     addStamp(label, 0.75);
     if (pts) popAtYou("+" + pts);
     if (o.kind === "round") roundNext(0.9);
@@ -1051,6 +1086,19 @@
 
   function loseRep(why, line, who) {
     if (G.phase !== "play") return;
+    judge(false);
+    reshow(why === "name" ? "nod" : why === "cat" ? "camOff" : why === "dish" ? "mute" : why === "cam" ? "camOn" : why === "chase" ? "" : "yep");
+    // the stand-up is practice: they say so, and it costs nothing (the
+    // reputation gets its ring, so you know what it'll cost from now on)
+    if (run.stage === 0) {
+      G.forgiven++;
+      if (line) speak(who || info().host, line, 2);
+      addStamp("Forgiven", 0.9);
+      pill("Practice: free", true);
+      tell("practice", "Next meeting: -1");
+      lookAtYou(1.2);
+      return;
+    }
     if (run.mods.forgive && !G.forgiven && why !== "share") {
       G.forgiven = 1;
       speak(who || info().host, "Sorry, you broke up there.", 1.8);
@@ -1061,6 +1109,8 @@
     run.missed++;
     G.missed++;
     G.flash = 1;
+    pill("Reputation -1", false);
+    tell("rep", "None left: removed");
     shake(0.6);
     sfx.lose();
     if (line) speak(who || (info().id === "email" ? reactor() : info().host), line, 2);
@@ -1074,6 +1124,7 @@
   // Beats: things people say, on a timetable
   // ---------------------------------------------------------------------------
   var PRE = 0.6;      // the tell: everyone turns to look at you this long before they say it
+  function warming() { return run.stage === 0 && G.stageBoxes < WARM_GAPS && G.time < WARM_MAX; }
   function tickBeats() {
     for (var i = 0; i < G.beats.length; i++) {
       var b = G.beats[i];
@@ -1085,6 +1136,8 @@
       var mine = b.kind === "name" || b.kind === "ask" || b.kind === "share";
       var busy = (mine || b.kind === "round") && (G.share || G.open || G.round || G.time - G.closedAt < 0.9);
       if (b.kind === "name" && !G.cam.on) busy = true;
+      // the stand-up waits for you to get going on the sheet, and for the meeting's ring
+      if (mine && run.stage === 0 && (warming() || G.tag)) busy = true;
       if (b.t > G.time) {
         if (mine && !busy && b.t - G.time <= PRE && G.pre !== b) { G.pre = b; G.preAt = G.time; lookAtYou(PRE + 0.3); }
         continue;
@@ -1519,6 +1572,10 @@
       G.endT += dt;
       if (G.cat) tickCat(dt);
     }
+    if (G.tag) {
+      var age = G.time - G.tag.t;
+      if (age > 2.2 || (G.open && age > 0.6) || G.phase !== "play") G.tag = null;
+    }
     tickFx(dt);
     pickHint();
     if (st !== "results") paintHud();
@@ -1572,7 +1629,8 @@
   function popAtYou(text) {
     var y = L.you, rad = badgeRadius(y);
     if (y.w < 170) return;
-    G.pops.push({ x: y.x + y.w - rad - 8, y: y.y + rad + 8 + (G.open ? rad * 2 + 16 : 0), text: text, t: 0 });
+    var below = G.open || verdictOn("you");
+    G.pops.push({ x: y.x + y.w - rad - 8, y: y.y + rad + 8 + (below ? rad * 2 + 16 : 0), text: text, t: 0 });
   }
 
   // Someone says something: a bubble from their tile, and their mouth moves
@@ -1697,39 +1755,45 @@
     }
   }
 
-  // The one thing worth pointing at right now (DESIGN.md, section 10)
+  // The one thing worth pointing at right now (DESIGN.md, section 10). The
+  // moves have one name each, the same in the notice, the title screen's hint
+  // and How to play: Fill the gap, Nod, Say yep, Mute again, Camera off.
+  // On keys each word keeps its rule and adds the key.
   function pickHint() {
     G.hint = null;
     if (G.phase !== "play" || shell.state() !== "playing" || AUTOPILOT) return;
     var touch = touching(), keys = !touch && pointerMode !== "mouse";
+    function word(rule, key, pad) { return touch ? rule + ": " + pad : keys ? rule + ": " + key : rule; }
     var o = G.open;
     if (o && o.kind === "name" && !run.learned.nod) {
-      G.hint = { at: "nod", word: touch ? "Tap Nod" : keys ? "Nod: N" : "Nod" };
+      G.hint = { at: "nod", word: word("Nod", "N", "Nod") };
       return;
     }
     if (o && o.kind !== "name" && !run.learned.yep) {
-      G.hint = { at: "mic", word: touch ? "Tap Mic" : keys ? "Unmute: Space" : "Unmute" };
+      G.hint = { at: "mic", word: word("Say yep", "Space", "Mic") };
       return;
     }
     if (G.mic.live && G.mic.answered && !run.learned.mute) {
-      G.hint = { at: "mic", word: touch ? "Mute: tap Mic" : keys ? "Mute: Space" : "Mute" };
+      G.hint = { at: "mic", word: word("Mute again", "Space", "Mic") };
       return;
     }
     if (G.cat && G.cam.on && (G.cat.phase === "door" || G.cat.phase === "walk") && !run.learned.camOff) {
-      G.hint = { at: "cam", word: touch ? "Tap Cam" : keys ? "Camera off: C" : "Camera off" };
+      G.hint = { at: "cam", word: word("Camera off", "C", "Cam") };
       return;
     }
     if (!G.cam.on && (!G.cat || G.cat.phase === "gone") && !run.learned.camOn) {
-      G.hint = { at: "cam", word: touch ? "Camera on: Cam" : keys ? "Camera on: C" : "Camera on" };
+      G.hint = { at: "cam", word: word("Camera on", "C", "Cam") };
       return;
     }
+    // a meter's ring is up: one pointer at a time
+    if (G.tag && G.time >= G.tag.t) return;
     if (curRow() && curRow().skip && !run.learned.skip) {
       G.hint = { at: "row", word: "Leave it" };
       return;
     }
     if ((run.learned.paste || 0) < 4 && G.stall <= 0 && curRow() && !curRow().skip) {
       var side = curRow().empty;
-      G.hint = { at: "box", side: side, word: touch ? "Tap" : keys ? (side ? "Right" : "Left") : "Click" };
+      G.hint = { at: "box", side: side, word: touch ? "Fill the gap" : keys ? "Fill the gap: " + (side ? "Right" : "Left") : "Fill the gap" };
     }
   }
 
@@ -1737,15 +1801,15 @@
   function notice() {
     var touch = touching(), text;
     if (run.stage === 0) {
-      text = touch ? "Tap the empty box in each row. Someone says your name: Nod. Someone asks you something: Mic, then Mic again to mute."
-        : "Paste into the empty box: left or right. Someone says your name: nod (N or Down). Someone asks you something: unmute (Space or Up), then mute again.";
+      // goal, move, cost, and nothing else: the rest is taught in play
+      text = "Look busy through four meetings. Fill the gap in each row of your sheet, and nod when you hear your name. Misses cost reputation, but this one's practice.";
     } else if (run.stage === 1) {
-      text = "The cat has found out you're on a call. When the door opens, " + (touch ? "camera off (Cam)" : "camera off (C)") +
-        " before it reaches the desk, and back on once it's gone. A row that says Do not edit: leave it.";
+      text = "Practice is over: every miss costs reputation, and with none left you're removed. The cat has found out you're on a call: " +
+        (touch ? "camera off (Cam)" : "camera off (C)") + " before it reaches the desk.";
     } else if (run.stage === 2) {
-      text = "Questions to everyone aren't for you. Only answer the ones with your name in. When they go round the room, unmute when it gets to you. Pam has done some rows: leave those.";
+      text = "Questions to everyone aren't for you: only answer the ones with your name in. When they go round the room, say yep when it gets to you.";
     } else {
-      text = "Graham is reading out an email. He'll ask you to share your screen: say yep, then don't paste into a full box while everyone's watching.";
+      text = "Graham is reading out an email. He'll ask you to share your screen: say yep, then don't fill a full box while everyone's watching.";
     }
     shell.brief({ title: info().name, text: text, ms: NOTICE_MS[run.stage] });
   }
@@ -1844,7 +1908,9 @@
     var arrowBox = hintBox();
     drawBubbles(c, arrowBox);
     drawHint(c);
+    drawTag(c);
     if (G.phase === "removed") drawRemoved(c);
+    drawEdge(c);
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     if (G.speaking) Object.keys(G.speaking).forEach(function (k) { G.speaking[k] -= dt || 0; if (G.speaking[k] <= 0) delete G.speaking[k]; });
   }
@@ -2179,8 +2245,9 @@
       c.stroke();
       c.setLineDash([]);
     } else {
-      c.lineWidth = o ? 3 + pulse * 2 : G.flash > 0 ? 4 : 2;
-      c.strokeStyle = o ? T.accent : G.flash > 0 && Math.floor(G.flash * 8) % 2 ? T.red : T.paper;
+      var v = verdictOn("you");
+      c.lineWidth = o ? 3 + pulse * 2 : v || G.flash > 0 ? 4 : 2;
+      c.strokeStyle = o ? T.accent : v ? (v.ok ? T.right : T.red) : G.flash > 0 && Math.floor(G.flash * 8) % 2 ? T.red : T.paper;
       c.stroke();
     }
     // your name tag, top left, with your mic: violet (then red) while you're live
@@ -2192,6 +2259,99 @@
     if (live) micRing(c, r, tag, left);
     if (o) badge(c, r, o, now);
     else if (next) chip(c, x + w - 6, y + 6, "You're next", "right", T.accent);
+    else drawVerdictMark(c, r);
+    drawPill(c, r);
+  }
+
+  // Right or wrong on your tile: a tick or a cross where the badge was
+  function verdictOn(where) {
+    var v = G.verdict;
+    return v && v.where === where && G.time - v.t < 0.6 ? v : null;
+  }
+  function drawVerdictMark(c, r) {
+    var v = verdictOn("you");
+    if (!v) return;
+    var rad = badgeRadius(r) * 0.8;
+    var bx = r.x + r.w - rad - 8, by = r.y + rad + 8;
+    A.ell(c, bx, by, rad, rad);
+    A.fill(c, v.ok ? T.right : T.red, 2.4, T.ink);
+    mark(c, v.ok, bx, by, rad * 0.5, v.ok ? T.ink : T.paper);
+  }
+  // What a miss cost, on your tile under your name tag, so it's said where
+  // you're already looking ("Reputation -1", or "Practice: free")
+  function drawPill(c, r) {
+    var p = G.pill;
+    if (!p) return;
+    var age = G.time - p.t;
+    if (age > 1.6 || G.phase !== "play") { G.pill = null; return; }
+    var size = W < 480 ? 11 : 13;
+    c.save();
+    c.globalAlpha = clamp((1.6 - age) * 4, 0, 1);
+    c.font = size + "px " + T.display;
+    var tw = A.textWidth(c, p.text.toUpperCase(), size) + 14, th = size + 10;
+    // under your name tag, over the kitchen: clear of your face, the badge and the stamps
+    var x = r.x + 5, y = r.y + 10 + tagSize() * 2.6;
+    A.rr(c, x, y, tw, th, th / 2);
+    A.fill(c, p.free ? T.paper : T.red, 2, T.ink);
+    c.fillStyle = p.free ? T.ink : T.paper;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    A.text(c, p.text.toUpperCase(), x + tw / 2, y + th / 2 + size * 0.06, size);
+    c.restore();
+  }
+
+  // The screen's edge flashes with the last thing you did, right or wrong
+  function drawEdge(c) {
+    var v = G.verdict;
+    if (!v) return;
+    var a = G.time - v.t, len = 0.5;
+    if (a > len) return;
+    // a right box is said in the box; the edge is for the call, and for a wrong box
+    if (v.where === "sheet" && v.ok) return;
+    c.save();
+    c.globalAlpha = 0.85 * (shell.reduceMotion ? 1 : 1 - a / len);
+    c.strokeStyle = v.ok ? T.right : T.red;
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, W - 10, H - 10);
+    c.restore();
+  }
+
+  // A meter's ring: dashed paper round it, and its word on a tag beside it
+  function drawTag(c) {
+    var g = G.tag;
+    if (!g || G.time < g.t || (shell.state() !== "playing" && shell.state() !== "paused")) return;
+    var el = g.what === "meeting" ? hudEls && hudEls.stage && hudEls.stage.parentNode : hudEls && hudEls.rep;
+    if (!el) return;
+    var box = root.getBoundingClientRect(), e = el.getBoundingClientRect();
+    if (!e.width) return;
+    var r = { x: e.left - box.left, y: e.top - box.top, w: e.width, h: e.height };
+    var calm = shell.reduceMotion, t = performance.now() / 1000;
+    var p = 5;
+    c.save();
+    A.rr(c, r.x - p, r.y - p, r.w + p * 2, r.h + p * 2, 7);
+    c.strokeStyle = T.paper;
+    c.lineWidth = 3;
+    c.setLineDash([7, 5]);
+    c.lineDashOffset = calm ? 0 : -t * 20;
+    c.stroke();
+    c.setLineDash([]);
+    var px = 12;
+    c.font = px + "px " + T.display;
+    var tw = A.textWidth(c, g.word.toUpperCase(), px) + 14, th = px + 9;
+    // beside it, to the right (the HUD's other numbers are under it), or
+    // under it where the pause bar is in the way
+    var bob = calm ? 0 : Math.sin(t * 6) * 1.5;
+    var tx = r.x + r.w + p + 6, ty = r.y + r.h / 2 - th / 2 + bob;
+    var bar = root.querySelector(".kit-bar"), bl = bar ? bar.getBoundingClientRect().left - box.left : W;
+    if (tx + tw > bl - 4) { tx = r.x - p; ty = r.y + r.h + p + 3 + bob; }
+    tx = clamp(tx, 4, W - tw - 4);
+    A.rr(c, tx, ty, tw, th, 4);
+    A.fill(c, T.ink, 2, T.paper);
+    c.fillStyle = T.paper;
+    c.textAlign = "left";
+    c.textBaseline = "middle";
+    A.text(c, g.word.toUpperCase(), tx + 7, ty + th / 2 + px * 0.06, px);
+    c.restore();
   }
 
   function yourFace(now) {
@@ -2472,8 +2632,11 @@
     c.fillStyle = T.ink;
     c.textAlign = "left";
     c.textBaseline = "middle";
-    A.text(c, "PASTE:", s.x + 10, fy + g.fb / 2 + size * 0.06, size);
-    var pw = A.textWidth(c, "PASTE:", size);
+    // what the sheet wants, in the move's own words
+    var lead = "FILL THE GAPS WITH:";
+    if (A.textWidth(c, lead + " " + info().clip.toUpperCase(), size) > s.w - 30) lead = "FILL WITH:";
+    A.text(c, lead, s.x + 10, fy + g.fb / 2 + size * 0.06, size);
+    var pw = A.textWidth(c, lead, size);
     c.fillStyle = T.accent;
     A.text(c, info().clip.toUpperCase(), s.x + 18 + pw, fy + g.fb / 2 + size * 0.06, size);
     // column headers
@@ -2637,15 +2800,15 @@
       c.fillStyle = T.paper;
       c.fill();
       if (!empty) { c.fillStyle = A.shade(c); c.fill(); }
-      // the box you've just pasted into flashes violet for a moment (flat, no tint)
+      // the box you've just filled flashes green for a moment, with a tick (flat, no tint)
       var flash = live && done && i === G.row - 1 && G.pasted > 0.45;
-      if (flash) { c.fillStyle = T.accent; c.fill(); }
+      if (flash) { c.fillStyle = T.right; c.fill(); }
       c.lineWidth = 1.2;
       c.strokeStyle = T.ink;
       c.stroke();
       var label = null, col = T.ink;
       if (!empty) label = row.text;
-      if (done) { label = info().clip; col = flash ? T.paper : T.accent; }
+      if (done) { label = info().clip; col = flash ? T.ink : T.accent; }
       if (active && G.stall > 0 && G.wrongBox === side) { label = "#N/A"; col = T.red; }
       if (label) {
         c.save();
@@ -2665,7 +2828,24 @@
         A.text(c, label.toUpperCase(), b.x + 10, b.y + b.h / 2 + size * 0.06, size);
         c.restore();
       }
+      // a tick or a cross, so the colour is never the only signal
+      var ms = Math.min(7, b.h * 0.2);
+      if (flash) mark(c, true, b.x + b.w - ms * 2, b.y + b.h / 2, ms, T.ink);
+      else if (active && G.stall > 0 && G.wrongBox === side) mark(c, false, b.x + b.w - ms * 2, b.y + b.h / 2, ms, T.red);
     }
+  }
+
+  function mark(c, ok, x, y, s, colour) {
+    c.save();
+    c.strokeStyle = colour;
+    c.lineWidth = Math.max(2.5, s * 0.45);
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.beginPath();
+    if (ok) { c.moveTo(x - s, y); c.lineTo(x - s * 0.3, y + s * 0.75); c.lineTo(x + s, y - s * 0.75); }
+    else { c.moveTo(x - s * 0.8, y - s * 0.8); c.lineTo(x + s * 0.8, y + s * 0.8); c.moveTo(x + s * 0.8, y - s * 0.8); c.lineTo(x - s * 0.8, y + s * 0.8); }
+    c.stroke();
+    c.restore();
   }
 
   // A row that wants nothing: locked ("Do not edit", with a padlock), or
@@ -3032,8 +3212,8 @@
     note: "Four meetings back to back, and a spreadsheet that needs doing. Camera on. Mic off.",
     pitch: "Four meetings, one spreadsheet and a cat. Nod when you hear your name.",
     hints: {
-      keys: "Left and Right (or A and D) paste. Up or Space to unmute and mute, Down or N to nod, C for the camera. P to pause.",
-      touch: "Tap the empty box to paste. Nod, Mic and Cam are along the bottom."
+      keys: "Left or Right (or A and D) to fill the gap. N or Down to nod at your name, Space or Up to say yep, C for the camera. P to pause.",
+      touch: "Tap the gap to fill it. Nod at your name, Mic to say yep, Cam for the cat."
     },
     againLabel: "Rejoin the meeting",
     daily: true,
@@ -3048,11 +3228,11 @@
     },
     pad: { left: [14, 4], right: [15, 5], nod: [0], mic: [2, 1], cam: [3] },
     touch: [
-      { key: "left", label: "Paste left", icon: "left", side: "left" },
+      { key: "left", label: "Fill the gap on the left", icon: "left", side: "left" },
       { key: "nod", label: "Nod", icon: "Nod", side: "left" },
       { key: "mic", label: "Microphone", icon: "Mic", side: "left" },
       { key: "cam", label: "Camera", icon: "Cam", side: "right" },
-      { key: "right", label: "Paste right", icon: "right", side: "right" }
+      { key: "right", label: "Fill the gap on the right", icon: "right", side: "right" }
     ],
     reset: reset,
     update: function (dt, input) { update(dt, input); },
