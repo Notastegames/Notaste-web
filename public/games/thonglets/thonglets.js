@@ -361,6 +361,7 @@
         f.sx = f.x; f.sy = f.y; f.trail = false; f.teeter = 0;
       });
     }
+    clearOfBricks();
     if (!G.mods.noPriest && (!G.priest || !alive(G.priest))) G.priest = newPriest(st.x - 40, st.y + 10);
     else if (G.priest && alive(G.priest)) {
       G.priest.x = G.priest.sx = st.x - 40; G.priest.y = G.priest.sy = st.y + 10;
@@ -403,6 +404,24 @@
     bg = null;
     statueImg = null;
     if (hudEls) paintHud();
+  }
+
+  // Nobody starts close enough to the bricks to pick one up: leading them
+  // there is the first move. Anyone that close steps out towards the start.
+  function clearOfBricks() {
+    var q = G.place.quarry, st = G.place.start, r = QUARRY_R + 14;
+    G.folk.forEach(function (f) {
+      var dy = f.y - q.y, reach = Math.sqrt(Math.max(0, r * r - dy * dy));
+      if (Math.abs(f.x - q.x) >= reach) return;
+      f.x = f.sx = q.x + (st.x > q.x ? reach : -reach);
+    });
+  }
+
+  // How many of them have a brick, as a share of those left
+  function loadedShare() {
+    var all = 0, n = 0;
+    G.folk.forEach(function (f) { if (alive(f)) { all++; if (f.carry) n++; } });
+    return all ? n / all : 0;
   }
 
   // Three commandments you haven't taken, from the run's seed
@@ -717,6 +736,8 @@
     }
     if (!tag && tags.length) { tag = tags.shift(); tag.age = -0.7; }
   }
+  // Something's being said: a note on the field, or a ring up or waiting
+  function teaching() { return !!(note || tag || tags.length); }
 
   // Right or wrong: a tick or a cross where it happened, and the screen's edge
   function judge(ok, x, y) {
@@ -803,7 +824,9 @@
     f.load = 0;
     delivered++;
     fx.push({ kind: "spark", x: G.place.site.x + rand(-14, 14), y: G.place.site.y - rand(10, 40), t: 0, life: 0.4 });
-    if (G.priest && alive(G.priest) && delivered % G.mods.feeEvery === 0) {
+    // stage one's first cut waits for a quiet moment: no ring, nothing on the pointer
+    var waits = G.stage === 0 && !told.priest && (teaching() || guide || hintNow);
+    if (G.priest && alive(G.priest) && delivered % G.mods.feeEvery === 0 && !waits) {
       run.fees += load;
       sfx.till();
       say(G.priest, pick(FEES), true);
@@ -817,7 +840,8 @@
     var before = bricks;
     bricks += load;
     floatUp("brick", G.place.site.x, G.place.site.y - 22 - Math.min(1, bricks / (isFinite(stageInfo().target) ? stageInfo().target : 120)) * 120, G.T.paper, function (k) { return "+" + k; }, load);
-    if (guide === "site") guide = null;
+    // the pointer's done once most of them have been round, or a fifth's built
+    if (guide === "site" || bricks >= stageInfo().target / 5) guide = null;
     if (!clockOn) {
       // the first brick's on: now the clock runs, and then the Feed wakes up
       clockOn = true;
@@ -890,7 +914,8 @@
         f.hat = true;
         f.state = "follow";
         sfx.pick();
-        if (guide === "bricks") guide = "site";
+        // "Now to the statue" once most of them have one
+        if (guide === "bricks" && loadedShare() >= 0.5) guide = "site";
         if (Math.random() < 0.06) puff(f);
       }
       taken = true;
@@ -1021,7 +1046,7 @@
       hintNow = { x: at.x, y: at.y, word: note.word };
       return;
     }
-    if (tag && tag.age > -0.2) return;
+    if (tag) return;
     var office = officeRival();
     if (office) hintNow = office.hint();
     var reach = SMITE_R * G.mods.smiteR;
@@ -1030,7 +1055,7 @@
       // after a miss, the next target you're on gets its arrow again
       if (missed && missRedo <= 3 && smiteWait <= 0 && rv.aim(G.light.x, G.light.y, reach)) {
         var m = rv.mark();
-        hintNow = { x: m.x, y: m.y - m.h - 26, word: keyed("Now", "smite") };
+        hintNow = { x: m.x, y: m.y - m.h - 26, word: keyed("Smite now", "smite") };
         break;
       }
       if (rv === office || !rv.hint || run.learned[rv.kind]) continue;
@@ -1041,7 +1066,7 @@
       if (/^Smite/.test(hintNow.word)) {
         // on it: say how
         var aimed = smiteWait <= 0 && rv.aim(G.light.x, G.light.y, reach);
-        var word = aimed ? keyed("Now", "smite") : hintNow.word.indexOf(":") < 0 ? keyed(hintNow.word, "smite") : hintNow.word;
+        var word = aimed ? keyed("Smite now", "smite") : hintNow.word.indexOf(":") < 0 ? keyed(hintNow.word, "smite") : hintNow.word;
         hintNow = { x: hintNow.x, y: hintNow.y, word: word };
       }
       if (rv.kind === "sea") {
@@ -1126,6 +1151,8 @@
     prevBless = bl;
     if (smiteWait > 0 && smiteWait - dt <= 0) sfx.ready();
 
+    // stage one: the phone stays dark until the rings have had their say
+    if (G.stage === 0 && teaching()) G.rivals.forEach(function (r) { if (r.kind === "feed" && !r.on) r.wake = Math.max(r.wake, 2); });
     G.rivals.forEach(function (r) { r.update(dt); });
     pickHint(dt);
 
@@ -1770,9 +1797,10 @@
   }
 
   // A bobbing arrow pointing down at something, with a word over it
-  function drawArrow(c, x, y, word) {
+  function drawArrow(c, x, y, word, dx) {
     var T = G.T;
     var bob = shell.reduceMotion ? 0 : Math.abs(Math.sin(clock * 4)) * -5;
+    dx = dx || 0;
     c.save();
     c.translate(x, y + bob);
     c.lineJoin = "round";
@@ -1788,10 +1816,21 @@
     c.textAlign = "center";
     c.textBaseline = "bottom";
     c.lineWidth = 3;
-    c.strokeText(word.toUpperCase(), 0, -19);
+    c.strokeText(word.toUpperCase(), dx, -19);
     c.fillStyle = T.paper;
-    c.fillText(word.toUpperCase(), 0, -19);
+    c.fillText(word.toUpperCase(), dx, -19);
     c.restore();
+  }
+  // Where the arrow and its word sit, in CSS pixels, for the HUD and the
+  // bubbles to keep clear of. A word near the edge slides in to stay whole.
+  function arrowBox(c, a) {
+    var fs = Math.max(10 * SC, 12);
+    c.font = fs + "px " + G.T.display;
+    var half = c.measureText(a.word.toUpperCase()).width / 2 + 4;
+    var mid = clamp(a.x * SC, half + 4, W - half - 4);
+    a.dx = (mid - a.x * SC) / SC;
+    var left = Math.min(mid - half, (a.x - 12) * SC), right = Math.max(mid + half, (a.x + 12) * SC);
+    return { x: left, y: (a.y - 24) * SC - fs - 2, w: right - left, h: 30 * SC + fs + 4, keep: true };
   }
 
   function drawHand(c) {
@@ -1927,6 +1966,11 @@
       by = hit.y - bh - size * 0.8 >= top ? hit.y - bh - size * 0.8 : hit.y + hit.h + size * 0.8;
       by = clamp(by, top, H - bh - 6);
     }
+    // never over the arrow or a marked target: with nowhere else to go, it keeps quiet
+    for (var j = 0; j < placed.length; j++) {
+      var p = placed[j];
+      if (p.keep && bx < p.x + p.w && bx + bw > p.x && by < p.y + p.h && by + bh > p.y) { b.t = b.life; return; }
+    }
     placed.push({ x: bx, y: by, w: bw, h: bh });
     var tailX = clamp(ax, bx + 12, bx + bw - 12);
     var pop = shell.reduceMotion ? 1 : clamp(b.t * 8, 0, 1);
@@ -1976,6 +2020,7 @@
       noticed = true;
       // the HUD is up now, so lay the field out again round it
       boxes = null; layout(); bg = null;
+      clearOfBricks();
       notice();
     }
     if (!hudEls) { buildHud(); paintHud(); }
@@ -2003,10 +2048,11 @@
     things.sort(function (a, b) { return a.y - b.y; });
     things.forEach(function (t) { if (t.draw) t.draw(c); else drawPerson(c, t.f); });
 
+    var target = null;
     if (phase === "play" && smiteWait <= 0) {
       var reach = SMITE_R * G.mods.smiteR;
       for (var t = 0; t < G.rivals.length; t++) {
-        if (G.rivals[t].aim(G.light.x, G.light.y, reach)) { drawTarget(c, G.rivals[t].mark()); break; }
+        if (G.rivals[t].aim(G.light.x, G.light.y, reach)) { target = G.rivals[t].mark(); drawTarget(c, target); break; }
       }
     }
     drawHand(c);
@@ -2015,32 +2061,37 @@
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     if (++boxAge > 60) { boxes = null; boxAge = 0; }
     var placed = [];
-    var arrow = null;
+    var arrow = null, keep = null;
     if (phase === "play") {
       if (hintNow) arrow = { x: hintNow.x, y: hintNow.y, word: hintNow.word };
-      else if (tag && tag.age > -0.2 && !note) arrow = null;
+      else if (tag) arrow = null;
       else if (guide === "bricks") arrow = { x: G.place.quarry.x, y: G.place.quarry.y - 52, word: "Lead them here" };
       else if (guide) arrow = { x: G.place.site.x, y: G.place.site.y - 50, word: "Now to the statue" };
     }
     if (arrow) {
       arrow.x = clamp(arrow.x, 44, G.WW - 44);
       arrow.y = Math.max(48, arrow.y);
+      var ab = arrowBox(c, arrow), lift = arrow.y - ab.y / SC;
       // the arrow and its word stay clear of the HUD and the buttons
       hudBoxes().forEach(function (r) {
-        if ((arrow.x - 40) * SC < r.right && (arrow.x + 40) * SC > r.left) arrow.y = Math.max(arrow.y, (r.bottom + 4) / SC + 34);
+        if (ab.x < r.right && ab.x + ab.w > r.left) arrow.y = Math.max(arrow.y, (r.bottom + 4) / SC + lift);
       });
-      placed.push({ x: (arrow.x - 40) * SC, y: (arrow.y - 34) * SC, w: 80 * SC, h: 42 * SC });
+      // and bubbles stack round them, never over them
+      keep = arrowBox(c, arrow);
+      placed.push(keep);
     }
+    // or over the brackets that say a smite will land
+    if (target) placed.push({ x: (target.x - target.w / 2 - 6) * SC, y: (target.y - target.h - 6) * SC, w: (target.w + 12) * SC, h: (target.h + 12) * SC, keep: true });
     // bubbles keep clear of what just happened, too
     floaters.forEach(function (f) { placed.push({ x: f.x * SC - 55, y: f.y * SC - 34, w: 110, h: 44 }); });
     bubbles.forEach(function (b) { drawBubble(c, b, placed); });
     if (arrow) {
       c.setTransform(DPR * SC, 0, 0, DPR * SC, 0, 0);
-      drawArrow(c, arrow.x, arrow.y, arrow.word);
+      drawArrow(c, arrow.x, arrow.y, arrow.word, arrow.dx);
     }
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
     marks.forEach(function (m) { drawMark(c, m); });
-    floaters.forEach(function (f) { drawFloater(c, f); });
+    floaters.forEach(function (f) { drawFloater(c, f, keep); });
     drawTag(c);
     drawVerdict(c);
   }
@@ -2065,7 +2116,7 @@
   }
 
   // What it did, rising from where it happened
-  function drawFloater(c, f) {
+  function drawFloater(c, f, keep) {
     var T = G.T, k = f.t / 1.2, size = clamp(SC * 11, 12, 16);
     var x = clamp(f.x * SC, 50, W - 50), y = f.y * SC - (shell.reduceMotion ? 0 : k * 22);
     var top = 6;
@@ -2074,6 +2125,11 @@
     c.save();
     c.globalAlpha = k < 0.7 ? 1 : (1 - k) / 0.3;
     c.font = size + "px " + T.display;
+    // never over the arrow's word: over it if there's room, otherwise under
+    var half = c.measureText(f.text.toUpperCase()).width / 2;
+    if (keep && x + half > keep.x && x - half < keep.x + keep.w && y + size / 2 > keep.y && y - size / 2 < keep.y + keep.h) {
+      y = keep.y - size * 0.7 >= top + size ? keep.y - size * 0.7 : keep.y + keep.h + size * 0.7;
+    }
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.lineJoin = "round";
@@ -2198,7 +2254,12 @@
                  lost: run.lost, fees: run.fees, devotion: +G.devotion.toFixed(2), timeLeft: Math.round(timeLeft),
                  faithful: G.folk.filter(alive).length, taken: run.taken.join(","), rivals: G.rivals.map(function (r) { return r.kind; }).join(",") };
       },
-      state: function () { return shell.state(); }
+      state: function () { return shell.state(); },
+      // what the pointer is saying this frame
+      teach: function () {
+        return { guide: guide, hint: hintNow && hintNow.word, ring: tag && tag.age >= 0 ? tag.word : null,
+                 note: note && note.word, queued: tags.map(function (t) { return t.word; }) };
+      }
     };
   }
 })();
