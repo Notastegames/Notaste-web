@@ -44,10 +44,11 @@
 /*
   The kit fits its panels to the screen (kit.css, @container kit). Its
   smallest labels drop under 12px on a phone, so they stop at 12px here.
+  (The notice's words never go under 12px, so they're left to the kit, and
+  read bigger on an iPad or a desktop.)
 */
 #game-root .kit-stats dt,
-#game-root .kit-choice-detail,
-#game-root .kit-brief-text { font-size: 0.75rem; }
+#game-root .kit-choice-detail { font-size: 0.75rem; }
 #game-root .kit-stat small { font-size: max(0.62em, 0.75rem); }
 #game-root .kit-stat-big small { margin-left: 0.25em; font-size: max(0.42em, 0.75rem); }
 
