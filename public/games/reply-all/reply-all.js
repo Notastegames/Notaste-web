@@ -2092,8 +2092,11 @@
       // where it was.
       var box = null;
       if (b.pin && b.pin.w === bw && b.pin.h === bh && b.pin.x + bw <= W && b.pin.y + bh <= H &&
-          !hud.some(function (p) { return overlaps(b.pin, p, 3); })) box = b.pin;
-      else b.pin = null;
+          !hud.some(function (p) { return overlaps(b.pin, p, 3); })) {
+        box = b.pin;
+        // someone starts typing under it: it gives way, so their bar shows (the grumble finds its own spot)
+        if (bars.some(function (p) { return p.desk !== d && overlaps(box, p, 1); })) b.life = Math.min(b.life, b.t + 0.33);
+      } else b.pin = null;
       var hard = [faceBox(d, true)];
       if (bossFace && bossFace.desk !== d) hard.push(bossFace);
       for (var pass = 0; pass < 4 && !box; pass++) {
