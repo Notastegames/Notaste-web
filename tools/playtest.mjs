@@ -72,7 +72,7 @@ const BASE = "http://127.0.0.1:" + server.address().port;
 const games = fs.readdirSync(path.join(PUBLIC, "games"))
   .filter((d) => d !== "kit" && fs.existsSync(path.join(PUBLIC, "games", d, "index.html")))
   .filter((d) => !only.length || only.includes(d));
-const pages = ["/", "/privacy/", "/404.html"].concat(games.map((g) => "/games/" + g + "/"));
+const pages = ["/", "/privacy/", "/404.html", "/hot-seat/"].concat(games.map((g) => "/games/" + g + "/"));
 
 const VIEWS = {
   phone: { viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, reducedMotion: "reduce" },

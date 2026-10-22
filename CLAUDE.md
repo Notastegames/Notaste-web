@@ -12,6 +12,7 @@ Free satirical browser games at notastegames.com. Plain static site in `public/`
 - Colours come from the CSS variables in `public/styles.css`. Canvas code reads them with `Notaste.tokens()`; never hard-code a hex value that isn't in `DESIGN.md`.
 - Games use the shared kit in `public/games/kit/` (intro, title/pause/results screens, countdown, callouts, controls, sound, fullscreen, saved bests). Extend the kit rather than rebuilding those parts inside a game.
 - Copy: British English, deadpan, no exclamation marks, no emoji, no em dashes, no punching down, no real people or brands in games.
+- The Hot Seat (`public/hot-seat/`) is the one exception, approved by the owner: it names real people and real AI models and uses a vendored three.js. Its rules are in DESIGN.md section 14. Nowhere else.
 - Respect `prefers-reduced-motion` everywhere.
 - Work on a branch and open a pull request. Never push straight to `main`; merging into `main` puts it live.
 - Before anything people will see goes live, publish a playable preview as a private Claude artifact and get the owner's approval. `python3 tools/preview_artifact.py <slug> <folder>` packages a game page (every path made relative) into a folder ready to publish: its `index.html` is the page, everything else goes alongside. Once approved, merge.
