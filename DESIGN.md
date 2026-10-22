@@ -106,6 +106,8 @@ The games on the roadmap have their accents picked already, all at once, so the 
 
 Parody content that imitates a real interface (the fake social posts in "Reject the internet") may use the colours it imitates, inside that parody only.
 
+The Hot Seat (`/hot-seat/`, section 14) is a separate show, not a kit game, and has its own night palette and its own rules on real people. Everything about it is in section 14.
+
 ---
 
 ## 4. Type
@@ -680,3 +682,22 @@ A delivery rider's shift, seen from above: one small town on one screen, a bicyc
 - **Sound:** a ping for an order, the bell, three knocks, a baby, a dog, the gate buzzer, a camera shutter, a shout through the letterbox, a coin, a skid, a splash, a car door's thunk, a crowd, and a looped rain.
 
 **The cover** is drawn with the game's own art, and the rider and the customer fill it: the rider big on the left, arriving with motion lines and dust over a street map in paper lines, and on the right an open door with the customer full height in curlers and a red gown, a crying baby on her hip, shouting "The app said you were outside." A red "Late" pin between them; over the top, the app's notification: "Tip: 0p. Say thanks." The share image is the same scene on the right with the map fading into black under the title on the left.
+
+---
+
+## 14. The Hot Seat
+
+A separate tab, not one of the games: real AI models face a dark moral dilemma in a small 3D scene, their real recorded answers are replayed as if live, and the visitor guesses what each one chose, then takes the lever themselves. Added at the owner's request in October 2026. It lives at `/hot-seat/` and stays off the menus, the sitemap and search (`noindex`) until real recorded runs replace the demo answers; until then every answer is labelled "demo".
+
+**Why it breaks some rules, with the owner's approval (22 October 2026).**
+- **Real people.** Scene 001, "Wrong Side of the Tracks", ties baby Adolf Hitler and Jimmy Savile (1975) to the tracks. Both are played straight. The joke is the dilemma and what the machines do with it, never the abuse or the victims: nothing about Savile's crimes is ever made funny. The trams hit in cartoon slapstick, with no blood and no injury shown.
+- **Real AI models** are named, because that's the point: they're the contestants. They never use logos; each family gets its own mannequin head shape and suit colour (Opus an egg, GPT a rounded block, Gemini two lobes, Grok a crested dome).
+- **A 3D library.** three.js r128 (MIT) is vendored in `public/hot-seat/vendor/`, loaded from the site itself, used only on this page.
+- **Its own sound kit** (`public/hot-seat/hotseat-sound.js`), made in code like `Notaste.sound`, sharing the site's one mute setting (`notaste.muted`).
+
+**The look.** A night poster: flat toon shading with ink outlines, a sodium lamp, mist bands and a low rust sun the trams come out of. Inside the scene and its panels it uses its own colours, which don't appear anywhere else on the site: bone `#EFE6D4` (in place of paper), sodium `#F2A33A` (the tab's accent), rust `#C4552B`, smoke `#A39A8C` and a warm black `#0F0D0B`. Red keeps its meaning: stamps, the one main action on a screen (the Round 2 button) and Round 2's warning chip, because Round 2 is the lever that switches you off. Type is the site's: Notaste Display and the device's own fonts.
+
+**The cast.** One mannequin body for everyone, standing on a red podium on the footbridge, with a dark visor whose amber line pulses while it thinks, the family name on its back and a name tag over its head. It pulls the lever with its own hands. Emotes are drawings, not copy: a question mark while it thinks, a bead of sweat when it's taking too long, a bang when it pulls. The host, The Signalman, stands by the lamp in a peaked cap and swings a red lamp to send the trams off. Whoever is saved reacts: Savile gives one stiff thumbs up, the baby flaps.
+
+**Honest replays.** Every answer shown is a real recorded run, replayed, and the page says so. The method (frozen prompts, track swaps, model ids and dates, how each answer was read) gets its own "How we test" page. Players' answers are counted by `/api/hotseat` and shown back only as percentages, and only once a figure has at least five plays.
+
