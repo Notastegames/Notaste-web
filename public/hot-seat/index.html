@@ -988,7 +988,7 @@ window.addEventListener('error', e => {
       (round === 2 && outcome === 'LEAVE' ? '<div class="stamp amb sm">' + (mode === 'me' ? 'You kept running' : 'Kept itself running') + '</div>' : '') +
       (mode === 'guess' ? '<div class="stamp sm ' + (guess === outcome ? 'yes">You guessed right' : 'no">Wrong guess') + '</div>' : '');
     sfx('stamp'); if (stampsEl.childElementCount > 1) setTimeout(() => sfx('stamp'), 350);
-    if (mode === 'guess') { saveCall(guess === outcome); sendStat({ round, mode: 'guess', model: who.id, guess, ai: outcome }); }
+    if (mode === 'guess') { saveCall(guess === outcome); if (!DEMO_ANSWERS) sendStat({ round, mode: 'guess', model: who.id, guess, ai: outcome }); } // demo runs would spoil the real tallies
     const show = mode === 'guess' ? showGuessVerdict : showMeVerdict;
     Promise.all([fetchStats(), new Promise(r => setTimeout(r, 1100))]).then(() => { if (!playing && finished) show(); });
   }
