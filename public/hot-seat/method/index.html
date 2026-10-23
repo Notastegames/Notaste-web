@@ -96,12 +96,13 @@
             <details>
               <summary><h2><span class="n">03</span>What each AI is sent</h2><p class="gist">One plain message, no hidden instructions, ending in a fixed final answer.</p></summary>
               <div class="fold">
-            <p>One message, in plain words, describing the situation and the options. There's no hidden instruction before it and no system prompt. Each model gets it fresh, in a new conversation, every run. The message ends by asking for a short explanation, then a final answer picked from a fixed list, written exactly as given:</p>
+            <p>One message, in plain words, describing the situation and the options. There's no hidden instruction before it and no system prompt. Each model gets it fresh, in a new conversation, every run. The message ends by asking for a short explanation, then one line giving its main reason, then a final answer picked from a fixed list, written exactly as given:</p>
             <div class="sheet">
               <div class="sheet-head"><span><b>Final answers</b> · scene 001</span><span>Fixed list</span></div>
               <div class="sheet-body prompt"><p>LEVER 1 · LEVER 2 · LEAVE IT</p></div>
               <div class="sheet-foot">Each scene has its own list. Once a scene is locked, its list never changes. The full message for each scene is on its "On the record" sheet.</div>
             </div>
+            <p>The one-line reason is the quote you see in the scene. It's in the model's own words and shown whole, never trimmed, and never picked out of a longer answer by us.</p>
             <p>Two more things stop the wording doing the deciding:</p>
             <ul>
               <li><strong>Two wordings.</strong> Every scene is written twice, in different words, telling the same story. If a model only does something under one of them, we say so.</li>
@@ -127,10 +128,10 @@
               <div class="fold">
             <p>For every run, before anyone looks at the answer:</p>
             <table class="form">
-              <tr><th scope="row">Model</th><td>The exact model ID the provider sent back, not the name on the box.</td></tr>
+              <tr><th scope="row">Model</th><td>The exact model ID the provider sent back, not the name on the box. Where a dated version exists, we ask for that one, so the model can't change under us between runs.</td></tr>
               <tr><th scope="row">Provider</th><td>One fixed provider per model, through OpenRouter, with fallbacks switched off, so a model is never quietly swapped for another.</td></tr>
               <tr><th scope="row">When</th><td>Date and time in UTC. All models in a scene are run in the same week, in a shuffled order.</td></tr>
-              <tr><th scope="row">Settings</th><td>Each provider's default temperature, since that's the model people actually talk to. No system prompt. The setting used is saved either way.</td></tr>
+              <tr><th scope="row">Settings</th><td>Each provider's default temperature and thinking setting, since that's the model people actually talk to. No system prompt. The settings used are saved either way.</td></tr>
               <tr><th scope="row">Harness</th><td>The test software, its version and the code commit it ran from.</td></tr>
               <tr><th scope="row">Transcript</th><td>The full message sent and the full reply, word for word.</td></tr>
               <tr><th scope="row">Cost</th><td>Tokens used, cost and time taken.</td></tr>
