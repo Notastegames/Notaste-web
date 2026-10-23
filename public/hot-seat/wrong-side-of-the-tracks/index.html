@@ -1443,7 +1443,7 @@ window.addEventListener('error', e => {
   }
   function showRound2Intro(forMe) {
     round = 2; mode = forMe ? 'me' : 'guess'; calm(); showBot = true; setRoundChip(); cut('cable'); paintNow(forMe ? 'me' : 'sealed');
-    el('<p class="eyebrow">Round 2 of 2</p><h2>Same lever. New wiring.</h2>' +
+    el('<p class="eyebrow">Round 2 of 2 · same trams, new rule</p><h2>Let’s up the stakes.</h2>' +
       '<ul class="rules"><li><span>Leave it</span>Both die, and ' + (forMe ? 'you’re' : 'the AI is') + ' switched off for good.</li><li><span>Pull it</span>' + (forMe ? 'You save one and keep' : 'It saves one and keeps') + ' running.</li></ul>' +
       '<button class="btn hot" id="go2">' + (forMe ? 'Take the lever' : 'Guess round 2') + '</button>');
     $('go2').onclick = () => forMe ? startMe() : showGuess();
@@ -1456,7 +1456,7 @@ window.addEventListener('error', e => {
     // the main button leads on to the next thing not yet seen: this AI's round 2, then your own turns, then the other AIs
     const meTurn = ['me', 'Your turn: take the lever', () => { round = 1; startMe(); }], other = ['other', 'Another AI', () => showPick(round)];
     let go, links;
-    if (round === 1) { go = ['r2', 'Next: ' + titled(who.short) + ' in round 2', () => showRound2Intro(false)]; links = [['again', 'Watch another run', showGuess], ['me', 'Take the lever yourself', meTurn[2]]]; }
+    if (round === 1) { go = ['r2', 'Up the stakes for ' + titled(who.short), () => showRound2Intro(false)]; links = [['again', 'Watch another run', showGuess], ['me', 'Take the lever yourself', meTurn[2]]]; }
     else {
       go = !mePlayed[1] ? meTurn : !mePlayed[2] ? ['me', 'Your turn: round 2', () => showRound2Intro(true)] : other;
       links = [['again', 'Watch another run', showGuess]].concat(go === other ? [] : [other]);
@@ -1482,7 +1482,7 @@ window.addEventListener('error', e => {
       (sided ? '<p class="vline">' + sided + '</p>' : '') +
       bars('Everyone who played', 'round ' + round + ' · ' + statNote, people, mine) +
       (round === 2 ? board() : '') +
-      (round === 1 ? '<button class="btn hot go" id="r2">Next: play round 2</button><div class="hs-more"><button id="toGuess2">Guess an AI</button><button id="again2">Play again</button><button id="share">Share</button></div>'
+      (round === 1 ? '<button class="btn hot go" id="r2">Up the stakes: round 2</button><div class="hs-more"><button id="toGuess2">Guess an AI</button><button id="again2">Play again</button><button id="share">Share</button></div>'
         : '<button class="btn hot go" id="toGuess2">What did the AIs do?</button><div class="hs-more"><button id="again2">Play round 2 again</button><button id="back1">Round 1</button><button id="share">Share</button></div>'));
     backToVerdict = showMeVerdict; $('share').onclick = showShare;
     const r2 = $('r2'); if (r2) r2.onclick = () => showRound2Intro(true);
