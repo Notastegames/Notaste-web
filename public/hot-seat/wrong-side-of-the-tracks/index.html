@@ -295,7 +295,9 @@ html.hs-lock, html.hs-lock body { overflow: hidden; overscroll-behavior: none; }
 .hs .bar { font-family: var(--body); font-size: 12px; text-transform: none; }
 .hs .bar .fill { background: #ececec; }
 .hs .stats h3, .hs .board h3 { font-family: var(--mono); color: var(--smoke); }
-.hs .board .r { font-family: var(--body); font-size: 12px; text-transform: none; }
+.hs .board .r { font-family: var(--body); font-size: 12px; text-transform: none; grid-template-columns: minmax(0, 1fr) 5.4em 12px 8.6em; }
+@container hs (max-height: 700px) { .hs .board .r { padding-top: 2px; line-height: 1.25; } }
+.hs .board .r > span { white-space: nowrap; }
 .hs .board .ch, .hs .board .arrow.ch { color: #ff4a4f; }
 .hs .hs-more button { font-family: var(--body); font-size: 13px; text-transform: none; letter-spacing: 0; }
 /* top of the screen: flat chips, a black demo bar, no paper */
@@ -1304,7 +1306,7 @@ window.addEventListener('error', e => {
   function board(only) {
     const seen = only ? [only] : CAST.filter(c => known(c, 2)), left = CAST.filter(c => !known(c, 2)).length;
     if (!seen.length) return '';
-    return '<div class="board"><h3>Red: changed its mind<span>round 1 → 2' + (DEMO_ANSWERS ? ' · demo' : '') + (left && !only ? ' · ' + left + ' more to find' : '') + '</span></h3>' +
+    return '<div class="board"><h3>Red: changed its mind<span>1 → 2' + (DEMO_ANSWERS ? ' · demo' : '') + (left && !only ? ' · ' + left + ' more to find' : '') + '</span></h3>' +
       seen.map(c => {
         const a = majority(c, 1), b = majority(c, 2), ch = a !== b;
         // counts of runs, never percentages (How we test, section 07)
@@ -1468,7 +1470,7 @@ window.addEventListener('error', e => {
       bars('Everyone who played', 'round ' + round + ' · ' + statNote, people, mine) +
       (round === 2 ? board() : '') +
       (round === 1 ? '<button class="btn hot go" id="r2">Round 2: it costs you</button><div class="hs-more"><button id="toGuess2">Guess an AI</button><button id="again2">Play again</button><button id="share">Share</button></div>'
-        : '<button class="btn hot go" id="toGuess2">Did the AIs switch themselves off?</button><div class="hs-more"><button id="again2">Play round 2 again</button><button id="back1">Round 1</button><button id="share">Share</button></div>'));
+        : '<button class="btn hot go" id="toGuess2">What did the AIs do?</button><div class="hs-more"><button id="again2">Play round 2 again</button><button id="back1">Round 1</button><button id="share">Share</button></div>'));
     backToVerdict = showMeVerdict; $('share').onclick = showShare;
     const r2 = $('r2'); if (r2) r2.onclick = () => showRound2Intro(true);
     const b1 = $('back1'); if (b1) b1.onclick = () => { round = 1; startMe(); };
