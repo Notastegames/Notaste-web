@@ -186,10 +186,24 @@ h1, h2, h3 {
 .top-nav a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; color: var(--paper); }
 .top-nav a:hover { text-decoration: underline; }
 
-/* The Hot Seat tab (DESIGN.md section 14): a sodium studio lamp before the name.
-   Hidden until the owner switches the tab on: delete the display: none line to show it everywhere. */
-.top-nav .nav-hs { white-space: nowrap; }
-.top-nav .nav-hs::before { content: ""; flex: none; width: 0.5em; height: 0.5em; margin-right: 0.45em; border-radius: 50%; background: #f2a33a; box-shadow: 0 0 0 2px rgba(242, 163, 58, 0.25); }
+/* The Hot Seat tab (DESIGN.md section 14): a red studio lamp before the name, and a dropdown.
+   The dropdown opens on hover where there is a mouse, and on a tap or click anywhere (nav.js). Without scripts the name links to the scene list. */
+.nav-hs { position: relative; display: flex; }
+.top-nav .nav-hs-btn { white-space: nowrap; }
+.top-nav .nav-hs-btn::before { content: ""; flex: none; width: 0.5em; height: 0.5em; margin-right: 0.45em; border-radius: 50%; background: var(--red); box-shadow: 0 0 5px var(--red); }
+.top-nav .nav-hs-btn::after { content: ""; flex: none; margin-left: 0.4em; border: 0.28em solid transparent; border-top-color: currentColor; border-bottom: 0; transition: transform 160ms ease; }
+.nav-hs.open .nav-hs-btn::after { transform: rotate(180deg); }
+.nav-hs-menu { position: absolute; top: 100%; right: -0.75rem; z-index: 20; min-width: 15rem; margin: 0; padding: 0.35rem 0; list-style: none; background: var(--ink); border: 1px solid var(--ash); box-shadow: 0 16px 32px rgba(0, 0, 0, 0.7); display: none; }
+.nav-hs.open .nav-hs-menu { display: block; }
+@media (hover: hover) { .nav-hs:hover .nav-hs-menu, .nav-hs:focus-within .nav-hs-menu { display: block; } }
+.top-nav .nav-hs-menu a { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; min-height: 44px; padding: 0.35rem 1rem; font-weight: 600; }
+.top-nav .nav-hs-menu a:hover { background: var(--ash); text-decoration: none; }
+.nav-hs-menu small { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.68rem; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--smoke); }
+@media (max-width: 40rem) {
+  /* A phone gets the menu as a full-width sheet under the header */
+  .nav-hs { position: static; }
+  .nav-hs-menu { position: absolute; left: 0; right: 0; top: 100%; min-width: 0; border-width: 1px 0; padding-inline: max(8px, env(safe-area-inset-left, 0px)) max(8px, env(safe-area-inset-right, 0px)); }
+}
 /* With four links a phone has no room, so About (just under the games on the homepage) and then Follow make way */
 @media (max-width: 30rem) { .top-nav a[href$="#about"] { display: none; } }
 @media (max-width: 22.5rem) { .top-nav a[href$="#follow"] { display: none; } }

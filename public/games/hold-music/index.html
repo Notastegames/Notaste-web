@@ -51,7 +51,14 @@
       </a>
       <nav class="top-nav" aria-label="Main">
         <a href="/#games">Games</a>
-        <a class="nav-hs" href="/hot-seat/">Hot Seat</a>
+        <div class="nav-hs">
+          <a class="nav-hs-btn" href="/hot-seat/" aria-expanded="false">Hot Seat</a>
+          <ul class="nav-hs-menu">
+            <li><a href="/hot-seat/">All scenes</a></li>
+            <li><a href="/hot-seat/wrong-side-of-the-tracks/"><small>Newest</small>Wrong Side of the Tracks</a></li>
+            <li><a href="/hot-seat/method/">How we test</a></li>
+          </ul>
+        </div>
         <a href="/#about">About</a>
         <a href="/#follow">Follow</a>
       </nav>
@@ -125,5 +132,6 @@
   <script src="/games/hold-music/line.js" defer></script>
   <script src="/games/hold-music/draw.js" defer></script>
   <script src="/games/hold-music/hold-music.js" defer></script>
+  <script src="/nav.js" defer></script>
 </body>
 </html>
