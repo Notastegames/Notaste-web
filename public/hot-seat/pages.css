@@ -1,0 +1,142 @@
+/*
+  The Hot Seat: the pages around the scenes (the scene list and How we test).
+  Style B (DESIGN.md section 14): the site's own black and white. Evidence sits on its own sheet: near-black #0d0d0d, an ash edge and a white rule along the top, as beside the scenes (Chris, 23 Oct: no white backgrounds),
+  ids and dates are set in the device's monospace, red stays for stamps and the studio lamp, sodium only marks "you".
+*/
+
+.hsp { --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; --sodium: #f2a33a; }
+.hsp a:hover { text-decoration-thickness: 2px; }
+
+/* The show's own strip under the site header */
+.hs-bar { border-bottom: 1px solid var(--ash); }
+.hs-bar-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 1.25rem; min-height: 3rem; padding-block: 0.4rem; }
+.hs-show { display: inline-flex; align-items: center; gap: 0.55rem; font-family: var(--display); text-transform: uppercase; font-size: 1.15rem; line-height: 1; color: var(--paper); text-decoration: none; }
+.hs-show::before { content: ""; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--red); box-shadow: 0 0 6px var(--red); }
+.hs-sub { display: flex; gap: 1.1rem; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.hs-sub a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; color: var(--smoke); }
+.hs-sub a[aria-current] { color: var(--paper); box-shadow: inset 0 -2px 0 var(--paper); }
+.hs-sub a:hover { color: var(--paper); }
+
+.hsp-main { padding-block: 2.5rem 4rem; }
+.hsp-file { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--smoke); margin: 0 0 1.25rem; }
+.hsp-file b { color: var(--paper); font-weight: 600; }
+.hsp h1 { margin: 0 0 1rem; font-size: clamp(2.8rem, 11vw, 5.2rem); line-height: 0.88; }
+.hsp .hsp-lede { font-size: var(--step-1); line-height: 1.4; max-width: 36rem; margin: 0 0 3rem; }
+.hsp code, .hsp .mono { font-family: var(--mono); font-size: 0.86em; }
+
+/* The silly bit, said quietly in the margin */
+.hsp .aside { border-left: 2px solid var(--grey); padding: 0.1rem 0 0.1rem 0.9rem; color: var(--smoke); font-size: var(--step--1); max-width: 34rem; }
+.hsp .aside b { color: var(--paper); font-weight: 600; }
+
+/* Evidence sits on a sheet */
+.sheet { position: relative; background: #0d0d0d; color: var(--paper); border: 1px solid var(--ash); border-top: 3px solid var(--paper); border-radius: 2px; margin: 1.25rem 0 1.5rem; max-width: 40rem; }
+.sheet-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 1rem; padding: 0.6rem 1rem; border-bottom: 1px dashed var(--ash); color: var(--smoke); font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.sheet-head b { font-weight: 700; color: var(--paper); }
+.sheet:has(> .stamp-label) .sheet-head { padding-right: 7rem; }
+.sheet-body { padding: 1rem 1rem 1.15rem; }
+.sheet-body p { margin: 0 0 0.75rem; }
+.sheet-body p:last-child { margin-bottom: 0; }
+.prompt { font-family: var(--mono); font-size: 0.86rem; line-height: 1.6; }
+.prompt .add { box-shadow: inset 2px 0 0 var(--paper); padding: 0.5rem 0.75rem; }
+.sheet-foot { padding: 0.55rem 1rem 0.7rem; border-top: 1px dashed var(--ash); font-size: 0.8rem; color: var(--smoke); }
+.sheet .stamp-label { position: absolute; right: 0.9rem; top: -1.1rem; font-size: 1.05rem; transform: rotate(5deg); }
+
+/* Tables read like a form */
+.form { width: 100%; max-width: 40rem; border-collapse: collapse; margin: 0.5rem 0 1.25rem; font-size: 0.95rem; }
+.form th, .form td { text-align: left; vertical-align: top; padding: 0.6rem 0.75rem 0.6rem 0; border-bottom: 1px solid var(--ash); }
+.form th { width: 34%; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; color: var(--smoke); padding-top: 0.75rem; }
+.sheet .form { margin: 0; }
+.sheet .form tr:last-child th, .sheet .form tr:last-child td { border-bottom: 0; }
+
+.btn-line { display: inline-flex; align-items: center; min-height: 48px; padding: 0 1.1rem; border: 2px solid var(--paper); border-radius: 4px; font-family: var(--display); text-transform: uppercase; font-size: 1.05rem; text-decoration: none; color: var(--paper); }
+.btn-line:hover { background: var(--paper); color: var(--ink); }
+
+.hsp .hsp-small { margin-top: 2.5rem; color: var(--smoke); font-size: var(--step--1); }
+
+/* ---------- The scene list: one tile per scene, like a channel's videos ---------- */
+
+.hsp-intro { display: grid; gap: 1rem 3rem; align-items: end; margin-bottom: 2.25rem; }
+.hsp-intro .hsp-lede { margin: 0; }
+.hsp-intro .hsp-how { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; font-size: var(--step--1); color: var(--smoke); }
+.hsp-intro .hsp-how a { color: var(--paper); font-weight: 600; }
+@media (min-width: 60rem) { .hsp-intro { grid-template-columns: minmax(0, 1fr) auto; } }
+
+.scenes { display: grid; gap: 2rem 1.25rem; grid-template-columns: minmax(0, 1fr); margin: 0; padding: 0; list-style: none; }
+@media (min-width: 36rem) { .scenes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 60rem) { .scenes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.scene { position: relative; display: grid; gap: 0.75rem; align-content: start; }
+.scene-thumb { position: relative; display: block; aspect-ratio: 16 / 9; max-width: 100%; border-radius: 10px; overflow: hidden; background: #111; }
+.scene-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 200ms ease; }
+.scene:hover .scene-thumb img { transform: scale(1.03); }
+.scene-chip { position: absolute; font-family: var(--mono); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; padding: 0.35rem 0.45rem; border-radius: 3px; background: rgba(0, 0, 0, 0.82); color: var(--paper); }
+.scene-chip--runs { right: 0.5rem; bottom: 0.5rem; }
+.scene-chip--air { left: 0.5rem; top: 0.5rem; display: inline-flex; align-items: center; gap: 0.4rem; }
+.scene-chip--air::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--red); }
+.scene-info { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.75rem; }
+.scene-no { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 50%; border: 2px solid var(--paper); font-family: var(--mono); font-size: 0.72rem; font-weight: 700; }
+.scene h2 { margin: 0 0 0.2rem; font-size: 1.45rem; line-height: 0.95; }
+.scene h2 a { text-decoration: none; }
+.scene h2 a::after { content: ""; position: absolute; inset: 0; border-radius: 10px; }   /* the whole tile is the link */
+.scene h2 a:focus-visible { outline: none; }
+.scene:has(h2 a:focus-visible) .scene-thumb { outline: 3px solid var(--red); outline-offset: 3px; }
+.scene-meta { margin: 0; font-size: var(--step--1); color: var(--smoke); line-height: 1.45; }
+.scene-meta .mono { color: var(--paper); }
+
+/* A scene that isn't made yet: an empty screen and no link */
+.scene--soon .scene-thumb { display: grid; place-items: center; background: #0b0b0b; border: 1px dashed var(--ash); }
+.scene--soon .scene-thumb .stamp-label { font-size: 1.1rem; transform: rotate(-5deg); }
+.scene--soon .scene-no { border-color: var(--ash); color: var(--smoke); }
+.scene--soon h2 { color: var(--smoke); }
+
+@media (prefers-reduced-motion: reduce) { .scene:hover .scene-thumb img { transform: none; } }
+
+/* ---------- How we test ---------- */
+
+.hsp-grid { display: grid; gap: 2rem; }
+@media (min-width: 60rem) {
+  .hsp-grid { grid-template-columns: minmax(0, 1fr) 19rem; gap: 3.5rem; align-items: start; }
+  .hsp-side { position: sticky; top: 5.5rem; }
+}
+.hsp-body section { padding-top: 2.25rem; margin-top: 2.25rem; border-top: 1px solid var(--ash); }
+.hsp-body section:first-child { padding-top: 0; margin-top: 0; border-top: 0; }
+.hsp-body h2 { display: flex; gap: 0.7rem; align-items: baseline; margin: 0 0 0.9rem; font-size: clamp(1.7rem, 5vw, 2.3rem); line-height: 0.95; }
+.hsp-body h2 .n { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.06em; color: var(--smoke); flex: none; transform: translateY(-0.2em); }
+.hsp-body p, .hsp-body li { max-width: 38rem; }
+.hsp-body p { margin: 0 0 1rem; }
+.hsp-body ul { margin: 0 0 1rem; padding-left: 1.2rem; }
+.hsp-body li { margin-bottom: 0.35rem; }
+
+/* Eight dots: one per run, the one you watched ringed in "you" sodium */
+.runs { display: flex; gap: 0.45rem; margin: 0.25rem 0 0.4rem; }
+.runs i { width: 1.05rem; height: 1.05rem; border-radius: 50%; border: 2px solid var(--paper); }
+.runs i.on { background: var(--paper); }
+.runs i.you { box-shadow: 0 0 0 2px var(--ink), 0 0 0 4px var(--sodium); }
+.hsp .runs-say { font-family: var(--display); text-transform: uppercase; font-size: 1.6rem; line-height: 1; margin: 0.5rem 0 0.25rem; }
+
+/* The side card: where things stand */
+.status { border: 1px solid var(--ash); border-top: 3px solid var(--paper); padding: 1rem 1.1rem 1.1rem; }
+.status h2 { font-size: 1.35rem; margin: 0 0 0.75rem; }
+.status dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.45rem 0.9rem; font-size: 0.9rem; }
+.status dt { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--smoke); padding-top: 0.15rem; }
+.status dd { margin: 0; }
+.status .stamp-label { font-size: 1.05rem; transform: rotate(-4deg); margin: 1.1rem 0 0.25rem 0.1rem; }
+.status p { font-size: 0.85rem; color: var(--smoke); margin: 0.75rem 0 0; }
+.toc { margin-top: 1.5rem; font-size: 0.9rem; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
+.toc a { display: flex; gap: 0.6rem; min-height: 32px; align-items: center; text-decoration: none; color: var(--smoke); }
+.toc a span { font-family: var(--mono); font-size: 0.72rem; }
+.toc a:hover { color: var(--paper); }
+@media (max-width: 59.99rem) { .toc { display: none; } }
+.hsp-cta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
+
+/* Each section folds: the heading and one line show, the rest opens on a tap */
+.hsp-body details > summary { list-style: none; cursor: pointer; position: relative; padding-right: 2.5rem; }
+.hsp-body details > summary::-webkit-details-marker { display: none; }
+.hsp-body details > summary::after { content: "+"; position: absolute; right: 0; top: 0.1rem; width: 1.9rem; height: 1.9rem; display: grid; place-items: center; border: 1px solid var(--ash); border-radius: 50%; font-family: var(--mono); font-size: 1rem; color: var(--smoke); }
+.hsp-body details[open] > summary::after { content: "\2212"; color: var(--paper); }
+.hsp-body details > summary:hover::after { border-color: var(--smoke); }
+.hsp-body details > summary h2 { margin-bottom: 0.4rem; }
+.hsp-body .gist { margin: 0; color: var(--smoke); }
+.hsp-body .fold { padding-top: 1.1rem; }
+.hsp-body section { padding-top: 1.5rem; margin-top: 1.5rem; }

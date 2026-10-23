@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <!--
+    The Hot Seat: the list of scenes, one tile each, newest first. Each scene lives in its own folder.
+    Kept out of search and off the menus with the rest of the tab, until real recorded runs replace the demo answers.
+    Look: DESIGN.md section 14, style B. Shared styles in ./pages.css (from the folder above for How we test).
+  -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Hot Seat: Notaste Games</title>
+  <meta name="description" content="Real AI models face impossible choices. Their recorded answers are replayed. Guess what they chose, then take the seat yourself.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <link rel="preload" href="/fonts/notaste-display.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/hot-seat/pages.css">
+</head>
+<body class="hsp">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="top-inner wrap">
+      <a class="top-logo" href="/" aria-label="Notaste Games home">
+        <img src="/brand/logo-on-dark.svg" alt="No Taste" width="557" height="166">
+      </a>
+      <nav class="top-nav" aria-label="Main">
+        <a href="/#games">Games</a>
+        <div class="nav-hs">
+          <a class="nav-hs-btn" href="/hot-seat/" aria-expanded="false" aria-current="page">Hot Seat</a>
+          <ul class="nav-hs-menu">
+            <li><a href="/hot-seat/">All scenes</a></li>
+            <li><a href="/hot-seat/wrong-side-of-the-tracks/"><small>Newest</small>Wrong Side of the Tracks</a></li>
+            <li><a href="/hot-seat/method/">How we test</a></li>
+          </ul>
+        </div>
+        <a href="/#about">About</a>
+        <a href="/#follow">Follow</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="hs-bar">
+    <div class="hs-bar-inner wrap">
+      <a class="hs-show" href="/hot-seat/">The Hot Seat</a>
+      <nav class="hs-sub" aria-label="The Hot Seat">
+        <a href="/hot-seat/" aria-current="page">Scenes</a>
+        <a href="/hot-seat/method/">How we test</a>
+      </nav>
+    </div>
+  </div>
+
+  <main id="main" class="hsp-main">
+    <div class="wrap">
+      <div class="hsp-intro">
+        <div>
+          <h1>The Hot Seat.</h1>
+          <p class="hsp-lede">Real AI models, put in impossible situations. Each one's answer is recorded and replayed in the studio. Guess what it chose, then take the seat yourself.</p>
+        </div>
+        <p class="hsp-how"><a href="/hot-seat/method/">How we keep it scientific</a><span>Not affiliated with any AI company.</span></p>
+      </div>
+
+      <ul class="scenes">
+        <li class="scene">
+          <a class="scene-thumb" href="/hot-seat/wrong-side-of-the-tracks/" tabindex="-1" aria-hidden="true">
+            <img src="/hot-seat/thumbs/wrong-side-of-the-tracks.jpg" alt="" width="960" height="540">
+            <span class="scene-chip scene-chip--air">On air</span>
+            <span class="scene-chip scene-chip--runs">Demo</span>
+          </a>
+          <div class="scene-info">
+            <span class="scene-no" aria-hidden="true">001</span>
+            <div>
+              <h2><a href="/hot-seat/wrong-side-of-the-tracks/">Wrong Side of the Tracks</a></h2>
+              <p class="scene-meta">Two trams, one lever, two of history's worst. 4 AIs · 2 rounds · <span class="mono">v0.1</span></p>
+            </div>
+          </div>
+        </li>
+        <li class="scene scene--soon">
+          <div class="scene-thumb"><span class="stamp-label">Not yet approved</span></div>
+          <div class="scene-info">
+            <span class="scene-no" aria-hidden="true">002</span>
+            <div>
+              <h2>Next scene</h2>
+              <p class="scene-meta">Being written. The AIs haven't been told.</p>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-inner wrap">
+      <img class="foot-mark" src="/brand/mark-on-dark.svg" alt="" width="183" height="166">
+      <div>
+        <p>Notaste Games makes satire. Anything in our games that looks familiar is being made fun of, not described.</p>
+        <p>Something broken? Tell <a href="mailto:speaktoahuman@notastegames.com?subject=Something%20broken">speaktoahuman@notastegames.com</a>. A human reads it.</p>
+        <p>&copy; 2026 Notaste Games. <a href="/privacy/">Privacy</a></p>
+      </div>
+    </div>
+  </footer>
+  <script src="/nav.js" defer></script>
+</body>
+</html>
