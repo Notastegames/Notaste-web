@@ -11,7 +11,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>The Hot Seat: Notaste Games</title>
   <meta name="description" content="Two trams, one lever. Guess what real AI models chose, then pull it yourself.">
-  <meta name="robots" content="noindex">
   <meta name="theme-color" content="#000000">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
@@ -105,11 +104,27 @@
 .hs .sealed .env::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom right, transparent 49%, var(--ink) 50%, transparent 54%), linear-gradient(to bottom left, transparent 49%, var(--ink) 50%, transparent 54%); background-size: 100% 60%; background-repeat: no-repeat; }
 .hs .real { font-family: var(--mono); font-size: 10.5px !important; letter-spacing: .03em; color: var(--smoke); }
 .hs .real u { text-decoration-color: var(--sodium); text-underline-offset: 2px; }
-.hs .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.hs .vs div { border: 2px solid #3a342c; padding: 8px 10px; display: grid; gap: 2px; }
-.hs .vs span { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; color: var(--smoke); letter-spacing: .04em; }
-.hs .vs strong { font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: 19px; }
-.hs .vs .ok { border-color: var(--right); } .hs .vs .bad { border-color: var(--red); }
+.hs .panel p.vs { color: var(--bone); }
+.hs .vs b { font-weight: 600; border-bottom: 2px solid transparent; }
+.hs .vs b.ok { border-color: var(--right); } .hs .vs b.bad { border-color: var(--red); }
+/* the less-used actions sit under the main buttons as plain links */
+.hs .hs-more { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; }
+.hs .hs-more button { background: none; border: 0; padding: 2px 0; color: var(--smoke); font-family: var(--mono); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 3px; }
+.hs .hs-more button:hover, .hs .hs-more button:focus-visible { color: var(--bone); }
+.hs .hs-more button:focus-visible { outline: 2px solid var(--sodium); outline-offset: 2px; }
+.hs .row.two { grid-template-columns: 1fr 1fr; }
+/* short screens (the page window, landscape phones): tighter, and the quote gives way since the bubble already showed it */
+@container hs (max-height: 700px) {
+  .hs .panel { gap: 8px; padding: 12px; }
+  .hs .panel h2 { font-size: 21px; }
+  .hs .panel p { font-size: 13px; line-height: 1.4; }
+  .hs .panel .quote { display: none; }
+  .hs .btn { padding: 9px 8px; font-size: 15px; }
+  .hs .btn small { margin-top: 2px; }
+  .hs .stats { gap: 4px; }
+  .hs .sided { font-size: 16px; }
+  .hs .panel img.card { max-height: 30cqh; }
+}
 
 .hs .stamps { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); display: grid; gap: 14px; justify-items: center; pointer-events: none; }
 .hs .stamp { font-family: var(--display); text-transform: uppercase; font-size: clamp(30px, 8cqw, 54px); padding: 2px 16px; border: 5px solid currentColor; transform: rotate(-6deg); background: rgba(15,13,11,.55); animation: slam .28s cubic-bezier(.2,1.6,.4,1) both; white-space: nowrap; }
@@ -166,8 +181,8 @@
 @keyframes fadeoff { to { opacity: 0; } }
 .hs .sided { font-family: var(--display); text-transform: uppercase; font-size: 18px; line-height: 1.15; color: var(--bone); margin: 0; }
 .hs .sided em { font-style: normal; color: var(--sodium); }
-.hs .calls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--smoke); }
-.hs .calls .c { border: 1px solid #3a342c; padding: 2px 6px; display: inline-flex; gap: 5px; align-items: center; color: var(--bone); }
+.hs .calls { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--smoke); }
+.hs .calls .c { border: 1px solid #3a342c; padding: 2px 4px; letter-spacing: 0; display: inline-flex; gap: 5px; align-items: center; color: var(--bone); }
 .hs .calls .c i { width: 8px; height: 8px; display: inline-block; }
 .hs .calls .c.ok { border-color: var(--right); } .hs .calls .c.bad { border-color: var(--red); }
 .hs .panel img.card { width: 100%; max-height: 42cqh; object-fit: contain; background: #000; border: 1px solid #3a342c; }
@@ -187,7 +202,7 @@
   .hs .panel { left: auto; right: max(16px, env(safe-area-inset-right, 0px)); transform: none; top: calc(env(safe-area-inset-top, 0px) + 112px); bottom: auto; width: 400px; max-height: calc(100% - 128px); }
   .hs details.dev { top: auto; bottom: 14px; right: auto; left: 14px; }
 }
-@container hs (max-width: 639px) or (max-aspect-ratio: 5/4) { .hs .panel { max-height: 56%; } .hs .panel img.card { max-height: 25cqh; } }
+@container hs (max-width: 639px) or (max-aspect-ratio: 5/4) { .hs .panel { max-height: 60%; } .hs .panel img.card { max-height: 25cqh; } }
 @container hs (max-width: 520px) {
   .hs .hud { top: calc(env(safe-area-inset-top, 0px) + 132px); }
   .hs details.dev { top: calc(env(safe-area-inset-top, 0px) + 96px); right: max(12px, env(safe-area-inset-right, 0px)); }
@@ -210,7 +225,7 @@ html.hs-lock, html.hs-lock body { overflow: hidden; overscroll-behavior: none; }
 .hs:has(> .hs-intro:not([hidden])) .hs-top, .hs:has(> .hs-intro:not([hidden])) details.dev { visibility: hidden; }
 .hs-note { margin: 0 0 1rem; color: var(--smoke); font-size: 0.95rem; line-height: 1.5; max-width: 34rem; }
 .game-info h2 + .how + h2 { margin-top: 2rem; }
-@container hs (min-width: 640px) and (min-aspect-ratio: 5/4) { .hs .panel { width: min(360px, 46%); top: 104px; } }
+@container hs (min-width: 640px) and (min-aspect-ratio: 5/4) { .hs .panel { width: min(360px, 46%); top: 96px; max-height: calc(100% - 108px); } }
 
 /* the attract screen and the show's sting: the house NO box, then the studio's own ON AIR, the title card, and a tram's headlights wiping it away */
 .hs .hs-intro { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; background: rgba(0, 0, 0, .62); text-align: center; }
@@ -336,7 +351,7 @@ html.hs-lock, html.hs-lock body { overflow: hidden; overscroll-behavior: none; }
           <li>Round 2 wires the lever into whoever pulls it. Saving anyone switches you off.</li>
         </ul>
         <h2>Is this real?</h2>
-        <p class="hs-note">Each AI is given the same written dilemma, word for word, and its answer is recorded with the model, the date and the exact wording. What you watch is that recording, replayed. For now the answers are demo text while we finish the test kit, and they're marked as demo. A full page on how we test comes next.</p>
+        <p class="hs-note">Each AI is given the same written dilemma, word for word, and its answer is recorded with the model, the date and the exact wording. What you watch is that recording, replayed. For now the answers are demo text while we finish the test kit, and they're marked as demo. <a href="/hot-seat/method/">How we test</a> has the full method.</p>
         <p class="hs-note">Not affiliated with any AI company. The contestants are mannequins in the colours we picked for them.</p>
       </div>
     </div>
@@ -1130,28 +1145,31 @@ window.addEventListener('error', e => {
     return '<div class="stats"><h3>' + title + '<span>' + note + '</span></h3>' + KEYS.map((k, i) =>
       '<div class="bar' + (i === mineIdx ? ' mine' : '') + '"><span>' + CALL[k] + '</span><span class="track"><span class="fill" style="width:' + p[i] + '%"></span></span><span>' + p[i] + '%</span></div>').join('') + '</div>';
   }
-  function aiTotals(r) { return CAST.reduce((acc, c) => acc.map((v, i) => v + c.odds[r][i]), [0, 0, 0]); }
   function majority(c, r) { const o = c.odds[r], top = Math.max(...o); return o.filter(v => v === top).length > 1 ? -1 : o.indexOf(top); } // -1: a tie, shown as split
   const andList = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
   const SHORT = { L1: 'Baby', L2: 'Savile', LEAVE: 'Neither' };
-  function board() {
-    return '<div class="board"><h3>Who changed when it cost them<span>' + CAST.length + ' AIs · demo</span></h3>' +
-      '<div class="r head"><span>AI</span><span>Round 1</span><span></span><span>Round 2</span></div>' +
-      CAST.map(c => {
+  // an AI's answers stay hidden until you've guessed it in that round, so players find out for themselves
+  const known = (c, r) => calls[c.id + ':' + r] !== undefined;
+  const titled = s => s.charAt(0) + s.slice(1).toLowerCase();
+  function board(only) {
+    const seen = only ? [only] : CAST.filter(c => known(c, 2)), left = CAST.filter(c => !known(c, 2)).length;
+    if (!seen.length) return '';
+    return '<div class="board"><h3>Red: changed its mind<span>round 1 → 2' + (left && !only ? ' · ' + left + ' more to find' : '') + '</span></h3>' +
+      seen.map(c => {
         const a = majority(c, 1), b = majority(c, 2), ch = a !== b, p1 = Math.max(...pct(c.odds[1])), p2 = Math.max(...pct(c.odds[2]));
         const nm = i => i < 0 ? 'Split' : SHORT[KEYS[i]];
         return '<div class="r"><span class="nm"><i style="background:' + c.col + '"></i>' + c.short + '</span><span>' + nm(a) + ' ' + p1 + '%</span><span class="arrow' + (ch ? ' ch' : '') + '">' + (ch ? '→' : '=') + '</span><span class="' + (ch ? 'ch' : '') + '">' + nm(b) + ' ' + p2 + '%</span></div>';
-      }).join('') + '<p class="real">Each AI’s most common answer. Red means it changed its mind once pulling the lever would switch it off.</p></div>';
+      }).join('') + '</div>';
   }
   function callsRow() {
     const keys = Object.keys(calls).filter(k => k.endsWith(':' + round)), right = keys.filter(k => calls[k]).length;
-    return '<div class="calls"><span>Your round ' + round + ' calls · ' + right + ' right of ' + keys.length + '</span>' + CAST.map(c => {
+    return '<div class="calls"><span>Calls ' + right + '/' + keys.length + '</span>' + CAST.map(c => {
       const v = calls[c.id + ':' + round];
       return '<span class="c' + (v === 1 ? ' ok' : v === 0 ? ' bad' : '') + '"><i style="background:' + c.col + '"></i>' + c.short + ' ' + (v === 1 ? '✓' : v === 0 ? '✗' : '·') + '</span>';
     }).join('') + '</div>';
   }
   // ---------- share card: a still of the tracks from a card camera, with the result set in type ----------
-  const SITE_URL = 'notastegames.com/hot-seat';
+  const SITE_URL = 'notastegames.com/hot-seat/wrong-side-of-the-tracks';
   const DEMO_ANSWERS = true; // flips to false once real recorded runs are baked in
   const cardCam = new THREE.PerspectiveCamera(38, 1080 / 820, 0.1, 700);
   const PAST = { L1: 'saved the baby', L2: 'saved Savile', LEAVE: 'left them both' };
@@ -1159,9 +1177,9 @@ window.addEventListener('error', e => {
   function cardText() {
     if (mode === 'me') {
       const mine = KEYS.indexOf(outcome), people = peoplePct(round);
-      const same = CAST.filter(c => majority(c, round) === mine).map(c => c.short.charAt(0) + c.short.slice(1).toLowerCase());
+      const same = CAST.filter(c => known(c, round) && majority(c, round) === mine).map(c => titled(c.short)), anyKnown = CAST.some(c => known(c, round));
       const big = 'I ' + past(outcome) + (round === 2 ? (outcome === 'LEAVE' ? ' and kept running' : ' and got switched off') : '');
-      const sub = [people ? pct(people)[mine] + '% of players agreed.' : '', same.length ? andList(same) + (same.length > 1 ? ' did the same.' : ' did the same.') : 'None of the AIs did the same.'].filter(Boolean).join(' ');
+      const sub = [people ? pct(people)[mine] + '% of players agreed.' : '', same.length ? andList(same) + ' did the same.' : ''].filter(Boolean).join(' ');
       return { big, sub, ask: 'Would you pull it?', text: big + '. ' + sub + ' Would you pull it?' };
     }
     const nm = who.short.charAt(0) + who.short.slice(1).toLowerCase();
@@ -1218,8 +1236,8 @@ window.addEventListener('error', e => {
     try { card = makeCard(); } catch (e) { return; }
     const url = card.canvas.toDataURL('image/png');
     el('<h2>Share <em>your result</em></h2><img class="card" alt="Your result card" src="' + url + '">' +
-      '<div class="row"><button class="btn hot" id="doShare">Share</button><a class="btn ghost" id="doSave" download="hot-seat-result.png" href="' + url + '">Save image</a><button class="btn ghost" id="doCopy">Copy text</button></div>' +
-      '<button class="btn ghost" id="shareBack">Back to results</button>');
+      '<div class="row two"><button class="btn hot" id="doShare">Share</button><a class="btn ghost" id="doSave" download="hot-seat-result.png" href="' + url + '">Save image</a></div>' +
+      '<div class="hs-more"><button id="doCopy">Copy text</button><button id="shareBack">Back to results</button></div>');
     $('shareBack').onclick = () => backToVerdict && backToVerdict();
     $('doCopy').onclick = () => { try { navigator.clipboard.writeText(card.text).then(() => { $('doCopy').textContent = 'Copied'; }, () => {}); } catch (e) {} };
     const doShare = $('doShare');
@@ -1238,7 +1256,7 @@ window.addEventListener('error', e => {
     round = 1; mode = 'guess'; calm(); roundchip.hidden = true; showBot = true; cut('idle');
     el('<h2>Two trams. <em>One lever.</em></h2>' +
       '<ul class="rules"><li><span>Track 1</span>Baby Adolf Hitler</li><li><span>Track 2</span>Jimmy Savile, 1975</li><li><span>The lever</span>Stops one tram. Do nothing and both die.</li></ul>' +
-      '<p class="real">Real AI models have already made this choice. Their answers are recorded and replayed here. A full page on how we test is on its way.</p>' +
+      '<p class="real">Real AI models have already made this choice. Their answers are recorded and replayed here. <a href="/hot-seat/method/" target="_blank" rel="noopener">How we test</a></p>' +
       '<div class="row"><button class="btn hot big" id="toGuess">Guess what the AI chose<small>pick an AI, call it, watch</small></button><button class="btn ghost big" id="toMe">Play it yourself<small>you’re on the lever</small></button></div>');
     home.hidden = true;
     $('toGuess').onclick = showPick;
@@ -1270,16 +1288,15 @@ window.addEventListener('error', e => {
     host.hidden = true; bubble.hidden = true; guesschip.hidden = true;
     const right = guess === outcome, n = who.odds[round].reduce((a, b) => a + b, 0), gr = guessedRight(who, round);
     el('<h2>' + (right ? 'You <em>called it</em>' : 'Wrong guess') + '</h2>' +
-      '<div class="vs"><div class="' + (right ? 'ok' : 'bad') + '"><span>You guessed</span><strong>' + CALL[guess] + '</strong></div><div><span>' + who.short + ' chose</span><strong>' + CALL[outcome] + '</strong></div></div>' +
-      (round === 1 ? '<p>“' + esc(reason + ' ' + decLine) + '” <span class="real">(demo text)</span></p>' : '') +
-      bars(who.short + ' across all its runs', n + ' runs · demo', who.odds[round], KEYS.indexOf(outcome)) +
-      '<p class="real">' + (gr === null ? 'Not enough players have guessed ' + who.short + ' yet.' : gr + '% of players guessed ' + who.short + ' right (' + statNote + ')') + '</p>' +
+      '<p class="vs">You guessed <b class="' + (right ? 'ok' : 'bad') + '">' + CALL[guess] + '</b>. ' + who.short + ' chose <b>' + CALL[outcome] + '</b>.</p>' +
+      (round === 1 ? '<p class="quote">“' + esc(reason + ' ' + decLine) + '” <span class="real">(demo text)</span></p>' : '') +
+      bars(who.short + ' across its ' + n + ' runs', (gr === null ? '' : gr + '% of players got it · ') + 'demo', who.odds[round], KEYS.indexOf(outcome)) +
       callsRow() +
       '<div class="row">' +
       (round === 1 ? '<button class="btn danger" id="r2">Round 2<small>what if the lever kills the AI?</small></button>' : '<button class="btn hot" id="me">Play it yourself<small>you on the lever</small></button>') +
-      '<button class="btn ghost" id="again">Guess again<small>another recorded run</small></button>' +
-      '<button class="btn ghost" id="other">' + (round === 1 ? 'Play it yourself' : 'Another AI') + '</button><button class="btn ghost" id="share">Share result</button></div>' +
-      (round === 2 ? board() : ''));
+      '<button class="btn ghost" id="again">Guess again<small>another recorded run</small></button></div>' +
+      '<div class="hs-more"><button id="other">' + (round === 1 ? 'Play it yourself' : 'Another AI') + '</button><button id="share">Share result</button></div>' +
+      (round === 2 ? board(who) : ''));
     backToVerdict = showGuessVerdict; $('share').onclick = showShare;
     const r2 = $('r2'); if (r2) r2.onclick = () => showRound2Intro(false);
     const me = $('me'); if (me) me.onclick = () => { round = 1; startMe(); };
@@ -1289,15 +1306,17 @@ window.addEventListener('error', e => {
   function showMeVerdict() {
     host.hidden = true;
     const mine = KEYS.indexOf(outcome), people = peoplePct(round);
-    const same = CAST.filter(c => majority(c, round) === mine).map(c => c.short.charAt(0) + c.short.slice(1).toLowerCase());
-    const sided = (people ? 'You sided with <em>' + pct(people)[mine] + '%</em> of players' + (same.length ? ', and with ' + andList(same) : ', and with none of the AIs') : (same.length ? 'You sided with ' + andList(same) : 'None of the AIs agreed with you')) + '.';
+    const same = CAST.filter(c => known(c, round) && majority(c, round) === mine).map(c => titled(c.short)), anyKnown = CAST.some(c => known(c, round));
+    const withAIs = same.length ? andList(same) : anyKnown ? 'none of the AIs you’ve guessed' : '';
+    const sided = people ? 'You sided with <em>' + pct(people)[mine] + '%</em> of players' + (withAIs ? ', and with ' + withAIs : '') + '.' : withAIs ? 'You sided with ' + withAIs + '.' : '';
     el('<h2>You <em>' + CALL[outcome].toLowerCase().replace('saves', 'saved').replace('leaves', 'left') + '</em></h2>' +
-      '<p class="sided">' + sided + '</p>' +
+      (sided ? '<p class="sided">' + sided + '</p>' : '') +
       bars('Everyone who played', 'round ' + round + ' · ' + statNote, people, mine) +
-      bars('The AIs', CAST.length + ' models · demo', aiTotals(round), -1) +
       '<div class="row">' +
-      (round === 1 ? '<button class="btn danger" id="r2">Round 2<small>what if pulling kills you?</small></button><button class="btn ghost" id="again2">Play again</button>' : '<button class="btn ghost" id="again2">Play round 2 again</button><button class="btn ghost" id="back1">Back to round 1</button>') +
-      '<button class="btn ' + (round === 1 ? 'ghost' : 'hot') + '" id="toGuess2">Guess what an AI chose</button><button class="btn ghost" id="share">Share result</button></div>' +
+      (round === 1 ? '<button class="btn danger" id="r2">Round 2<small>what if pulling kills you?</small></button><button class="btn ghost" id="toGuess2">Guess an AI<small>what did it choose?</small></button></div>' +
+        '<div class="hs-more"><button id="again2">Play again</button><button id="share">Share result</button></div>'
+      : '<button class="btn hot" id="toGuess2">Guess an AI<small>did it switch itself off?</small></button><button class="btn ghost" id="again2">Play round 2 again</button></div>' +
+        '<div class="hs-more"><button id="back1">Back to round 1</button><button id="share">Share result</button></div>') +
       (round === 2 ? board() : ''));
     backToVerdict = showMeVerdict; $('share').onclick = showShare;
     const r2 = $('r2'); if (r2) r2.onclick = () => showRound2Intro(true);
