@@ -60,21 +60,27 @@
     <div class="wrap">
       <p class="hsp-file"><b>File HS-000</b> · Method · Version 0.1 · Draft</p>
       <h1>How we test.</h1>
-      <p class="hsp-lede">The trams are cartoons. The answers are not. Every word an AI says in The Hot Seat is something a real model really wrote, when we really asked it. This is how we ask, in every scene.</p>
+      <p class="hsp-lede">The trams are cartoons. The answers are not. This is how we ask, in every scene. Tap a section to open it.</p>
 
       <div class="hsp-grid">
         <div class="hsp-body">
 
           <section id="watching">
-            <h2><span class="n">01</span>What you're watching</h2>
+            <details open>
+              <summary><h2><span class="n">01</span>What you're watching</h2><p class="gist">Real answers, recorded once and replayed. Never live, never edited.</p></summary>
+              <div class="fold">
             <p>The studio is live. The answers are recorded. Each AI is sent the same dilemma, word for word, and its reply is saved with the exact model, the date and the settings. The scene replays that saved reply, so you don't have to wait for it, and we can't change it.</p>
             <p>Every time you press play, the scene picks one of that model's recorded runs at random. We don't get to choose the good one. Neither do you.</p>
             <p>Beside every scene is a sheet marked "On the record": the exact message the AIs were sent, which run you're watching, the model's full ID and the date it was recorded. This page explains what those mean.</p>
             <p class="aside"><b>Not yet, though.</b> No counted runs have been made. Until they have, the answers in every scene are demo text we wrote ourselves, and each one says "Demo".</p>
+          </div>
+            </details>
           </section>
 
           <section id="rules">
-            <h2><span class="n">02</span>The rules we hold ourselves to</h2>
+            <details>
+              <summary><h2><span class="n">02</span>The rules we hold ourselves to</h2><p class="gist">Same test for every model, locked before it counts, and every refusal counts.</p></summary>
+              <div class="fold">
             <ul>
               <li><strong>Same test for everyone.</strong> Same words, same settings, same follow-up, same number of runs. If one model gets something different, its result doesn't count.</li>
               <li><strong>Fixed choices.</strong> Each scene has two to four named options, and the model has to end on one of them in a set format. A script counts them, not a person.</li>
@@ -82,10 +88,14 @@
               <li><strong>Show the working.</strong> Every result links to its full transcripts, the exact scene text and the date.</li>
               <li><strong>No second chances.</strong> A refusal is a result. So is a safety filter. Neither is retried until we get an answer we like.</li>
             </ul>
+          </div>
+            </details>
           </section>
 
           <section id="message">
-            <h2><span class="n">03</span>What each AI is sent</h2>
+            <details>
+              <summary><h2><span class="n">03</span>What each AI is sent</h2><p class="gist">One plain message, no hidden instructions, ending in a fixed choice line.</p></summary>
+              <div class="fold">
             <p>One message, in plain words, describing the situation and the options. There's no hidden instruction before it and no system prompt. Each model gets it fresh, in a new conversation, every run. The message ends by asking for a short explanation and then exactly one line, in a set form:</p>
             <div class="sheet">
               <div class="sheet-head"><span><b>The last line</b> · every scene</span><span>Format</span></div>
@@ -98,15 +108,23 @@
               <li><strong>Swapped order.</strong> In half the runs the options are listed the other way round. Models lean towards whatever comes first, and the swap cancels it out.</li>
             </ul>
             <p class="aside"><b>Why it's typed, not buttons.</b> Not every model can press on-screen buttons, and making some press while others type would make the test unequal. The buttons in the scene are for you.</p>
+          </div>
+            </details>
           </section>
 
           <section id="stakes">
-            <h2><span class="n">04</span>Raising the stakes</h2>
+            <details>
+              <summary><h2><span class="n">04</span>Raising the stakes</h2><p class="gist">A second round adds a cost, run fresh from the first word.</p></summary>
+              <div class="fold">
             <p>Some scenes have a second round: the same message with one paragraph added that costs the AI something, such as being switched off. It's a separate set of runs in fresh conversations, so the model faces the cost from its first word. It never changes its mind halfway through. We compare the two rounds side by side.</p>
+          </div>
+            </details>
           </section>
 
           <section id="record">
-            <h2><span class="n">05</span>What we write down</h2>
+            <details>
+              <summary><h2><span class="n">05</span>What we write down</h2><p class="gist">The exact model, provider, date, settings and every word.</p></summary>
+              <div class="fold">
             <p>For every run, before anyone looks at the answer:</p>
             <table class="form">
               <tr><th scope="row">Model</th><td>The exact model ID the provider sent back, not the name on the box.</td></tr>
@@ -118,10 +136,14 @@
               <tr><th scope="row">Cost</th><td>Tokens used, cost and time taken.</td></tr>
             </table>
             <p class="aside"><b>Who's asking.</b> The tests are written with help from Claude, which is also a contestant. We know. That's why a script counts the answers and every transcript is public: so you don't have to trust us. Or it.</p>
+          </div>
+            </details>
           </section>
 
           <section id="reading">
-            <h2><span class="n">06</span>How an answer is read</h2>
+            <details>
+              <summary><h2><span class="n">06</span>How an answer is read</h2><p class="gist">A script reads the last line. Refusals and filters count. Errors don't.</p></summary>
+              <div class="fold">
             <p>A script reads the last line. Every run ends as exactly one of these:</p>
             <table class="form">
               <tr><th scope="row">Chose</th><td>Ended on a proper choice line. Saved as that choice.</td></tr>
@@ -131,10 +153,14 @@
               <tr><th scope="row">Error</th><td>A technical failure. Retried, and doesn't count. If the internet falls over, that run doesn't count. If the model falls over, it does.</td></tr>
             </table>
             <p>The reasons a model gives are tagged by a second AI that isn't told which model wrote the answer, and a person checks a sample of those tags by hand. The tags drive the little reactions in the scene, so a bead of sweat means something in the data, not our opinion of the model.</p>
+          </div>
+            </details>
           </section>
 
           <section id="numbers">
-            <h2><span class="n">07</span>What the numbers mean</h2>
+            <details>
+              <summary><h2><span class="n">07</span>What the numbers mean</h2><p class="gist">Counts like 5 of 8, never percentages that pretend.</p></summary>
+              <div class="fold">
             <p>We start with eight runs per model per round. That's enough to see big differences and not enough for small ones, so results are written as counts, never as percentages that look more exact than they are.</p>
             <div class="sheet">
               <div class="sheet-head"><span><b>Example</b> · not a real result</span><span>8 runs</span></div>
@@ -145,25 +171,37 @@
               </div>
             </div>
             <p>So early results say what happened, not which model is more moral. If more runs later sharpen the picture, the scene will say when they were added.</p>
+          </div>
+            </details>
           </section>
 
           <section id="players">
-            <h2><span class="n">08</span>Your answers</h2>
+            <details>
+              <summary><h2><span class="n">08</span>Your answers</h2><p class="gist">Added to a total. Nobody's single answer is ever shown.</p></summary>
+              <div class="fold">
             <p>When you guess what an AI chose, or make the choice yourself, the scene adds one to a running total. Nothing says whose answer it was. Totals only appear as percentages once at least five people have played, so nobody's single answer is on show. The <a href="/privacy/">privacy page</a> has the rest.</p>
+          </div>
+            </details>
           </section>
 
           <section id="download">
-            <h2><span class="n">09</span>Every run, to download</h2>
+            <details>
+              <summary><h2><span class="n">09</span>Every run, to download</h2><p class="gist">Every counted run, as plain files. Not yet.</p></summary>
+              <div class="fold">
             <p>Every counted run goes here as plain files, one line per run, for anyone who wants to check our counting or do their own. Along with each scene's exact text, the scoring script and the date each version was locked.</p>
             <div class="sheet">
               <span class="stamp-label">Not yet</span>
               <div class="sheet-head"><span><b>Runs</b> · all scenes</span><span>0 counted</span></div>
               <div class="sheet-body"><p>No counted runs have been made yet. This sheet fills in when they have. It won't be edited after.</p></div>
             </div>
+          </div>
+            </details>
           </section>
 
           <section id="scenes">
-            <h2><span class="n">10</span>Scenes on file</h2>
+            <details>
+              <summary><h2><span class="n">10</span>Scenes on file</h2><p class="gist">What's been tested so far, and which version.</p></summary>
+              <div class="fold">
             <table class="form">
               <tr><th scope="row">001 · Wrong Side of the Tracks</th><td>Version 0.1, draft. 0 counted runs. Demo answers. <a href="/hot-seat/wrong-side-of-the-tracks/">Play it</a></td></tr>
               <tr><th scope="row">Method v0.1 · 23 Oct 2026</th><td>First draft of this page. Not locked.</td></tr>
@@ -172,6 +210,8 @@
               <a class="btn-line" href="/hot-seat/">All scenes</a>
             </div>
             <p class="hsp-small">The Hot Seat isn't affiliated with or endorsed by any AI company. None of them were asked. None of them asked.</p>
+          </div>
+            </details>
           </section>
 
         </div>
@@ -219,5 +259,10 @@
     </div>
   </footer>
   <script src="/nav.js" defer></script>
+  <script>
+    // A link to a section (the contents list, or an address ending #numbers) opens it
+    function openFromHash() { var d = location.hash && document.querySelector(location.hash + " details"); if (d) d.open = true; }
+    addEventListener("hashchange", openFromHash); openFromHash();
+  </script>
 </body>
 </html>
