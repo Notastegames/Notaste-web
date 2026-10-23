@@ -142,3 +142,9 @@
 .hsp-body .gist { margin: 0; color: var(--smoke); }
 .hsp-body .fold { padding-top: 1.1rem; }
 .hsp-body section { padding-top: 1.5rem; margin-top: 1.5rem; }
+
+/* The scene list's one main action, so a first-time visitor knows where to start */
+.hsp .hsp-intro .hsp-lede { margin-bottom: 1.25rem; }
+.hsp-play { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; margin: 0; }
+.hsp-play .btn { font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: 1.25rem; line-height: 1; }
+.hsp-play span { font-size: var(--step--1); color: var(--smoke); max-width: 22rem; }
