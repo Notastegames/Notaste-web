@@ -17,7 +17,9 @@
     btn.setAttribute("role", "button");
     btn.addEventListener("click", function (e) {
       e.preventDefault();
-      set(drop, !drop.classList.contains("open"));
+      var open = !drop.classList.contains("open");
+      set(drop, open);
+      if (!open) btn.blur();   // focus inside also holds it open on a laptop
     });
     // Keyboard: Space opens it like a button would
     btn.addEventListener("keydown", function (e) {
