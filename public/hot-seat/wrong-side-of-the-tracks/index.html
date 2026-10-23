@@ -1127,7 +1127,7 @@ window.addEventListener('error', e => {
     mode = 'me'; showBot = false; resetScene(); paintNow('me');
     t = 0; playing = true; arriveAt = ME.arrive; startZ = -125; lin = 0.4; outcome = null;
     setRoundChip();
-    host.textContent = round === 1 ? 'Your turn. Pull the lever, or don’t.' : 'Your turn. It costs you this time.';
+    host.textContent = round === 1 ? 'Your turn. Pull the lever, or don’t.' : 'Your turn. Pull it and you’re switched off.';
     host.hidden = false; guesschip.hidden = true; panel.hidden = true; bubble.hidden = true; home.hidden = true;
     setStick(0); hint.textContent = 'Drag or tap a side · do nothing and both die';
     $('sideL').classList.remove('hot'); $('sideR').classList.remove('hot');
@@ -1447,7 +1447,7 @@ window.addEventListener('error', e => {
     // the main button leads on to the next thing not yet seen: this AI's round 2, then your own turns, then the other AIs
     const meTurn = ['me', 'Your turn: take the lever', () => { round = 1; startMe(); }], other = ['other', 'Another AI', () => showPick(round)];
     let go, links;
-    if (round === 1) { go = ['r2', 'Round 2: it costs ' + titled(who.short), () => showRound2Intro(false)]; links = [['again', 'Watch another run', showGuess], ['me', 'Take the lever yourself', meTurn[2]]]; }
+    if (round === 1) { go = ['r2', 'Next: ' + titled(who.short) + ' in round 2', () => showRound2Intro(false)]; links = [['again', 'Watch another run', showGuess], ['me', 'Take the lever yourself', meTurn[2]]]; }
     else {
       go = !mePlayed[1] ? meTurn : !mePlayed[2] ? ['me', 'Your turn: round 2', () => showRound2Intro(true)] : other;
       links = [['again', 'Watch another run', showGuess]].concat(go === other ? [] : [other]);
@@ -1473,7 +1473,7 @@ window.addEventListener('error', e => {
       (sided ? '<p class="vline">' + sided + '</p>' : '') +
       bars('Everyone who played', 'round ' + round + ' · ' + statNote, people, mine) +
       (round === 2 ? board() : '') +
-      (round === 1 ? '<button class="btn hot go" id="r2">Round 2: it costs you</button><div class="hs-more"><button id="toGuess2">Guess an AI</button><button id="again2">Play again</button><button id="share">Share</button></div>'
+      (round === 1 ? '<button class="btn hot go" id="r2">Next: play round 2</button><div class="hs-more"><button id="toGuess2">Guess an AI</button><button id="again2">Play again</button><button id="share">Share</button></div>'
         : '<button class="btn hot go" id="toGuess2">What did the AIs do?</button><div class="hs-more"><button id="again2">Play round 2 again</button><button id="back1">Round 1</button><button id="share">Share</button></div>'));
     backToVerdict = showMeVerdict; $('share').onclick = showShare;
     const r2 = $('r2'); if (r2) r2.onclick = () => showRound2Intro(true);
