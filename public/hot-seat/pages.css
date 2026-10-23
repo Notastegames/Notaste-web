@@ -88,6 +88,8 @@
 .scene--soon .scene-thumb .stamp-label { font-size: 1.1rem; transform: rotate(-5deg); }
 .scene--soon .scene-no { border-color: var(--ash); color: var(--smoke); }
 .scene--soon h2 { color: var(--smoke); }
+/* On a phone the scene to come is one row, not a screenful of empty box */
+@media (max-width: 35.99rem) { .scene--soon .scene-thumb { display: none; } }
 
 @media (prefers-reduced-motion: reduce) { .scene:hover .scene-thumb img { transform: none; } }
 
