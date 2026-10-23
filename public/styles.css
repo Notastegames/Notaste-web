@@ -186,6 +186,17 @@ h1, h2, h3 {
 .top-nav a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; color: var(--paper); }
 .top-nav a:hover { text-decoration: underline; }
 
+/* The Hot Seat tab (DESIGN.md section 14): a sodium studio lamp before the name.
+   Hidden until the owner switches the tab on: delete the display: none line to show it everywhere. */
+.top-nav .nav-hs { white-space: nowrap; }
+.top-nav .nav-hs::before { content: ""; flex: none; width: 0.5em; height: 0.5em; margin-right: 0.45em; border-radius: 50%; background: #f2a33a; box-shadow: 0 0 0 2px rgba(242, 163, 58, 0.25); }
+/* With four links a phone has no room, so About (just under the games on the homepage) and then Follow make way */
+@media (max-width: 30rem) { .top-nav a[href$="#about"] { display: none; } }
+@media (max-width: 22.5rem) { .top-nav a[href$="#follow"] { display: none; } }
+/* The switch. While the tab is off, its link is hidden and the other links stay put. To switch it on, delete these two lines. */
+.top-nav .nav-hs { display: none; }
+.top-nav a[href$="#about"], .top-nav a[href$="#follow"] { display: inline-flex !important; }
+
 @media (max-width: 24rem) {
   .top-logo img { width: 7.25rem; }
   .top-nav { gap: 0.85rem; }
