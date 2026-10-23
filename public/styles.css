@@ -207,9 +207,6 @@ h1, h2, h3 {
 /* With four links a phone has no room, so About (just under the games on the homepage) and then Follow make way */
 @media (max-width: 30rem) { .top-nav a[href$="#about"] { display: none; } }
 @media (max-width: 22.5rem) { .top-nav a[href$="#follow"] { display: none; } }
-/* The switch. While the tab is off, its link is hidden and the other links stay put. To switch it on, delete these two lines. */
-.top-nav .nav-hs { display: none; }
-.top-nav a[href$="#about"], .top-nav a[href$="#follow"] { display: inline-flex !important; }
 
 @media (max-width: 24rem) {
   .top-logo img { width: 7.25rem; }
