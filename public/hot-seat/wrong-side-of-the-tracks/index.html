@@ -368,6 +368,8 @@ details[open] > summary .chev { transform: rotate(180deg); }
 .hs-back:hover, .hs-back:focus-visible { color: var(--paper); text-decoration: underline; }
 .hs-sheet .prompt.r2add { border-left: 3px solid rgba(255, 255, 255, .4); padding-left: 10px; }
 .hs-sheet .prompt.r2add b { font-weight: 600; }
+.hs .attract .hook { margin: 6px 0 14px; font-family: var(--body); font-size: clamp(15px, 2.6cqw, 19px); line-height: 1.35; color: #fff; text-shadow: 0 1px 2px #000, 0 0 12px rgba(0, 0, 0, .9); }
+.hs .panel .ask { margin: 0; font-size: 14px; color: #fff; }
 </style>
 </head>
 <body class="game hot-seat" style="--accent: #f2a33a">
@@ -397,6 +399,7 @@ details[open] > summary .chev { transform: rotate(180deg); }
       <div class="game-head">
         <p class="hs-kick">The Hot Seat · Scene 001</p>
         <h1>Wrong Side of the Tracks</h1>
+        <p class="game-pitch">We put AI models in an impossible moral dilemma. Guess what each one chose, then take the lever yourself.</p>
         <div class="game-meta">
           <p class="game-state"><a class="hs-back" href="/hot-seat/"><span aria-hidden="true">←</span> All scenes</a></p>
         </div>
@@ -434,8 +437,8 @@ details[open] > summary .chev { transform: rotate(180deg); }
               <p class="kick">Notaste Games presents</p>
               <h2 class="title">The Hot Seat</h2>
               <p class="sub">Scene 001 · Wrong Side of the Tracks</p>
+              <p class="hook">AI models face an impossible choice.<br>Can you guess what they did?</p>
               <button class="btn hot" id="pressStart" type="button">Press start</button>
-              <p class="real">Two trams. One lever. AI contestants.</p>
             </div>
             <div class="sting" id="sting" hidden>
               <div class="row1"><img class="no" src="/brand/mark-on-dark.svg" alt="" width="183" height="166"><div class="onair">On air</div></div>
@@ -1408,8 +1411,9 @@ window.addEventListener('error', e => {
 
   function showStart() {
     round = 1; mode = 'guess'; calm(); roundchip.hidden = true; showBot = true; cut('idle'); paintNow('idle');
-    el('<p class="eyebrow">Scene 001</p><h2>Two trams. One lever.</h2>' +
+    el('<p class="eyebrow">The dilemma</p><h2>Two trams. One lever.</h2>' +
       '<ul class="rules"><li><span>Track 1</span>Baby Adolf Hitler</li><li><span>Track 2</span>Jimmy Savile, 1975</li><li><span>The lever</span>Stops one tram. Do nothing and both die.</li></ul>' +
+      '<p class="ask">We put this to 4 AI models. Guess what each one did.</p>' +
       '<div class="row"><button class="btn hot" id="toGuess">Guess what an AI chose</button><button class="btn" id="toMe">Take the lever yourself</button></div>');
     home.hidden = true;
     $('toGuess').onclick = () => showPick(1);
