@@ -1369,7 +1369,7 @@
       var hold = el("div", "kit-clip-screen");
       var foot = el("div", "kit-clip-foot");
       foot.appendChild(el("p", "kit-clip-title", game.title));
-      var pitch = game.pitch || (document.querySelector(".game-pitch") || {}).textContent;
+      var pitch = game.pitch || (document.querySelector(".pitch-short") || document.querySelector(".game-pitch") || {}).textContent;
       if (pitch) foot.appendChild(el("p", "kit-clip-pitch", pitch));
       foot.appendChild(el("p", "kit-clip-url", "Free at notastegames.com"));
       clipBox.appendChild(top);

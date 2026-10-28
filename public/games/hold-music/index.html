@@ -1,16 +1,8 @@
 <!doctype html>
 <html lang="en-GB">
 <head>
-  <!--
-    Game page for a playable game. To add a game: copy /games/starter/ to
-    /games/<slug>/, rewrite the script as the new game (built with the kit in
-    /games/kit/), change everything marked EDIT on this page, then add one
-    line to GAMES in /games/game.js, a poster on the homepage and a line in
-    the sitemap. The full checklist is at the end of DESIGN.md.
-  -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- EDIT: title, description and the og: tags -->
   <title>Hold Music: Notaste Games</title>
   <meta name="description" content="Phone a company about your broadband. Remember the menu, tap along to the hold music and get put through to someone else. Four calls, one problem. A free browser game in poor taste from Notaste Games.">
   <meta name="theme-color" content="#000000">
@@ -37,10 +29,6 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
-<!--
-  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
-  --accent is the game's colour (same as its GAMES entry and its homepage poster).
--->
 <body class="game" data-game="hold-music" style="--accent: #c452b5">
   <a class="skip" href="#main">Skip to content</a>
 
@@ -67,19 +55,17 @@
   <main id="main">
     <div class="game-page wrap">
 
-      <!-- EDIT: title, stamp (and its tilt), state, pitch -->
       <div class="game-head">
         <h1>Hold Music</h1>
         <div class="game-meta">
           <span class="stamp-label" style="--tilt: -5deg">Please hold</span>
           <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now</p>
         </div>
-        <p class="game-pitch">Phone a company about your broadband. Remember the menu, tap along to the hold music, and get put through to someone else. Your call is important to us.</p>
+        <p class="game-pitch"><span class="pitch-short">Phone a company. Remember the menu. Keep time with the hold music.</span><span class="pitch-long">Phone a company about your broadband. Remember the menu, tap along to the hold music, and get put through to someone else. Your call is important to us.</span></p>
       </div>
 
       <section class="cabinet" aria-label="Game screen">
         <div class="screen">
-          <!-- EDIT: cover art path -->
           <img class="screen-art" src="/art/hold-music.svg" alt="" width="800" height="600">
 
           <!-- The game. /games/kit/kit.js builds the screens in here, hold-music.js is the game. -->
@@ -92,7 +78,6 @@
 
       <div class="game-info">
         <h2>How to play</h2>
-        <!-- EDIT: two or three short lines -->
         <ul class="how">
           <li>Press your problem: when the menu reads out what's on your sticky note, press its number (1 to 9, or the keypad). On hold, tap at the ring: Space, a click or a tap anywhere, as each note reaches the ring at your ear.</li>
           <li>Get through four calls. Wrong numbers, dropped calls and being cut off cost patience, and at 0 you hang up. On hold, each missed note costs a bar of signal; lose them all and you're cut off.</li>

@@ -1,16 +1,8 @@
 <!doctype html>
 <html lang="en-GB">
 <head>
-  <!--
-    Game page for a playable game. To add a game: copy /games/starter/ to
-    /games/<slug>/, rewrite the script as the new game (built with the kit in
-    /games/kit/), change everything marked EDIT on this page, then add one
-    line to GAMES in /games/game.js, a poster on the homepage and a line in
-    the sitemap. The full checklist is at the end of DESIGN.md.
-  -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- EDIT: title, description and the og: tags -->
   <title>Unexpected Item: Notaste Games</title>
   <meta name="description" content="Scan your own shopping at a self-checkout that thinks you're stealing it. Four shops, one assistant, no staffed till. A free browser game in poor taste from Notaste Games.">
   <meta name="theme-color" content="#000000">
@@ -36,10 +28,6 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
-<!--
-  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
-  --accent is the game's colour (same as its GAMES entry and its homepage poster).
--->
 <body class="game" data-game="unexpected-item" style="--accent: #4e9a55">
   <a class="skip" href="#main">Skip to content</a>
 
@@ -66,19 +54,17 @@
   <main id="main">
     <div class="game-page wrap">
 
-      <!-- EDIT: title, stamp (and its tilt), state, pitch -->
       <div class="game-head">
         <h1>Unexpected Item</h1>
         <div class="game-meta">
           <span class="stamp-label" style="--tilt: -4deg">Approval needed</span>
           <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now</p>
         </div>
-        <p class="game-pitch">Scan your own shopping. The machine thinks you're stealing it. There is one assistant for every till in the shop, and she's on her way. Slowly.</p>
+        <p class="game-pitch"><span class="pitch-short">Scan your own shopping. The machine thinks you're stealing it.</span><span class="pitch-long">Scan your own shopping. The machine thinks you're stealing it. There is one assistant for every till in the shop, and she's on her way. Slowly.</span></p>
       </div>
 
       <section class="cabinet" aria-label="Game screen">
         <div class="screen">
-          <!-- EDIT: cover art path -->
           <img class="screen-art" src="/art/unexpected-item.svg" alt="" width="800" height="600">
 
           <!-- The game. /games/kit/kit.js builds the screens in here, unexpected-item.js is the game. -->
@@ -91,7 +77,6 @@
 
       <div class="game-info">
         <h2>How to play</h2>
-        <!-- EDIT: two or three short lines -->
         <ul class="how">
           <li>Scan on the line (Space, a click or the Scan button), then bag on OK (B, the bag or the Bag button).</li>
           <li>Pay for everything before the shop shuts. Bag on Wait and the till locks. From the trolley on, misses light its suspicion: the more lights, the likelier it accuses you.</li>

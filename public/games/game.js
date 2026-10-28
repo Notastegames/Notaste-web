@@ -110,6 +110,10 @@
       li.appendChild(a);
       moreList.appendChild(li);
     });
+    // shown on a phone, where only the first four are (game.css)
+    var all = el("a", "btn btn--light more-all", "See all " + (GAMES.length - (current ? 1 : 0)) + " games");
+    all.href = "/#games";
+    moreList.parentNode.insertBefore(all, moreList.nextSibling);
   }
 
   // ---------- Share ----------

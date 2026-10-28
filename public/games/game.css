@@ -96,8 +96,27 @@
   color: #dcdcdc;
 }
 
+/* one line over the game on phones and tablets; a laptop has room beside it for the longer one */
+.pitch-long { display: none; }
+@media (min-width: 60rem) {
+  .pitch-short { display: none; }
+  .pitch-long { display: inline; }
+}
+
 @media (max-width: 39.99rem) {
   .game-pitch { font-size: var(--step-0); line-height: 1.5; margin-top: 0.9rem; }
+  /* the start screen already shows the name, so on a phone the heading is kept
+     for screen readers and the accent bar moves to the top of the block */
+  .game-head { padding-top: 0.75rem; border-top: 6px solid var(--accent, var(--paper)); }
+  .game-head h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .game-meta { margin-top: 0.25rem; }
 }
 
 /* ---------- The cabinet ---------- */
@@ -515,6 +534,13 @@
 
 @media (min-width: 44rem) {
   .more-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2.5rem; }
+}
+
+/* a phone gets four, then a link to the rest on the homepage */
+.more-all { display: none; }
+@media (max-width: 43.99rem) {
+  .more-list > li:nth-child(n+5) { display: none; }
+  .more-all { display: inline-block; margin-top: 2.5rem; }
 }
 
 .more-card {
