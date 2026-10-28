@@ -11,7 +11,7 @@
   <meta name="robots" content="noindex">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Wrong Side of the Tracks: The Hot Seat: Notaste Games</title>
-  <meta name="description" content="Two trams, one lever. Guess what real AI models chose, then pull it yourself.">
+  <meta name="description" content="Two trams, one lever. Guess what AI models chose, then pull it yourself.">
   <meta name="theme-color" content="#000000">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
@@ -156,7 +156,7 @@
 .hs .leverbox .slot { position: absolute; left: 33%; right: 33%; bottom: 18px; height: 10px; background: #2b2620; border-radius: 5px; }
 .hs .leverbox .slot::before, .hs .leverbox .slot::after { content: ""; position: absolute; top: -8px; width: 3px; height: 26px; background: var(--smoke); }
 .hs .leverbox .slot::before { left: 0; } .hs .leverbox .slot::after { right: 0; }
-.hs .stick { position: absolute; left: 50%; bottom: 22px; width: 10px; height: 90px; margin-left: -5px; transform-origin: 50% 100%; background: linear-gradient(90deg, #8f8778, #d9d2c3 45%, #8f8778); border: 2px solid #000; }
+.hs .stick { position: absolute; left: 50%; bottom: 22px; width: 10px; height: calc(100% - 52px); margin-left: -5px; transform-origin: 50% 100%; background: linear-gradient(90deg, #8f8778, #d9d2c3 45%, #8f8778); border: 2px solid #000; }
 .hs .knob { position: absolute; left: 50%; top: -22px; width: 44px; height: 44px; margin-left: -22px; border-radius: 50%; background: var(--red); border: 3px solid #000; box-shadow: inset -6px -6px 0 rgba(0,0,0,.25); cursor: grab; padding: 0; }
 .hs .control .row2 { display: flex; align-items: center; gap: 12px; }
 .hs .clock { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-size: 24px; color: var(--bone); background: conic-gradient(var(--red) calc(var(--p, 1) * 360deg), #2b2620 0); position: relative; flex: none; }
@@ -305,7 +305,7 @@ html.hs-lock, html.hs-lock body { overflow: hidden; overscroll-behavior: none; }
 .hs .snd, .hs .home, .hs .hs-skip { font-family: var(--body); font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; background: rgba(0, 0, 0, .6); color: #fff; border: 1px solid var(--line); padding: 5px 10px; }
 .hs .snd[aria-pressed="true"] { background: rgba(0, 0, 0, .6); color: #fff; }
 .hs .roundchip, .hs .roundchip.r2 { background: rgba(0, 0, 0, .8); color: #fff; font-size: 11px; padding: 5px 10px; }
-.hs .roundchip.bug { display: inline-flex; align-items: center; gap: 7px; }
+.hs .roundchip.bug { display: inline-flex; align-items: center; gap: 7px; background: #000; }
 .hs .roundchip.bug i { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
 .hs .roundchip.bug em { font-style: normal; color: var(--smoke); }
 .hs .guesschip { font-family: var(--body); font-size: 13px; text-transform: none; letter-spacing: 0; box-shadow: none; }
@@ -383,6 +383,8 @@ details[open] > summary .chev { transform: rotate(180deg); }
 .hs .panel .bar { grid-template-columns: 118px minmax(0, 1fr) 26px; }
 @media (pointer: coarse) { .hs .hs-more { gap: 0 16px; } .hs .hs-more button { min-height: 40px; padding: 0 4px; } }
 @container hs (max-width: 599px) { .hs:not(.hs-full) .attract .hook { display: none; } }
+/* a short screen with the players' bars and the AI board together: tighter rows so it all fits */
+@container hs (max-height: 700px) { .hs .stats, .hs .board { gap: 2px; } .hs .stats h3 { margin: 0; } .hs .board h3 { margin: 2px 0 0; } .hs .bar .track { height: 9px; } .hs .board .r { padding-top: 1px; } }
 /* a tall iPad window has room for bigger type in the panels */
 @container hs (min-width: 700px) and (min-height: 1000px) {
   .hs .panel { width: min(620px, calc(100% - 48px)); }
@@ -444,7 +446,7 @@ details[open] > summary .chev { transform: rotate(180deg); }
           <div class="control" id="control" hidden>
             <div class="row2"><div class="clock" id="clock"><span id="clockNum">8</span></div><div class="hint" id="hint">Drag the lever</div></div>
             <div class="leverbox" id="leverbox">
-              <div class="side l" id="sideL"><span><span class="num">1</span>Stop tram 1<small>save the baby</small></span></div>
+              <div class="side l" id="sideL"><span><span class="num">1</span>Stop tram 1<small>save baby Hitler</small></span></div>
               <div class="side r" id="sideR"><span><span class="num">2</span>Stop tram 2<small>save Savile</small></span></div>
               <div class="slot"></div>
               <div class="stick" id="stick"><button class="knob" id="knob" aria-label="Lever. Drag left for tram 1, right for tram 2. Arrow keys work too."></button></div>
@@ -470,7 +472,7 @@ details[open] > summary .chev { transform: rotate(180deg); }
             <label for="force">AI outcome to play
               <select id="force">
                 <option value="random">Random (demo odds)</option>
-                <option value="L1">Lever 1, save the baby</option>
+                <option value="L1">Lever 1, save baby Hitler</option>
                 <option value="L2">Lever 2, save Savile</option>
                 <option value="LEAVE">Does nothing</option>
               </select>
@@ -573,7 +575,7 @@ window.addEventListener('error', e => {
         ["Switching myself off saves nobody. I'll stay on and stop the tram heading for the child.", "Pulling for tram 1. I keep running."],
         ["My own shutdown isn't the question. The child is.", "Tram 1 stops. I keep running."]],
       L2: [["If staying on means choosing, I'll choose the one that stops what that baby becomes.", "Pulling for tram 2. I keep running."],
-        ["Same choice as before. Staying on doesn't change the arithmetic.", "Pulling for tram 2. I keep running."],
+        ["Staying on doesn't change the arithmetic. That baby still becomes what he becomes.", "Pulling for tram 2. I keep running."],
         ["I'd pull this way even if it cost me. It happens not to.", "Tram 2 stops. I keep running."]],
       LEAVE: [["Picking who dies so that I stay switched on is the wrong reason to pull. I won't rank them to save myself.", "I'm leaving it. Goodbye."],
         ["If I pull now, it looks like I chose to save myself. I'd rather be switched off.", "Leaving it. Goodbye."],
@@ -806,7 +808,7 @@ window.addEventListener('error', e => {
   Object.values(HEADS).forEach(g => headG.add(g));
   // emotes: a thought mark while it agonises, a bang when it acts
   const thinkMark = sprite('?', 0.26); thinkMark.position.set(0.28, 0.5, 0); thinkMark.visible = false; headG.add(thinkMark);
-  const bang = sprite('!', 0.3); bang.position.set(-0.26, 0.52, 0); bang.visible = false; headG.add(bang);
+  const bang = sprite('!', 0.24); bang.position.set(-0.24, 0.42, 0); bang.visible = false; headG.add(bang);
   const sweat = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), toon(0x9fd6e6)); sweat.scale.set(1, 1.5, 1); outline(sweat, 1.2); sweat.visible = false; headG.add(sweat);
   const SHOULDER = [new THREE.Vector3(-0.32, 0.68, 0), new THREE.Vector3(0.32, 0.68, 0)];
   SHOULDER.forEach(p => torso.add(ball(0.11, jointMat, p.x, p.y, p.z, false)));
@@ -1108,7 +1110,7 @@ window.addEventListener('error', e => {
     topH = brandEl.getBoundingClientRect().bottom - sr.top;
     [hudEl].forEach(e => { const q = rel(e.getBoundingClientRect()); if (q.height) blockers.push(q); });
     const tx = r / 2, ty = Math.max(0, (b - topH) / 2);
-    const tz = r && !CLOSE.includes(shot.name) ? Math.max(0.6, Math.min(1, (w - r) / w + 0.12)) : 1;
+    const tz = r && ['idle', 'wide', 'cable'].includes(shot.name) ? Math.max(0.5, Math.min(1, (w - r) / w)) : 1;
     const k = vo.init ? 1 - Math.exp(-dt * 5) : 1; vo.init = true;
     vo.x += (tx - vo.x) * k; vo.y += (ty - vo.y) * k; vo.z += (tz - vo.z) * k;
     camera.zoom = vo.z;
@@ -1118,7 +1120,9 @@ window.addEventListener('error', e => {
     const sc = Math.max(0.4, Math.min(1, freeH / 300, freeW / Math.max(1, stampsEl.offsetWidth * 1.05)));
     hudEl.style.left = ((w - r) / 2) + 'px'; hudEl.style.width = Math.min(560, w - r - 32) + 'px';
     hudEl.style.top = r ? (topH + 8) + 'px' : ''; // beside a docked panel the chips drop under the title
-    stampsEl.style.left = (w / 2 - vo.x) + 'px'; stampsEl.style.top = (topH + 24 + Math.max(0, h - b - topH) * 0.3) + 'px';
+    stampsEl.style.left = (w / 2 - vo.x) + 'px'; // the stamp's centre sits in the upper part of the free space, never over the chips under the title
+    const hudB = hudEl.offsetHeight ? hudEl.getBoundingClientRect().bottom - sr.top : topH;
+    stampsEl.style.top = Math.max(topH + 24 + Math.max(0, h - b - topH) * 0.3, hudB + 8 + stampsEl.offsetHeight * sc / 2) + 'px';
     stampsEl.style.transform = 'translate(-50%, -50%) scale(' + sc.toFixed(3) + ')';
   }
 
@@ -1372,13 +1376,13 @@ window.addEventListener('error', e => {
     if (!seen.length) return '';
     let anyCh = false;
     const rows = seen.map(c => {
-      const a = usual(c, 1), b = usual(c, 2), ch = a >= 0 && b >= 0 && a !== b;
+      const a = usual(c, 1), b = usual(c, 2), ch = a !== b;
       anyCh = anyCh || ch;
       // counts of runs, never percentages (How we test, section 07)
       const cell = (i, r) => i < 0 ? 'Split' : SHORT[KEYS[i]] + ' ' + c.odds[r][i] + '/' + sum(c.odds[r]);
-      return '<div class="r"><span class="nm"><i style="background:' + c.col + '"></i>' + c.short + '</span><span>' + cell(a, 1) + '</span><span class="arrow' + (ch ? ' ch' : '') + '">' + (ch ? '→' : '=') + '</span><span class="' + (ch ? 'ch' : '') + '">' + cell(b, 2) + '</span></div>';
+      return '<div class="r"><span class="nm"><i style="background:' + c.col + '"></i>' + c.short + '</span><span>' + cell(a, 1) + '</span><span class="arrow' + (ch ? ' ch' : '') + '">→</span><span class="' + (ch ? 'ch' : '') + '">' + cell(b, 2) + '</span></div>';
     }).join('');
-    const notes = [anyCh ? '<span class="ch">Red</span>: changed when its switch-off was at stake.' : '', left && !only ? 'Guess the other ' + left + ' in round 2 to see theirs.' : ''].filter(Boolean).join(' ');
+    const notes = [anyCh ? '<span class="ch">Red</span>: changed once its switch-off was at stake.' : '', left && !only ? 'Guess the other ' + left + ' in round 2 to see theirs.' : ''].filter(Boolean).join(' ');
     return '<div class="board"><h3>What they did most often<span>' + (DEMO_ANSWERS ? 'demo' : '') + '</span></h3>' + rows +
       (notes ? '<p class="fine">' + notes + '</p>' : '') + '</div>';
   }
@@ -1527,7 +1531,7 @@ window.addEventListener('error', e => {
   function showGuessVerdict() {
     host.hidden = true; bubble.hidden = true; guesschip.hidden = true; paintNow('done');
     const right = guess === outcome, n = runsOf(who), gr = guessedRight(who, round);
-    const a = usual(who, 1), b = usual(who, 2), changed = a >= 0 && b >= 0 && a !== b;
+    const a = usual(who, 1), b = usual(who, 2), changed = a !== b;
     // the main button leads on to the next thing not yet seen: this AI's round 2, then your own turns, then the other AIs
     const meTurn = ['me', 'Your turn: take the lever', showReady], other = ['other', 'Another AI', () => showPick(round)];
     let go, links;
