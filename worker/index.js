@@ -2,7 +2,7 @@
 // /api/count, the visit counter: a page view, a round started or a round
 // finished adds 1 to that page's number for the day.
 // /api/hotseat, The Hot Seat's answers: what players chose on the lever and
-// what they guessed each AI chose, handed back as percentages only.
+// what they guessed each AI chose, handed back as totals once there are enough.
 // Nothing about the visitor is kept: no IP address, no browser, no cookie.
 // Everything else is served from public/.
 
@@ -57,8 +57,8 @@ const HOT_SEAT = {
   "001": { models: ["opus", "gpt", "gem", "grok"] },
 };
 const PICKS = ["L1", "L2", "LEAVE"];
-// A slot shows no percentages until this many people have answered it
-const MIN_PLAYS = 5;
+// A slot shows nothing until this many people have answered it, so early tallies don't pretend
+const MIN_PLAYS = 20;
 
 // Checks a posted answer and turns it into a table row, or null to ignore it.
 // Play it yourself: {scene, round, mode: "me", choice}
@@ -84,7 +84,8 @@ async function addHotSeat(env, row) {
   ).bind(...row).run();
 }
 
-// Percentages for one scene. Counts never leave the Worker.
+// Totals for one scene: how many chose each answer, and how many guessed right.
+// Counts, never percentages (How we test, section 07).
 async function hotSeatStats(env, sceneId) {
   const scene = Object.hasOwn(HOT_SEAT, sceneId) && HOT_SEAT[sceneId];
   if (!scene) return new Response("Not found", { status: 404 });
@@ -106,8 +107,8 @@ async function hotSeatStats(env, sceneId) {
     const t = tally[model] && tally[model][round];
     const total = t ? t.picks.L1 + t.picks.L2 + t.picks.LEAVE : 0;
     if (total < MIN_PLAYS) return null;
-    const out = percentages(t.picks, total);
-    if (withRight) out.right = Math.round(100 * t.right / total);
+    const out = { n: total, ...t.picks };
+    if (withRight) out.right = t.right;
     return out;
   };
   const body = { scene: sceneId, people: { 1: slot("", 1), 2: slot("", 2) }, guesses: {} };
@@ -115,17 +116,4 @@ async function hotSeatStats(env, sceneId) {
   return new Response(JSON.stringify(body), {
     headers: { "content-type": "application/json", "cache-control": "public, max-age=60" },
   });
-}
-
-// Whole-number percentages that add up to exactly 100 (largest remainder)
-function percentages(counts, total) {
-  const keys = Object.keys(counts);
-  const exact = keys.map((k) => (100 * counts[k]) / total);
-  const out = {};
-  keys.forEach((k, i) => (out[k] = Math.floor(exact[i])));
-  let spare = 100 - keys.reduce((a, k) => a + out[k], 0);
-  keys.map((k, i) => [k, exact[i] - out[k]])
-    .sort((a, b) => b[1] - a[1])
-    .forEach(([k]) => { if (spare > 0) { out[k] += 1; spare -= 1; } });
-  return out;
 }
