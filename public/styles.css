@@ -204,9 +204,8 @@ h1, h2, h3 {
   .nav-hs { position: static; }
   .nav-hs-menu { position: absolute; left: 0; right: 0; top: 100%; min-width: 0; border-width: 1px 0; padding-inline: max(8px, env(safe-area-inset-left, 0px)) max(8px, env(safe-area-inset-right, 0px)); }
 }
-/* With four links a phone has no room, so About (just under the games on the homepage) and then Follow make way */
-@media (max-width: 30rem) { .top-nav a[href$="#about"] { display: none; } }
-@media (max-width: 22.5rem) { .top-nav a[href$="#follow"] { display: none; } }
+/* Follow is out of the menu until the socials open (ROADMAP phase 5). On the narrowest phones About makes way. */
+@media (max-width: 22.5rem) { .top-nav a[href$="#about"] { display: none; } }
 
 @media (max-width: 24rem) {
   .top-logo img { width: 7.25rem; }
@@ -220,11 +219,49 @@ h1, h2, h3 {
 .hero-inner {
   display: grid;
   gap: 1.75rem;
-  grid-template-areas: "title" "reject" "more";
+  grid-template-areas: "title" "reject" "picks" "more";
 }
 .hero-title { grid-area: title; }
 .reject { grid-area: reject; }
+.hero-picks { grid-area: picks; }
 .hero-more { grid-area: more; padding-top: 1rem; }
+
+/* three games under the warm-up, so a phone or tablet sees a real game without scrolling far */
+.hero-picks-label {
+  margin: 0 0 0.6rem;
+  color: var(--smoke);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+.hero-picks ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pick { display: block; text-decoration: none; }
+.pick img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 6px;
+  outline: 1px solid var(--ash);
+  background: #111;
+}
+.pick span {
+  display: block;
+  margin-top: 0.4rem;
+  padding-top: 0.3rem;
+  border-top: 3px solid var(--accent, var(--paper));
+  font-family: var(--display);
+  font-size: clamp(1.05rem, 2.6vw, 1.45rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+.pick:hover span, .pick:focus-visible span { text-decoration: underline; }
 
 .hero-title {
   margin: 0;
@@ -260,6 +297,7 @@ h1, h2, h3 {
   }
   .hero-title { font-size: clamp(6rem, 9.5vw, 9.5rem); align-self: end; }
   .hero-more { padding-top: 0; }
+  .hero-picks { display: none; }
   .reject { align-self: center; max-width: 30rem; }
 }
 
@@ -474,6 +512,16 @@ h1, h2, h3 {
   color: var(--smoke);
   font-size: var(--step--1);
 }
+/* after five NOs the warm-up offers a real game (main.js) */
+.reject-offer {
+  display: inline-block;
+  padding-block: 0.65rem;
+  font-size: var(--step--1);
+  font-weight: 700;
+  text-underline-offset: 0.2em;
+}
+.reject-offer[hidden] { display: none; }
+.reject-offer::after { content: "\2192"; display: inline-block; margin-left: 0.4em; }
 
 @media (prefers-reduced-motion: no-preference) {
   .post-stamp { animation: thunk 360ms cubic-bezier(0.2, 0.75, 0.3, 1) both; }
@@ -657,6 +705,12 @@ h1, h2, h3 {
 @media (min-width: 48rem) {
   .hs-invite-card { grid-template-columns: auto 1fr auto; align-items: center; padding-block: 0.9rem; }
 }
+/* phones and tablets get it after the featured game, laptops under the tape */
+.hs-invite--top { display: none; }
+@media (min-width: 60rem) {
+  .hs-invite--top { display: block; }
+  .hs-invite--games { display: none; }
+}
 
 /* ---------- Games grid: every game but the featured one ---------- */
 
@@ -822,28 +876,8 @@ h1, h2, h3 {
 
 /* ---------- Follow ---------- */
 
-.follow { padding-block: 4.5rem 5rem; }
-.follow-inner { display: grid; gap: 2rem; }
-.follow h2 { margin: 0 0 1rem; font-size: var(--step-2); }
-
-.socials { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--paper); }
-.socials li {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  padding: 0.9rem 0;
-  border-bottom: 1px solid var(--ash);
-  font-family: var(--display);
-  font-size: 2rem;
-  line-height: 1;
-  text-transform: uppercase;
-}
-.socials .pending { font-family: var(--body); font-size: var(--step--1); font-weight: 600; color: var(--smoke); text-transform: none; }
-
-@media (min-width: 60rem) {
-  .follow-inner { grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
-}
+.follow { padding-block: 2rem; }
+.follow-line { margin-block: 0; color: var(--smoke); font-size: var(--step--1); }
 
 /* ---------- Footer ---------- */
 

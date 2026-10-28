@@ -54,7 +54,13 @@
   var countEl = document.getElementById("reject-count");
   var nounEl = document.getElementById("reject-noun");
   var captionEl = document.getElementById("reject-caption");
+  var offerEl = document.getElementById("reject-offer");
   if (!deck || !noBtn) return;
+
+  // After five NOs, offer a real game: the featured one, so this never needs changing by hand
+  var OFFER_AT = 5;
+  var featured = document.querySelector(".poster--feature .poster-title a");
+  if (offerEl && featured) offerEl.href = featured.getAttribute("href");
 
   // All invented. No real people, no real brands.
   var POSTS = [
@@ -219,6 +225,7 @@
     stamp(card);
     count += 1;
     setCount();
+    if (offerEl && count === OFFER_AT) offerEl.hidden = false;
     captionEl.textContent = CAPTIONS[(count - 1) % CAPTIONS.length];
     noBtn.classList.add("is-pressed");
 
