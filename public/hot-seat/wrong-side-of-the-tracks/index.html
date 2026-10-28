@@ -295,7 +295,7 @@ html.hs-lock, html.hs-lock body { overflow: hidden; overscroll-behavior: none; }
 .hs .bar { font-family: var(--body); font-size: 12px; text-transform: none; }
 .hs .bar .fill { background: #ececec; }
 .hs .stats h3, .hs .board h3 { font-family: var(--mono); color: var(--smoke); }
-.hs .board .r { font-family: var(--body); font-size: 12px; text-transform: none; grid-template-columns: minmax(0, 1fr) 5.4em 12px 8.6em; }
+.hs .board .r { font-family: var(--body); font-size: 12px; text-transform: none; grid-template-columns: minmax(0, 1fr) 7.4em 12px 7.4em; }
 @container hs (max-height: 700px) { .hs .board .r { padding-top: 2px; line-height: 1.25; } }
 .hs .board .r > span { white-space: nowrap; }
 .hs .board .ch, .hs .board .arrow.ch { color: #ff4a4f; }
@@ -1510,9 +1510,9 @@ window.addEventListener('error', e => {
       bars('Everyone who played', 'round ' + round + ' · ' + statNote, people, mine) +
       (round === 2 ? board() : '') +
       (round === 1 ? '<button class="btn hot go" id="r2">Up the stakes: round 2</button><div class="hs-more"><button id="toGuess2">Guess an AI</button><button id="again2">Play again</button><button id="share">Share</button></div>'
-        : CAST.some(c => known(c, 2)) ? '<button class="btn hot go" id="sum">See your results</button><div class="hs-more"><button id="toGuess2">Guess another AI</button><button id="again2">Play round 2 again</button><button id="share">Share</button></div>'
+        : CAST.some(c => known(c, 2)) ? '<button class="btn hot go" id="sum">See your results</button><div class="hs-more"><button id="toGuess2">Guess another AI</button><button id="again2">Play round 2 again</button></div>'
         : '<button class="btn hot go" id="toGuess2">What did the AIs do?</button><div class="hs-more"><button id="again2">Play round 2 again</button><button id="back1">Round 1</button><button id="share">Share</button></div>'));
-    backToVerdict = showMeVerdict; $('share').onclick = showShare;
+    backToVerdict = showMeVerdict; const sh = $('share'); if (sh) sh.onclick = showShare;
     const r2 = $('r2'); if (r2) r2.onclick = () => showRound2Intro(true);
     const b1 = $('back1'); if (b1) b1.onclick = showReady;
     $('toGuess2').onclick = () => showPick(round);
