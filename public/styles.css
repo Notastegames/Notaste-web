@@ -626,6 +626,38 @@ h1, h2, h3 {
 
 .poster--feature .btn { margin-top: 1.5rem; }
 
+/* ---------- The Hot Seat invitation, under the tape (DESIGN.md section 14) ---------- */
+
+.hs-invite { padding-block: 2.75rem 0; }
+.hs-invite-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem 1.5rem;
+  padding: 1.1rem 1.25rem 1.2rem;
+  background: #0d0d0d;
+  border: 1px solid var(--ash);
+  border-top: 2px solid var(--paper);
+  color: var(--paper);
+  text-decoration: none;
+}
+.hs-invite-tag {
+  display: inline-flex;
+  align-items: center;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--smoke);
+}
+.hs-invite-tag::before { content: ""; width: 0.55em; height: 0.55em; margin-right: 0.5em; border-radius: 50%; background: var(--red); box-shadow: 0 0 5px var(--red); }
+.hs-invite-line { font-size: var(--step-1); font-weight: 600; line-height: 1.35; }
+.hs-invite-go { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; text-decoration: underline; text-underline-offset: 0.2em; }
+.hs-invite-go::after { content: "\2192"; margin-left: 0.4em; text-decoration: none; }
+@media (hover: hover) { .hs-invite-card:hover { border-color: var(--smoke); border-top-color: var(--paper); } }
+@media (min-width: 48rem) {
+  .hs-invite-card { grid-template-columns: auto 1fr auto; align-items: center; padding-block: 0.9rem; }
+}
+
 /* ---------- Games grid: every game but the featured one ---------- */
 
 .tiles {
