@@ -47,7 +47,7 @@ All ten games meet this list. Heavy Traffic had its polish pass on 6 October and
 - [x] Put a playable game (Thonglets) in the big featured slot until Slop Cannon is ready. "More games" lists playable games first too.
 - [x] A short privacy note at `/privacy/` ("We save your best scores in your browser. That's it."), linked from every footer.
 - [x] A contact address: speaktoahuman@notastegames.com, in every footer ("Something broken?").
-- [ ] **Owner:** reserve `@notastegames` on TikTok, YouTube, Instagram, X and Bluesky now, so nobody else takes it. Partly done. Don't post or link them yet; the Follow section stays as it is until phase 5.
+- [ ] **Owner:** reserve `@notastegames` on TikTok, YouTube, Instagram, X and Bluesky now, so nobody else takes it. Partly done. Don't post or link them yet. Until phase 5, Follow is out of the menu and the homepage has one line ("Socials coming.") above the footer (28 October 2026).
 
 ## Phase 2: make games cheaper and easier to share
 
@@ -142,7 +142,7 @@ Helpers are briefed with `docs/phase3/builder-rules.md` (builders and fixers) an
 
 Once there are ten polished games.
 
-- [ ] Add the real links to the Follow section, the footer and the press page. Plain links: no embeds, widgets or follow buttons.
+- [ ] Bring back Follow in the menu and a Follow section on the homepage with the real links, and add them to the footer and the press page. Plain links: no embeds, widgets or follow buttons.
 - [ ] **Where:** TikTok, YouTube Shorts and Instagram Reels first. That's where browser games get found. X and Bluesky are for the one-line jokes, if anyone can be bothered.
 - [ ] **What:** 10–20 second clips of the funniest moment in each game (a smite, the Gas button, a stamp landing), with the pitch line as the caption. Post the daily run results. Launch with a stockpile from phase 3 so it doesn't run dry in week two.
 - [ ] Each new game launches with a clip, a merch design and a share image.

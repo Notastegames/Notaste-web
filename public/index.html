@@ -46,7 +46,6 @@
           </ul>
         </div>
         <a href="#about">About</a>
-        <a href="#follow">Follow</a>
       </nav>
     </div>
   </header>
@@ -82,15 +81,25 @@
             <div class="reject-status">
               <p class="reject-count"><span id="reject-count">0</span> <span id="reject-noun">things</span> rejected</p>
               <p class="reject-caption" id="reject-caption">There is no yes button.</p>
+              <a class="reject-offer" id="reject-offer" href="/games/leave-it-at-the-door/" hidden>You're good at saying no. Try a real one</a>
             </div>
           </div>
         </div>
 
+        <!-- On a phone or tablet the games are a long scroll away, so three of them wait here. The first is always the featured game. -->
+        <nav class="hero-picks" aria-label="Start with one of these">
+          <p class="hero-picks-label">Or skip to a real game</p>
+          <ul>
+            <li><a class="pick" href="/games/leave-it-at-the-door/" style="--accent:#4dd0e1"><img src="/art/leave-it-at-the-door.svg" width="800" height="600" alt=""><span>Leave It at the Door</span></a></li>
+            <li><a class="pick" href="/games/scrubbed/" style="--accent:#e8892b"><img src="/art/scrubbed.svg" width="800" height="600" alt=""><span>Scrubbed</span></a></li>
+            <li><a class="pick" href="/games/speak-to-a-human/" style="--accent:#93a7f5"><img src="/art/speak-to-a-human.svg" width="800" height="600" alt=""><span>Speak to a Human</span></a></li>
+          </ul>
+        </nav>
+
         <div class="hero-more">
           <p class="hero-lede">Quick, dark little browser games about modern life, the internet and the people who run both. No subscriptions. No paywalls. No taste.</p>
           <p class="hero-links">
-            <a class="text-link" href="#games">See the games</a>
-            <a class="text-link" href="#follow">Socials, soon</a>
+            <a class="btn btn--light" href="#games">See all the games</a>
           </p>
         </div>
       </div>
@@ -102,8 +111,8 @@
       </div>
     </div></div>
 
-    <!-- The Hot Seat: one line inviting people in -->
-    <aside class="hs-invite" aria-label="The Hot Seat">
+    <!-- The Hot Seat: one line inviting people in. This copy shows on a laptop; phones and tablets get the one under the featured game. -->
+    <aside class="hs-invite hs-invite--top" aria-label="The Hot Seat">
       <div class="wrap">
         <a class="hs-invite-card" href="/hot-seat/wrong-side-of-the-tracks/">
           <span class="hs-invite-tag">The Hot Seat</span>
@@ -134,6 +143,15 @@
             <a class="btn btn--light" href="/games/leave-it-at-the-door/">Play Leave It at the Door</a>
           </div>
         </article>
+        <!-- The Hot Seat invitation for phones and tablets, after the featured game so a game comes first -->
+        <aside class="hs-invite hs-invite--games" aria-label="The Hot Seat">
+          <a class="hs-invite-card" href="/hot-seat/wrong-side-of-the-tracks/">
+            <span class="hs-invite-tag">The Hot Seat</span>
+            <span class="hs-invite-line">We put AI models in an impossible choice. Can you guess what they did?</span>
+            <span class="hs-invite-go">Take a guess</span>
+          </a>
+        </aside>
+
         <!-- Everything else, newest first. Each tile is one link. -->
         <ul class="tiles" aria-label="All games">
           <li><a class="tile" href="/games/speak-to-a-human/" style="--accent:#93a7f5; --sx:72%; --sy:56%; --sr:-6deg">
@@ -231,20 +249,9 @@
       </div>
     </section>
 
-    <!-- Follow -->
-    <section class="follow" id="follow" aria-labelledby="follow-heading">
-      <div class="wrap follow-inner">
-        <div>
-          <h2 id="follow-heading">Follow for launches. Later.</h2>
-          <p class="section-note">New games get announced on socials first. The accounts aren't open yet. We're still deciding which ones we can stand.</p>
-        </div>
-        <ul class="socials">
-          <li><span>TikTok</span><span class="pending">Soon</span></li>
-          <li><span>Instagram</span><span class="pending">Soon</span></li>
-          <li><span>YouTube</span><span class="pending">Soon</span></li>
-          <li><span>X</span><span class="pending">Soon</span></li>
-        </ul>
-      </div>
+    <!-- Follow: one line until the socials open (ROADMAP phase 5) -->
+    <section class="follow" id="follow" aria-label="Socials">
+      <p class="wrap follow-line">Socials coming. We're still deciding which ones we can stand.</p>
     </section>
   </main>
 
