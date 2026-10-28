@@ -271,6 +271,7 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 - Plain static site, no build step. Everything the browser loads is in `public/`.
 - Shared page styles: `public/styles.css`. Shared game page styles: `public/games/game.css`. Shared game kit: `public/games/kit/`.
 - Each game: `public/games/<slug>/index.html` plus its own script and styles in the same folder.
+- A game page on a phone gets to Press start fast: the page heading is kept for screen readers but hidden (the start screen shows the name), the pitch is the one line, and More games shows four with a "See all" link to the homepage grid. The start screen's note and how-to line sit on a dark strip so they read over the cover art (28 October 2026, after the first-time visitor review).
 - Hosted on Cloudflare. Merging into `main` puts it live; Cloudflare also builds a preview link for every branch.
 - `node tools/playtest.mjs` checks every page and plays every kit game to the end (section 10, "Autopilot and clips"). It needs Playwright on the machine running it; nothing it uses ships with the site.
 - Every change people will see is reviewed before it goes live: a playable preview is published as a private Claude artifact (`python3 tools/preview_artifact.py <slug> <folder>` packages a game page for it), and once it's approved the pull request is merged.
@@ -282,7 +283,7 @@ Every game uses the shared kit in `public/games/kit/` so that all games behave t
 
 1. Pick a name, a slug, a one-line pitch and an accent colour. Add the accent to section 3 (games on the roadmap already have one).
 2. Copy `public/games/starter/` to `public/games/<slug>/`, rename `starter.js` and rewrite it as the new game. In Tray is a whole small game on the kit (HUD, keys, aim, a touch button, callouts, a notice, today's run, bests, share, autopilot), so keep what fits and replace the rest. Delete the page's `robots` line.
-3. Fill in the page: title, description, share tags, `data-game`, `--accent`, stamp word, how-to-play lines.
+3. Fill in the page: title, description, share tags, `data-game`, `--accent`, stamp word, how-to-play lines, and the pitch twice: `pitch-short` is the one line from `GAMES` (phones and tablets see only this over the game, so a new player reaches Press start at once) and `pitch-long` is up to three sentences, shown beside the game on a laptop.
 4. Add the game to `GAMES` in `public/games/game.js`, and put it in the wide featured slot on the homepage (the newest game always has it). The game it replaces becomes the first tile in the grid under it, which runs newest first. Also make it the first of the three games under the warm-up (`hero-picks`, shown on phones and tablets). The warm-up's "Try a real one" link follows the featured slot by itself.
 5. Draw the 800×600 cover and the 1200×630 share image (section 7).
 6. Use the kit for intro, screens, controls, sound and saving. Draw with `Notaste.tokens()` colours. Give it today's run, a `share` line in the results and an autopilot.

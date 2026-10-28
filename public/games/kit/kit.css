@@ -365,7 +365,14 @@
   text-shadow: 0 1px 2px #000, 0 0 10px #000;
 }
 .kit-note { color: #e4e4e4; font-size: var(--step--1); font-weight: 600; }
-.kit-hint { color: var(--smoke); font-size: 0.8rem; font-weight: 600; }
+.kit-hint { color: #e4e4e4; font-size: 0.8rem; font-weight: 600; }
+/* on a dark strip, so the how-to line reads over busy cover art */
+.kit-note,
+.kit-hint {
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.72);
+}
 
 .kit-hint-touch { display: none; }
 #game-root.kit-touching .kit-hint-touch { display: inline; }

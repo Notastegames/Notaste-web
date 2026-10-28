@@ -1,16 +1,8 @@
 <!doctype html>
 <html lang="en-GB">
 <head>
-  <!--
-    Game page for a playable game. To add a game: copy this folder to
-    /games/<new-slug>/, replace thonglets.js with the new game (built with the
-    kit in /games/kit/), change everything marked EDIT on this page, then add
-    one line to GAMES in /games/game.js. Cover art lives at /art/<slug>.svg
-    (800x600). Design rules: DESIGN.md.
-  -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- EDIT: title, description and the og: tags -->
   <title>Thonglets: Notaste Games</title>
   <meta name="description" content="Tiny creatures in thongs think you're their god. Lead them through seven stages of rival gods to build your statues. Mind the pit. A free browser game in poor taste from Notaste Games.">
   <meta name="theme-color" content="#000000">
@@ -36,10 +28,6 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
-<!--
-  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
-  --accent is the game's colour (same as its GAMES entry and its homepage poster).
--->
 <body class="game" data-game="thonglets" style="--accent: #9a7bc4">
   <a class="skip" href="#main">Skip to content</a>
 
@@ -66,19 +54,17 @@
   <main id="main">
     <div class="game-page wrap">
 
-      <!-- EDIT: title, stamp (and its tilt), pitch -->
       <div class="game-head">
         <h1>Thonglets</h1>
         <div class="game-meta">
           <span class="stamp-label" style="--tilt: -3deg">Classified</span>
           <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now</p>
         </div>
-        <p class="game-pitch">Tiny creatures in thongs who think you're their god. They'll build you a statue. They'll follow you into a pit. You are not a good god.</p>
+        <p class="game-pitch"><span class="pitch-short">Tiny creatures in thongs who think you're their god. You are not a good one.</span><span class="pitch-long">Tiny creatures in thongs who think you're their god. They'll build you a statue. They'll follow you into a pit. You are not a good god.</span></p>
       </div>
 
       <section class="cabinet" aria-label="Game screen">
         <div class="screen">
-          <!-- EDIT: cover art path -->
           <img class="screen-art" src="/art/thonglets.svg" alt="" width="800" height="600">
 
           <!-- The game. /games/kit/kit.js builds the screens in here, thonglets.js is the game. -->
@@ -91,7 +77,6 @@
 
       <div class="game-info">
         <h2>How to play</h2>
-        <!-- EDIT: two or three short lines -->
         <ul class="how">
           <li>Lead them: move your light with the mouse, the arrow keys or a finger and the Thonglets follow it. Bricks first (the red pile), then the statue.</li>
           <li>Finish the statue before the clock runs out to clear the stage. Run out of time, or lose them all, and the run is over. They walk round a pit unless your light is over it.</li>

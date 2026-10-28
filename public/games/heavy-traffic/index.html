@@ -1,16 +1,8 @@
 <!doctype html>
 <html lang="en-GB">
 <head>
-  <!--
-    Game page for a playable game. To add a game: copy this folder to
-    /games/<new-slug>/, replace race.js with the new game (built with the kit
-    in /games/kit/), change everything marked EDIT on this page, then add one
-    line to GAMES in /games/game.js. Cover art lives at /art/<slug>.svg
-    (800x600). Design rules: DESIGN.md.
-  -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- EDIT: title, description and the og: tags -->
   <title>Heavy Traffic: Notaste Games</title>
   <meta name="description" content="Kart racing with big drivers in tiny cars, on a circuit where physics has given up. Three laps against three drivers who each own the road. A free browser game in poor taste from Notaste Games.">
   <meta name="theme-color" content="#000000">
@@ -37,10 +29,6 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
 </head>
-<!--
-  EDIT: data-game is the slug, and must match the folder name and the GAMES entry.
-  --accent is the game's colour (same as its GAMES entry and its homepage poster).
--->
 <body class="game" data-game="heavy-traffic" style="--accent: #4f9e9a">
   <a class="skip" href="#main">Skip to content</a>
 
@@ -67,19 +55,17 @@
   <main id="main">
     <div class="game-page wrap">
 
-      <!-- EDIT: title, stamp (and its tilt), pitch -->
       <div class="game-head">
         <h1>Heavy Traffic</h1>
         <div class="game-meta">
           <span class="stamp-label" style="--tilt: 4deg">Not approved</span>
           <p class="game-state"><span class="dot" aria-hidden="true"></span>Playable now. Three laps and a button marked Gas.</p>
         </div>
-        <p class="game-pitch">Kart racing for drivers who were promised more legroom. The cars are small. The physics has given up.</p>
+        <p class="game-pitch"><span class="pitch-short">Kart racing. Large drivers, tiny cars. Physics has given up.</span><span class="pitch-long">Kart racing for drivers who were promised more legroom. The cars are small. The physics has given up.</span></p>
       </div>
 
       <section class="cabinet" aria-label="Game screen">
         <div class="screen">
-          <!-- EDIT: cover art path -->
           <img class="screen-art" src="/art/heavy-traffic.svg" alt="" width="800" height="600">
 
           <!-- The race. /games/kit/kit.js builds the screens in here, race.js is the game. -->
@@ -92,7 +78,6 @@
 
       <div class="game-info">
         <h2>How to play</h2>
-        <!-- EDIT: two or three short lines -->
         <ul class="how">
           <li>Steer with the arrow keys or WASD. On a phone it drives itself: steer on the left, brake on the right.</li>
           <li>Arrow boards mean a corner: brake before it, not in it. Space (or the Gas button) when the meter's full. Everyone behind you will know.</li>
