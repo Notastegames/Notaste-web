@@ -211,19 +211,19 @@
 
   // Between stages: what it does, then what it costs
   var UPGRADES = [
-    { id: "tanks", label: "Bigger tanks", detail: "A third more fuel. Heavier, so the engine pushes a sixth less.",
+    { id: "tanks", label: "Bigger tanks", detail: "More fuel. Heavier, so a weaker push.",
       apply: function (m) { m.fuel *= 1.33; m.thrust *= 0.84; m.tanks = true; } },
-    { id: "engine", label: "Bigger engine", detail: "Pushes a fifth harder. Burns fuel a third faster.",
+    { id: "engine", label: "Bigger engine", detail: "Pushes harder. Burns fuel faster.",
       apply: function (m) { m.thrust *= 1.2; m.burn *= 1.33; m.engine = true; } },
-    { id: "fins", label: "Grid fins", detail: "Wind pushes half as hard. Leaning is a fifth slower.",
+    { id: "fins", label: "Grid fins", detail: "The wind barely moves you. Slower to lean.",
       apply: function (m) { m.windK *= 0.5; m.turn *= 0.8; m.fins = true; } },
-    { id: "legs", label: "Wider legs", detail: "Takes a landing a third harder and more leant. A fifth less fuel.",
+    { id: "legs", label: "Wider legs", detail: "Survives a faster, wonkier landing. Less fuel.",
       apply: function (m) { m.safeVy *= 1.33; m.safeTilt *= 1.35; m.fuel *= 0.8; m.legs = true; m.cheap = false; } },
-    { id: "cheap", label: "Cheaper legs", detail: "Saves weight: a quarter more fuel. Only takes a gentle landing.",
+    { id: "cheap", label: "Cheaper legs", detail: "More fuel. Only survives a gentle landing.",
       apply: function (m) { m.fuel *= 1.25; m.safeVy *= 0.7; m.cheap = !m.legs; } },
-    { id: "beta", label: "Self-landing (beta)", detail: "Straightens itself when you stop leaning. Every landing pays a fifth less: it takes the credit.",
+    { id: "beta", label: "Self-landing (beta)", detail: "Straightens up when you let go. Landings pay less: it takes the credit.",
       apply: function (m) { m.level = true; m.pay *= 0.8; m.beta = true; } },
-    { id: "pr", label: "PR team", detail: "Every crash is a test, worth 250. Every landing pays a fifth less.",
+    { id: "pr", label: "PR team", detail: "A crash is a test, worth 250. Landings pay less.",
       apply: function (m) { m.crashPay = 250; m.pay *= 0.8; m.pr = true; } }
   ];
 
@@ -1043,7 +1043,7 @@
     shell.interlude({
       stamp: all ? "Approved" : none ? "Not approved" : "Pending review",
       tilt: all ? -5 : 4,
-      heading: "Stage " + (run.stage + 1) + " complete.",
+      heading: "Stage " + (run.stage + 1) + (none ? " over." : " complete."),
       line: pick(s.id === "party" ? (all ? CLEAR.partyAll : rk && rk.state === "pool" ? CLEAR.partyPool : CLEAR.partyNone) : all ? CLEAR.all : none ? CLEAR.none : CLEAR.one),
       stats: stats,
       ask: "Stage " + (next + 1) + ": " + STAGES[next].name + ". He's offering upgrades.",
