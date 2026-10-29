@@ -3243,7 +3243,7 @@
     title: "On Mute",
     stamp: "You're on mute",
     tilt: -5,
-    note: "Four meetings back to back, and a spreadsheet that needs doing. Camera on. Mic off.",
+    note: "Camera on. Mic off. Look busy.",
     pitch: "Four meetings, one spreadsheet and a cat. Nod when you hear your name.",
     hints: {
       keys: "Left or Right (or A and D) to fill the gap. N or Down to nod at your name, Space or Up to say yep, C for the camera. P to pause.",

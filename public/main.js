@@ -96,6 +96,7 @@
   var pos = 0;
   var count = 0;
   var busy = false;
+  var queued = 0;   // NOs pressed while a card is still flying off: each done as soon as the last one lands (a few at most)
   var top = null;
 
   function shuffle(a) {
@@ -217,7 +218,7 @@
   }
 
   function reject() {
-    if (busy) return;
+    if (busy) { queued = Math.min(queued + 1, 3); return; }
     if (isEnd()) { start(); return; }
     busy = true;
     var card = top;
@@ -225,7 +226,13 @@
     stamp(card);
     count += 1;
     setCount();
-    if (offerEl && count === OFFER_AT) offerEl.hidden = false;
+    if (offerEl && count === OFFER_AT) {
+      offerEl.hidden = false;
+      // on a phone it can land just under the bottom edge: bring it into view
+      if (offerEl.getBoundingClientRect().bottom > window.innerHeight) {
+        offerEl.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+      }
+    }
     captionEl.textContent = CAPTIONS[(count - 1) % CAPTIONS.length];
     noBtn.classList.add("is-pressed");
 
@@ -240,7 +247,8 @@
         pos += 1;
         show();
         busy = false;
-        if (isEnd()) captionEl.textContent = "Well done. Nothing has changed.";
+        if (isEnd()) { queued = 0; captionEl.textContent = "Well done. Nothing has changed."; }
+        if (queued) { queued -= 1; reject(); }
       }, reduceMotion ? 160 : 400);
     }, reduceMotion ? 250 : 360);
   }

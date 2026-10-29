@@ -2683,7 +2683,7 @@
     title: "Terms and Conditions",
     stamp: "Unread",
     tilt: -5,
-    note: "Four apps, four sets of terms. Strike the daft clauses. Then accept anyway.",
+    note: "Four apps. Four sets of terms. One button.",
     pitch: "Read the terms. Strike out the bad bits. Accept anyway. There is no other button.",
     hints: {
       keys: "Click a daft clause to strike it, or pick it with up and down (W, S) and press Space. P to pause.",

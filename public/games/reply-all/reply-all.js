@@ -2261,8 +2261,8 @@
     title: "Reply All",
     stamp: "Not sent",
     tilt: -5,
-    note: "Someone has replied all to the whole company. Stop the replies before the server melts. Home at 17:00.",
-    pitch: "Someone has replied all to the whole company. Now everyone is replying all to say stop replying all.",
+    note: "Stop the replies before the server melts. Home at 17:00.",
+    pitch: "Someone replied all to the company. Everyone is replying all to say stop replying all.",
     hints: {
       keys: "Stop the reply: click anyone with a bar, or press their desk's key. Save the server. P to pause.",
       touch: "Tap anyone with a bar to stop the reply. Save the server."

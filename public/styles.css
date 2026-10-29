@@ -204,13 +204,18 @@ h1, h2, h3 {
   .nav-hs { position: static; }
   .nav-hs-menu { position: absolute; left: 0; right: 0; top: 100%; min-width: 0; border-width: 1px 0; padding-inline: max(8px, env(safe-area-inset-left, 0px)) max(8px, env(safe-area-inset-right, 0px)); }
 }
-/* Follow is out of the menu until the socials open (ROADMAP phase 5). On the narrowest phones About makes way. */
-@media (max-width: 22.5rem) { .top-nav a[href$="#about"] { display: none; } }
-
+/* Follow is out of the menu until the socials open (ROADMAP phase 5). A 360px phone still fits all three;
+   only below that (an old 320px phone) does About make way, and the footer links to it. */
 @media (max-width: 24rem) {
   .top-logo img { width: 7.25rem; }
   .top-nav { gap: 0.85rem; }
 }
+@media (max-width: 22.5rem) {
+  .top-inner { gap: 0.6rem; }
+  .top-logo img { width: 6.4rem; }
+  .top-nav { gap: 0.7rem; }
+}
+@media (max-width: 21rem) { .top-nav a[href$="#about"] { display: none; } }
 
 /* ---------- Hero ---------- */
 
@@ -219,14 +224,15 @@ h1, h2, h3 {
 .hero-inner {
   display: grid;
   gap: 1.75rem;
-  grid-template-areas: "title" "reject" "picks" "more";
+  grid-template-areas: "title" "picks" "reject" "more";
 }
 .hero-title { grid-area: title; }
 .reject { grid-area: reject; }
 .hero-picks { grid-area: picks; }
 .hero-more { grid-area: more; padding-top: 1rem; }
 
-/* three games under the warm-up, so a phone or tablet sees a real game without scrolling far */
+/* three games straight under the headline, so the first screen has a real game on it at every size,
+   even with a phone's browser bars showing (the warm-up comes after them) */
 .hero-picks-label {
   margin: 0 0 0.6rem;
   color: var(--smoke);
@@ -287,17 +293,19 @@ h1, h2, h3 {
 }
 
 @media (min-width: 60rem) {
-  .hero { padding-block: 4.5rem 6.5rem; }
+  .hero { padding-block: 2.5rem 5rem; }
   .hero-inner {
     grid-template-columns: 1.1fr 0.9fr;
-    grid-template-areas: "title reject" "more reject";
+    grid-template-areas: "title reject" "more reject" "picks reject";
     column-gap: 4rem;
-    row-gap: 1.75rem;
+    row-gap: 1.5rem;
     align-items: start;
   }
-  .hero-title { font-size: clamp(6rem, 9.5vw, 9.5rem); align-self: end; }
+  /* sized so the headline, the blurb and the three games fit above the fold on a laptop with its browser bars */
+  .hero-title { font-size: clamp(4.75rem, 6.6vw, 8.5rem); align-self: end; }
   .hero-more { padding-top: 0; }
-  .hero-picks { display: none; }
+  .hero-picks ul { max-width: 27rem; }
+  .pick span { font-size: 1.05rem; }
   .reject { align-self: center; max-width: 30rem; }
 }
 
@@ -910,6 +918,7 @@ h1, h2, h3 {
 .lost .stamp-label { font-size: clamp(2.4rem, 9vw, 4rem); transform: rotate(-6deg); }
 .lost h1 { margin: 0; font-size: clamp(2.6rem, 10vw, 4.5rem); }
 .lost p { margin: 0; color: #d0d0d0; max-width: 30rem; }
+.lost-actions { display: flex; flex-wrap: wrap; gap: 0.9rem 1.1rem; }
 
 /* ---------- Text pages (privacy) ---------- */
 

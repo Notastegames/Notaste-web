@@ -1622,7 +1622,7 @@
     title: "Thirty Days",
     stamp: "Go large",
     tilt: -5,
-    note: "Four meals a day. Three desks. Nobody does lettuce.",
+    note: "Four meals a day. Three desks.",
     pitch: "Thirty days of fast food. Your insides are a council office, and the in-trays are full.",
     hints: {
       keys: "Match the sticker: left, right or down sends the food to that desk. P to pause.",

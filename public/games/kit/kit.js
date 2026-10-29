@@ -392,7 +392,7 @@
   //     pad: { action: [0, 2], bless: [1, 3] },     gamepad buttons per input, if not the defaults
   //     daily: true,             "Today's run" under Press start: the same seed for everyone
   //                              today (or { label: "Today's race" } to name it)
-  //     modes: [{ key, label }], other ways to start, under Press start
+  //     modes: [{ key, label, what }], other ways to start, under Press start (what: an optional second line saying what it is)
   //     pitch: "...",            one line about the game, for the clip frame (?clip)
   //     fullOnTouch: true,       on a touch screen, go full-window when a round starts
   //                              (for a game that needs the whole height of a phone)
@@ -532,9 +532,12 @@
     startBtn.type = "button";
     titlePanel.appendChild(startBtn);
     var daily = game.daily ? { label: game.daily.label || "Today's run" } : null;
-    var modes = (daily ? [{ key: "daily", label: daily.label }] : []).concat(game.modes || []);
+    var modes = (daily ? [{ key: "daily", label: daily.label, what: "Same for everyone" }] : []).concat(game.modes || []);
     var modeBtns = modes.map(function (m) {
-      var b = el("button", "kit-quiet kit-mode", m.label);
+      // a second line says what the other way to play is, so nobody has to guess
+      var b = el("button", "kit-quiet kit-mode");
+      b.appendChild(el("span", "kit-mode-name", m.label));
+      if (m.what) b.appendChild(el("span", "kit-mode-what", m.what));
       b.type = "button";
       b.addEventListener("click", function () { begin(m.key); });
       titlePanel.appendChild(b);
@@ -584,8 +587,29 @@
     againBtn.type = "button";
     var shareBtn = el("button", "kit-quiet kit-share", "Share result");
     shareBtn.type = "button";
-    var allLink = el("a", "text-link", "All games");
-    allLink.href = "/#games";
+    // On a game page this goes to the page's own More games, out of full-window
+    // first; anywhere without that list (a preview) it goes to the homepage grid.
+    var moreHeading = document.getElementById("more-heading");
+    var allLink = el("a", "text-link", moreHeading ? "More games" : "All games");
+    allLink.href = moreHeading ? "#more-heading" : "/#games";
+    if (moreHeading) allLink.addEventListener("click", function (e) {
+      e.preventDefault();
+      function go() {
+        window.setTimeout(function () {
+          moreHeading.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+        }, 60);
+      }
+      // scroll once the screen is back in the page: leaving real fullscreen
+      // puts the page back where it was, so wait for that to finish first
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        var ev = document.fullscreenElement ? "fullscreenchange" : "webkitfullscreenchange";
+        document.addEventListener(ev, function once() { document.removeEventListener(ev, once); go(); });
+        exitFull();
+      } else {
+        exitFull();
+        go();
+      }
+    });
     resultActions.appendChild(againBtn);
     resultActions.appendChild(shareBtn);
     resultActions.appendChild(allLink);
@@ -1066,7 +1090,9 @@
       fullBtn.setAttribute("aria-label", f ? "Exit fullscreen" : "Fullscreen");
     }
     function tooShort() {
-      return screen.getBoundingClientRect().height > window.innerHeight;
+      // a phone on its side counts too: the page shows the game as a small square there (game.css)
+      return screen.getBoundingClientRect().height > window.innerHeight ||
+        (window.innerWidth > window.innerHeight && window.innerHeight < 500);
     }
     function enterFull() {
       var req = screen.requestFullscreen || screen.webkitRequestFullscreen;

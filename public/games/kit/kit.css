@@ -484,7 +484,9 @@
   text-transform: uppercase;
 }
 .kit-choice-detail { color: var(--smoke); font-size: 0.78rem; line-height: 1.35; }
-.kit-mode { margin-top: -0.2rem; }
+/* the other way to play: quiet, but plainly a button, with what it is underneath */
+.kit-mode { display: grid; justify-items: center; min-height: 44px; margin-top: -0.2rem; border-color: #6a6a6a; color: var(--paper); line-height: 1.15; }
+.kit-mode-what { color: var(--smoke); font-size: 0.72rem; font-weight: 600; }
 
 /* Small screens (a phone, the clip frame, a short fullscreen): everything tightens */
 @container kit (max-width: 440px) or (max-height: 420px) {

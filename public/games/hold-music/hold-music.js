@@ -2483,7 +2483,7 @@
     title: "Hold Music",
     stamp: "Please hold",
     tilt: -5,
-    note: "Four calls. One problem. Your call is important to us.",
+    note: "Four calls. One problem.",
     pitch: "Phone a company. Remember the menu. Tap along to the hold music. Get put through to someone else.",
     hints: {
       keys: "Press your problem: 1 to 9. On hold, tap at the ring: Space as each note gets there. P to pause.",

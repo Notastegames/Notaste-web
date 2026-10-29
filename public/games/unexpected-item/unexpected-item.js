@@ -2625,7 +2625,7 @@
     title: "Unexpected Item",
     stamp: "Approval needed",
     tilt: -4,
-    note: "Four shops, one machine, one assistant. The machine thinks you're stealing.",
+    note: "Four shops, one machine, one assistant.",
     pitch: "Scan your own shopping. The machine thinks you're stealing it.",
     hints: {
       keys: "Space: scan on the line. B: bag on OK. 1 to 4 for loose fruit. P to pause.",

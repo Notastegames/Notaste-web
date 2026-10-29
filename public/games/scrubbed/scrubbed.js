@@ -2219,7 +2219,7 @@
     title: "Scrubbed",
     stamp: "Good data",
     tilt: -6,
-    note: "Eight rockets. A barge that keeps getting smaller. He'll call it a success either way.",
+    note: "Eight rockets. A barge that keeps getting smaller.",
     hints: {
       keys: "Up, W or Space to thrust. Left and right, or A and D, to lean. Or point where it should go and hold the mouse button to thrust. P to pause.",
       touch: "Hold Thrust. Lean with the arrows."
