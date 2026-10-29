@@ -29,6 +29,31 @@
   var current = document.body.getAttribute("data-game");
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // ---------- Next game ----------
+  // The results screen (the kit) offers one other game to go straight to: the
+  // next along the homepage grid (newest first, back round to the top), passing
+  // over any this browser has finished a round of, so a run of Nexts goes
+  // through them all. Once every one has been played it's just the next along.
+  function played(slug) {
+    try {
+      return ["played", "best", "daily"].some(function (key) {
+        return localStorage.getItem("notaste." + slug + "." + key) != null;
+      });
+    } catch (e) { return false; }
+  }
+  window.NotasteNext = function () {
+    var order = GAMES.slice().reverse();
+    var at = -1;
+    order.forEach(function (game, i) { if (game.slug === current) at = i; });
+    var after = order.slice(at + 1).concat(order.slice(0, at + 1)).filter(function (game) {
+      return game.slug !== current;
+    });
+    if (!after.length) return null;
+    var fresh = after.filter(function (game) { return !played(game.slug); });
+    var game = fresh[0] || after[0];
+    return { slug: game.slug, title: game.title, accent: game.accent, href: "/games/" + game.slug + "/" };
+  };
+
   var year = document.getElementById("year");
   if (year) year.textContent = String(new Date().getFullYear());
 

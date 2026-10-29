@@ -147,6 +147,8 @@ async function playThrough(ctx, slug) {
     const heading = (await page.textContent(".kit-results:not(.kit-inter) .kit-heading")).trim();
     if (!heading) problems.push("the results heading is empty");
     if (shots) await page.screenshot({ path: path.join(shots, slug + "-results.png") });
+    const next = await page.getAttribute(".kit-next", "href").catch(() => null);
+    if (!next || !/^\/games\/[a-z-]+\/$/.test(next) || next === "/games/" + slug + "/") problems.push("Next game link: " + JSON.stringify(next));
     await page.click(".kit-share");
     await page.waitForTimeout(300);
     const line = await page.evaluate(() => navigator.clipboard.readText()).catch(() => "");

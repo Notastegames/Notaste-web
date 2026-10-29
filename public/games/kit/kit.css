@@ -447,6 +447,31 @@
 }
 .kit-quiet:hover { border-color: var(--paper); color: var(--paper); }
 
+/* Next game on the results: another game by name, with that game's accent
+   bar, so the round never ends at a dead end. White, as Play again is the red */
+.kit-next {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5em;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0.7rem 1rem 0.6rem 0.85rem;
+  border: 2px solid var(--paper);
+  border-left: 6px solid var(--next-accent, var(--paper));
+  border-radius: 3px;
+  color: var(--paper);
+  font-family: var(--display);
+  font-size: 1.15rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.kit-next-word { color: var(--smoke); font-size: 0.8em; }
+.kit-next:hover { background: var(--paper); color: var(--ink); }
+.kit-next:hover .kit-next-word { color: var(--grey); }
+
 /* Between stages: the choice. Equal options, so none of them is red. */
 .kit-ask {
   margin: 0.2rem 0 0;
@@ -498,6 +523,7 @@
   .kit-stats dd { font-size: 0.9rem; }
   .kit-actions { gap: 0.55rem 1rem; margin-top: 0.15rem; }
   .kit-actions .btn { font-size: 1.1rem; padding: 0.65rem 1rem 0.55rem; }
+  .kit-next { font-size: 1rem; padding: 0.6rem 0.8rem 0.5rem 0.7rem; }
   .kit-inter { gap: 0.35rem; align-content: safe center; overflow-y: auto; padding: 0.6rem 0.8rem; }
   .kit-inter .stamp-label { font-size: 1.1rem; }
   .kit-inter .kit-heading { font-size: 1.3rem; margin-top: 0; }
@@ -567,7 +593,7 @@
 }
 
 /* The results on a small screen: whatever doesn't fit scrolls, but the stamp
-   always starts in view and Play again, Share result and All games stay on
+   always starts in view and Play again, Next, Share result and More games stay on
    the bottom edge, over a fade that says there's more above them */
 @container kit (max-width: 440px) or (max-height: 420px) {
   .kit-results:not(.kit-inter) .kit-actions {
@@ -591,6 +617,7 @@
   .kit-results:not(.kit-inter) .kit-actions .btn { padding: 0.55rem 0.7rem 0.45rem; white-space: nowrap; }
   .kit-results:not(.kit-inter) .kit-actions .kit-quiet { padding: 0.4rem 0.5rem; white-space: nowrap; }
   .kit-results:not(.kit-inter) .kit-actions .text-link { white-space: nowrap; }
+  .kit-results:not(.kit-inter) .kit-actions .kit-next { min-height: 0; padding: 0.5rem 0.65rem 0.4rem 0.6rem; font-size: 0.95rem; }
 }
 
 /* ---------- Fullscreen ---------- */

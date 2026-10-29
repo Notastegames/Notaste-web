@@ -610,7 +610,25 @@
         go();
       }
     });
+    // Next game: one other game by name, straight to its page. game.js picks
+    // it each time the results come up, so it passes over games played since
+    // the page opened
+    var nextLink = null;
+    if (window.NotasteNext && window.NotasteNext()) {
+      nextLink = el("a", "kit-next");
+      nextLink.appendChild(el("span", "kit-next-word", "Next"));
+      nextLink.appendChild(el("span", "kit-next-name"));
+    }
+    function fillNext() {
+      var next = nextLink && window.NotasteNext();
+      if (!next) return;
+      nextLink.href = next.href;
+      nextLink.style.setProperty("--next-accent", next.accent);
+      nextLink.lastChild.textContent = next.title;
+      nextLink.setAttribute("aria-label", "Next game: " + next.title);
+    }
     resultActions.appendChild(againBtn);
+    if (nextLink) resultActions.appendChild(nextLink);
     resultActions.appendChild(shareBtn);
     resultActions.appendChild(allLink);
     resultsPanel.appendChild(resultStamp);
@@ -1000,6 +1018,8 @@
         resultHeading.textContent = result.heading;
         resultLine.textContent = result.line || "";
         fillStats(resultStats, result.stats);
+        if (!flags.autopilot) shell.store.set("played", 1);
+        fillNext();
         setState("results");
         if (window.NotasteCount) window.NotasteCount("finish");
         sound.stamp(0.15);
