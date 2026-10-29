@@ -47,6 +47,27 @@
   .game-page { grid-template-columns: minmax(0, 1fr) 21.5rem; column-gap: 3.25rem; }
 }
 
+/* A phone on its side: the game first, sized to fit under the menu, with the
+   title and pitch beside it like a laptop. Press start then fills the window
+   (kit.js), so the small square is only the attract screen. */
+@media (orientation: landscape) and (max-height: 31.25rem) and (max-width: 59.99rem) {
+  .game .top { position: static; }
+  .game-page {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "screen head"
+      "screen info";
+    column-gap: 1.5rem;
+    row-gap: 1.25rem;
+    align-items: start;
+    padding-block: 0.75rem 3rem;
+  }
+  .game-page .cabinet { width: calc((100svh - 3.6rem - 3.25rem) * 4 / 3 + 20px); padding: 10px 10px 0; border-radius: 14px; }
+  .game-page .cabinet-strip { padding-block: 0.45rem 0.5rem; font-size: 0.8rem; }
+  .game-head h1 { font-size: 3rem; }
+}
+
 /* ---------- Title block ---------- */
 
 .game-head h1 {
@@ -76,16 +97,6 @@
 .game-head .stamp-label {
   font-size: clamp(1.2rem, 1.2vw + 0.95rem, 1.55rem);
   transform: rotate(var(--tilt, -4deg));
-}
-
-.game-state {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  margin: 0;
-  color: var(--smoke);
-  font-size: var(--step--1);
-  font-weight: 600;
 }
 
 .game-pitch {
@@ -508,6 +519,8 @@
 /* ---------- More games ---------- */
 
 .more { padding-block: 2.5rem 5rem; }
+/* the results screen's "More games" scrolls here, clear of the sticky menu */
+#more-heading { scroll-margin-top: 5rem; }
 
 @media (min-width: 60rem) {
   .more { padding-block: 1.5rem 6rem; }

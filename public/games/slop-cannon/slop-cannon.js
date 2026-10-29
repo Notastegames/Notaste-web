@@ -2285,7 +2285,7 @@
     title: "Slop Cannon",
     stamp: "Pending review",
     tilt: -5,
-    note: "A content farm, a cannon and a feed full of real people's dinners. Three stages and a final push.",
+    note: "A content farm, a cannon and a feed. Three stages and a final push.",
     hints: {
       keys: "Slop a real post: point at it with the mouse or the arrows, hold the button or Space, let go on the red brackets. P to pause.",
       touch: "Slop a real post: hold a finger on it, let go when the red brackets are on it."
