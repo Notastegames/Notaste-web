@@ -74,6 +74,7 @@
   var N = window.Notaste;
   var C = window.TermsClauses;
   var CAST = window.TermsCast;
+  var VOICE_DIR = ((document.currentScript && document.currentScript.src) || "/games/terms-and-conditions/terms-and-conditions.js").replace(/terms-and-conditions\.js(\?.*)?$/, "voice/");
   var root = document.getElementById("game-root");
   if (!N || !C || !CAST || !root) return;
 
@@ -1544,7 +1545,16 @@
     said[who] = clock;
     bubbles = bubbles.filter(function (b) { return b.who !== who; });
     bubbles.push({ who: who, text: text, t: 0, life: 1.8 + text.length * 0.045 });
+    N.sound.speak(who, text, { polite: !force });   // read along, never waited for (DESIGN.md, section 9)
   }
+  (function () {
+    var cast = { legal: ["Fine. Have it back."], mascot: [] };
+    ["legal", "mascot"].forEach(function (who) {
+      Object.keys(C.lines[who]).forEach(function (k) { cast[who] = cast[who].concat(C.lines[who][k]); });
+    });
+    C.apps.forEach(function (a) { cast.legal.push(a.legal); cast.mascot.push(a.hello); });
+    N.sound.cast(VOICE_DIR, cast);
+  })();
   function speaking(who) {
     for (var i = 0; i < bubbles.length; i++) if (bubbles[i].who === who) return bubbles[i];
     return null;
