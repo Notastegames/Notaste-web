@@ -101,6 +101,8 @@
     var muted = false;
     var VOLUME = 0.6;
     try { muted = localStorage.getItem("notaste.muted") === "1"; } catch (e) {}
+    // where the kit's own voice files are, beside kit.js
+    var KIT_VOICE = ((document.currentScript && document.currentScript.src) || "/games/kit/kit.js").replace(/kit\.js(\?.*)?$/, "voice/");
 
     function unlock() {
       if (!ctx) {
@@ -115,6 +117,7 @@
         for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
       }
       if (ctx.state === "suspended") ctx.resume().catch(function () {});
+      fetchVoices();
       return ctx;
     }
 
@@ -122,6 +125,95 @@
       muted = !!value;
       try { localStorage.setItem("notaste.muted", muted ? "1" : "0"); } catch (e) {}
       if (master) master.gain.setTargetAtTime(muted ? 0 : VOLUME, ctx.currentTime, 0.02);
+      fetchVoices();
+    }
+
+    // Voices (DESIGN.md, section 9): short recorded lines, made in advance and
+    // served from the site. A game names its folder and its lines; the files
+    // download after the first press, not while muted, a few at a time, in the
+    // order they were named. A line that hasn't arrived yet is simply skipped,
+    // so nothing ever waits for one. They play through the same volume as every
+    // other sound, so mute, pause and a hidden tab cover them too.
+    var lines = {};            // id: { url, buf, state } (0 waiting, 1 loading, 2 ready, 3 failed)
+    var lineOrder = [];
+    var loading = 0;
+    var speaking = null;       // the line playing now: { src, gain }
+
+    function voices(base, ids) {
+      ids.forEach(function (id) {
+        if (lines[id]) return;
+        lines[id] = { url: base + id + ".mp3", buf: null, state: 0 };
+        lineOrder.push(id);
+      });
+      fetchVoices();
+    }
+
+    function fetchVoices() {
+      if (!ctx || muted || flags.speed > 1 || !window.fetch) return;
+      while (loading < 4) {
+        var id = null;
+        for (var i = 0; i < lineOrder.length; i++) if (lines[lineOrder[i]].state === 0) { id = lineOrder[i]; break; }
+        if (!id) return;
+        loadLine(lines[id]);
+      }
+    }
+
+    function loadLine(item) {
+      item.state = 1;
+      loading++;
+      function done(ok) { item.state = ok ? 2 : 3; loading--; fetchVoices(); }
+      fetch(item.url).then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        return r.arrayBuffer();
+      }).then(function (data) {
+        // the callback form, for older Safari
+        ctx.decodeAudioData(data, function (buf) { item.buf = buf; done(true); }, function () { done(false); });
+      }).catch(function () { done(false); });
+    }
+
+    // The decoded line, or null if it isn't here (yet)
+    function line(id) { var item = lines[id]; return item && item.buf ? item.buf : null; }
+
+    // Say a line now (opts.delay in seconds). One at a time: a new line stops
+    // the last. opts: delay, vol, dest (an audio node, instead of the kit's
+    // output). Returns how long it lasts, or 0 if it can't be said.
+    function say(id, opts) {
+      opts = opts || {};
+      var buf = line(id);
+      if (!buf || !ctx || ctx.state !== "running" || muted) return 0;
+      hush();
+      var t = ctx.currentTime + (opts.delay || 0);
+      var src = ctx.createBufferSource();
+      var gain = ctx.createGain();
+      src.buffer = buf;
+      gain.gain.value = opts.vol != null ? opts.vol : 1;
+      src.connect(gain);
+      gain.connect(opts.dest || master);
+      src.start(t);
+      var me = { src: src, gain: gain };
+      speaking = me;
+      src.onended = function () { if (speaking === me) speaking = null; };
+      return buf.duration;
+    }
+
+    function hush() {
+      if (!speaking || !ctx) return;
+      try {
+        speaking.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.015);
+        speaking.src.stop(ctx.currentTime + 0.08);
+      } catch (e) {}
+      speaking = null;
+    }
+
+    // The Clerk reads the results stamp (DESIGN.md, section 9). Three takes of
+    // each rung, so it doesn't sound like a recording. Well. It does.
+    var CLERK = { "Approved": "approved", "Pending review": "pending-review", "Not approved": "not-approved", "Rejected": "rejected" };
+    voices(KIT_VOICE, Object.keys(CLERK).reduce(function (all, word) {
+      return all.concat([1, 2, 3].map(function (n) { return CLERK[word] + "-" + n; }));
+    }, []));
+    function clerk(word, delay) {
+      if (!CLERK[word]) return 0;
+      return say(CLERK[word] + "-" + (1 + Math.floor(Math.random() * 3)), { delay: delay, vol: 0.9 });
     }
 
     // A single beep. opts: type, vol, slide (frequency to glide to), delay (s)
@@ -175,6 +267,11 @@
       resume: function () { if (ctx && ctx.state === "suspended") ctx.resume().catch(function () {}); },
       tone: tone,
       noise: noise,
+      voices: voices,
+      line: line,
+      say: say,
+      hush: hush,
+      clerk: clerk,
       // The signature sound: a rubber stamp hitting paper. A low thump and a slap.
       stamp: function (delay) {
         tone(150, 0.2, { type: "sine", slide: 42, vol: 0.55, delay: delay });
@@ -915,6 +1012,7 @@
           };
           setState("interlude");
           sound.stamp(0.15);
+          sound.clerk(interStamp.textContent, 0.55);
           buttons[0].focus({ preventScroll: true });
           // the autopilot (and so a clip being filmed) picks for itself after a moment
           if (flags.autopilot) {
@@ -1023,6 +1121,7 @@
         setState("results");
         if (window.NotasteCount) window.NotasteCount("finish");
         sound.stamp(0.15);
+        sound.clerk(stampWord, 0.55);
         againBtn.focus({ preventScroll: true });
         announce(result.heading + " " + (result.stats || []).map(function (r) { return stop(r.label + " " + r.value); }).join(" "));
       }, result.delay != null ? result.delay : 1400);

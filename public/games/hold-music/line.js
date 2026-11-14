@@ -488,6 +488,108 @@
   };
   var DIGITS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, zero: 0 };
 
+  // ---------------------------------------------------------------------------
+  // Recorded voices (DESIGN.md, section 9, and Hold Music's part of section 13).
+  // The Voice, the departments and the agents are recordings in voice/, one
+  // file a line, named after the line. A menu option is stitched from pieces,
+  // the way a real phone menu is: "Press", the number, "for broadband."; the
+  // number keeps a quiet keypad tone under it. Until a line's file has
+  // arrived (or with the sound off) the blips say it instead.
+  // ---------------------------------------------------------------------------
+  var REC_VOL = 0.55;
+  var NUMBER = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
+  var REC_IDS = [
+    "thank-you-for-calling-a-company", "welcome-back-we-missed-you", "our-options-have-changed", "thanks-for-calling-again",
+    "what-s-your-call-about", "is-it-home-or-business", "what-colour-is-the-light", "when-did-it-stop-working",
+    "tried-it-off-and-on-again", "please-choose-now", "here-they-are-again", "sorry-i-didn-t-catch-that",
+    "press", "for-broadband", "for-the-landline", "for-a-telly-box",
+    "for-a-smart-meter", "for-a-mobile", "for-a-fax-machine", "for-your-home",
+    "for-a-business", "for-a-boat", "for-a-shed", "for-a-caravan",
+    "for-a-lighthouse", "for-monday", "for-tuesday", "for-wednesday",
+    "for-thursday", "for-friday", "for-saturday", "for-sunday",
+    "for-once", "for-twice", "for-three-times", "for-never",
+    "for-lost-count", "for-billing", "if-it-s-red", "if-it-s-green",
+    "if-it-s-orange", "if-it-s-blue", "if-it-s-flashing", "if-it-s-off",
+    "for-once-press", "for-twice-press", "for-three-times-press", "for-never-press",
+    "for-lost-count-press", "for-your-home-press", "for-a-business-press", "for-a-boat-press",
+    "for-a-shed-press", "for-a-caravan-press", "for-a-lighthouse-press", "one",
+    "two", "three", "four", "five",
+    "six", "seven", "eight", "nine",
+    "ten", "eleven", "twelve", "thirteen",
+    "fourteen", "fifteen", "sixteen", "seventeen",
+    "eighteen", "nineteen", "twenty", "you-are-number",
+    "you-are-now-number", "in-the-queue", "thank-you", "lovely",
+    "noted", "great-choice", "let-s-skip-that-one", "transferring-you-now",
+    "returning-you-to-the-menu", "your-call-is-important-to-us", "we-re-busy-we-re-always-busy", "our-website-can-t-help-either",
+    "calls-are-recorded-nobody-listens", "please-don-t-hang-up-please", "thanks-for-your-patience-all-of-it", "your-call-is-still-important-ish",
+    "holding-is-free-so-is-giving-up", "broadband-have-you-tried-waiting", "landlines-people-still-have-those", "telly-boxes-yours-is-fine-we-can-see-it",
+    "smart-meters-it-knows-you-re-calling", "mobiles-you-re-on-one-so-it-works", "fax-please-fax-us-your-problem", "home-accounts-have-you-tried-going-out",
+    "business-accounts-that-ll-be-extra", "boats-is-it-floating-then-it-s-fine", "sheds-nobody-does-sheds", "caravans-which-field",
+    "lighthouses-is-the-light-on-lovely", "red-lights-red-means-it-s-thinking", "green-lights-green-means-fine-goodbye", "orange-lights-orange-means-maybe",
+    "blue-lights-blue-is-new-nobody-knows", "flashing-lights-it-s-pleased-to-see-you", "lights-off-have-you-tried-turning-it-on", "the-monday-team-mondays-eh",
+    "the-tuesday-team-we-re-in-on-thursdays", "the-wednesday-team-halfway-there", "the-thursday-team-nearly-the-weekend", "the-friday-team-we-ve-gone-home",
+    "the-saturday-team-there-isn-t-one", "sundays-we-re-closed-this-is-a-recording", "off-and-on-once-is-a-start-try-twice", "off-and-on-twice-try-three-times",
+    "off-and-on-three-try-four", "off-and-on-never-bold", "off-and-on-lost-count-us-too", "lanyards-none-left-for-you",
+    "restructuring-back-in-march", "pens-all-our-pens-are-in-use", "the-car-park-it-s-raining", "brand-refresh-new-font-same-us",
+    "customer-delight-we-re-closed", "sam-billing-oh-that-s-a-fault", "i-ll-put-you-through-to-faults", "jo-faults-i-can-see-it-from-here",
+    "it-has-to-be-a-complaint-first", "dee-complaints-honestly-i-d-leave", "i-didn-t-say-that-cancellations-next", "cancellations-hello-my-name-is"
+  ];
+  var voiceDir = ((document.currentScript && document.currentScript.src) || "/games/hold-music/line.js").replace(/line\.js(\?.*)?$/, "voice/");
+  if (!FAST) snd.voices(voiceDir, REC_IDS);
+
+  function recId(text) {
+    return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+  }
+  // the pieces a line is said in: [{ id, digit }], or null if it isn't recorded
+  function recPieces(text) {
+    var m;
+    if ((m = /^Press (\d) ((for|if it's) .+\.)$/.exec(text))) {
+      return [{ id: "press" }, { id: NUMBER[+m[1]], digit: m[1] }, { id: recId(m[2]) }];
+    }
+    if ((m = /^(For .+, press) (\d)\.$/.exec(text))) {
+      return [{ id: recId(m[1]) }, { id: NUMBER[+m[2]], digit: m[2] }];
+    }
+    if ((m = /^You are (now )?number (\d+) in the queue\.$/.exec(text)) && NUMBER[+m[2]]) {
+      return [{ id: m[1] ? "you-are-now-number" : "you-are-number" }, { id: NUMBER[+m[2]] }, { id: "in-the-queue" }];
+    }
+    return REC_IDS.indexOf(recId(text)) >= 0 ? [{ id: recId(text) }] : null;
+  }
+  // the recording's buffers for a line, all of them or nothing
+  function recBufs(text) {
+    if (FAST) return null;
+    var pieces = recPieces(text);
+    if (!pieces) return null;
+    for (var i = 0; i < pieces.length; i++) {
+      pieces[i].buf = snd.line(pieces[i].id);
+      if (!pieces[i].buf) return null;
+    }
+    return pieces;
+  }
+  var GAP = 0.03;
+  // how long the recording of a line lasts, or 0 if there isn't one (yet)
+  function length(text) {
+    var pieces = recBufs(text);
+    if (!pieces) return 0;
+    return pieces.reduce(function (sum, pc) { return sum + pc.buf.duration; }, 0) + GAP * (pieces.length - 1);
+  }
+  // a recorded clip on the voice bus, stoppable with its group
+  function clip(t, buf, rate, group) {
+    var g = graph();
+    if (!g) return;
+    var c = g.ctx;
+    var src = c.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    var amp = c.createGain();
+    amp.gain.value = REC_VOL;
+    src.connect(amp);
+    amp.connect(g.voice);
+    src.start(t);
+    var end = t + buf.duration / rate;
+    nodes.push({ src: src, gain: amp, group: group, end: end + 0.05 });
+  }
+
   function syllables(word) {
     var w = word.toLowerCase().replace(/[^a-z]/g, "");
     if (!w) return 0;
@@ -499,6 +601,23 @@
   // Say a line, from transport time t0, spread over span seconds.
   // Returns when each digit in it is said, as [{ t, digit }].
   function say(t0, text, who, span, group) {
+    var pieces = recBufs(text);
+    if (pieces) {
+      // a touch quicker if it must, to keep to the beat; never chipmunks
+      var total = length(text);
+      var rate = Math.min(1.2, Math.max(1, total / Math.max(0.2, span)));
+      var said = [], t = t0;
+      pieces.forEach(function (pc) {
+        var buf = pc.buf, tt = t;
+        sched(tt, function (a) { clip(a, buf, rate, group || "voice"); }, group || "voice");
+        if (pc.digit) {
+          sched(tt, function (a) { inst.dtmf(a, pc.digit, 0.12, group || "voice", 0.025); }, group || "voice");
+          said.push({ t: tt, digit: pc.digit });
+        }
+        t += (buf.duration + GAP) / rate;
+      });
+      return said;
+    }
     var v = VOICES[who] || VOICES.voice;
     var words = text.split(/\s+/).filter(Boolean);
     var units = [];
@@ -543,6 +662,7 @@
     lead: lead,
     duck: duck,
     say: say,
+    length: length,
     bedOn: bedOn,
     bedOff: bedOff,
     TUNES: TUNES

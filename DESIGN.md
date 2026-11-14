@@ -212,12 +212,29 @@ About three seconds the first time in a visit, about one second after that (titl
 
 ## 9. Sound
 
-- Sounds are made in code with the Web Audio API through the kit (`Notaste.sound`). No audio files for now.
+- Sounds are made in code with the Web Audio API through the kit (`Notaste.sound`). The one kind of audio file allowed is a short recorded voice line (below).
 - Lo-fi arcade: square and saw beeps, short noise bursts. Short and dry.
 - The signature sound is the **stamp**: a low thump with a slap of noise. It plays whenever a stamp lands.
 - Game sounds stay in the same lo-fi family: Heavy Traffic's engine is a buzzing saw wave, its Gas button is a long, low, wobbling note, and its tyres squeal on a warbling square wave when they're about to give up (a warning, so the spin is never a surprise).
 - Sound starts only after the player presses something. One mute setting covers every game and is remembered (`notaste.muted`).
 - Pause all sound when the game is paused or the tab is hidden.
+
+**Voices.** A few characters speak in recorded lines, made once with ElevenLabs and served as small mono mp3s from our own site. The browser never talks to ElevenLabs.
+
+- A voice is seasoning, never the only way to know something. Every spoken line is also on screen, and the game plays the same muted.
+- Files load only after the first press, never while muted, a few at a time, and only for the game being played. A missing file falls back to the coded sound.
+- Lines play through the kit (`Notaste.sound.voices`, `say`, `clerk`), so the mute switch, pause and hidden-tab rules hold.
+- Stock or designed voices only: no cloning, no voice that sounds like a real person. Final files are generated on a paid plan (commercial licence).
+- Same house voice when spoken: deadpan, British, no shouting.
+
+| Who | Where | Voice | Files |
+| --- | --- | --- | --- |
+| The Clerk | Every kit game's results and between-stages stamp (Approved, Pending review, Not approved, Rejected), three takes each | Daniel, flat and official | `games/kit/voice/` |
+| The Voice | Hold Music menu, queue and hold announcements; numbers are spoken with their keypad tone underneath | Laura, bright and a touch fast | `games/hold-music/voice/` |
+| The departments | Hold Music wrong-number answers | George, weary | same |
+| Sam, Jo, Dee, Cancellations | Hold Music agents | Kerry, Alice, Lily, Olivia | same |
+
+Hold Music's lines go through its phone-line filter, at 32 kbps; everything else at 48 kbps.
 
 ---
 
@@ -462,7 +479,7 @@ You phone A Company about your broadband. A cheerful menu reads out options, you
 
 **The phone.** A paper desk phone standing on the table on the right, halftone down its right side, its cradle empty. Its screen is magenta with ink on it: the Voice's face while the menu talks, the digit being read (it stays up until the next one), a padlock and "Listen" while the keypad is locked, the department you've been transferred to, the queue number and four bars of signal on hold, and the agent's face when someone picks up. The keypad is paper keys with ink digits (at least 56px on a touch screen; on keyboards a smaller \* 0 # row too). Locked keys are halftoned over. On hold the keypad becomes the beat pad: an ink panel with four magenta lamps that fill one a beat over the count-in and then stay lit, steady, until the hold's over (nothing on it blinks or bursts, so it never pulls the eyes off the ring), and what's going on in words (the count-in, "Fast version", "You're next", "Tap at the ring"). It dims with the room.
 
-**The Voice** is the menu's own face: a round outline with happy shut eyes, raised brows and a fixed grin, sound coming out of it. It's high and cheerful (square-wave blips about 560Hz), and the numbers it says are their keypad tones, so you can hear which is which. **The agents** pick up as house cut-outs in a frame pinned to the wall with a red pin, popping up where the note was (over the phone in the clip frame), a name plate underneath: a magenta office in ink halftone behind them, an ink cardigan, a red lanyard and pass, a headset with a magenta microphone, weary brows, heavy lids and a small kind smile, mittens on their desk beside a mug of tea, and one thing each: Sam in Billing (glasses), Jo in Faults (a bun), Dee in Complaints (a perm). Their face is on the phone's screen too, and their lines come in a bubble from the frame. They're tired and kind and not allowed to help ("I can see it from here.", "Honestly, I'd leave. I didn't say that."). Cancellations (a neat parting) picks up, gets as far as "Hello, my name is", and the frame goes to static. **The departments** a wrong number reaches answer about what you pressed: press 3 for a boat when your account is a shed and you're through to Boats ("Boats. Is it floating. Then it's fine."), and you shout "Not boats. Never boats."; every option has its own (Telly boxes, Red lights, The Tuesday team, Off and On). A number that isn't an option at all reaches one of A Company's own: Lanyards, Restructuring, Pens, The car park, Brand Refresh, Customer Delight (closed). Their bubbles have a dashed outline.
+**The Voice** is the menu's own face: a round outline with happy shut eyes, raised brows and a fixed grin, sound coming out of it. It's high and cheerful, spoken (Laura, section 9), and each number it says has its keypad tone under it, so you can hear which is which. With a file missing it falls back to square-wave blips about 560Hz. **The agents** pick up as house cut-outs in a frame pinned to the wall with a red pin, popping up where the note was (over the phone in the clip frame), a name plate underneath: a magenta office in ink halftone behind them, an ink cardigan, a red lanyard and pass, a headset with a magenta microphone, weary brows, heavy lids and a small kind smile, mittens on their desk beside a mug of tea, and one thing each: Sam in Billing (glasses), Jo in Faults (a bun), Dee in Complaints (a perm). Their face is on the phone's screen too, and their lines come in a bubble from the frame. They're tired and kind and not allowed to help ("I can see it from here.", "Honestly, I'd leave. I didn't say that."). Cancellations (a neat parting) picks up, gets as far as "Hello, my name is", and the frame goes to static. **The departments** a wrong number reaches answer about what you pressed: press 3 for a boat when your account is a shed and you're through to Boats ("Boats. Is it floating. Then it's fine."), and you shout "Not boats. Never boats."; every option has its own (Telly boxes, Red lights, The Tuesday team, Off and On). A number that isn't an option at all reaches one of A Company's own: Lanyards, Restructuring, Pens, The car park, Brand Refresh, Customer Delight (closed). Their bubbles have a dashed outline.
 
 **The sticky note** is magenta with ink capitals: "My problem", then only this call's facts, one a line ("Broadband", "Account: lighthouse", "Light: flashing", "Since Tuesday", "Tried: lost count"). The question being asked is ringed in red, with room above the capitals so it never reads as crossed out; answered ones get a tick; a skipped one is struck out.
 

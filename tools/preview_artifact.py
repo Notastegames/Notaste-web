@@ -111,9 +111,15 @@ def main():
     attrs = dict(re.findall(r'([\w-]+)="([^"]*)"', body_tag))
 
     files = list(SHARED)
-    for name in sorted(os.listdir(os.path.join(PUBLIC, game_dir))):
-        if name != "index.html":
-            files.append(game_dir + "/" + name)
+    # the kit's own voice files (the Clerk), and everything in the game's
+    # folder, its voice/ folder included
+    for folder in ("games/kit/voice", game_dir):
+        for here, dirs, names in sorted(os.walk(os.path.join(PUBLIC, folder))):
+            dirs.sort()
+            for name in sorted(names):
+                rel = os.path.relpath(os.path.join(here, name), PUBLIC).replace(os.sep, "/")
+                if rel != game_dir + "/index.html":
+                    files.append(rel)
     # covers for the page and for "More games"
     for name in sorted(os.listdir(os.path.join(PUBLIC, "art"))):
         if name.endswith(".svg"):
