@@ -94,6 +94,7 @@
   "use strict";
 
   var N = window.Notaste;
+  var VOICE_DIR = ((document.currentScript && document.currentScript.src) || "/games/reply-all/reply-all.js").replace(/reply-all\.js(\?.*)?$/, "voice/");
   var A = window.ReplyAllArt;
   var root = document.getElementById("game-root");
   if (!N || !A || !root) return;
@@ -916,7 +917,7 @@
     say("Home time", 3);
     var folk = shuffle(G.desks.filter(function (d) { return d.kind !== "ooo" && d.kind !== "boss"; }), Math.random);
     var lines = shuffle(HOMES.slice(), Math.random);
-    folk.slice(0, 2).forEach(function (d, n) { G.bubbles.push(bub(d, lines[n], 2.4)); });
+    folk.slice(0, 2).forEach(function (d, n) { G.bubbles.push(bub(d, lines[n], 2.4)); if (!n) voice(d, lines[n], true); });
     end("home");
   }
 
@@ -936,7 +937,7 @@
     G.serverSays = { text: pick(SERVER_LAST), t: 0 };
     var folk = shuffle(G.desks.filter(function (d) { return d.kind !== "ooo"; }), Math.random);
     var lines = shuffle(CHEERS.slice(), Math.random);
-    folk.slice(0, 2).forEach(function (d, n) { G.bubbles.push(bub(d, lines[n], 3)); });
+    folk.slice(0, 2).forEach(function (d, n) { G.bubbles.push(bub(d, lines[n], 3)); if (!n) voice(d, lines[n], true); });
     for (var p = 0; p < 6; p++) addPuff(true);
     end("melt");
   }
@@ -1070,6 +1071,7 @@
         // the struck line goes, and the grumble pops up in its place
         b.text = b.then; b.then = null; b.struck = null; b.pin = null;
         b.t = 0; b.life = 1.4 + b.text.length * 0.03;
+        voice(b.desk, b.text);
         return true;
       }
       return b.t < b.life;
@@ -1158,7 +1160,20 @@
     var b = bub(d, text);
     b.boss = d.kind === "boss";
     G.bubbles.push(b);
+    voice(d, text);
   }
+  // Spoken lines (DESIGN.md, section 9): only the grumbles, never the emails
+  // being typed, and only one voice at a time, so the room never talks over
+  // the game. Two voices for the floor, by who's at the desk.
+  var WOMEN = { perm: 1, band: 1, bun: 1, bobble: 1, phones: 1, party: 1, assistant: 1 };
+  function voice(d, text, force) {
+    if (d && d.look) N.sound.speak(WOMEN[d.look.id] ? "woman" : "man", text, { polite: !force });
+  }
+  (function () {
+    var said = [].concat(GRUMBLES, [BIRTHDAY], MUTED, FLINCH, SNIPES, CHEERS, HOMES, GLARES, ["I'm only the messenger.", "Who are you."])
+      .filter(function (t) { return t !== "Reply all, you melon."; });   // its take came out wrong: silent until it's recorded again
+    N.sound.cast(VOICE_DIR, { man: said, woman: said });
+  })();
   function dropBubble(d) { G.bubbles = G.bubbles.filter(function (b) { return b.desk !== d; }); }
   // Someone you stopped: the line they were typing stays where it was for a
   // moment and a red pen goes through it, right where you're looking, so
