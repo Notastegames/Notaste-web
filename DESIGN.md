@@ -239,6 +239,10 @@ About three seconds the first time in a visit, about one second after that (titl
 | Dave | Speak to a Human | Adam Stone | same |
 | Graham, Priya, Rupert, Pam | On Mute's hosts and the no-sayer | Phil Smith, Freya, Lord Alistair, Lily | `games/on-mute/voice/` |
 | The office | On Mute's everyone else: the men, the women | Zak, Evie | same |
+| The Gaffer, Legal | Slop Cannon's boss; Terms and Conditions' lawyer | Jase, loud and pompous | `games/slop-cannon/voice/`, `games/terms-and-conditions/voice/` |
+| The Moderator | Slop Cannon | George, weary | `games/slop-cannon/voice/` |
+| The mascots | Terms and Conditions' app mascots | Alfwyn, small and squeaky | `games/terms-and-conditions/voice/` |
+| The regulars | Slop Cannon's posters, Reply All's office grumbles (by who's speaking) | Zak, Evie | each game's `voice/` |
 | The Narrator | Hot Seat's prompts (never an AI's answer, never a voice per AI) | Christopher, late-night documentary | `hot-seat/<scene>/voice/` |
 
 Hold Music's lines go through its phone-line filter, at 32 kbps; everything else at 48 kbps.
