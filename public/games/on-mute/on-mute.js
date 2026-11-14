@@ -3150,6 +3150,11 @@
   // ---------------------------------------------------------------------------
   var VOICES = { graham: 150, priya: 260, dave: 130, gaz: 170, linda: 230, pam: 250, keith: 120, bernard: 110, mo: 190,
                  rupert: 140, notes: 600, phone: 300, rob: 160, femi: 180, hannah: 280 };
+  // Who speaks with which recorded voice: the hosts and Pam have their own,
+  // the rest of the office shares two, and the notetaker keeps its blips.
+  var VOICE_OF = { graham: "graham", rupert: "rupert", pam: "pam", priya: "priya", you: "you",
+                   gaz: "man", dave: "man", keith: "man", bernard: "man", mo: "man", rob: "man", femi: "man", phone: "man",
+                   linda: "woman", hannah: "woman" };
   var sfx = {
     paste: function (streak) {
       N.sound.tone(620 + Math.min(streak, 36) * 18, 0.035, { vol: 0.05 });
@@ -3188,8 +3193,10 @@
       [523, 392, 262].forEach(function (f, i) { N.sound.tone(f, 0.25, { type: "sawtooth", vol: 0.06, delay: i * 0.2 }); });
       N.sound.stamp(0.7);
     },
-    // a blip a syllable, in their own voice
+    // a blip a syllable, in their own voice, or their recorded line
+    // (DESIGN.md, section 9) when there is one
     voice: function (who, text) {
+      if (VOICE_OF[who] && N.sound.speak(VOICE_OF[who], text, { polite: who !== "you" && !/Sam/.test(text) })) return;
       var base = VOICES[who] || 200;
       var n = Math.min(7, Math.max(1, Math.round(text.split(" ").length * 1.3)));
       for (var i = 0; i < n; i++) {
