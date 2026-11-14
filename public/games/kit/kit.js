@@ -293,6 +293,8 @@
       line: line,
       say: say,
       hush: hush,
+      // a recorded line is still playing
+      busy: function () { return !!speaking; },
       clerk: clerk,
       slug: slug,
       cast: cast,

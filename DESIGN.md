@@ -526,7 +526,7 @@ Four video calls back to back and a spreadsheet that needs doing. The joke is me
 - **Dave**: frozen mid-blink, with blocks of his face missing and a "Poor connection" tag. He says one thing all day, as the stand-up ends: "Sorry. You cut out. Can you repeat that?"
 - **Gaz**: his camera's on the desk pointing up, so it's a ceiling light, a red cap from underneath, nostrils and a lot of chin.
 - **Linda**: a red perm and her lunch, which she eats on camera.
-- **Pam**: a bun with a red pencil through it. People ask Pam things, and Pam can say no ("Pam, could you take the minutes?" "I did them last time."). They aren't for you.
+- **Pam**: a bun with a red pencil through it. People ask Pam things, and Pam can say no ("Pam, could you take the minutes?" "I did them last time."). They aren't for you. Graham and Priya each ask her in their own way: Graham hands her work ("Pam, can you own that?" "No."), Priya wants a meeting about it ("Pam, can we sync after this?" "No.").
 - **Keith (train)**: a flat cap and a tache on a red train seat, the countryside going past, and now and then a tunnel.
 - **Bernard**: his camera is about four inches from his forehead.
 - **Mo (walking)**: a sweatband and trees going past, the picture bouncing.
@@ -557,6 +557,7 @@ Four video calls back to back and a spreadsheet that needs doing. The joke is me
 - The kit's callouts land in a lane of their own: between the call and the sheet on wide screens, in the empty part of the inbox column beside your tile on a phone, or on the sheet's title bar where there's no room for either. They're sized to fit and only slightly tilted, so they never cover a face, a name tag or a bubble. Routine ones (Streak, Inbox zero, Not responding) land once a meeting.
 - Being removed: the tiles go dark with "Left" on them and a card says "You have been removed from the meeting". No callout: the card is the moment.
 - The last meeting's closing line ("I'll send this round as an email.") gets a beat of its own before the tiles go dark and the results come up.
+- One voice at a time. What's for you, and the meeting's own moves (the round, stop sharing, the last line), are said over anyone; what's said back to you is too, unless the next thing for you would cut it off, when it's blips. The chatter, the set pieces (Dave, the microwave) and replies wait for whoever's talking, and the chatter doesn't start a line the next thing for you would cut off. A remark that can't wait is a bubble with no sound, never blips over a voice. A meeting ends once whoever's talking has finished their sentence (three seconds at most).
 - Speech is recorded (section 9), and anything with no file (the notetaker, your own lines, a name filled in) is a blip a syllable, each person at their own pitch. A two-note "hm" when you're named, a rising note when you're asked, a creak and a meow for the cat, the dishwasher's rumble rising while you're live, and a three-note chime as everyone leaves the call.
 - The notice goes up over the call, not the work, below where the countdown's stamps land, and comes down before anyone says anything to you.
 - With reduced motion the people in the tiles keep still (Mo's bounce, his trees, Keith's countryside), the tunnel fades, and nothing shakes.
