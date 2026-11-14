@@ -409,6 +409,12 @@
     talks.push({ t: t, end: end, who: who, text: text });
     if (talks.length > 16) talks.shift();
   }
+  // how many beats a line needs: its usual number, or more when its recording
+  // is longer (a real voice takes longer than the blips did)
+  function roomFor(text, beats, b) {
+    var len = Line.length(text);
+    return len ? Math.max(beats, Math.ceil((len / 0.88 + 0.08) / b * 2) / 2) : beats;
+  }
   function speak(t, span, who, text, group) {
     talk(t, t + span, who, text);
     return Line.say(t, text, who, span * 0.88, group || "voice");
@@ -468,7 +474,7 @@
 
     welcome: function (p) {
       var b = menuBeat();
-      var beats = 3;
+      var beats = roomFor(info().welcome, 3, b);
       // screen readers get the note as the call starts
       cue(p.t0, function () {
         shell.announce("My problem: " + noteLines().map(function (l) { return l.text + "."; }).join(" "));
@@ -486,11 +492,12 @@
 
     skip: function (p) {
       var b = menuBeat();
-      speak(p.t0, 1.8 * b, "voice", "Let's skip that one.");
+      var sk = roomFor("Let's skip that one.", 2, b);
+      speak(p.t0, (sk - 0.2) * b, "voice", "Let's skip that one.");
       for (var i = 0; i < 6; i++) {
         (function (t) { Line.sched(t, function (a) { Line.inst.key(a, "0", "fx"); }, "fx"); })(p.t0 - 0.9 + i * 0.13);
       }
-      p.end = p.t0 + 2 * b;
+      p.end = p.t0 + sk * b;
       p.next = function (t1) { go("level", t1, { li: 1 }); };
     },
 
@@ -500,6 +507,7 @@
       var t = p.t0;
       p.items = [];
       function item(role, text, beats, k, pass) {
+        beats = roomFor(text, beats, b);
         var it = { t: t, end: t + beats * b, role: role, text: text, k: k, pass: pass };
         var said = speak(t, beats * b, "voice", text);
         it.digitAt = said.length ? said[0].t : null;
@@ -536,8 +544,9 @@
     thanks: function (p) {
       var b = menuBeat();
       if (p.li + 1 >= plan[call].levels.length) st.value = holdWorth() / plannedNotes(queueLength());
-      speak(p.t0, 1.2 * b, "voice", pick(THANKS));
-      p.end = p.t0 + 1.5 * b;
+      var thanks = pick(THANKS), tb = roomFor(thanks, 1.5, b);
+      speak(p.t0, (tb - 0.3) * b, "voice", thanks);
+      p.end = p.t0 + tb * b;
       p.next = function (t1) {
         if (p.li + 1 < plan[call].levels.length) go("level", t1, { li: p.li + 1 });
         else go("hold", t1, { queue: queueLength(), reconnect: false });
@@ -548,19 +557,20 @@
     // The menu waits a beat, so what you said gets its moment first.
     transfer: function (p) {
       var b = menuBeat(), t = p.t0 + b;
-      speak(t, 1.8 * b, "voice", "Transferring you now.");
-      Line.sched(t + 2 * b - 0.1, function (a) { Line.inst.click(a, "fx"); }, "fx");
-      speak(t + 2 * b, 3.6 * b, "dept", p.dept.line);
-      p.deptAt = t + 2 * b;
-      Line.sched(t + 6 * b - 0.1, function (a) { Line.inst.click(a, "fx"); }, "fx");
-      speak(t + 6 * b, 1.8 * b, "voice", "Returning you to the menu.");
+      var tA = roomFor("Transferring you now.", 2, b), tD = roomFor(p.dept.line, 4, b), tR = roomFor("Returning you to the menu.", 2, b);
+      speak(t, (tA - 0.2) * b, "voice", "Transferring you now.");
+      Line.sched(t + tA * b - 0.1, function (a) { Line.inst.click(a, "fx"); }, "fx");
+      speak(t + tA * b, (tD - 0.4) * b, "dept", p.dept.line);
+      p.deptAt = t + tA * b;
+      Line.sched(t + (tA + tD) * b - 0.1, function (a) { Line.inst.click(a, "fx"); }, "fx");
+      speak(t + (tA + tD) * b, (tR - 0.2) * b, "voice", "Returning you to the menu.");
       if (p.late) {
-        cue(t + 5.2 * b, function () {
+        cue(t + (tA + tD - 0.8) * b, function () {
           youSay("transfer", { line: 2, dept: p.dept.say });
           react.shout = 1.2; react.steam = 2.6;
         });
       }
-      p.end = t + 8 * b;
+      p.end = t + (tA + tD + tR) * b;
       p.next = function (t1) { go("level", t1, { li: p.li, retry: true }); };
     },
 
@@ -602,7 +612,7 @@
       p.lines = [];
       c.agent.lines.forEach(function (line, i) {
         var n = line.split(" ").length;
-        var span = 0.45 + n * 0.18;
+        var span = Math.max(0.45 + n * 0.18, Line.length(line) / 0.88 + 0.05);
         speak(t, span, "agent", line);
         p.lines.push({ t: t, end: t + span });
         t += span + (i < c.agent.lines.length - 1 ? 0.35 : 0.2);
