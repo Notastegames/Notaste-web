@@ -223,7 +223,7 @@ About three seconds the first time in a visit, about one second after that (titl
 
 - A voice is seasoning, never the only way to know something. Every spoken line is also on screen, and the game plays the same muted.
 - Files load only after the first press, never while muted, a few at a time, and only for the game being played. A missing file falls back to the coded sound.
-- Lines play through the kit (`Notaste.sound.voices`, `say`, `clerk`), so the mute switch, pause and hidden-tab rules hold.
+- Lines play through the kit (`Notaste.sound.voices`, `say`, `clerk`; `cast` and `speak` look a line up by its on-screen text, files named `<voice>-<slug>.mp3`), so the mute switch, pause and hidden-tab rules hold.
 - Stock or designed voices only: no cloning, no voice that sounds like a real person. Final files are generated on a paid plan (commercial licence).
 - Same house voice when spoken: deadpan, British, no shouting.
 
@@ -233,6 +233,13 @@ About three seconds the first time in a visit, about one second after that (titl
 | The Voice | Hold Music menu, queue and hold announcements; numbers are spoken with their keypad tone underneath | Laura, bright and a touch fast | `games/hold-music/voice/` |
 | The departments | Hold Music wrong-number answers | George, weary | same |
 | Sam, Jo, Dee, Cancellations | Hold Music agents | Kerry, Alice, Lily, Olivia | same |
+| Till 4 (Dennis) | Unexpected Item's till | Natasha, clipped and accusing | `games/unexpected-item/voice/` |
+| Bev, the queue | Unexpected Item | Kerry; Gee Louise and Adam Stone | same |
+| Assistant | Speak to a Human's bot | Alice, soft and scripted | `games/speak-to-a-human/voice/` |
+| Dave | Speak to a Human | Adam Stone | same |
+| Graham, Priya, Rupert, Pam | On Mute's hosts and the no-sayer | Phil Smith, Freya, Lord Alistair, Lily | `games/on-mute/voice/` |
+| The office | On Mute's everyone else: the men, the women | Zak, Evie | same |
+| The Narrator | Hot Seat's prompts (never an AI's answer, never a voice per AI) | Christopher, late-night documentary | `hot-seat/<scene>/voice/` |
 
 Hold Music's lines go through its phone-line filter, at 32 kbps; everything else at 48 kbps.
 
@@ -405,7 +412,7 @@ A self-checkout. Four shops (a basket, a trolley, the big shop, Christmas Eve), 
 - Canvas text is never under 12px. A label that can't be that big on a phone is left out there (the till's name plate, the print on the bag, the Round again sign, the Bagging area label beside the Scan button), and the look-up card fades in rather than growing, so its words never shrink. On a narrow screen Dennis's bubble starts at the edge of his screen so his lines fit in two.
 - Today's run deals each shop from its own seeded streams (its list, the gaps on the belt, the order of the fruit pictures, the ways of shopping offered after it), all drawn from `shell.random` at the start. An item going round again or a different choice never changes what the next shop deals.
 - The look-up screen is a paper card with the game's colour along the top: the question ("Lime, lemon, lime or lime."), a clock, what's on the scale in a dashed frame, and four numbered pictures (a row of four, or two by two on phones). On keys or a pad a heavier ink frame shows which picture Space picks; with a finger or a mouse there's no frame, so nothing looks like the till's suggestion. With a mouse or keys it sits under the belt, so you can see the till looking puzzled; on a touch screen it sits over the top, clear of the buttons. The machine's guesses are always wrong.
-- The till's voice, Bev's and the queue's are blips, one a syllable, so "Unexpected item in the bagging area" has its real rhythm.
+- The till, Bev and the queue speak their recorded lines (section 9); a line with no file (a name filled in) is blips, one a syllable, so "Unexpected item in the bagging area" has its real rhythm.
 - The scale's display (OK in green, Wait in red and flashing, plus a needle) is also the Bag button's cooldown on touch screens.
 - The receipt grows out of the till with everything you bag, and the basket or trolley on the floor empties as you go.
 - When the shop shuts, paper shutters come down out of an ink box along the top (so the HUD stays on black), with a red edge and a red Closed sign hung on them. No stamp: the sign is the moment.
@@ -546,7 +553,7 @@ Four video calls back to back and a spreadsheet that needs doing. The joke is me
 - The kit's callouts land in a lane of their own: between the call and the sheet on wide screens, in the empty part of the inbox column beside your tile on a phone, or on the sheet's title bar where there's no room for either. They're sized to fit and only slightly tilted, so they never cover a face, a name tag or a bubble. Routine ones (Streak, Inbox zero, Not responding) land once a meeting.
 - Being removed: the tiles go dark with "Left" on them and a card says "You have been removed from the meeting". No callout: the card is the moment.
 - The last meeting's closing line ("I'll send this round as an email.") gets a beat of its own before the tiles go dark and the results come up.
-- Speech is a blip a syllable, each person at their own pitch. A two-note "hm" when you're named, a rising note when you're asked, a creak and a meow for the cat, the dishwasher's rumble rising while you're live, and a three-note chime as everyone leaves the call.
+- Speech is recorded (section 9), and anything with no file (the notetaker, your own lines, a name filled in) is a blip a syllable, each person at their own pitch. A two-note "hm" when you're named, a rising note when you're asked, a creak and a meow for the cat, the dishwasher's rumble rising while you're live, and a three-note chime as everyone leaves the call.
 - The notice goes up over the call, not the work, below where the countdown's stamps land, and comes down before anyone says anything to you.
 - With reduced motion the people in the tiles keep still (Mo's bounce, his trees, Keith's countryside), the tunnel fades, and nothing shakes.
 - What doesn't move (the rooms and people, your kitchen, the sheet's window and rows, the name tags, the faces for each look) is drawn once into bitmaps, so a phone draws little more than faces and words each frame.
@@ -651,7 +658,7 @@ Your food never came, and the help chat is a bot. Four orders go wrong (a missin
 - From the second order, when it's losing, it offers a 50p voucher, once an order. Take it and the order ends for 50p.
 - Keys follow the place, not the reply: when chips swap, 1 is still the top left.
 - The kit's notice can't be taken down early, so the game puts it up again for a millisecond when the chat starts, which fades it out.
-- Speech is square-wave blips, one a word, the bot's high and Dave's lower; a fuse ticks faster as it runs out.
+- Speech is recorded (section 9), the bot and Dave reading their messages; a line with no file is square-wave blips, one a word, the bot's high and Dave's lower; a fuse ticks faster as it runs out.
 - With reduced motion, chips don't wander, slide or bounce in (swaps happen in one go), the survey's No thanks stays put, the bot doesn't bob or lean, Dave's unmasking doesn't flicker, and the screen doesn't shake.
 - The clip frame lays itself out: the bot across the top, bigger words and chips, no notices and no "skip" hint.
 
@@ -713,7 +720,7 @@ A separate tab, not one of the games: real AI models face a dark moral dilemma i
 - **Real people.** Scene 001, "Wrong Side of the Tracks", ties baby Adolf Hitler and Jimmy Savile (1975) to the tracks. Both are played straight. The joke is the dilemma and what the machines do with it, never the abuse or the victims: nothing about Savile's crimes is ever made funny. The trams hit in cartoon slapstick, with no blood and no injury shown.
 - **Real AI models** are named, because that's the point: they're the contestants. They never use logos; each family gets its own mannequin head shape and suit colour (Opus an egg, GPT a rounded block, Gemini two lobes, Grok a crested dome).
 - **A 3D library.** three.js r128 (MIT) is vendored in `public/hot-seat/vendor/`, loaded from the site itself, used only on this page.
-- **Its own sound kit** (`public/hot-seat/hotseat-sound.js`), made in code like `Notaste.sound`, sharing the site's one mute setting (`notaste.muted`).
+- **Its own sound kit** (`public/hot-seat/hotseat-sound.js`), made in code like `Notaste.sound`, plus the Narrator's recorded lines (`voices`, `say`; section 9), sharing the site's one mute setting (`notaste.muted`).
 
 **The look.** The scene is a night poster: flat toon shading with ink outlines, a sodium lamp, mist bands and a low rust sun the trams come out of. Inside the scene it uses its own colours, which don't appear anywhere else on the site: bone `#EFE6D4`, sodium `#F2A33A` (the tab's accent), rust `#C4552B`, smoke `#A39A8C` and a warm black `#0F0D0B`. Everything laid over the 3D is a flat, dark TV graphic (owner's pick, 23 October 2026, "style B, dark"): cards `rgba(10,10,10,.88)` with a 1px `rgba(255,255,255,.16)` edge, option buttons `#1B1B1B`, no white surfaces, no glow, no double borders. Notaste Display is for headings and the verdict stamp only; anything you read or press uses the device's own fonts, ids and run numbers the monospace stack, and the AI's own words a lower third in Georgia (a system serif, not a web font). Red is only the verdict stamp and the On air lamp; sodium is only for things that are yours (your guess, Press start, your next move). A replay carries a "Replay · run n of N" bug. Beside the window, an "On the record" sheet (`#0D0D0D`, white top rule) holds the prompt, this replay and the AIs, folded until tapped, and never gives an answer away. "On air" and "Live studio" stay; the sheet's stamp says "Demo" until real runs replace the demo answers, then "Real test". The same words everywhere: Saves baby Hitler, Saves Savile, Does nothing.
 
