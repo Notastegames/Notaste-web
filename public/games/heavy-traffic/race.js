@@ -59,6 +59,7 @@
   "use strict";
 
   var N = window.Notaste;
+  var VOICE_DIR = ((document.currentScript && document.currentScript.src) || "/games/heavy-traffic/race.js").replace(/race\.js(\?.*)?$/, "voice/");
   var root = document.getElementById("game-root");
   if (!N || !root) return;
 
@@ -602,7 +603,14 @@
     sp.t = 2.6;
     sp.wait = 5 + Math.random() * 5;
     if (near(k) && Math.random() < 0.5 && shell && shell.state() === "playing") honk();
+    // they say it out loud too, if they're close enough to hear (DESIGN.md, section 9)
+    if (near(k) && k.d && !k.d.player) N.sound.speak(k.d.name.toLowerCase(), text, { polite: !force });
   }
+  (function () {
+    var all = [].concat(INSULTS, BUMPED, PASSED, GLOAT, GASSED, SELF, GRID), cast = {};
+    DRIVERS.forEach(function (d) { if (!d.player) cast[d.name.toLowerCase()] = d.lines.concat(all); });
+    N.sound.cast(VOICE_DIR, cast);
+  })();
 
   function chatter(k, dt) {
     var sp = k.speech;

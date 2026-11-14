@@ -82,6 +82,7 @@
   "use strict";
 
   var N = window.Notaste;
+  var VOICE_DIR = ((document.currentScript && document.currentScript.src) || "/games/thirty-days/thirty-days.js").replace(/thirty-days\.js(\?.*)?$/, "voice/");
   var A = window.ThirtyDaysArt;
   var root = document.getElementById("game-root");
   if (!N || !A || !root) return;
@@ -549,7 +550,18 @@
     run.streak = 0;
   }
 
-  function say(d, lines, secs) { d.say = lines; d.sayT = secs || 1.4; }
+  function say(d, lines, secs) { d.say = lines; d.sayT = secs || 1.4; voice(d.id, lines); }
+  // Spoken too (DESIGN.md, section 9): a line with no file stays silent, one voice at a time
+  function voice(who, lines, force) { N.sound.speak(who, lines.join(" "), { polite: !force }); }
+  (function () {
+    var j = function (l) { return l.join(" "); }, any = [].concat(SAY.full, SAY.leaf, SAY.closed).map(j);
+    var cast = {
+      speaker: [].concat(SAY.speakerStart, SAY.speakerDeal, SAY.speakerRefill, SAY.speakerIdle, SAY.speakerEnd).map(j),
+      heart: [].concat(SAY.heartWorry, SAY.heartSpill, [["That's", "me done"]]).map(j)
+    };
+    DESKS.forEach(function (id) { cast[id] = SAY.filed[id].map(j).concat(any); });
+    N.sound.cast(VOICE_DIR, cast);
+  })();
   function mood(d, m, secs) { d.mood = m; d.moodT = secs || 0.8; }
   // The board over the chute says it, scrolling if it's long, so it stays up
   // long enough to read
@@ -557,8 +569,9 @@
     G.speaker.say = lines;
     G.speaker.t = Math.max(secs || 1.8, lines.join(" ").length * 0.13 + 0.6);
     G.speaker.talk = 1;
+    voice("speaker", lines, true);
   }
-  function heartSay(lines, secs) { G.heart.say = lines; G.heart.t = secs || 1.6; }
+  function heartSay(lines, secs) { G.heart.say = lines; G.heart.t = secs || 1.6; voice("heart", lines); }
 
   // In-game stamps: at most one at a time; routine ones not too often
   var lastCall = 0;
