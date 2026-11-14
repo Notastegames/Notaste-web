@@ -82,6 +82,7 @@
   "use strict";
 
   var N = window.Notaste;
+  var VOICE_DIR = ((document.currentScript && document.currentScript.src) || "/games/slop-cannon/slop-cannon.js").replace(/slop-cannon\.js(\?.*)?$/, "voice/");
   var A = window.SlopArt;
   var root = document.getElementById("game-root");
   if (!N || !A || !root) return;
@@ -963,7 +964,20 @@
     if (bubbles.length >= 3) { if (!force) return; bubbles.shift(); }
     bubbles.push({ who: who, text: words, t: 0, life: 2 + words.length * 0.035 });
     if (who === gafferSpeaker) gaffer.shout = Math.min(1.6, 0.9 + words.length * 0.02);
+    // the recorded voice, if there's one for the line (DESIGN.md, section 9)
+    var v = who === gafferSpeaker ? "gaffer" : who === modSpeaker ? "mod" : who.card ? (WOMEN.test(who.card.name) ? "woman" : "man") : null;
+    if (v) N.sound.speak(v, words, { polite: !force });
   }
+  var WOMEN = /^(Sandra|Maureen|Jodie|Pat|Linda|Bev|Shaz|Dot|Gail|Tina|Priya)$/;
+  (function () {
+    var people = [].concat(SAYS, TREND_SAYS);
+    Object.keys(REAL).forEach(function (k) { people = people.concat(REAL[k].says); });
+    var boss = ["Nobody saw that.", "Not a word."];
+    Object.keys(GAFFER).forEach(function (k) { boss = boss.concat(GAFFER[k]); });
+    var mod = [];
+    Object.keys(MOD_SAYS).forEach(function (k) { mod = mod.concat(MOD_SAYS[k]); });
+    N.sound.cast(VOICE_DIR, { gaffer: boss, mod: mod, man: people, woman: people });
+  })();
   function gafferSay(list, force) {
     if (!force && gaffer.cool > 0) return;
     if (!force && Math.random() < 0.45) return;
