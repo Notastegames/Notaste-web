@@ -231,9 +231,15 @@
   ];
   // The meetings' own chatter: none of it is for you.
   // Someone else asked or named, with what they say back (null: nothing)
-  var PAM = [["Pam, any blockers?", "None."], ["Pam, shall we say Thursday?", "Friday."], ["Pam, can you own that?", "No."],
-             ["Pam, did you get that?", "Got it."], ["Pam, are you happy with that?", "Not really."],
-             ["Pam, could you take the minutes?", "I did them last time."]];
+  // Graham and Priya both ask Pam things, in their own way: Graham hands
+  // out work, Priya wants a meeting about it
+  var PAM = {
+    graham: [["Pam, any blockers?", "None."], ["Pam, can you own that?", "No."],
+             ["Pam, are you happy with that?", "Not really."], ["Pam, could you take the minutes?", "I did them last time."]],
+    priya: [["Pam, shall we say Thursday?", "Friday."], ["Pam, did you get that?", "Got it."],
+            ["Pam, can we sync after this?", "No."], ["Pam, did you see my deck?", "Mm."],
+            ["Pam, fancy a workshop on it?", "No."], ["Pam, how's the tracker going?", "Ongoing."]]
+  };
   var TEAM_OTHERS = [["Like Pam said.", "pam", null], ["Thanks, Priya.", "priya", null], ["Priya, happy with that?", "priya", "Fine."],
                      ["Over to Priya.", "priya", "Thanks."]];
   var UPDATES = {
@@ -529,16 +535,18 @@
       talk(main, host, rpick(UPDATES.host, rnd));
     } else if (st.id === "team") {
       // people ask Pam things, and Pam can say no
-      var pam = deck(PAM, rnd), tt = deck(TEAM_TALK, rnd), other = rpick(TEAM_OTHERS, rnd);
-      var asker = function () { return rnd() < 0.7 ? host : "priya"; };
-      var p1 = pam(), p2 = pam(), p3 = pam();
+      var decks = { graham: deck(PAM.graham, rnd), priya: deck(PAM.priya, rnd) };
+      var tt = deck(TEAM_TALK, rnd), other = rpick(TEAM_OTHERS, rnd);
+      var askPam = function (who) { var p = decks[who](); ask(main, who, p[0], "pam", p[1]); };
+      // the host asks two of the three, Priya the other
+      var who3 = shuffle([host, host, "priya"], rnd);
       talk(main, host, tt());
-      ask(main, asker(), p1[0], "pam", p1[1]);
+      askPam(who3[0]);
       talk(main, "linda", CAMEOS[1][0][1]);
-      ask(main, asker(), p2[0], "pam", p2[1]);
-      ask(main, other[1] === "priya" ? host : asker(), other[0], other[1], other[2]);
+      askPam(who3[1]);
+      ask(main, other[1] === "priya" ? host : rnd() < 0.7 ? host : "priya", other[0], other[1], other[2]);
       talk(main, "gaz", CAMEOS[1][1][1]);
-      ask(main, asker(), p3[0], "pam", p3[1]);
+      askPam(who3[2]);
       talk(main, rnd() < 0.5 ? "priya" : "linda", tt());
     } else if (st.id === "allhands") {
       // Rupert's vision, and questions to everyone
@@ -613,7 +621,7 @@
       cam: { on: true, off: 0 },
       cat: null,
       stall: 0, wrongBox: -1, stamps: [], pops: [], bubbles: [], toasts: [], flights: [], fx: [], later: [],
-      speaking: {}, backUntil: {}, gaze: null, tiles: [], volunteerAt: -9, chaseAt: -99, closedAt: -9, camNodAt: -9,
+      speaking: {}, backUntil: {}, voiceUntil: 0, gaze: null, tiles: [], volunteerAt: -9, chaseAt: -99, closedAt: -9, camNodAt: -9,
       missed: 0, forgiven: 0, stageYeps: 0, stageNods: 0, stageVolunteered: 0, stageBoxes: 0, stageSheets: 0,
       agreed: [], said: {}, rowCache: {},
       briefed: false, hint: null, nod: 0, yepT: 0, flash: 0, seen: 0, lastPaste: 0, sheetFlash: 0,
@@ -892,7 +900,7 @@
     if (G.share) {
       run.score += 100;
       var line = G.share.saved.shift();
-      if (line) speak(reactor(), line, 1.6, false, true);
+      if (line) speak(reactor(), line, 1.6, false, true, "aside");
     }
   }
 
@@ -1144,6 +1152,8 @@
         continue;
       }
       if (b.kind === "cat") busy = G.share || G.round || G.cat || (run.stage < 2 && G.open);
+      // the meeting's set pieces (Dave, the microwave) wait for the floor
+      if (b.kind === "talk" && floorBusy()) busy = true;
       if (busy) { b.t = G.time + 0.3; continue; }
       b.done = true;
       fire(b);
@@ -1155,7 +1165,10 @@
   function tickChatter() {
     G.chat.forEach(function (q) {
       var b = q.lines[q.i];
-      if (!b || b.t > G.time || G.time - q.last < CHAT_GAP || !chatClear(b)) return;
+      if (!b || b.t > G.time || G.time - q.last < CHAT_GAP || !chatClear(b) || floorBusy()) return;
+      // don't start a line the next thing for you would cut off (the email
+      // only waits a moment, or it would never finish)
+      if (!fits(b.who, b.line) && (b.kind !== "email" || G.time - b.t < 1.5)) return;
       q.i++;
       q.last = G.time;
       fire(b);
@@ -1174,6 +1187,9 @@
     G.later = G.later.filter(function (l) {
       if (l.t > G.time) return true;
       if ((G.open && G.open.who === l.who) || (!l.back && saidBack(l.who))) { l.t = G.time + 0.4; return true; }
+      // a reply waits for whoever's talking, but not for long
+      if (floorBusy() && !l.held) { l.held = G.time; }
+      if (floorBusy() && G.time - l.held < 2) { l.t = G.time + 0.1; return true; }
       speak(l.who, l.line, 1.4, false, l.back);
       return false;
     });
@@ -1203,7 +1219,7 @@
       }
       case "round":
         G.round = { order: G.roundOrder.slice(), i: -1, wait: 2.2 };
-        speak(st.host, ROUND_ASK, 2.2);
+        speak(st.host, ROUND_ASK, 2.2, false, false, "lead");
         break;
       case "cat":
         startCat();
@@ -1228,11 +1244,11 @@
         break;
       case "overrun":
         G.overrun = true;
-        speak(b.who, b.line, 2);
+        speak(b.who, b.line, 2, false, false, "lead");
         say("Overrunning", 2);
         break;
       default:
-        speak(b.who, b.line, 1.8);
+        speak(b.who, b.line, 1.8, false, false, "lead");
     }
   }
 
@@ -1290,9 +1306,9 @@
     if (!s) return;
     s.t += dt;
     if (s.t > 2.5 && !s.said) { s.said = true; speak(pick(info().cast.filter(function (id) { return id !== "notes" && id !== info().host; })), pickFrom("shareLines", SHARE_LINES), 1.6); }
-    if (s.t >= s.dur) {
+    if (s.t >= s.dur && (!floorBusy() || s.t > s.dur + 2)) {
       G.share = null;
-      speak(info().host, SHARE_END, 1.8);
+      speak(info().host, SHARE_END, 1.8, false, false, "lead");
       G.closedAt = G.time;
       sfx.unshare();
     }
@@ -1427,7 +1443,7 @@
     var st = info();
     // the last meeting's last line is the punchline: it gets a beat of its own
     var lastOne = run.stage === LAST;
-    speak(st.host, ENDS[run.stage], lastOne ? 4.2 : 2.4);
+    speak(st.host, ENDS[run.stage], lastOne ? 4.2 : 2.4, false, false, "lead");
     if (lastOne) window.setTimeout(function () { sfx.leave(); }, 1500);
     else sfx.leave();
     var n = run.stage + 1;
@@ -1570,7 +1586,9 @@
       tickMic(dt);
       tickMail();
       if (G.open && G.time >= G.open.deadline) missed(G.open);
-      if (G.phase === "play" && G.time >= info().time + (info().overrun || 0)) endStage();
+      // the meeting ends on time, once whoever's talking has finished their sentence
+      var over = G.time - info().time - (info().overrun || 0);
+      if (G.phase === "play" && over >= 0 && (!floorBusy() || over > 3)) endStage();
     } else {
       G.endT += dt;
       if (G.cat) tickCat(dt);
@@ -1641,7 +1659,11 @@
   // back: it answers something you did (a miss, a nod at a question), so it
   // stays up for its whole life: their own chatter waits for it, and when
   // there are too many bubbles the chatter makes room first.
-  function speak(who, text, life, toYou, back) {
+  // how: "lead" for the meeting's own moves (the round, stop sharing, the
+  // last line), which are said over anything; "aside" for a remark that
+  // stays up like something said back but never talks over anyone;
+  // otherwise toYou and back decide.
+  function speak(who, text, life, toYou, back, how) {
     if (!who || !text) return;
     var st0 = tileOf(who);
     if (st0) { bringIn(st0); st0.lastSpoke = G.time; }
@@ -1663,7 +1685,36 @@
     if (back) G.backUntil[who] = G.time + (life || 1.8);
     if (DEBUG) (G.log || (G.log = [])).push([Math.round(G.time * 10) / 10, who, text]);
     G.speaking[who] = Math.min(life || 1.8, 0.35 + text.length * 0.045);
-    sfx.voice(who, text);
+    // One voice at a time. What's for you, and the meeting's own moves, are
+    // said over anyone. What's said back to you is too, unless the next
+    // thing for you would cut it off halfway: then it's blips. Anything
+    // else waits its turn (the chatter and replies hold until the floor's
+    // free), and if it can't, it's a bubble with no sound.
+    var mode = toYou || how === "lead" ? "force" : how === "aside" ? "polite" : back ? (fits(who, text) ? "force" : "blip") : "polite";
+    var dur = sfx.voice(who, text, mode);
+    if (dur) G.voiceUntil = G.time + dur;
+  }
+
+  // Voices (DESIGN.md, section 9): how long someone's recorded line lasts
+  // (0: there's no recording, or the sound's off, so it's blips), whether a
+  // recording is still playing, and whether a line would finish before the
+  // next thing that's for you starts (its look, half a second before).
+  function clipLen(who, text) {
+    if (N.sound.isMuted()) return 0;
+    var v = VOICE_OF[who], buf = v && N.sound.line(v + "-" + N.sound.slug(text));
+    return buf ? buf.duration : 0;
+  }
+  function floorBusy() { return G.time < (G.voiceUntil || 0) || N.sound.busy(); }
+  function fits(who, text) {
+    var len = clipLen(who, text), next = 1e9;
+    if (!len) return true;
+    G.beats.forEach(function (b) {
+      if (!b.done && /^(name|ask|share|round|overrun)$/.test(b.kind)) next = Math.min(next, b.t - PRE);
+    });
+    next = Math.min(next, info().time + (info().overrun || 0));       // the meeting's last line
+    if (G.open) next = Math.min(next, G.open.deadline);               // what they'll say to your answer
+    if (G.round) next = G.time;
+    return G.time + len + 0.1 < next;
   }
 
   function tileOf(id) {
@@ -3161,7 +3212,7 @@
     graham: "any-objections|any-questions|anything-left-will-be-binned|are-we-all-here|as-per-sam-s-email|big-thanks-to-sam|busy|can-we-circle-back|can-we-get-a-date-on-that|can-you-hear-us-sam|credit-to-sam-for-that|go-on-then|good-sam-says-we-re-on-track|grand|great-comments-by-friday-then|great-sam-s-owning-it|great-sam-s-presenting|hectic|hi-all|i-ll-book-us-in|i-ll-pick-that-up-with-sam|i-ll-send-this-round-as-an-email|i-ve-got-a-hard-stop|just-a-quick-reminder|just-one-more-thing|just-to-piggyback|kind-regards|let-s-give-it-a-minute|let-s-go-through-the-actions|let-s-park-that|let-s-take-the-rest-offline|like-pam-said|like-sam-said-last-week|lovely-sam-s-sending-it-round|lovely-slides-from-sam|lovely-thursday-it-is|me-same-as-yesterday|mm|not-really|nothing-from-me|ok-it-s-a-no|over-to-priya|pam-any-blockers|pam-are-you-happy-with-that|pam-can-you-own-that|pam-could-you-take-the-minutes|pam-did-you-get-that|pam-shall-we-say-thursday|please-label-your-milk|priya-happy-with-that|priya-you-go-first|quick-one-from-me-no-it-s-fine|quiet|right-i-ll-let-you-all-go|right-let-me-read-this-out|sam-and-i-were-just-saying|sam-any-blockers|sam-anything-to-add|sam-are-we-on-track|sam-are-you-across-this|sam-are-you-free-after-this|sam-are-you-happy-with-that|sam-are-you-ok-to-own-that|sam-are-you-still-with-us|sam-can-you-cover-saturday|sam-can-you-present-it-next-week|sam-can-you-see-my-screen|sam-can-you-send-that-round|sam-can-you-share-your-screen|sam-could-you-take-the-minutes|sam-did-that-go-out|sam-did-you-get-a-chance-to-look|sam-did-you-read-the-doc|sam-does-that-work-for-you|sam-flagged-that|sam-happy-to-do-the-slides|sam-is-that-a-no|sam-knows-the-history|sam-s-across-that|sam-s-been-great-on-this|sam-s-got-the-spreadsheet|sam-s-on-the-next-one-too|sam-shall-we-say-thursday|sam-sorted-that|sam-will-remember|saturday-it-is|sent-from-my-phone|shall-we-start|so-you-do-have-blockers|sorry-i-was-on-mute|thanks-in-advance|thanks-priya|thanks-sam|thanks-sam-stop-sharing|that-s-sam-s-area|that-s-still-open|the-fridge-will-be-cleared-on-friday|the-kitchen-is-not-a-storage-area|the-microwave-is-also-not-a-storage-area|this-includes-the-yoghurts|thoughts|thursday|wet|who-s-taking-notes",
     man: "all-good|another-one-done|as-per-sam-s-email|big-thanks-to-sam|busy|can-everyone-see-me|can-you-hear-me-now|can-you-hear-us-sam|can-you-make-it-bigger|credit-to-sam-for-that|fine|go-on-then|good-sam-says-we-re-on-track|grand|great-comments-by-friday-then|great-sam-s-owning-it|great-sam-s-presenting|hectic|hello-hello|i-ll-book-us-in|i-ll-pick-that-up-with-sam|i-m-doing-my-steps|is-my-camera-on|is-that-live|like-sam-said-last-week|long|love-a-spreadsheet|lovely-sam-s-sending-it-round|lovely-slides-from-sam|lovely-thanks-sam|meetings|mixed|mm|no|nope|not-really|ongoing|quiet|sam-and-i-were-just-saying|sam-any-blockers|sam-anything-to-add|sam-are-we-on-track|sam-are-you-across-this|sam-are-you-free-after-this|sam-are-you-happy-with-that|sam-are-you-ok-to-own-that|sam-are-you-still-with-us|sam-can-you-cover-saturday|sam-can-you-present-it-next-week|sam-can-you-see-my-screen|sam-can-you-send-that-round|sam-could-you-take-the-minutes|sam-did-that-go-out|sam-did-you-get-a-chance-to-look|sam-did-you-read-the-doc|sam-does-that-work-for-you|sam-flagged-that|sam-happy-to-do-the-slides|sam-is-that-a-no|sam-knows-the-history|sam-s-across-that|sam-s-been-great-on-this|sam-s-got-the-spreadsheet|sam-s-on-the-next-one-too|sam-shall-we-say-thursday|sam-sorted-that|sam-will-remember|saturday-it-is|so-you-do-have-blockers|sorry-tunnel|sorry-you-cut-out-can-you-repeat-that|thanks-sam|that-s-sam-s-area|thursday|very-colourful|very-efficient|wet",
     pam: "friday|got-it|grand|i-did-them-last-time|meetings|mixed|mm|no|none|not-really|ongoing|quiet|thursday|wet",
-    priya: "another-one-done|as-per-sam-s-email|big-thanks-to-sam|blocked-by-dave|blocker-this-meeting|blockers-meetings|busy|can-we-circle-back|can-we-get-a-date-on-that|can-you-hear-us-sam|can-you-make-it-bigger|credit-to-sam-for-that|fine|go-on-then|grand|great-comments-by-friday-then|great-sam-s-presenting|hectic|i-ll-book-us-in|i-ll-pick-that-up-with-sam|is-that-live|just-to-piggyback|let-s-go-through-the-actions|let-s-park-that|like-pam-said|like-sam-said-last-week|long|love-a-spreadsheet|lovely-sam-s-sending-it-round|lovely-slides-from-sam|lovely-thanks-sam|lovely-thursday-it-is|mixed|no-blockers|ok-it-s-a-no|ongoing|pam-any-blockers|pam-are-you-happy-with-that|pam-could-you-take-the-minutes|pam-did-you-get-that|pam-shall-we-say-thursday|quiet|sam-and-i-were-just-saying|sam-any-blockers|sam-anything-to-add|sam-are-we-on-track|sam-are-you-across-this|sam-are-you-free-after-this|sam-are-you-happy-with-that|sam-are-you-ok-to-own-that|sam-are-you-still-with-us|sam-can-you-cover-saturday|sam-can-you-present-it-next-week|sam-can-you-see-my-screen|sam-can-you-send-that-round|sam-could-you-take-the-minutes|sam-did-that-go-out|sam-did-you-get-a-chance-to-look|sam-did-you-read-the-doc|sam-does-that-work-for-you|sam-flagged-that|sam-happy-to-do-the-slides|sam-is-that-a-no|sam-knows-the-history|sam-s-across-that|sam-s-been-great-on-this|sam-s-got-the-spreadsheet|sam-s-on-the-next-one-too|sam-shall-we-say-thursday|sam-sorted-that|sam-will-remember|saturday-it-is|so-you-do-have-blockers|sorry-i-was-on-mute|thanks|thanks-sam|that-s-sam-s-area|thursday|today-a-workshop-about-workshops|today-meetings|today-more-meetings|very-colourful|very-efficient|yesterday-a-workshop|yesterday-emails|yesterday-meetings|yesterday-the-deck",
+    priya: "another-one-done|as-per-sam-s-email|big-thanks-to-sam|blocked-by-dave|blocker-this-meeting|blockers-meetings|busy|can-we-circle-back|can-we-get-a-date-on-that|can-you-hear-us-sam|can-you-make-it-bigger|credit-to-sam-for-that|fine|go-on-then|grand|great-comments-by-friday-then|great-sam-s-presenting|hectic|i-ll-book-us-in|i-ll-pick-that-up-with-sam|is-that-live|just-to-piggyback|let-s-go-through-the-actions|let-s-park-that|like-pam-said|like-sam-said-last-week|long|love-a-spreadsheet|lovely-sam-s-sending-it-round|lovely-slides-from-sam|lovely-thanks-sam|lovely-thursday-it-is|mixed|no-blockers|ok-it-s-a-no|ongoing|pam-did-you-get-that|pam-shall-we-say-thursday|quiet|sam-and-i-were-just-saying|sam-any-blockers|sam-anything-to-add|sam-are-we-on-track|sam-are-you-across-this|sam-are-you-free-after-this|sam-are-you-happy-with-that|sam-are-you-ok-to-own-that|sam-are-you-still-with-us|sam-can-you-cover-saturday|sam-can-you-present-it-next-week|sam-can-you-see-my-screen|sam-can-you-send-that-round|sam-could-you-take-the-minutes|sam-did-that-go-out|sam-did-you-get-a-chance-to-look|sam-did-you-read-the-doc|sam-does-that-work-for-you|sam-flagged-that|sam-happy-to-do-the-slides|sam-is-that-a-no|sam-knows-the-history|sam-s-across-that|sam-s-been-great-on-this|sam-s-got-the-spreadsheet|sam-s-on-the-next-one-too|sam-shall-we-say-thursday|sam-sorted-that|sam-will-remember|saturday-it-is|so-you-do-have-blockers|sorry-i-was-on-mute|thanks|thanks-sam|that-s-sam-s-area|thursday|today-a-workshop-about-workshops|today-meetings|today-more-meetings|very-colourful|very-efficient|yesterday-a-workshop|yesterday-emails|yesterday-meetings|yesterday-the-deck",
     rupert: "any-objections|any-questions|anyone|are-we-all-here|as-per-sam-s-email|big-quarter|big-thanks-to-sam|can-everyone-hear-me|can-everyone-see-my-screen|can-you-hear-us-sam|credit-to-sam-for-that|does-that-make-sense|exciting-times|exciting-times-bye|go-on-then|good-sam-says-we-re-on-track|great-sam-s-owning-it|great-sam-s-presenting|huge-shout-out-to-everyone|i-ll-pick-that-up-with-sam|is-everyone-happy|is-it-just-me|let-s-go-round-one-word-on-your-week|like-sam-said-last-week|lovely-sam-s-sending-it-round|lovely-slides-from-sam|lovely-thanks-all|next-slide|ok-it-s-a-no|our-values-haven-t-changed|sam|sam-and-i-were-just-saying|sam-any-blockers|sam-anything-to-add|sam-are-we-on-track|sam-are-you-across-this|sam-are-you-free-after-this|sam-are-you-happy-with-that|sam-are-you-ok-to-own-that|sam-are-you-still-with-us|sam-can-you-cover-saturday|sam-can-you-present-it-next-week|sam-can-you-see-my-screen|sam-can-you-send-that-round|sam-could-you-take-the-minutes|sam-did-that-go-out|sam-did-you-get-a-chance-to-look|sam-did-you-read-the-doc|sam-does-that-work-for-you|sam-flagged-that|sam-happy-to-do-the-slides|sam-is-that-a-no|sam-knows-the-history|sam-s-across-that|sam-s-been-great-on-this|sam-s-got-the-spreadsheet|sam-s-on-the-next-one-too|sam-shall-we-say-thursday|sam-sorted-that|sam-will-remember|saturday-it-is|synergy|thanks-sam|that-s-sam-s-area|thoughts|we-re-a-family|we-re-on-a-journey|wellbeing-is-a-priority|who-s-taking-notes",
     woman: "all-good|as-per-sam-s-email|busy|can-we-circle-back|fine|go-on-then|grand|great-sam-s-owning-it|i-ll-book-us-in|i-ll-pick-that-up-with-sam|just-to-piggyback|let-s-go-through-the-actions|let-s-park-that|long|meetings|mixed|mm|no|nope|not-really|ongoing|quiet|sam-and-i-were-just-saying|sam-any-blockers|sam-anything-to-add|sam-are-you-free-after-this|sam-are-you-ok-to-own-that|sam-are-you-still-with-us|sam-could-you-take-the-minutes|sam-s-been-great-on-this|sam-s-on-the-next-one-too|sam-will-remember|so-you-do-have-blockers|sorry-i-m-eating|sorry-i-was-on-mute|thanks-sam|thursday|wet"
   };
@@ -3208,13 +3259,21 @@
     },
     // a blip a syllable, in their own voice, or their recorded line
     // (DESIGN.md, section 9) when there is one
-    voice: function (who, text) {
-      if (VOICE_OF[who] && N.sound.speak(VOICE_OF[who], text, { polite: who !== "you" && !/Sam/.test(text) })) return;
+    // mode: "force" (over anyone), "polite" (not over anyone) or "blip".
+    // Returns how long it lasts (the recording, or the blips), 0 for silence.
+    voice: function (who, text, mode) {
+      if (VOICE_OF[who] && mode !== "blip") {
+        var d = N.sound.speak(VOICE_OF[who], text, { polite: mode !== "force" });
+        if (d) return d;
+        if (clipLen(who, text)) return 0;     // recorded, but someone's talking: just the bubble
+      }
+      if (mode === "polite" && floorBusy()) return 0;   // no blips over a voice
       var base = VOICES[who] || 200;
       var n = Math.min(7, Math.max(1, Math.round(text.split(" ").length * 1.3)));
       for (var i = 0; i < n; i++) {
-        N.sound.tone(base * (0.92 + Math.random() * 0.2), 0.05, { type: who === "notes" ? "square" : "square", vol: 0.022, delay: i * 0.085 });
+        N.sound.tone(base * (0.92 + Math.random() * 0.2), 0.05, { type: "square", vol: 0.022, delay: i * 0.085 });
       }
+      return N.sound.isMuted() ? 0 : n * 0.085 + 0.1;
     }
   };
 
