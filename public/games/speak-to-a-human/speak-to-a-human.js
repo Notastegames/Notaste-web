@@ -2124,7 +2124,25 @@
     shell.callout(text, { sound: o.sound });
   }
 
+  // What the bot can say, by voice, for the recordings to load
+  var VOICE_DIR = ((document.currentScript && document.currentScript.src) || "/games/speak-to-a-human/speak-to-a-human.js").replace(/speak-to-a-human\.js(\?.*)?$/, "voice/");
+  var CAST = (function () {
+    var S = L.SPECIAL, both = ["Thank you. That really helps me.", "I'll take that as a yes.", "No answer is five stars. Thank you.",
+      "No problem. The offer has been noted.", "Glad that's sorted.", "Fine. Refund approved.", "Lovely. Your 50p is on its way.",
+      "Take your time. I'm not going anywhere.", "Before you go, a quick survey.", S.number.wrong, S.number.wrongHedge, S.frustrated.along, S.frustrated.after, S.yesyes.along];
+    function ends(set) { var out = []; set.forEach(function (l) { out.push(l[0], l[5]); }); return out; }
+    var bot = [L.OPEN].concat(ends(L.GENERAL), L.HEAL, [S.yesyes.bot, S.number.bot, S.frustrated.bot], S.voucher.bot.slice(0, 2), S.still.bot, S.fin.reply, both);
+    L.STAGES.forEach(function (st) { bot = bot.concat(st.along, ends(st.lines)); });
+    var dave = [L.DAVE_OPEN].concat(ends(L.DAVE), L.DAVE_COMPLAINT[2], L.DAVE_HEAL, [S.yesyes.dave, S.number.dave, S.frustrated.dave, S.voucher.bot[2], S.still.dave, S.fin.daveReply, "Thanks for chatting with Dave."], both);
+    return { bot: bot, dave: dave };
+  })();
+
+  // The bot reads its messages out (DESIGN.md, section 9): Assistant in its
+  // soft scripted voice, and Dave in his. Not every line has a recording;
+  // the rest keep their blips.
+  N.sound.cast(VOICE_DIR, CAST);
   function botVoice(text) {
+    if (shell.sound.speak(isDave() ? "dave" : "bot", text, { vol: 0.85 })) return;
     var n = Math.min(6, text.split(" ").length);
     var base = isDave() ? 440 : 640;
     for (var i = 0; i < n; i++) {

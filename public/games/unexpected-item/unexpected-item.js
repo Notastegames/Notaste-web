@@ -520,7 +520,7 @@
     }
     if (bubbles.length >= 3) { if (!force) return; bubbles.shift(); }
     bubbles.push({ who: who, text: text, t: 0, life: 1.8 + text.length * 0.045 });
-    voice(who, text);
+    voice(who, text, force);
   }
   function dennis(text, force) { say("dennis", text, force); }
   function fill(line, o) {
@@ -566,8 +566,23 @@
     shutter: function () { snd.noise(1, { freq: 300, vol: 0.18 }); snd.tone(90, 0.9, { type: "sawtooth", slide: 50, vol: 0.06 }); }
   };
 
+  // Recorded voices (DESIGN.md, section 9): Dennis, Bev and the queue say
+  // their fixed lines out loud. A line with a name filled in, or one that
+  // hasn't loaded, keeps the blips.
+  var VOICE_DIR = ((document.currentScript && document.currentScript.src) || "/games/unexpected-item/unexpected-item.js").replace(/unexpected-item\.js(\?.*)?$/, "voice/");
+  (function () {
+    function flat(v) { return typeof v === "string" ? [v] : Array.isArray(v) ? [].concat.apply([], v.map(flat)) : v ? flat(Object.keys(v).map(function (k) { return v[k]; })) : []; }
+    function fixed(a) { return a.filter(function (t) { return t.indexOf("{") < 0; }); }
+    var queue = fixed(QUEUE);
+    snd.cast(VOICE_DIR, {
+      dennis: fixed(STAGES.map(function (s) { return s.hello; }).concat(flat(SAY), ["Sorry. That was your receipt.", "Approval needed."], Object.keys(SETS).map(function (k) { return SETS[k].q; }))),
+      bev: fixed(flat(BEV)), q0: queue, q1: queue
+    });
+  })();
+
   // A voice for each speaker: one blip a syllable, with a bit of a tune
-  function voice(who, text) {
+  function voice(who, text, force) {
+    if (snd.speak(who, text, { vol: who === "dennis" ? 0.8 : 0.9, polite: !force })) return;
     var syl = Math.min(16, (text.match(/[aeiouy]+/gi) || []).length);
     var base = who === "dennis" ? 440 : who === "bev" ? 196 : 262;
     var type = who === "dennis" ? "square" : who === "bev" ? "triangle" : "sawtooth";

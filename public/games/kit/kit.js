@@ -205,6 +205,28 @@
       speaking = null;
     }
 
+    // A game's cast (DESIGN.md, section 9): its spoken lines are found by
+    // what's on screen, so a game only names who says what. A file is
+    // <who>-<slug of the text>.mp3 in the game's voice/ folder. speak() says
+    // the line if its file is here and returns how long it lasts; 0 means it
+    // isn't (a filled-in name, not loaded yet, muted), so the game keeps its
+    // blips. opts.polite: don't talk over a line that's still playing.
+    function slug(text) { return String(text).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); }
+    function cast(base, table) {
+      var ids = [];
+      Object.keys(table).forEach(function (who) {
+        table[who].forEach(function (text) { ids.push(who + "-" + slug(text)); });
+      });
+      voices(base, ids);
+    }
+    function speak(who, text, opts) {
+      opts = opts || {};
+      var id = who + "-" + slug(text);
+      if (!line(id)) return 0;
+      if (opts.polite && speaking) return 0;
+      return say(id, opts);
+    }
+
     // The Clerk reads the results stamp (DESIGN.md, section 9). Three takes of
     // each rung, so it doesn't sound like a recording. Well. It does.
     var CLERK = { "Approved": "approved", "Pending review": "pending-review", "Not approved": "not-approved", "Rejected": "rejected" };
@@ -272,6 +294,9 @@
       say: say,
       hush: hush,
       clerk: clerk,
+      slug: slug,
+      cast: cast,
+      speak: speak,
       // The signature sound: a rubber stamp hitting paper. A low thump and a slap.
       stamp: function (delay) {
         tone(150, 0.2, { type: "sine", slide: 42, vol: 0.55, delay: delay });

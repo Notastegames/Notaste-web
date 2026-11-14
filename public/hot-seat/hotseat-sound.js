@@ -1,5 +1,5 @@
-/* The Hot Seat sound kit. Every sound is built in code with Web Audio, so
-   there are no sample files to load, license or fetch from anywhere.
+/* The Hot Seat sound kit. Every sound effect is built in code with Web Audio;
+   the only files are the narrator's short lines, our own, in each scene's voice/.
    Sound is off until the game calls setEnabled(true); the game stores the
    player's choice itself.
 
@@ -9,6 +9,8 @@
    HotSeatSound.rumble(level)       every frame, 0 (no tram) to 1 (right here)
    HotSeatSound.thinking(level)     optional hum while the AI thinks, 0 stops it
    HotSeatSound.stopAll()           Start over, end of a run
+   HotSeatSound.voices(base, ids)   names the narrator's lines, files <base><id>.mp3
+   HotSeatSound.say(id)             plays one line, cutting off the last; 0 if not loaded
 
    opts for any cue: { delay } in seconds, and { pan } from -1 (left) to 1
    (right) for the scene sounds, so tram 1 can sit left and tram 2 right.
@@ -42,10 +44,43 @@
 
   function wake() { var p = ctx.resume(); if (p && p.catch) p.catch(function () {}); }
 
+  /* The narrator: short recorded lines, our own files. They load only once
+     sound is on, a few at a time, and a line not loaded yet is skipped. */
+  var vbase = '', vids = [], vlines = {}, vloading = 0, vsrc = null;
+  function fetchVoices() {
+    if (muted || !ctx || !root.fetch) return;
+    while (vloading < 3) {
+      var id = null;
+      for (var i = 0; i < vids.length; i++) if (!vlines[vids[i]]) { id = vids[i]; break; }
+      if (!id) return;
+      vlines[id] = { buf: null }; vloading++;
+      (function (id) {
+        var done = function () { vloading--; fetchVoices(); };
+        root.fetch(vbase + id + '.mp3').then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(function (a) {
+          ctx.decodeAudioData(a, function (b) { vlines[id].buf = b; done(); }, done);
+        }).catch(done);
+      })(id);
+    }
+  }
+  function voices(base, ids) { vbase = base; vids = ids.slice(); fetchVoices(); }
+  function say(id, opts) {
+    var v = vlines[id];
+    if (!v || !v.buf || !live()) return 0;
+    hush();
+    var src = ctx.createBufferSource(), g = ctx.createGain();
+    src.buffer = v.buf; g.gain.value = (opts && opts.vol) || 0.9;
+    src.connect(g); g.connect(out);
+    src.start(at(opts || {})); vsrc = src;
+    src.onended = function () { if (vsrc === src) vsrc = null; };
+    return v.buf.duration;
+  }
+  function hush() { if (vsrc) { try { vsrc.stop(); } catch (e) {} vsrc = null; } }
+
   /* Older iOS only opens audio after a sound starts inside a tap. */
   function unlock() {
     if (muted || !boot()) return;
     if (ctx.state !== 'running') wake();
+    fetchVoices();
     if (unlock.done) return;
     var b = ctx.createBufferSource(); b.buffer = ctx.createBuffer(1, 1, 22050);
     b.connect(ctx.destination); b.start(0); unlock.done = true;
@@ -377,7 +412,7 @@
   }
   hum = follower(rumbleLoop); nerves = follower(thinkingLoop);
 
-  function stopAll() { hum.stop(0.25); nerves.stop(0.25); }
+  function stopAll() { hum.stop(0.25); nerves.stop(0.25); hush(); }
 
   function setEnabled(on) {
     muted = !on;
@@ -398,6 +433,9 @@
     rumble: function (level, opts) { hum.set(level, opts); },
     thinking: function (level, opts) { nerves.set(level, opts); },
     stopAll: stopAll,
+    voices: voices,
+    say: say,
+    hush: hush,
     cues: Object.keys(SOUNDS)
   };
 })(window);
