@@ -151,9 +151,20 @@
   // The feed's contents, and what everyone says. Crude is fine, cruel isn't:
   // the people posting are never the joke, the slop is (DESIGN.md, section 2).
   // ---------------------------------------------------------------------------
-  var NAMES = ["Sandra", "Big Dave", "Kev", "Maureen", "Trev", "Jodie", "Pat", "Gary", "Linda", "Raj", "Bev", "Craig",
-               "Shaz", "Dot", "Wayne", "Gail", "Mo", "Tina", "Barry", "Priya"];
-  var LOOKS = ["perm", "bald", "cap", "bun", "specs", "beanie", "fringe", "tache"];
+  // Who posts, how they look and which voice shouts for them, all together,
+  // so Big Dave never turns up in a perm or Maureen in a tache
+  var POSTERS = [
+    { name: "Sandra", look: "perm", voice: "woman" }, { name: "Big Dave", look: "bald", voice: "man" },
+    { name: "Kev", look: "cap", voice: "man" }, { name: "Maureen", look: "perm", voice: "woman" },
+    { name: "Trev", look: "tache", voice: "man" }, { name: "Jodie", look: "bun", voice: "woman" },
+    { name: "Pat", look: "specs", voice: "woman" }, { name: "Gary", look: "beanie", voice: "man" },
+    { name: "Linda", look: "fringe", voice: "woman" }, { name: "Raj", look: "specs", voice: "man" },
+    { name: "Bev", look: "bun", voice: "woman" }, { name: "Craig", look: "cap", voice: "man" },
+    { name: "Shaz", look: "fringe", voice: "woman" }, { name: "Dot", look: "perm", voice: "woman" },
+    { name: "Wayne", look: "beanie", voice: "man" }, { name: "Gail", look: "specs", voice: "woman" },
+    { name: "Mo", look: "bald", voice: "man" }, { name: "Tina", look: "fringe", voice: "woman" },
+    { name: "Barry", look: "tache", voice: "man" }, { name: "Priya", look: "bun", voice: "woman" }
+  ];
   var REAL = {
     dinner: { caption: "Tea tonight.", slopped: "Type yes if you'd eat this.", says: ["That was my tea.", "Why's my dinner got fingers."] },
     cat: { caption: "Our Tigger.", slopped: "Rate this cat 1 to 10.", says: ["Tigger has four legs.", "That's not my cat."] },
@@ -444,7 +455,8 @@
       var kind = kinds[Math.floor(rng() * kinds.length)];
       lastKind = kind;
       var trending = rng() < Math.min(0.6, st.trend * m.trend);
-      return { type: "real", kind: kind, name: seededPick(NAMES), look: seededPick(LOOKS), caption: REAL[kind].caption,
+      var who = seededPick(POSTERS);
+      return { type: "real", kind: kind, name: who.name, look: who.look, voice: who.voice, caption: REAL[kind].caption,
                trending: trending, likes: trending ? 1200 + Math.floor(rng() * 8000) : 2 + Math.floor(rng() * 40) };
     }
     return { type: "slop", item: seededPick(A.ITEMS), name: seededPick(SLOP_NAMES), caption: seededPick(SLOP_CAPTIONS),
@@ -958,17 +970,48 @@
     return { at: function () { return { x: L.cardX + 3.9, y: q.y + 3.9 }; }, side: "left", name: q.id, card: q };
   }
   function say(who, words, force) {
-    if (!who || !words) return;
+    if (!who || !words) return 0;
     for (var j = 0; j < bubbles.length; j++) if (bubbles[j].text === words) return;
     for (var i = 0; i < bubbles.length; i++) if (bubbles[i].who.name === who.name) { if (!force) return; bubbles.splice(i, 1); break; }
     if (bubbles.length >= 3) { if (!force) return; bubbles.shift(); }
     bubbles.push({ who: who, text: words, t: 0, life: 2 + words.length * 0.035 });
     if (who === gafferSpeaker) gaffer.shout = Math.min(1.6, 0.9 + words.length * 0.02);
     // the recorded voice, if there's one for the line (DESIGN.md, section 9)
-    var v = who === gafferSpeaker ? "gaffer" : who === modSpeaker ? "mod" : who.card ? (WOMEN.test(who.card.name) ? "woman" : "man") : null;
-    if (v) N.sound.speak(v, words, { polite: !force });
+    var v = who === gafferSpeaker ? "gaffer" : who === modSpeaker ? "mod" : who.card ? who.card.voice : null;
+    if (!v) return 0;
+    // A forced line, while a line is still playing with not long to go,
+    // waits for it (it used to cut it off: a poster's "My one good post"
+    // lost to the Gaffer's "That's a trend now" in the same moment). Its
+    // bubble's up already. Longer to wait than that, it talks over.
+    var left = voiceUntil - vclock();
+    if (force && left > 0 && left < 2.6) {
+      var len = voiceLen(v, words);
+      if (!len) return 0;
+      voiceUntil += 0.1 + len;
+      var go = function () {
+        var still = playEnd - vclock();
+        if (still > 0.05) { after(still + 0.05, go); return; }
+        for (var k = 0; k < bubbles.length; k++) if (bubbles[k].text === words) { voice(v, words, {}); return; }
+      };
+      after(left + 0.1, go);
+      return left + 0.1 + len;
+    }
+    return voice(v, words, { polite: !force });
   }
-  var WOMEN = /^(Sandra|Maureen|Jodie|Pat|Linda|Bev|Shaz|Dot|Gail|Tina|Priya)$/;
+  // the recorded line, and how long until it's done (0: not said)
+  // (timed on the sound's own clock, which stops when the game's paused)
+  // voiceUntil counts lines waiting their turn too; playEnd is the one playing
+  var voiceUntil = 0, playEnd = 0;
+  function vclock() { var a = N.sound.ctx(); return a ? a.currentTime : 0; }
+  function voice(v, words, opts) {
+    var d = N.sound.speak(v, words, opts);
+    if (d) { playEnd = vclock() + d; voiceUntil = Math.max(voiceUntil, playEnd); }
+    return d;
+  }
+  function voiceLen(v, words) {
+    var buf = N.sound.line(v + "-" + N.sound.slug(words));
+    return buf ? buf.duration : 0;
+  }
   (function () {
     var people = [].concat(SAYS, TREND_SAYS);
     Object.keys(REAL).forEach(function (k) { people = people.concat(REAL[k].says); });
@@ -982,7 +1025,7 @@
     if (!force && gaffer.cool > 0) return;
     if (!force && Math.random() < 0.45) return;
     gaffer.cool = 3.5;
-    say(gafferSpeaker, pick(list), force);
+    return say(gafferSpeaker, pick(list), force);
   }
   function tickBubbles(dt) {
     captions.forEach(function (k) { k.t += dt; });
@@ -1211,13 +1254,13 @@
     if (!met) {
       phase = "between";
       shell.callout("Target: missed", { ms: 1500 });
-      gafferSay(GAFFER.missed, true);
-      end("pulled");
+      // the results wait for him to finish: the Clerk reading the stamp cuts him off
+      end("pulled", gafferSay(GAFFER.missed, true));
       return;
     }
     phase = "between";
     shell.callout("Target: met", { ms: 1100 });
-    gafferSay(GAFFER.met, true);
+    var talk = gafferSay(GAFFER.met, true) || 0;
     rng = N.seeded((shell.seed + 7 + stage * 7919) | 0);
     offers = offer();
     var next = stage + 1;
@@ -1237,7 +1280,7 @@
       stats: stats,
       ask: (STAGES[next].final ? "Final push next." : "Stage " + (next + 1) + ": " + STAGES[next].name + ".") + " Pick an upgrade.",
       choices: offers.map(function (u) { return { label: u.label, detail: typeof u.detail === "function" ? u.detail() : u.detail }; }),
-      delay: 1500
+      delay: Math.max(1500, Math.round(talk * 1000) + 150)
     }).then(function (i) {
       var u = offers[i] || offers[0];
       if (u) { run.taken.push(u.id); u.apply(run.mods); }
@@ -1262,7 +1305,7 @@
   // ---------------------------------------------------------------------------
   // The end of the round
   // ---------------------------------------------------------------------------
-  function end(why) {
+  function end(why, talk) {
     feed.forEach(function (p) { if (p.y < L.sy1 - L.cardH * 0.5) countSeen(p); });
     var pct = run.seen ? Math.round(run.slopSeen / run.seen * 100) : 0;
     var score = Math.round(run.score);
@@ -1275,22 +1318,22 @@
     var reachedAt = "stage " + (run.reached + 1);
     if (why === "approved") {
       rank = 1;
-      heading = diff ? "Over by " + by + "." : "Bang on target.";
+      heading = diff ? "Over target by " + by + "." : "Bang on target.";
       what = diff ? "final target beaten by " + by : "final target met exactly";
       line = "Nobody can tell what's real any more. The board has approved a bigger cannon.";
     } else if (why === "done") {
       rank = 2;
-      heading = "Short by " + by + ".";
+      heading = "Short of target by " + by + ".";
       what = "final push short by " + by;
       line = "The board will review it, which means nobody will.";
     } else if (run.reached >= 1) {
       rank = 3;
-      heading = "Short by " + by + ".";
+      heading = "Short of target by " + by + ".";
       what = "short by " + by + " at " + reachedAt;
       line = "Real people are still in the feed, posting their tea. The board has replaced you with a script.";
     } else {
       rank = 4;
-      heading = "Short by " + by + ".";
+      heading = "Short of target by " + by + ".";
       what = "short by " + by + " at stage 1";
       line = "The feed is still mostly people's dinners. The board has seen enough dinners.";
     }
@@ -1303,7 +1346,7 @@
                  value: fmt(rec.isNew ? score : rec.best || 0), highlight: rec.isNew });
     if (run.daily) stats.unshift({ label: "Run", value: shell.today });
     shell.finish({
-      place: rank, total: 4, heading: heading, line: line, stats: stats, delay: why === "pulled" ? 1600 : 900,
+      place: rank, total: 4, heading: heading, line: line, stats: stats, delay: why === "pulled" ? Math.max(1600, Math.round((talk || 0) * 1000) + 150) : 900,
       share: fmt(score) + " engagement, " + what
     });
   }
@@ -1590,7 +1633,7 @@
         '<p class="kit-meter" data-bots data-pad style="display: none"><span class="kit-meter-label">Bots</span><span class="kit-meter-bar"><span data-bots-bar></span></span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
-        '<p class="kit-stat kit-stat-big"><span data-score>0</span><small>engagement</small></p>' +
+        '<p class="kit-stat kit-stat-big kit-stat-stack"><span data-score>0</span><small>engagement</small></p>' +
         '<p class="kit-stat"><small>Chain</small><span data-chain>0</span></p>' +
       '</div>';
     hudEls = {};

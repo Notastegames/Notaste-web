@@ -83,6 +83,12 @@
 }
 .kit-stat-big { font-size: clamp(2rem, 2.6vw + 1.3rem, 3.2rem); }
 .kit-stat-big small { margin: 0 0 0 0.12em; font-size: 0.42em; }
+/* A big number that can run long (Slop Cannon's engagement): on a narrow
+   screen its word goes under it, so the number stays clear of the buttons */
+@container kit (max-width: 520px) {
+  .kit-stat-stack { display: grid; justify-items: end; }
+  .kit-stat-stack small { margin: 0.12em 0 0; }
+}
 
 .kit-mono {
   font-family: var(--mono);
