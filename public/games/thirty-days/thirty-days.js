@@ -35,7 +35,9 @@
 // "Match the sticker" round the right desk until that desk has had something
 // right; "Four meals to bed" round the meal in the HUD after the first thing
 // filed; "Full: signed off" round the pipes the first time they move. A wrong
-// desk brings the desk's ring back (three times a round at most). Every send
+// desk brings the desk's ring back (three times a round at most). A full
+// in-tray wears a "Full" stamp, and the first one in the way gets the ring
+// with "Full: wait" (sending to it spills, the dearest mistake). Every send
 // says right or wrong on the plate: a green tick, or a red cross, the screen's
 // edge flashing red and what it cost under the plate ("Wrong desk: pipes +5%").
 //
@@ -301,7 +303,7 @@
       marks: [],
       pill: null,
       verdict: null,
-      taught: run.taught || { liver: false, pancreas: false, kidneys: false, leaf: false, flush: false },
+      taught: run.taught || { liver: false, pancreas: false, kidneys: false, leaf: false, flush: false, full: false },
       nextId: 1,
       shake: 0,
       alarmT: 0
@@ -408,6 +410,8 @@
     if (!G || G.phase !== "play" || shell.state() !== "playing") return;
     var d = G.desks[id], it = G.plate;
     if (!it) { sfx.nope(); return; }
+    // the "Full: wait" ring has been seen once it's acted on, either way
+    if (G.ring && G.ring.full) G.taught.full = true;
     if (!d.open) {
       say(d, SAY.closed[0], 1.4);
       d.wobble = 1;
@@ -765,6 +769,14 @@
   // The pointer: a dashed ring round the one thing to do right now, with the
   // move's name on it, until you've shown you know
   function teach() {
+    var was = G.ring;
+    ring();
+    // "Full: wait" is learnt once it's been up a moment and then gone (they
+    // waited), or acted on (send() marks it)
+    if (G.ring && G.ring.full) G.ring.since = was && was.full ? was.since : anim;
+    else if (was && was.full && anim - was.since > 1.2) G.taught.full = true;
+  }
+  function ring() {
     G.ring = null;
     var it = G.plate;
     if (run.flushed) G.taught.flush = true;
@@ -781,6 +793,11 @@
     } else if (info().flush && !G.taught.flush && G.flushWait === 0 && id && G.desks[id].tray.length + countFlying(id) >= cap()) {
       // the first time Flush would save a spill: that desk's tray is full
       G.ring = { what: "hatch", word: keys ? "Flush: Space" : "Flush" };
+    } else if (!G.taught.full && id && G.desks[id].open && G.desks[id].tray.length + countFlying(id) >= cap() &&
+               !(info().flush && G.flushWait === 0)) {
+      // the first full in-tray that's in the way: sending now spills, which
+      // costs more than a wrong desk, so say what to do instead
+      G.ring = { what: id, word: "Full: wait", full: true };
     } else if (G.hint.flush > 0) {
       G.ring = { what: "hatch", word: "Recharging" };
     }
@@ -945,7 +962,7 @@
   function buildHud() {
     shell.hud.innerHTML =
       '<div class="kit-hud-tl">' +
-        '<p class="kit-stat" data-meals><small data-meal>Breakfast</small><span data-of>1 of 4</span></p>' +
+        '<p class="kit-stat kit-stat-stack" data-meals><small data-meal>Breakfast</small><span data-of>1 of 4</span></p>' +
       '</div>' +
       '<div class="kit-hud-tr">' +
         '<p class="kit-stat kit-stat-big" data-score>0</p>' +
@@ -1241,6 +1258,10 @@
       });
       if (d.stampK > 0) A.stamper(c, lo.tray.x, lo.tray.y - 1.5, 3, 1 - Math.abs(d.stampK - 0.5) * 2);
     }
+    if (d.open && d.tray.length + countFlying(id) >= cap()) {
+      // a full in-tray says so on its front: another one spills (pipes +14%)
+      A.stamp(c, lo.tray.x, lo.tray.y - 1.2, "Full", 3.2, id === "pancreas" ? 0.1 : -0.1, 1, 1);
+    }
     if (d.stampK > 0.5) {
       // a little "Processed" stamp pops up
       A.stamp(c, lo.tray.x, lo.tray.y - 9 - (1 - d.stampK) * 6, "Done", 3.8, -0.12, d.stampK, 1);
@@ -1336,13 +1357,32 @@
       var side = id === "pancreas" ? -1 : 1;
       var bw = A.bubbleWidth(c, d.say, size);
       var bx = head.x + side * (head.r + 2.6 + bw / 2);
-      A.bubble(c, bx, head.y - 2, d.say, size, head.x + side * head.r * 0.7, head.y, Math.min(1, d.sayT * 4), WW - 1.5, 1.5);
+      // the Kidneys talk to their right, unless the Flush button is there (a
+      // touch screen): then the left twin says it, to the left
+      if (id === "kidneys" && flushBox() && bx + bw / 2 > flushBox().x - 1) {
+        head = lo.heads[0];
+        side = -1;
+        bx = head.x - (head.r + 2.6 + bw / 2);
+      }
+      // on a narrow screen a long line reaches the plate: then it goes up,
+      // clear of the food that's just been thrown back (it's needed next)
+      var by = head.y - 2, bh = d.say.length * size * 1.08 + size * 0.75;
+      var foodTop = L.plate.y - 3 - 8.5, foodL = L.plate.x - 8, foodR = L.plate.x + 8;
+      if (id !== "kidneys" && bx - bw / 2 < foodR && bx + bw / 2 > foodL && by + bh / 2 > foodTop) by = foodTop - bh / 2;
+      A.bubble(c, bx, by, d.say, size, head.x + side * head.r * 0.7, head.y, Math.min(1, d.sayT * 4), WW - 1.5, 1.5);
     });
     if (G.heart.say) {
       var h = L.heart;
       var hw = A.bubbleWidth(c, G.heart.say, size);
       A.bubble(c, h.x + h.r + 3 + hw / 2, h.y - 3, G.heart.say, size, h.x + h.r * 0.7, h.y, Math.min(1, G.heart.t * 4), WW - 1.5, 1.5);
     }
+  }
+
+  // the Flush button, in world units, while it's on screen (touch only)
+  function flushBox() {
+    if (!padsOn() || !info().flush) return null;
+    var pad = root.querySelector('.kit-pad[data-key="flush"]');
+    return pad && pad.offsetParent ? boxOf(pad) : null;
   }
 
   // Right or wrong, said at once on the plate, where the eyes are: a green
@@ -1444,6 +1484,10 @@
         if (pad) { r = boxOf(pad); r.x -= 1; r.y -= 1; r.w += 2; r.h += 2; }
         else { var hh = L.hatch; r = { x: hh.x - hh.r * 1.6, y: hh.y - hh.r * 1.6, w: hh.r * 3.2, h: hh.r * 3.2 }; }
         below = false;
+      } else if (G.pill) {
+        // after a mistake the cost is said first, then where it should have
+        // gone: on a phone the Kidneys' word sits where the pill is
+        r = null;
       } else {
         var b = L[G.ring.what].hit;
         r = { x: b.x, y: b.y + 1, w: b.w, h: b.h - 1 };
@@ -1608,9 +1652,11 @@
     ctx = (shell ? shell.canvas : root.querySelector("canvas")).getContext("2d");
     L = layout();
     bg = null;
-    // in-game stamps land in the chute, under the board: over what's coming
-    // next, never over the plate or a desk
-    if (shell) shell.placeCallouts({ top: (L.board.y + L.board.h + 1.5) * U });
+    // in-game stamps land on the speaker's board, over the chute: never over
+    // the plate or a desk, and (on a phone) clear of the clerks' bubbles
+    // beside their heads, where "A cola? Try next door" used to go under
+    // "Not my department"
+    if (shell) shell.placeCallouts({ top: (L.board.y - 0.5) * U });
   }
 
   // ---------------------------------------------------------------------------

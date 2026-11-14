@@ -88,6 +88,10 @@
 @container kit (max-width: 520px) {
   .kit-stat-stack { display: grid; justify-items: end; }
   .kit-stat-stack small { margin: 0.12em 0 0; }
+  /* top left, with its word first (Thirty Days' meal): the word over the
+     number, so a long one ("The late one") stays clear of the pause button */
+  .kit-hud-tl .kit-stat-stack { justify-items: start; }
+  .kit-hud-tl .kit-stat-stack small:first-child { margin: 0 0 0.15em; }
 }
 
 .kit-mono {
